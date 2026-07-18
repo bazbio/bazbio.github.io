@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>브리지</title>
+<meta name="theme-color" content="#1C69D4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="브리지">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:#F5F5F7; }
+  #app { position:fixed; inset:0; width:100%; height:100%; border:0; }
+
+  /* ── 스플래시: 워드마크가 선명해지며 아래로 다리(선)가 놓이는 인트로 ── */
+  #load { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          background:#FFFFFF; z-index:10; transition:opacity .5s ease; }
+
+  .wm { font-family:-apple-system,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+        font-size:min(19vw,96px); font-weight:800; line-height:1;
+        background:linear-gradient(120deg,#1C69D4 25%,#1A2129 90%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent; color:#1C69D4;
+        animation:focusin 1.8s cubic-bezier(.16,1,.3,1) both; }
+
+  .bridge-line { margin-top:20px; width:min(52vw,270px); height:4px; border-radius:99px; position:relative;
+                 background:linear-gradient(90deg,#1C69D4,#1A2129);
+                 transform:scaleX(0); transform-origin:center;
+                 animation:span 1s cubic-bezier(.16,1,.3,1) 1.35s both; }
+  .bridge-line::before, .bridge-line::after {
+    content:''; position:absolute; top:-3px; width:10px; height:10px; border-radius:50%;
+    opacity:0; animation:pier .4s ease 2.15s forwards; }
+  .bridge-line::before { left:-3px;  background:#1C69D4; }
+  .bridge-line::after  { right:-3px; background:#1A2129; }
+
+  .sub { margin-top:22px; font-family:-apple-system,'Malgun Gothic',sans-serif;
+         font-size:14px; font-weight:600; color:#B9B9C0; letter-spacing:.42em; text-indent:.42em;
+         opacity:0; animation:subin 1.1s ease 1.5s forwards; }
+
+  @keyframes focusin {
+    0%   { opacity:0; letter-spacing:.34em; filter:blur(14px); transform:scale(1.06); }
+    55%  { opacity:1; }
+    100% { opacity:1; letter-spacing:-.02em; filter:blur(0); transform:scale(1); }
+  }
+  @keyframes span { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+  @keyframes pier { from { opacity:0; transform:scale(0); } to { opacity:1; transform:scale(1); } }
+  @keyframes subin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+</head>
+<body>
+<div id="load">
+  <div class="wm">브리지</div>
+  <div class="bridge-line"></div>
+  <div class="sub">BAZ BIOMEDIC</div>
+</div>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbx9Y99D3BdLucPbmYVb14Go7fOhtnIXQ7namenu9zRe0BWXL6rV4vCD2eCuWx4He21fqw/exec"
+        allow="clipboard-write" onload="appReady()"></iframe>
+<script>
+  var T0 = Date.now();
+  function appReady() {
+    // 애니메이션이 최소 3.2초는 보이도록, 로딩이 오래 걸리면 즉시 전환
+    var wait = Math.max(0, 3200 - (Date.now() - T0));
+    setTimeout(function () {
+      var l = document.getElementById('load');
+      l.style.opacity = 0;
+      setTimeout(function () { l.style.display = 'none'; }, 450);
+    }, wait);
+  }
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+</script>
+</body>
+</html>
