@@ -47,6 +47,7 @@
     border-radius:50%; background:#3ED07E;
   }
   .mark.bridge { background:linear-gradient(135deg,#1C69D4,#1A2129); }
+  .mark.budget { background:linear-gradient(135deg,#34C77B,#0E7A3C); }
 
   .info { flex:1; min-width:0; }
   .info .name { font-size:18px; font-weight:700; letter-spacing:-.01em; }
@@ -65,21 +66,6 @@
   .appqr svg { width:72px; height:72px; display:block; }
   .appqr span { font-size:9.5px; font-weight:700; color:#B0B0B6; letter-spacing:.08em; }
   @media (max-width:480px) { .appqr { display:none; } }  /* 폰에서는 카드 터치로 바로 이동 */
-
-  .news {
-    width:100%; max-width:560px; margin-top:16px;
-    background:#FFFFFF; border-radius:20px; padding:20px;
-    box-shadow:0 2px 12px rgba(0,0,0,.06); display:none;
-  }
-  .news-head { display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
-  .news-head .nt { font-size:16px; font-weight:700; }
-  .news-head .ns { font-size:12px; color:#8E8E93; }
-  .news-head .nu { margin-left:auto; font-size:11px; color:#C4C4CA; }
-  .news-item { display:block; text-decoration:none; color:inherit; padding:11px 2px; border-bottom:1px solid #F2F2F7; }
-  .news-item:last-child { border-bottom:0; padding-bottom:2px; }
-  .news-item .ti { font-size:14px; font-weight:600; line-height:1.45; color:#1C1C1E; }
-  .news-item:hover .ti { color:#0A57C2; }
-  .news-item .mt { margin-top:3px; font-size:12px; color:#8E8E93; }
 
   footer { margin-top:auto; padding-top:48px; font-size:11.5px; color:#C4C4CA; text-align:center; line-height:1.7; }
 </style>
@@ -122,15 +108,6 @@
 
 </div>
 
-<div class="news" id="news">
-  <div class="news-head">
-    <div class="nt">업계 뉴스</div>
-    <div class="ns">피부 · 미용 · 의료기기</div>
-    <div class="nu" id="news-updated"></div>
-  </div>
-  <div id="news-list"></div>
-</div>
-
 <footer>
   새 플랫폼이 생기면 이 페이지에 계속 추가됩니다.<br>
   BAZ BIOMEDIC · 업무 포털
@@ -141,32 +118,6 @@
   var days = ['일','월','화','수','목','금','토'];
   document.getElementById('today').textContent =
     d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일 (' + days[d.getDay()] + ')';
-
-  // 업계 뉴스 (news.json은 GitHub Actions가 매일 아침 자동 갱신)
-  function timeAgo(iso) {
-    var diff = (Date.now() - new Date(iso).getTime()) / 36e5;
-    if (diff < 1) return '방금 전';
-    if (diff < 24) return Math.floor(diff) + '시간 전';
-    var dt = new Date(iso);
-    return (dt.getMonth()+1) + '/' + dt.getDate();
-  }
-  fetch('news.json?v=' + Math.floor(Date.now()/6e5)).then(function(r){ return r.json(); }).then(function(data) {
-    if (!data.items || !data.items.length) return;
-    var list = document.getElementById('news-list');
-    data.items.slice(0, 8).forEach(function(n) {
-      var a = document.createElement('a');
-      a.className = 'news-item'; a.href = n.u; a.target = '_blank'; a.rel = 'noopener';
-      var ti = document.createElement('div'); ti.className = 'ti'; ti.textContent = n.t;
-      var mt = document.createElement('div'); mt.className = 'mt'; mt.textContent = n.s + ' · ' + timeAgo(n.d);
-      a.appendChild(ti); a.appendChild(mt); list.appendChild(a);
-    });
-    if (data.updated) {
-      var u = new Date(data.updated);
-      document.getElementById('news-updated').textContent = (u.getMonth()+1) + '/' + u.getDate() + ' ' +
-        ('0'+u.getHours()).slice(-2) + ':' + ('0'+u.getMinutes()).slice(-2) + ' 갱신';
-    }
-    document.getElementById('news').style.display = 'block';
-  }).catch(function(){});
 </script>
 </body>
 </html>
