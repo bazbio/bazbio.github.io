@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>SalesON</title>
+<meta name="theme-color" content="#0A84FF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SalesON">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:#F2F2F7; }
+  #app { position:fixed; inset:0; width:100%; height:100%; border:0; }
+
+  /* ── 스플래시: 화이트 위에 파란 워드마크가 조여들며 선명해지는 인트로 ── */
+  #load { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          background:#FFFFFF; z-index:10; transition:opacity .5s ease; }
+
+  .wm { position:relative; font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;
+        font-size:min(21vw,110px); font-weight:800; line-height:1;
+        background:linear-gradient(120deg,#0A84FF 20%,#0A57C2 80%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent; color:#0A84FF;
+        animation:focusin 1.8s cubic-bezier(.16,1,.3,1) both; }
+
+  .wm .on-dot { position:absolute; top:0; right:-26px; width:20px; height:20px; border-radius:50%;
+                background:#3ED07E; opacity:0; transform:scale(0);
+                animation:doton .5s cubic-bezier(.2,1.6,.4,1) 1.65s forwards,
+                          breath 2.2s ease-in-out 2.3s infinite; }
+
+  .sub { margin-top:24px; font-family:-apple-system,'Malgun Gothic',sans-serif;
+         font-size:14px; font-weight:600; color:#B9B9C0; letter-spacing:.42em; text-indent:.42em;
+         opacity:0; animation:subin 1.1s ease 1.2s forwards; }
+
+  @keyframes focusin {
+    0%   { opacity:0; letter-spacing:.34em; filter:blur(14px); transform:scale(1.06); }
+    55%  { opacity:1; }
+    100% { opacity:1; letter-spacing:-.02em; filter:blur(0); transform:scale(1); }
+  }
+  @keyframes doton {
+    0%   { opacity:0; transform:scale(0); }
+    100% { opacity:1; transform:scale(1); }
+  }
+  @keyframes breath {
+    0%,100% { box-shadow:0 0 0 0 rgba(62,208,126,.45); }
+    50%     { box-shadow:0 0 0 9px rgba(62,208,126,0); }
+  }
+  @keyframes subin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+</head>
+<body>
+<div id="load">
+  <div class="wm">SalesON<span class="on-dot"></span></div>
+  <div class="sub">BAZ BIOMEDIC</div>
+</div>
+<iframe id="app" src="https://script.google.com/macros/s/AKfycbwOBKGwKxNy7Wjvc_s_fDftC5KqIcVSxGHo8e_UGG6lM-lVkUENtyECThgpNABZjW0gKA/exec"
+        allow="clipboard-write" onload="appReady()"></iframe>
+<script>
+  var T0 = Date.now();
+  function appReady() {
+    // 애니메이션이 최소 3.2초는 보이도록, 로딩이 오래 걸리면 즉시 전환
+    var wait = Math.max(0, 3200 - (Date.now() - T0));
+    setTimeout(function () {
+      var l = document.getElementById('load');
+      l.style.opacity = 0;
+      setTimeout(function () { l.style.display = 'none'; }, 450);
+    }, wait);
+  }
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+</script>
+</body>
+</html>
