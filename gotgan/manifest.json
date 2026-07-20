@@ -2,7 +2,7 @@
   "name": "곳간",
   "short_name": "곳간",
   "description": "BAZ BIOMEDIC 예산관리 (FY2026 2H 판관비)",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
