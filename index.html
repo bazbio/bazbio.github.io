@@ -4,157 +4,199 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BAZ 업무 포털</title>
-<meta name="theme-color" content="#0A57C2">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A57C2'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='800' fill='white' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#3182F6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233182F6'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='800' fill='white' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
+  :root {
+    /* 표면 */
+    --bg:#F2F4F6;
+    --surface:#FFFFFF;
+    --line:#E5E8EB;
+    /* 글자 */
+    --ink:#191F28;
+    --ink-2:#4E5968;
+    --ink-3:#6B7684;   /* 흰 배경 대비 4.6:1 — 작은 글씨도 읽히는 선 */
+    --ink-4:#A7AFB9;   /* 장식용 워드마크 전용 */
+    /* 액센트 */
+    --blue:#3182F6;
+    /* 앱별 마크 색 */
+    --saleson:#3182F6;  --saleson-t:#1B64DA;
+    --bridge:#1A3A6B;   --bridge-t:#1A3A6B;
+    --gotgan:#0AA06A;   --gotgan-t:#067A50;
+    --stock:#533AFD;    --stock-t:#4433D4;
+    /* 모양 */
+    --r-card:20px;
+    --r-mark:14px;
+    --ease:cubic-bezier(.16,1,.3,1);
+    --lift:0 1px 2px rgba(23,31,41,.04), 0 12px 32px -16px rgba(23,31,41,.14);
+    --lift-hover:0 2px 4px rgba(23,31,41,.05), 0 24px 44px -18px rgba(23,31,41,.20);
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { min-height:100%; }
   body {
-    font-family:-apple-system,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
-    background:#F2F2F7; color:#1C1C1E;
+    font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:var(--bg); color:var(--ink);
     display:flex; flex-direction:column; align-items:center;
-    padding:max(40px,env(safe-area-inset-top)) 20px 40px;
+    padding:max(44px,calc(env(safe-area-inset-top) + 24px)) 20px 40px;
+    -webkit-font-smoothing:antialiased;
   }
-  .brand { text-align:center; margin-bottom:8px; }
-  .brand h1 {
-    font-size:28px; font-weight:800; letter-spacing:-.02em;
-    background:linear-gradient(120deg,#0A84FF 15%,#0A57C2 85%);
-    -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; color:#0A57C2;
-  }
-  .brand p { margin-top:6px; font-size:12.5px; font-weight:600; color:#B0B0B6; letter-spacing:.34em; text-indent:.34em; }
-  .date { margin-top:14px; font-size:13px; color:#8E8E93; }
 
-  .cards { width:100%; max-width:720px; margin-top:28px; display:flex; flex-direction:column; gap:16px; }
+  .wrap { width:100%; max-width:720px; }
+
+  /* ── 헤더 ────────────────────────────────── */
+  header h1 {
+    font-size:27px; font-weight:800; letter-spacing:-.03em;
+    color:var(--ink); word-break:keep-all;
+  }
+  header .date {
+    margin-top:7px; font-size:14px; font-weight:500; color:var(--ink-3);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ── 카드 그리드 ──────────────────────────── */
+  .cards {
+    margin-top:26px;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:14px;
+  }
 
   .card {
-    display:flex; align-items:center; gap:16px; text-decoration:none; color:inherit;
-    background:#FFFFFF; border-radius:20px; padding:22px 20px;
-    box-shadow:0 2px 12px rgba(0,0,0,.06);
-    transition:transform .15s ease, box-shadow .15s ease;
+    display:flex; flex-direction:column;
+    text-decoration:none; color:inherit;
+    background:var(--surface); border-radius:var(--r-card);
+    padding:22px 20px 20px;
+    box-shadow:var(--lift);
+    transition:transform .22s var(--ease), box-shadow .22s var(--ease);
   }
-  .card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.10); }
-  .card:active { transform:scale(.98); }
+  .card:hover { transform:translateY(-3px); box-shadow:var(--lift-hover); }
+  .card:active { transform:scale(.985); }
+  .card:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
 
   .mark {
-    flex:0 0 56px; height:56px; border-radius:15px;
+    width:44px; height:44px; border-radius:var(--r-mark);
     display:flex; align-items:center; justify-content:center;
-    font-size:24px; font-weight:800; color:#fff; position:relative;
+    font-size:19px; font-weight:800; color:#fff; letter-spacing:-.02em;
+    flex:none;
   }
-  .mark.saleson { background:linear-gradient(135deg,#0A84FF,#0A57C2); }
-  .mark.saleson::after {
-    content:''; position:absolute; top:9px; right:9px; width:8px; height:8px;
-    border-radius:50%; background:#3ED07E;
-  }
-  .mark.bridge { background:linear-gradient(135deg,#1C69D4,#1A2129); }
-  .mark.budget { background:linear-gradient(135deg,#12A75C,#075D33); }
-  .mark.budget::after {
-    content:''; position:absolute; top:9px; right:9px; width:8px; height:8px;
-    border-radius:50%; background:#F5C542;
-  }
-  /* 창고지기 — 앱 자체 팔레트(인디고 #533afd → 딥네이비 #1c1e54)를 그대로 따른다 */
-  .mark.stock { background:linear-gradient(135deg,#533AFD,#1C1E54); }
+  .mark.saleson { background:var(--saleson); }
+  .mark.bridge  { background:var(--bridge); }
+  .mark.gotgan  { background:var(--gotgan); }
+  .mark.stock   { background:var(--stock); }
 
-  .info { flex:1; min-width:0; }
-  .info .name { font-size:18px; font-weight:700; letter-spacing:-.01em; }
-  .info .desc {
-    margin-top:7px; font-size:13px; color:#98989E; line-height:1.5;
-    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
-  }
   .cat {
-    flex:none; font-size:11.5px; font-weight:700; letter-spacing:.01em;
-    padding:3px 9px; border-radius:999px;
+    margin-top:17px; font-size:11.5px; font-weight:700; letter-spacing:-.01em;
   }
-  .cat.saleson { color:#0A57C2; background:rgba(10,132,255,.10); }
-  .cat.bridge  { color:#1C69D4; background:rgba(28,105,212,.10); }
-  .cat.budget  { color:#0E7A3C; background:rgba(52,199,123,.13); }
-  .cat.stock   { color:#4433D4; background:rgba(83,58,253,.10); }
+  .cat.saleson { color:var(--saleson-t); }
+  .cat.bridge  { color:var(--bridge-t); }
+  .cat.gotgan  { color:var(--gotgan-t); }
+  .cat.stock   { color:var(--stock-t); }
 
-  .go {
-    flex:0 0 auto; width:34px; height:34px; border-radius:50%;
-    background:#F2F2F7; display:flex; align-items:center; justify-content:center;
-    color:#0A57C2; font-size:16px; font-weight:700;
+  .name {
+    margin-top:5px; font-size:18px; font-weight:700; letter-spacing:-.03em;
+    color:var(--ink); word-break:keep-all;
+  }
+  .desc {
+    margin-top:7px; font-size:13px; font-weight:500; line-height:1.55;
+    color:var(--ink-3); letter-spacing:-.01em; word-break:keep-all;
   }
 
-  .appqr {
-    flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:5px;
-    padding:7px 7px 5px; background:#FFFFFF; border:1px solid #ECECF0; border-radius:12px;
+  /* ── QR 묶음 ─────────────────────────────── */
+  .qrbox {
+    margin-top:14px; background:var(--surface); border-radius:var(--r-card);
+    padding:22px 20px 20px; box-shadow:var(--lift);
   }
-  .appqr svg { width:72px; height:72px; display:block; }
-  .appqr span { font-size:9.5px; font-weight:700; color:#B0B0B6; letter-spacing:.08em; }
-  @media (max-width:480px) { .appqr { display:none; } }  /* 폰에서는 카드 터치로 바로 이동 */
+  .qrbox h2 { font-size:13px; font-weight:700; color:var(--ink-2); letter-spacing:-.02em; }
+  .qrbox .hint { margin-top:4px; font-size:12px; font-weight:500; color:var(--ink-3); }
+  .qrs { margin-top:18px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .qr { text-align:center; }
+  .qr svg { width:100%; max-width:86px; height:auto; aspect-ratio:1; display:block; margin:0 auto; }
+  .qr span { display:block; margin-top:9px; font-size:11.5px; font-weight:600; color:var(--ink-3); }
+  @media (max-width:480px) { .qrbox { display:none; } }  /* 폰에서는 카드 터치로 바로 이동 */
 
-  footer { margin-top:auto; padding-top:48px; font-size:11.5px; color:#C4C4CA; text-align:center; line-height:1.7; }
+  footer {
+    margin-top:36px; text-align:center; line-height:1.8;
+    font-size:11.5px; font-weight:500; color:var(--ink-3);
+  }
+  footer .brand { display:block; margin-bottom:4px; font-weight:700; letter-spacing:.3em; text-indent:.3em; color:var(--ink-4); }
+
+  /* ── 좁은 화면 ───────────────────────────── */
+  @media (max-width:480px) {
+    body { padding-left:16px; padding-right:16px; }
+    header h1 { font-size:23px; }
+    .cards { gap:10px; margin-top:22px; }
+    .card { padding:18px 16px 16px; border-radius:18px; }
+    .mark { width:40px; height:40px; border-radius:12px; font-size:17px; }
+    .cat { margin-top:14px; font-size:11px; }
+    .name { font-size:16px; }
+    .desc { margin-top:6px; font-size:12px; line-height:1.5; }
+  }
+
+  @media (prefers-reduced-motion:reduce) {
+    .card { transition:none; }
+    .card:hover, .card:active { transform:none; }
+  }
 </style>
 </head>
 <body>
 
-<div class="brand">
-  <h1>BAZ 업무 포털</h1>
-  <p>BAZ BIOMEDIC</p>
-</div>
-<div class="date" id="today"></div>
+<div class="wrap">
 
-<div class="cards">
+  <header>
+    <h1>BAZ 업무 포털</h1>
+    <div class="date" id="today"></div>
+  </header>
 
-  <a class="card" href="https://bazbio.github.io/saleson/" target="_blank" rel="noopener">
-    <div class="mark saleson">S</div>
-    <div class="info">
+  <div class="cards">
+
+    <a class="card" href="https://bazbio.github.io/saleson/" target="_blank" rel="noopener">
+      <div class="mark saleson">S</div>
+      <div class="cat saleson">국내영업 CRM</div>
       <div class="name">SalesON</div>
-      <div class="desc"><span class="cat saleson">국내영업 CRM</span>거래처 · 리드 · 일정 · 실적 관리</div>
-    </div>
-    <div class="appqr" aria-label="SalesON 접속 QR">
-      <svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" shape-rendering="crispEdges"><path stroke="#1C1C1E" d="M4 4.5h7m2 0h1m1 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m3 0h1m1 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h8m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h2m2 0h6m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m3 0h1m1 0h1m3 0h1M4 12.5h1m1 0h5m3 0h3m1 0h2m1 0h2m3 0h5M5 13.5h2m1 0h2m1 0h2m2 0h1m3 0h10m3 0h1M4 14.5h1m1 0h2m2 0h3m1 0h3m4 0h1m2 0h3M4 15.5h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m1 0h1m3 0h1m3 0h2m1 0h1M4 16.5h4m1 0h3m2 0h1m1 0h1m4 0h1m2 0h1m4 0h2M6 17.5h1m1 0h2m1 0h9m3 0h6m3 0h1M4 18.5h2m1 0h1m1 0h3m1 0h10m3 0h1m2 0h2M4 19.5h2m1 0h3m3 0h1m3 0h1m2 0h1m5 0h1m4 0h1M6 20.5h2m2 0h1m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h2m1 0h2m2 0h2m2 0h2m5 0h7m1 0h1m1 0h1M4 22.5h1m2 0h8m4 0h1m2 0h1m3 0h3m1 0h1M4 23.5h1m4 0h1m1 0h3m4 0h1m1 0h1m3 0h3m1 0h1m2 0h1M4 24.5h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h1m4 0h1m2 0h5m1 0h3M12 25.5h1m1 0h2m1 0h2m1 0h5m3 0h5M4 26.5h7m2 0h1m2 0h5m2 0h2m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m4 0h1m2 0h1m1 0h3m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h4m2 0h3m3 0h8M4 31.5h1m5 0h1m2 0h1m1 0h2m7 0h1m4 0h1m1 0h1M4 32.5h7m1 0h4m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1"/></svg>
-      <span>QR 접속</span>
-    </div>
-    <div class="go">›</div>
-  </a>
+      <div class="desc">거래처 · 리드 · 일정 · 실적 관리</div>
+    </a>
 
-  <a class="card" href="https://bazbio.github.io/bridge/" target="_blank" rel="noopener">
-    <div class="mark bridge">B</div>
-    <div class="info">
+    <a class="card" href="https://bazbio.github.io/bridge/" target="_blank" rel="noopener">
+      <div class="mark bridge">B</div>
+      <div class="cat bridge">업무지시 플랫폼</div>
       <div class="name">브리지</div>
-      <div class="desc"><span class="cat bridge">업무지시 플랫폼</span>지시 등록 · 답변 · 기한 회신 · 미팅 요청</div>
-    </div>
-    <div class="appqr" aria-label="브리지 접속 QR">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path stroke="#1C1C1E" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h4M17 0.5h4M22 0.5h7M0 1.5h1M6 1.5h1M8 1.5h4M13 1.5h1M16 1.5h2M20 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M9 2.5h2M16 2.5h1M18 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M8 3.5h4M14 3.5h2M17 3.5h1M19 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M10 4.5h1M14 4.5h1M16 4.5h1M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M9 5.5h5M15 5.5h5M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M8 7.5h3M15 7.5h6M0 8.5h1M2 8.5h2M5 8.5h3M9 8.5h3M13 8.5h1M15 8.5h1M17 8.5h1M19 8.5h1M22 8.5h1M25 8.5h1M27 8.5h2M0 9.5h1M2 9.5h2M5 9.5h1M7 9.5h2M10 9.5h6M17 9.5h8M28 9.5h1M0 10.5h2M5 10.5h2M8 10.5h1M10 10.5h1M13 10.5h1M16 10.5h1M18 10.5h1M22 10.5h3M26 10.5h2M1 11.5h1M3 11.5h3M7 11.5h1M10 11.5h2M16 11.5h1M18 11.5h5M28 11.5h1M1 12.5h2M4 12.5h3M8 12.5h5M14 12.5h2M17 12.5h1M20 12.5h1M25 12.5h2M0 13.5h5M7 13.5h3M12 13.5h1M14 13.5h1M16 13.5h2M19 13.5h1M22 13.5h1M26 13.5h3M0 14.5h1M4 14.5h3M10 14.5h1M13 14.5h1M15 14.5h3M19 14.5h1M21 14.5h1M24 14.5h1M26 14.5h3M1 15.5h2M5 15.5h1M7 15.5h5M14 15.5h1M16 15.5h1M18 15.5h1M22 15.5h1M27 15.5h1M0 16.5h1M5 16.5h2M9 16.5h2M14 16.5h2M18 16.5h3M24 16.5h2M27 16.5h1M1 17.5h2M4 17.5h1M7 17.5h1M9 17.5h2M12 17.5h1M14 17.5h1M16 17.5h1M18 17.5h1M20 17.5h1M23 17.5h1M25 17.5h3M0 18.5h1M6 18.5h2M11 18.5h8M22 18.5h3M26 18.5h1M4 19.5h2M7 19.5h2M10 19.5h8M22 19.5h2M26 19.5h1M1 20.5h2M6 20.5h1M10 20.5h1M13 20.5h14M8 21.5h2M11 21.5h2M17 21.5h4M24 21.5h5M0 22.5h7M8 22.5h1M10 22.5h3M14 22.5h1M16 22.5h2M19 22.5h2M22 22.5h1M24 22.5h2M27 22.5h1M0 23.5h1M6 23.5h1M8 23.5h1M12 23.5h3M18 23.5h1M20 23.5h1M24 23.5h2M28 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h2M15 24.5h1M17 24.5h1M20 24.5h5M26 24.5h2M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M10 25.5h3M15 25.5h3M19 25.5h3M23 25.5h3M28 25.5h1M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h1M10 26.5h1M13 26.5h2M18 26.5h3M23 26.5h1M26 26.5h1M28 26.5h1M0 27.5h1M6 27.5h1M9 27.5h1M11 27.5h1M13 27.5h2M16 27.5h1M18 27.5h1M20 27.5h1M25 27.5h1M27 27.5h1M0 28.5h7M8 28.5h5M18 28.5h6M27 28.5h1"/></svg>
-      <span>QR 접속</span>
-    </div>
-    <div class="go">›</div>
-  </a>
+      <div class="desc">지시 등록 · 답변 · 기한 회신 · 미팅 요청</div>
+    </a>
 
-  <a class="card" href="https://bazbio.github.io/gotgan/index.html" target="_blank" rel="noopener">
-    <div class="mark budget">곳</div>
-    <div class="info">
+    <a class="card" href="https://bazbio.github.io/gotgan/index.html" target="_blank" rel="noopener">
+      <div class="mark gotgan">곳</div>
+      <div class="cat gotgan">판관비 예산</div>
       <div class="name">곳간</div>
-      <div class="desc"><span class="cat budget">판관비 예산</span>26년 하반기 예산 · 집행 · 잔액 추적</div>
-    </div>
-    <div class="appqr" aria-label="곳간 접속 QR">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path stroke="#1C1C1E" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h1M15 0.5h6M22 0.5h7M0 1.5h1M6 1.5h1M9 1.5h2M12 1.5h1M15 1.5h2M18 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M10 2.5h1M12 2.5h2M16 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M12 3.5h4M17 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M9 4.5h1M11 4.5h1M13 4.5h4M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M11 5.5h1M13 5.5h2M16 5.5h4M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M10 7.5h3M15 7.5h1M1 8.5h3M6 8.5h3M11 8.5h1M15 8.5h2M18 8.5h1M20 8.5h2M28 8.5h1M2 9.5h3M8 9.5h3M13 9.5h1M15 9.5h2M18 9.5h5M24 9.5h3M1 10.5h2M5 10.5h2M14 10.5h2M18 10.5h1M25 10.5h1M28 10.5h1M0 11.5h2M3 11.5h1M9 11.5h1M11 11.5h2M16 11.5h2M22 11.5h1M24 11.5h2M27 11.5h2M1 12.5h3M6 12.5h1M8 12.5h1M14 12.5h3M18 12.5h4M23 12.5h2M26 12.5h3M3 13.5h3M8 13.5h2M16 13.5h3M20 13.5h2M24 13.5h1M26 13.5h1M3 14.5h1M5 14.5h2M8 14.5h2M13 14.5h4M19 14.5h4M24 14.5h1M26 14.5h2M2 15.5h1M8 15.5h4M13 15.5h2M17 15.5h3M21 15.5h3M25 15.5h2M28 15.5h1M1 16.5h4M6 16.5h2M11 16.5h5M17 16.5h1M19 16.5h1M21 16.5h1M23 16.5h5M3 17.5h3M8 17.5h3M14 17.5h1M16 17.5h2M20 17.5h1M26 17.5h1M28 17.5h1M0 18.5h2M4 18.5h1M6 18.5h1M8 18.5h2M13 18.5h1M17 18.5h1M23 18.5h1M25 18.5h1M2 19.5h3M7 19.5h1M9 19.5h1M12 19.5h2M16 19.5h3M21 19.5h5M28 19.5h1M2 20.5h2M6 20.5h1M10 20.5h2M13 20.5h1M15 20.5h1M17 20.5h8M26 20.5h1M8 21.5h1M10 21.5h2M15 21.5h2M20 21.5h1M24 21.5h4M0 22.5h7M8 22.5h1M10 22.5h1M12 22.5h3M17 22.5h1M19 22.5h2M22 22.5h1M24 22.5h1M26 22.5h3M0 23.5h1M6 23.5h1M9 23.5h1M12 23.5h2M16 23.5h2M20 23.5h1M24 23.5h1M26 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h1M13 24.5h1M17 24.5h8M26 24.5h1M28 24.5h1M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M11 25.5h1M14 25.5h1M16 25.5h1M18 25.5h1M21 25.5h2M24 25.5h4M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h2M14 26.5h4M20 26.5h1M22 26.5h1M25 26.5h4M0 27.5h1M6 27.5h1M8 27.5h2M13 27.5h1M17 27.5h1M20 27.5h1M24 27.5h1M26 27.5h1M0 28.5h7M12 28.5h2M15 28.5h1M17 28.5h2M20 28.5h1M23 28.5h1M25 28.5h1M27 28.5h1"/></svg>
-      <span>QR 접속</span>
-    </div>
-    <div class="go">›</div>
-  </a>
+      <div class="desc">26년 하반기 예산 · 집행 · 잔액 추적</div>
+    </a>
 
-  <a class="card" href="https://script.google.com/macros/s/AKfycby3HcS0CZKvFvcyRk4lar9ZZiyJA7LgM9uXTyst3DMmlL2vM-UIDPBFU4MEpOS7Q8dssg/exec" target="_blank" rel="noopener">
-    <div class="mark stock">창</div>
-    <div class="info">
+    <a class="card" href="https://script.google.com/macros/s/AKfycby3HcS0CZKvFvcyRk4lar9ZZiyJA7LgM9uXTyst3DMmlL2vM-UIDPBFU4MEpOS7Q8dssg/exec" target="_blank" rel="noopener">
+      <div class="mark stock">창</div>
+      <div class="cat stock">재고 · 매입기안</div>
       <div class="name">창고지기</div>
-      <div class="desc"><span class="cat stock">재고 · 매입기안</span>재고 적정성 판정 · 원재료 매입기안 검증</div>
+      <div class="desc">재고 적정성 판정 · 원재료 매입기안 검증</div>
+    </a>
+
+  </div>
+
+  <section class="qrbox" aria-label="폰으로 접속하는 QR 코드">
+    <h2>폰으로 바로 접속</h2>
+    <p class="hint">카메라로 QR을 찍으면 폰에서 열립니다.</p>
+    <div class="qrs">
+      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m2 0h1m1 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m3 0h1m1 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h8m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h2m2 0h6m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m3 0h1m1 0h1m3 0h1M4 12.5h1m1 0h5m3 0h3m1 0h2m1 0h2m3 0h5M5 13.5h2m1 0h2m1 0h2m2 0h1m3 0h10m3 0h1M4 14.5h1m1 0h2m2 0h3m1 0h3m4 0h1m2 0h3M4 15.5h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m1 0h1m3 0h1m3 0h2m1 0h1M4 16.5h4m1 0h3m2 0h1m1 0h1m4 0h1m2 0h1m4 0h2M6 17.5h1m1 0h2m1 0h9m3 0h6m3 0h1M4 18.5h2m1 0h1m1 0h3m1 0h10m3 0h1m2 0h2M4 19.5h2m1 0h3m3 0h1m3 0h1m2 0h1m5 0h1m4 0h1M6 20.5h2m2 0h1m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h2m1 0h2m2 0h2m2 0h2m5 0h7m1 0h1m1 0h1M4 22.5h1m2 0h8m4 0h1m2 0h1m3 0h3m1 0h1M4 23.5h1m4 0h1m1 0h3m4 0h1m1 0h1m3 0h3m1 0h1m2 0h1M4 24.5h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h1m4 0h1m2 0h5m1 0h3M12 25.5h1m1 0h2m1 0h2m1 0h5m3 0h5M4 26.5h7m2 0h1m2 0h5m2 0h2m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m4 0h1m2 0h1m1 0h3m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h4m2 0h3m3 0h8M4 31.5h1m5 0h1m2 0h1m1 0h2m7 0h1m4 0h1m1 0h1M4 32.5h7m1 0h4m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1"/></svg><span>SalesON</span></div>
+      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h4M17 0.5h4M22 0.5h7M0 1.5h1M6 1.5h1M8 1.5h4M13 1.5h1M16 1.5h2M20 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M9 2.5h2M16 2.5h1M18 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M8 3.5h4M14 3.5h2M17 3.5h1M19 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M10 4.5h1M14 4.5h1M16 4.5h1M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M9 5.5h5M15 5.5h5M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M8 7.5h3M15 7.5h6M0 8.5h1M2 8.5h2M5 8.5h3M9 8.5h3M13 8.5h1M15 8.5h1M17 8.5h1M19 8.5h1M22 8.5h1M25 8.5h1M27 8.5h2M0 9.5h1M2 9.5h2M5 9.5h1M7 9.5h2M10 9.5h6M17 9.5h8M28 9.5h1M0 10.5h2M5 10.5h2M8 10.5h1M10 10.5h1M13 10.5h1M16 10.5h1M18 10.5h1M22 10.5h3M26 10.5h2M1 11.5h1M3 11.5h3M7 11.5h1M10 11.5h2M16 11.5h1M18 11.5h5M28 11.5h1M1 12.5h2M4 12.5h3M8 12.5h5M14 12.5h2M17 12.5h1M20 12.5h1M25 12.5h2M0 13.5h5M7 13.5h3M12 13.5h1M14 13.5h1M16 13.5h2M19 13.5h1M22 13.5h1M26 13.5h3M0 14.5h1M4 14.5h3M10 14.5h1M13 14.5h1M15 14.5h3M19 14.5h1M21 14.5h1M24 14.5h1M26 14.5h3M1 15.5h2M5 15.5h1M7 15.5h5M14 15.5h1M16 15.5h1M18 15.5h1M22 15.5h1M27 15.5h1M0 16.5h1M5 16.5h2M9 16.5h2M14 16.5h2M18 16.5h3M24 16.5h2M27 16.5h1M1 17.5h2M4 17.5h1M7 17.5h1M9 17.5h2M12 17.5h1M14 17.5h1M16 17.5h1M18 17.5h1M20 17.5h1M23 17.5h1M25 17.5h3M0 18.5h1M6 18.5h2M11 18.5h8M22 18.5h3M26 18.5h1M4 19.5h2M7 19.5h2M10 19.5h8M22 19.5h2M26 19.5h1M1 20.5h2M6 20.5h1M10 20.5h1M13 20.5h14M8 21.5h2M11 21.5h2M17 21.5h4M24 21.5h5M0 22.5h7M8 22.5h1M10 22.5h3M14 22.5h1M16 22.5h2M19 22.5h2M22 22.5h1M24 22.5h2M27 22.5h1M0 23.5h1M6 23.5h1M8 23.5h1M12 23.5h3M18 23.5h1M20 23.5h1M24 23.5h2M28 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h2M15 24.5h1M17 24.5h1M20 24.5h5M26 24.5h2M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M10 25.5h3M15 25.5h3M19 25.5h3M23 25.5h3M28 25.5h1M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h1M10 26.5h1M13 26.5h2M18 26.5h3M23 26.5h1M26 26.5h1M28 26.5h1M0 27.5h1M6 27.5h1M9 27.5h1M11 27.5h1M13 27.5h2M16 27.5h1M18 27.5h1M20 27.5h1M25 27.5h1M27 27.5h1M0 28.5h7M8 28.5h5M18 28.5h6M27 28.5h1"/></svg><span>브리지</span></div>
+      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h1M15 0.5h6M22 0.5h7M0 1.5h1M6 1.5h1M9 1.5h2M12 1.5h1M15 1.5h2M18 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M10 2.5h1M12 2.5h2M16 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M12 3.5h4M17 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M9 4.5h1M11 4.5h1M13 4.5h4M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M11 5.5h1M13 5.5h2M16 5.5h4M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M10 7.5h3M15 7.5h1M1 8.5h3M6 8.5h3M11 8.5h1M15 8.5h2M18 8.5h1M20 8.5h2M28 8.5h1M2 9.5h3M8 9.5h3M13 9.5h1M15 9.5h2M18 9.5h5M24 9.5h3M1 10.5h2M5 10.5h2M14 10.5h2M18 10.5h1M25 10.5h1M28 10.5h1M0 11.5h2M3 11.5h1M9 11.5h1M11 11.5h2M16 11.5h2M22 11.5h1M24 11.5h2M27 11.5h2M1 12.5h3M6 12.5h1M8 12.5h1M14 12.5h3M18 12.5h4M23 12.5h2M26 12.5h3M3 13.5h3M8 13.5h2M16 13.5h3M20 13.5h2M24 13.5h1M26 13.5h1M3 14.5h1M5 14.5h2M8 14.5h2M13 14.5h4M19 14.5h4M24 14.5h1M26 14.5h2M2 15.5h1M8 15.5h4M13 15.5h2M17 15.5h3M21 15.5h3M25 15.5h2M28 15.5h1M1 16.5h4M6 16.5h2M11 16.5h5M17 16.5h1M19 16.5h1M21 16.5h1M23 16.5h5M3 17.5h3M8 17.5h3M14 17.5h1M16 17.5h2M20 17.5h1M26 17.5h1M28 17.5h1M0 18.5h2M4 18.5h1M6 18.5h1M8 18.5h2M13 18.5h1M17 18.5h1M23 18.5h1M25 18.5h1M2 19.5h3M7 19.5h1M9 19.5h1M12 19.5h2M16 19.5h3M21 19.5h5M28 19.5h1M2 20.5h2M6 20.5h1M10 20.5h2M13 20.5h1M15 20.5h1M17 20.5h8M26 20.5h1M8 21.5h1M10 21.5h2M15 21.5h2M20 21.5h1M24 21.5h4M0 22.5h7M8 22.5h1M10 22.5h1M12 22.5h3M17 22.5h1M19 22.5h2M22 22.5h1M24 22.5h1M26 22.5h3M0 23.5h1M6 23.5h1M9 23.5h1M12 23.5h2M16 23.5h2M20 23.5h1M24 23.5h1M26 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h1M13 24.5h1M17 24.5h8M26 24.5h1M28 24.5h1M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M11 25.5h1M14 25.5h1M16 25.5h1M18 25.5h1M21 25.5h2M24 25.5h4M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h2M14 26.5h4M20 26.5h1M22 26.5h1M25 26.5h4M0 27.5h1M6 27.5h1M8 27.5h2M13 27.5h1M17 27.5h1M20 27.5h1M24 27.5h1M26 27.5h1M0 28.5h7M12 28.5h2M15 28.5h1M17 28.5h2M20 28.5h1M23 28.5h1M25 28.5h1M27 28.5h1"/></svg><span>곳간</span></div>
+      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41"><path stroke="#191F28" d="M0 0.5h7m2 0h2m5 0h1m3 0h1m1 0h2m4 0h1m1 0h3m1 0h7M0 1.5h1m5 0h1m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m1 0h1m1 0h7m1 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m2 0h3m2 0h3m2 0h1m1 0h1m1 0h1m1 0h3m2 0h3m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h1m6 0h1m2 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m2 0h1m3 0h5m2 0h1m3 0h1m1 0h1m4 0h1m2 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h2m1 0h1m2 0h1m2 0h3m1 0h1m1 0h3m3 0h1m4 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 7.5h2m1 0h1m3 0h1m1 0h5m3 0h3m3 0h1M0 8.5h5m1 0h3m1 0h2m1 0h2m1 0h1m2 0h1m2 0h6m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1M0 9.5h2m5 0h1m1 0h2m2 0h1m3 0h2m1 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h4m1 0h2M0 10.5h2m4 0h2m1 0h3m1 0h5m4 0h1m4 0h3m2 0h2m1 0h1M0 11.5h1m1 0h1m1 0h1m3 0h2m3 0h1m3 0h2m2 0h1m1 0h3m1 0h2m1 0h3m1 0h1m1 0h2m1 0h1M2 12.5h7m2 0h1m2 0h1m1 0h1m5 0h3m3 0h4m3 0h1m1 0h2m1 0h1M2 13.5h3m4 0h2m1 0h1m2 0h1m1 0h2m2 0h1m2 0h1m2 0h4m1 0h1m1 0h4m2 0h1M0 14.5h2m4 0h5m4 0h4m6 0h1m1 0h2m4 0h1m1 0h4M0 15.5h2m1 0h1m8 0h1m1 0h2m5 0h3m4 0h1m1 0h1m1 0h3m2 0h1m1 0h1M0 16.5h2m1 0h1m2 0h2m4 0h4m1 0h1m2 0h1m1 0h1m1 0h3m2 0h1m1 0h1M1 17.5h1m1 0h1m1 0h1m3 0h1m4 0h1m1 0h1m2 0h1m8 0h1m1 0h7m2 0h1M0 18.5h2m2 0h3m1 0h2m5 0h1m2 0h1m1 0h3m4 0h2m1 0h1m1 0h1m2 0h1M2 19.5h2m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m4 0h1m4 0h3m1 0h1m1 0h4m2 0h2m2 0h1M3 20.5h1m1 0h2m2 0h1m1 0h2m2 0h1m2 0h1m3 0h1m1 0h3m1 0h2m3 0h1m1 0h1m1 0h2M0 21.5h1m1 0h1m1 0h1m5 0h1m3 0h3m2 0h3m1 0h3m2 0h1m1 0h3m1 0h5m1 0h1M0 22.5h5m1 0h1m3 0h4m3 0h1m6 0h3m5 0h3m1 0h2M1 23.5h1m1 0h1m6 0h2m4 0h1m1 0h1m1 0h2m1 0h2m1 0h2m4 0h1m2 0h2m2 0h1M1 24.5h1m4 0h1m1 0h1m1 0h2m1 0h1m2 0h1m2 0h2m1 0h5m2 0h3m3 0h1m1 0h4M3 25.5h3m1 0h5m1 0h6m1 0h3m2 0h2m3 0h3m1 0h3m3 0h1M0 26.5h2m1 0h1m1 0h2m3 0h1m2 0h5m2 0h3m2 0h4m4 0h1m1 0h1m1 0h3M1 27.5h1m1 0h2m2 0h1m4 0h2m1 0h1m1 0h3m2 0h2m3 0h2m1 0h3m1 0h2M1 28.5h3m2 0h2m3 0h1m2 0h1m1 0h1m5 0h3m5 0h2m3 0h5M0 29.5h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h2m1 0h1m2 0h2m3 0h1m3 0h1m1 0h5m1 0h2m1 0h3M0 30.5h1m1 0h5m3 0h1m4 0h3m1 0h1m1 0h1m1 0h3m2 0h2m2 0h2m2 0h2M0 31.5h1m1 0h4m3 0h2m1 0h1m1 0h2m2 0h1m1 0h4m2 0h2m2 0h1m1 0h2m3 0h1m2 0h1M0 32.5h1m4 0h4m3 0h1m1 0h4m1 0h1m4 0h2m3 0h1m1 0h8M8 33.5h1m1 0h2m2 0h1m1 0h1m2 0h2m1 0h4m2 0h1m1 0h1m1 0h1m3 0h1m1 0h2M0 34.5h7m1 0h1m3 0h1m2 0h2m1 0h1m2 0h2m4 0h3m1 0h2m1 0h1m1 0h1m1 0h1M0 35.5h1m5 0h1m2 0h1m1 0h2m1 0h1m8 0h4m1 0h2m2 0h1m3 0h1m2 0h2M0 36.5h1m1 0h3m1 0h1m1 0h2m1 0h2m2 0h1m2 0h2m4 0h3m2 0h2m1 0h5m1 0h3M0 37.5h1m1 0h3m1 0h1m1 0h3m2 0h4m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m6 0h1M0 38.5h1m1 0h3m1 0h1m1 0h1m1 0h4m3 0h1m2 0h1m3 0h8m2 0h1m1 0h2M0 39.5h1m5 0h1m1 0h2m1 0h1m4 0h1m1 0h7m1 0h1m8 0h1m1 0h1m1 0h1M0 40.5h7m1 0h4m2 0h1m2 0h1m1 0h1m1 0h3m1 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1"/></svg><span>창고지기</span></div>
     </div>
-    <div class="appqr" aria-label="창고지기 접속 QR">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 41 41" shape-rendering="crispEdges"><path stroke="#1C1C1E" d="M0 0.5h7m2 0h2m5 0h1m3 0h1m1 0h2m4 0h1m1 0h3m1 0h7M0 1.5h1m5 0h1m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m1 0h1m1 0h7m1 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m2 0h3m2 0h3m2 0h1m1 0h1m1 0h1m1 0h3m2 0h3m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h1m6 0h1m2 0h1m3 0h1m1 0h1m1 0h2m1 0h1m1 0h2m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m2 0h1m3 0h5m2 0h1m3 0h1m1 0h1m4 0h1m2 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h2m1 0h1m2 0h1m2 0h3m1 0h1m1 0h3m3 0h1m4 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 7.5h2m1 0h1m3 0h1m1 0h5m3 0h3m3 0h1M0 8.5h5m1 0h3m1 0h2m1 0h2m1 0h1m2 0h1m2 0h6m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1M0 9.5h2m5 0h1m1 0h2m2 0h1m3 0h2m1 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h4m1 0h2M0 10.5h2m4 0h2m1 0h3m1 0h5m4 0h1m4 0h3m2 0h2m1 0h1M0 11.5h1m1 0h1m1 0h1m3 0h2m3 0h1m3 0h2m2 0h1m1 0h3m1 0h2m1 0h3m1 0h1m1 0h2m1 0h1M2 12.5h7m2 0h1m2 0h1m1 0h1m5 0h3m3 0h4m3 0h1m1 0h2m1 0h1M2 13.5h3m4 0h2m1 0h1m2 0h1m1 0h2m2 0h1m2 0h1m2 0h4m1 0h1m1 0h4m2 0h1M0 14.5h2m4 0h5m4 0h4m6 0h1m1 0h2m4 0h1m1 0h4M0 15.5h2m1 0h1m8 0h1m1 0h2m5 0h3m4 0h1m1 0h1m1 0h3m2 0h1m1 0h1M0 16.5h2m1 0h1m2 0h2m4 0h4m1 0h1m2 0h1m1 0h1m1 0h3m2 0h1m1 0h1M1 17.5h1m1 0h1m1 0h1m3 0h1m4 0h1m1 0h1m2 0h1m8 0h1m1 0h7m2 0h1M0 18.5h2m2 0h3m1 0h2m5 0h1m2 0h1m1 0h3m4 0h2m1 0h1m1 0h1m2 0h1M2 19.5h2m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m4 0h1m4 0h3m1 0h1m1 0h4m2 0h2m2 0h1M3 20.5h1m1 0h2m2 0h1m1 0h2m2 0h1m2 0h1m3 0h1m1 0h3m1 0h2m3 0h1m1 0h1m1 0h2M0 21.5h1m1 0h1m1 0h1m5 0h1m3 0h3m2 0h3m1 0h3m2 0h1m1 0h3m1 0h5m1 0h1M0 22.5h5m1 0h1m3 0h4m3 0h1m6 0h3m5 0h3m1 0h2M1 23.5h1m1 0h1m6 0h2m4 0h1m1 0h1m1 0h2m1 0h2m1 0h2m4 0h1m2 0h2m2 0h1M1 24.5h1m4 0h1m1 0h1m1 0h2m1 0h1m2 0h1m2 0h2m1 0h5m2 0h3m3 0h1m1 0h4M3 25.5h3m1 0h5m1 0h6m1 0h3m2 0h2m3 0h3m1 0h3m3 0h1M0 26.5h2m1 0h1m1 0h2m3 0h1m2 0h5m2 0h3m2 0h4m4 0h1m1 0h1m1 0h3M1 27.5h1m1 0h2m2 0h1m4 0h2m1 0h1m1 0h3m2 0h2m3 0h2m1 0h3m1 0h2M1 28.5h3m2 0h2m3 0h1m2 0h1m1 0h1m5 0h3m5 0h2m3 0h5M0 29.5h1m1 0h1m1 0h1m2 0h2m1 0h1m1 0h2m1 0h1m2 0h2m3 0h1m3 0h1m1 0h5m1 0h2m1 0h3M0 30.5h1m1 0h5m3 0h1m4 0h3m1 0h1m1 0h1m1 0h3m2 0h2m2 0h2m2 0h2M0 31.5h1m1 0h4m3 0h2m1 0h1m1 0h2m2 0h1m1 0h4m2 0h2m2 0h1m1 0h2m3 0h1m2 0h1M0 32.5h1m4 0h4m3 0h1m1 0h4m1 0h1m4 0h2m3 0h1m1 0h8M8 33.5h1m1 0h2m2 0h1m1 0h1m2 0h2m1 0h4m2 0h1m1 0h1m1 0h1m3 0h1m1 0h2M0 34.5h7m1 0h1m3 0h1m2 0h2m1 0h1m2 0h2m4 0h3m1 0h2m1 0h1m1 0h1m1 0h1M0 35.5h1m5 0h1m2 0h1m1 0h2m1 0h1m8 0h4m1 0h2m2 0h1m3 0h1m2 0h2M0 36.5h1m1 0h3m1 0h1m1 0h2m1 0h2m2 0h1m2 0h2m4 0h3m2 0h2m1 0h5m1 0h3M0 37.5h1m1 0h3m1 0h1m1 0h3m2 0h4m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m6 0h1M0 38.5h1m1 0h3m1 0h1m1 0h1m1 0h4m3 0h1m2 0h1m3 0h8m2 0h1m1 0h2M0 39.5h1m5 0h1m1 0h2m1 0h1m4 0h1m1 0h7m1 0h1m8 0h1m1 0h1m1 0h1M0 40.5h7m1 0h4m2 0h1m2 0h1m1 0h1m1 0h3m1 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1"/></svg>
-      <span>QR 접속</span>
-    </div>
-    <div class="go">›</div>
-  </a>
+  </section>
+
+  <footer>
+    <span class="brand">BAZ BIOMEDIC</span>
+    새 플랫폼이 생기면 이 페이지에 계속 추가됩니다.
+  </footer>
 
 </div>
-
-<footer>
-  새 플랫폼이 생기면 이 페이지에 계속 추가됩니다.<br>
-  BAZ BIOMEDIC · 업무 포털
-</footer>
 
 <script>
   var d = new Date();
