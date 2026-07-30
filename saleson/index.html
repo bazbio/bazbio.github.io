@@ -61,6 +61,36 @@
 <iframe id="app" src="https://script.google.com/macros/s/AKfycbwOBKGwKxNy7Wjvc_s_fDftC5KqIcVSxGHo8e_UGG6lM-lVkUENtyECThgpNABZjW0gKA/exec"
         allow="clipboard-write" onload="appReady()"></iframe>
 <script>
+  /* ── 기기 ID 발급소 ──
+     GAS 웹앱 iframe(googleusercontent.com)의 localStorage는 iOS Safari가 서드파티
+     저장소로 취급해 주기적으로 비운다 — 그래서 신뢰 기기가 자꾸 풀리고 인증번호가 반복됐다.
+     이 셸(bazbio.github.io)은 홈 화면 PWA의 1차 저장소라 살아남는다.
+     웹앱이 postMessage로 요청하면 여기서 만든 안정적인 ID를 넘겨준다. */
+  (function () {
+    var id = '';
+    try {
+      id = localStorage.getItem('saleson_device') || '';
+      if (!id) {
+        if (window.crypto && crypto.getRandomValues) {
+          var a = new Uint8Array(16); crypto.getRandomValues(a);
+          id = Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        } else {
+          id = String(Date.now()) + Math.random().toString(16).slice(2);
+        }
+        localStorage.setItem('saleson_device', id);
+      }
+    } catch (e) {}
+    window.addEventListener('message', function (ev) {
+      var d = ev.data || {};
+      if (d.type !== 'saleson:need-device' || !id) return;
+      // GAS 웹앱은 *.googleusercontent.com 샌드박스에서 돈다 — 그 외 출처에는 주지 않는다
+      // (점 경계 필수: evilgoogleusercontent.com 같은 위장 도메인을 걸러야 한다)
+      if (!/^https:\/\/([^\/]+\.)?googleusercontent\.com$/.test(ev.origin)
+          && ev.origin !== 'https://script.google.com') return;
+      ev.source.postMessage({ type: 'saleson:device', id: id }, ev.origin);
+    });
+  })();
+
   var T0 = Date.now();
   function appReady() {
     // 애니메이션이 최소 3.2초는 보이도록, 로딩이 오래 걸리면 즉시 전환
