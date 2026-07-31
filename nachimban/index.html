@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>나침반</title>
+<meta name="theme-color" content="#16345C">
+<meta name="robots" content="noindex">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#FFFFFF; }
+  #load { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+  .dial { width:88px; height:88px; position:relative; animation:fadein .8s cubic-bezier(.16,1,.3,1) both; }
+  .dial svg { width:100%; height:100%; display:block; }
+  .needle { transform-origin:50% 50%; animation:seek 1.5s cubic-bezier(.16,1,.3,1) .2s both; }
+
+  .wm { margin-top:20px; font-family:-apple-system,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+        font-size:min(15vw,64px); font-weight:800; line-height:1; letter-spacing:-.02em; color:#16345C;
+        animation:fadein 1s cubic-bezier(.16,1,.3,1) .3s both; }
+  .sub { margin-top:16px; font-family:-apple-system,'Malgun Gothic',sans-serif;
+         font-size:13px; font-weight:600; color:#B9B9C0; letter-spacing:.42em; text-indent:.42em;
+         opacity:0; animation:fadein 1s ease .8s forwards; }
+
+  @keyframes fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes seek {
+    0% { transform:rotate(-140deg); }
+    60% { transform:rotate(28deg); }
+    80% { transform:rotate(-10deg); }
+    100% { transform:rotate(0deg); }
+  }
+  @media (prefers-reduced-motion:reduce) { .dial, .wm, .sub, .needle { animation:none; opacity:1; } }
+</style>
+</head>
+<body>
+<div id="load">
+  <div class="dial" aria-hidden="true">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" stroke="#16345C" stroke-width="2"/>
+      <g class="needle">
+        <path d="M20.5 11.5 14.2 14.2 11.5 20.5 17.8 17.8Z" fill="#1E8E5A"/>
+      </g>
+      <circle cx="16" cy="16" r="1.6" fill="#16345C"/>
+    </svg>
+  </div>
+  <div class="wm">나침반</div>
+  <div class="sub">BAZ BIOMEDIC</div>
+</div>
+<script>
+  var EXEC = 'https://script.google.com/macros/s/AKfycbzWsc6XWlulr-n53BGQY2jxNczH05f6iSXkej21mnVsg1kolfu7CPyp6yMOk7NEw2Wzow/exec';
+  setTimeout(function () { location.replace(EXEC); }, 1400);
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=https://script.google.com/macros/s/AKfycbzWsc6XWlulr-n53BGQY2jxNczH05f6iSXkej21mnVsg1kolfu7CPyp6yMOk7NEw2Wzow/exec"></noscript>
+</body>
+</html>
