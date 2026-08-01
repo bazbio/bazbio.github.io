@@ -931,6 +931,8 @@ var DEV_OLD = '';
  * 체이닝마다 새 러너를 돌려준다. */
 var API_URL = 'https://script.google.com/macros/s/AKfycbyfSsrOx0Vzq1wBGwRBeznbns_wEbYA4FEaXWmNHGaIEG8HGwnrigaCz7LKYGvFHmyQqw/exec';
 var API_TIMEOUT = 60000;   // 쓰기는 잠금 대기 20초가 붙을 수 있다 — 넉넉히 잡는다
+// 관문(Supabase 엣지 펑션). 지금은 부트 스냅샷 하나만 여기로 간다 — 00_설정.gs CONFIG.GATE_URL과 같다
+var GATE_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
 
 function gsrun() { return 러너_(null, null); }
 
@@ -984,9 +986,73 @@ function 호출_(fn, args, ok, fail) {
   });
 }
 
+/* 부트를 두 갈래로 동시에 쏜다 (ADR 0004 3-b).
+ *
+ *   관문 스냅샷 (0.34초) ──▶ 먼저 오니 이걸로 즉시 그린다
+ *   GAS 웹_부트 (1.85초) ──▶ 이게 진실이다. 도착하면 조용히 수렴시킨다
+ *
+ * 이 구조라야 「몇 분까지 낡아도 되나」를 정할 필요가 없다 — 화면은 늦어도 1.85초 뒤
+ * 최신이 된다. GAS는 응답을 내주는 김에 다음 스냅샷도 굽는다(30_웹API.gs `스냅샷굽기_`).
+ *
+ * 스냅샷이 없거나 관문이 죽으면 GAS만 기다린다 — 즉 실패 모드가 곧 3-b 이전의 동작이다. */
+var 그린부트_ = '';     // 화면에 반영한 부트 페이로드(JSON 원문). 같은 값이면 다시 안 그린다
+var 조작함_ = false;    // 사용자가 화면을 건드렸는가 — 건드린 뒤엔 늦게 온 부트가 화면을 안 갈아엎는다
+
+/* 캡처 단계에서 잡는다 — 어느 핸들러가 먼저 돌든 조작 사실은 놓치지 않는다 */
+document.addEventListener('click', function () { 조작함_ = true; }, true);
+document.addEventListener('input', function () { 조작함_ = true; }, true);
+
 function boot() {
   if (!TOKEN) { showLogin(''); return; }
-  gsrun().withSuccessHandler(onBoot).withFailureHandler(function() { showLogin(''); }).웹_부트(TOKEN);
+  스냅샷받기_();
+  gsrun().withSuccessHandler(onBoot최신_).withFailureHandler(function() {
+    /* 스냅샷으로 이미 앱이 떠 있으면 로그인 화면으로 내쫓지 않는다. 토큰이 죽은 경우라면
+       관문도 같은 규칙으로 401을 내므로 스냅샷이 애초에 안 그려졌고, 그러면 여기서 뜬다. */
+    if (!그린부트_) showLogin('');
+  }).웹_부트(TOKEN);
+}
+
+/* 관문을 직접 부르는 유일한 자리다.
+   `gsrun()`은 GAS 디스패처 전용 프록시라 다른 주소를 태울 수 없고, 이 호출은 GAS 호출을
+   **대체**하는 게 아니라 나란히 나가는 것이라 프록시 안에 끼울 자리가 없다. */
+function 스냅샷받기_() {
+  fetch(GATE_URL + '/saleson-boot', {
+    method: 'POST',
+    // text/plain이라야 CORS 사전요청이 없다. 토큰 안의 한글은 본문이라 그대로 실린다
+    // (헤더였다면 ASCII 제한에 걸린다 — 관문이 토큰을 본문으로 받는 이유가 그것이다)
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ 토큰: TOKEN })
+  }).then(function (res) {
+    return res.ok ? res.json() : null;   // 404 = 아직 안 구워졌다. 오류가 아니다
+  }).then(function (r) {
+    if (!r || !r.payload) return;
+    if (그린부트_) return;               // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
+    그린부트_ = JSON.stringify(r.payload);
+    onBoot(r.payload);
+  }).catch(function () {});              // 관문이 죽어도 앱은 GAS로 뜬다
+}
+
+/* GAS 부트가 도착했다 — 이게 진실이다. 스냅샷이 그린 화면을 여기서 수렴시킨다. */
+function onBoot최신_(b) {
+  b = b || {};
+  var 원문 = JSON.stringify(b);
+  if (원문 === 그린부트_) return;        // 스냅샷이 최신이었다 — 대부분 여기서 끝난다
+  if (!그린부트_) { 그린부트_ = 원문; onBoot(b); return; }   // 스냅샷이 없었다 — 평소 경로
+  그린부트_ = 원문;
+
+  /* 값이 달라졌다. 탭 데이터는 조건 없이 갈아끼운다 — 지금 그리는 게 아니라 다음 탭 전환이
+     쓸 값이라 덮어도 사용자가 보고 있는 것을 건드리지 않는다. */
+  if (b.dash) DASH = b.dash;
+  if (b.evt) EVT = b.evt;
+  if (b.flow) { FLOW = b.flow; FLOWX = {}; }
+  if (b.kpi) KPIT = b.kpi;
+  if (b.matl) MATL = b.matl;
+  if (b.init) DATA = b.init;
+
+  /* 다시 그리는 것은 사용자가 아직 아무것도 안 했을 때만. 건드린 뒤에 갈아엎으면 입력하던
+     값이 날아가고 지워 둔 임시저장 안내가 되살아난다. 위에서 데이터는 이미 갈아끼웠으므로
+     안 그려도 다음 화면 전환부터는 최신이 나온다. */
+  if (!조작함_ && b.init) onData(b.init);
 }
 /* 부트 응답 = 초기데이터 + 무거운 탭 다섯 개를 한 번에 받은 것.
    예전엔 여기서 서버를 여섯 번 불렀고 GAS가 그걸 여섯 실행으로 돌려 같은 시트를 여섯 번 읽었다.
