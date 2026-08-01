@@ -80,14 +80,33 @@
         localStorage.setItem('saleson_device', id);
       }
     } catch (e) {}
+    /* ── 로그인 세션(토큰) 보관소 ──
+       기기 ID와 같은 이유로 여기 둔다. 예전에는 토큰이 iframe localStorage에 있어서
+       iOS가 그걸 비울 때마다 로그인 화면이 다시 떴다 — 기기 신뢰는 살아 있으니
+       인증번호는 안 오지만 이름+PIN은 매번 다시 쳐야 했다. "90일간 로그인 안 함"이
+       지켜지지 않던 두 원인 중 하나다(다른 하나는 토큰 수명이 30일이었던 것). */
+    function 토큰읽기() { try { return localStorage.getItem('saleson_token') || ''; } catch (e) { return ''; } }
+
+    // GAS 웹앱은 *.googleusercontent.com 샌드박스에서 돈다 — 그 외 출처와는 주고받지 않는다
+    // (점 경계 필수: evilgoogleusercontent.com 같은 위장 도메인을 걸러야 한다)
+    function 믿을수있는출처(o) {
+      return /^https:\/\/([^\/]+\.)?googleusercontent\.com$/.test(o) || o === 'https://script.google.com';
+    }
+
     window.addEventListener('message', function (ev) {
       var d = ev.data || {};
-      if (d.type !== 'saleson:need-device' || !id) return;
-      // GAS 웹앱은 *.googleusercontent.com 샌드박스에서 돈다 — 그 외 출처에는 주지 않는다
-      // (점 경계 필수: evilgoogleusercontent.com 같은 위장 도메인을 걸러야 한다)
-      if (!/^https:\/\/([^\/]+\.)?googleusercontent\.com$/.test(ev.origin)
-          && ev.origin !== 'https://script.google.com') return;
-      ev.source.postMessage({ type: 'saleson:device', id: id }, ev.origin);
+      if (!믿을수있는출처(ev.origin)) return;
+      if (d.type === 'saleson:need-device') {
+        if (id) ev.source.postMessage({ type: 'saleson:device', id: id }, ev.origin);
+      } else if (d.type === 'saleson:need-token') {
+        // 토큰이 없어도 반드시 회신한다 — 웹앱이 회신을 기다렸다가 부팅하기 때문에
+        // 침묵하면 타임아웃만큼 흰 화면이 늘어난다
+        ev.source.postMessage({ type: 'saleson:token', token: 토큰읽기() }, ev.origin);
+      } else if (d.type === 'saleson:save-token') {
+        try { localStorage.setItem('saleson_token', String(d.token || '')); } catch (e) {}
+      } else if (d.type === 'saleson:clear-token') {
+        try { localStorage.removeItem('saleson_token'); } catch (e) {}
+      }
     });
   })();
 
