@@ -67,9 +67,30 @@
      이 셸(bazbio.github.io)은 홈 화면 PWA의 1차 저장소라 살아남는다.
      웹앱이 postMessage로 요청하면 여기서 만든 안정적인 ID를 넘겨준다. */
   (function () {
+    /* ── 임시 진단 표시 (핸드셰이크가 실기기에서 도는지 확인용) ──
+       폰에는 콘솔이 없어서 화면에 남기지 않으면 아무것도 볼 수 없다.
+       원인이 잡히면 이 함수와 호출부를 지운다. */
+    function 진단(msg) {
+      try {
+        var el = document.getElementById('diag');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'diag';
+          el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;'
+            + 'background:rgba(0,0,0,.72);color:#8f8;font:11px/1.5 ui-monospace,monospace;'
+            + 'padding:6px 10px;white-space:pre-wrap;word-break:break-all;';
+          document.body.appendChild(el);
+          setTimeout(function () { try { el.remove(); } catch (e) {} }, 40000);
+        }
+        el.textContent += (el.textContent ? ' · ' : '셸: ') + msg;
+      } catch (e) {}
+    }
+
     var id = '';
+    var 기기출처 = '';
     try {
       id = localStorage.getItem('saleson_device') || '';
+      기기출처 = id ? '기존' : '신규';
       if (!id) {
         if (window.crypto && crypto.getRandomValues) {
           var a = new Uint8Array(16); crypto.getRandomValues(a);
@@ -79,7 +100,7 @@
         }
         localStorage.setItem('saleson_device', id);
       }
-    } catch (e) {}
+    } catch (e) { 기기출처 = '저장소오류'; }
     /* ── 로그인 세션(토큰) 보관소 ──
        기기 ID와 같은 이유로 여기 둔다. 예전에는 토큰이 iframe localStorage에 있어서
        iOS가 그걸 비울 때마다 로그인 화면이 다시 떴다 — 기기 신뢰는 살아 있으니
@@ -93,17 +114,41 @@
       return /^https:\/\/([^\/]+\.)?googleusercontent\.com$/.test(o) || o === 'https://script.google.com';
     }
 
+    /* 회신 상대를 고르는 곳. 원래는 ev.source 하나만 썼다. 8/1 실기기에서 홈 화면 앱이
+       OTP를 끝낸 뒤에도 재실행마다 로그인 화면과 인증번호를 다시 냈는데, 그 증상은
+       "회신이 웹앱에 도달하지 않는다"로만 설명된다. GAS 웹앱은 프레임이 2중
+       (script.google.com → googleusercontent.com)이라 중첩 프레임의 ev.source를
+       못 받는 경우가 의심 1순위다 — 그러면 postMessage 호출이 예외로 죽고 조용히 끝난다.
+       확정 전이므로 ev.source를 먼저 쓰되, 없으면 아는 경로로 안쪽 프레임을 직접 찾는다.
+       어느 쪽으로 나갔는지는 진단 줄에 남는다. */
+    function 회신상대(ev) {
+      if (ev.source) return { win: ev.source, 경로: 'src' };
+      try {
+        var inner = document.getElementById('app').contentWindow.frames[0];
+        if (inner) return { win: inner, 경로: 'frame' };
+      } catch (e) {}
+      return null;
+    }
+    function 회신(ev, payload, 이름) {
+      var t = 회신상대(ev);
+      if (!t) { 진단(이름 + '=회신불가'); return; }
+      try { t.win.postMessage(payload, ev.origin); 진단(이름 + '=' + t.경로); }
+      catch (e) { 진단(이름 + '=실패(' + (e && e.name || e) + ')'); }
+    }
+
+    진단('기기=' + 기기출처 + ' 토큰=' + (토큰읽기() ? '있음' : '없음'));
+
     window.addEventListener('message', function (ev) {
       var d = ev.data || {};
       if (!믿을수있는출처(ev.origin)) return;
       if (d.type === 'saleson:need-device') {
-        if (id) ev.source.postMessage({ type: 'saleson:device', id: id }, ev.origin);
+        // id가 비어도 회신은 한다 — 침묵하면 웹앱이 타임아웃만큼 흰 화면으로 기다린다
+        회신(ev, { type: 'saleson:device', id: id }, '기기');
       } else if (d.type === 'saleson:need-token') {
-        // 토큰이 없어도 반드시 회신한다 — 웹앱이 회신을 기다렸다가 부팅하기 때문에
-        // 침묵하면 타임아웃만큼 흰 화면이 늘어난다
-        ev.source.postMessage({ type: 'saleson:token', token: 토큰읽기() }, ev.origin);
+        회신(ev, { type: 'saleson:token', token: 토큰읽기() }, '토큰');
       } else if (d.type === 'saleson:save-token') {
-        try { localStorage.setItem('saleson_token', String(d.token || '')); } catch (e) {}
+        try { localStorage.setItem('saleson_token', String(d.token || '')); 진단('저장'); }
+        catch (e) { 진단('저장실패'); }
       } else if (d.type === 'saleson:clear-token') {
         try { localStorage.removeItem('saleson_token'); } catch (e) {}
       }
