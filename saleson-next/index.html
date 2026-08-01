@@ -1,0 +1,3320 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- PWA 머리 (ADR 0008) — 예전에는 셸(iframe 바깥)이 들고 있었다. 화면이 Pages로 오면서
+     여기가 곧 홈 화면 앱이라 이리로 옮겼다. GAS(doGet)로 열릴 때는 manifest·sw가 404가
+     나지만 둘 다 조용히 무시되므로 롤백 경로가 안 깨진다. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>SalesON</title>
+<meta name="theme-color" content="#0A84FF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SalesON">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { font-size:16px; }
+  body { font-family:'Pretendard Variable','Pretendard','Malgun Gothic',sans-serif; background:#f9fafb; color:#191f28; letter-spacing:-.01em; word-break:keep-all; font-weight:400; padding-bottom:84px; }
+  b, strong { font-weight:700; }
+
+  /* 모션 시그니처 — 인터랙션 공통 스프링 커브. linear/ease-in-out 금지 */
+  .btn, .chip, .stgchip, .ptab, .logout, .refresh, .save, .nav button, .qtile, .reptile, .fmore,
+  input[type=text], input[type=date], input[type=month], input[type=password], select, textarea {
+    transition: transform .2s cubic-bezier(0.16,1,0.3,1), opacity .2s cubic-bezier(0.16,1,0.3,1),
+      background-color .2s cubic-bezier(0.16,1,0.3,1), border-color .2s cubic-bezier(0.16,1,0.3,1),
+      color .2s cubic-bezier(0.16,1,0.3,1), box-shadow .2s cubic-bezier(0.16,1,0.3,1);
+  }
+  @media (hover:hover) {
+    .btn:hover, .chip:hover, .logout:hover, .refresh:hover { transform:scale(1.02); }
+    .save:hover { transform:scale(1.01); }
+  }
+  .chip:active, .stgchip:active, .ptab:active, .refresh:active { transform:scale(.96); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration:.01ms !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+  }
+
+  /* 헤더 (라이트) */
+  .hero { padding:24px 18px 4px; }
+  .hero .inner { max-width:900px; }
+  .hero .kick { display:flex; align-items:center; gap:8px; }
+  .logout { font-family:inherit; font-size:12.5px; font-weight:600; color:#6b7684; background:#fff; border:1px solid #e5e8eb; padding:7px 14px; border-radius:10px; cursor:pointer; }
+  .logout:active { transform:scale(.96); opacity:.75; }
+  .hero .kick .bar { display:none; }
+  .hero .kick .lbl { font-size:12px; font-weight:700; letter-spacing:.06em; color:#1b64da; }
+  .hero h1 { margin-top:8px; font-size:26px; font-weight:700; color:#191f28; letter-spacing:-.03em; line-height:1.38; }
+  .hero .meta { margin-top:4px; font-size:14px; color:#6b7684; }
+
+  .wrap { padding:16px 14px 0; max-width:720px; margin:0 auto; }
+  .card { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:16px 18px; margin-bottom:12px; }
+
+  .kicker { display:flex; align-items:center; gap:8px; margin:22px 4px 10px; }
+  .kicker .bar { display:none; }
+  .kicker .lbl { font-size:16px; font-weight:700; color:#191f28; letter-spacing:-.02em; }
+  .kicker.red .lbl { color:#d0223a; }
+
+  /* KPI 타일 */
+  .tiles { display:flex; gap:10px; }
+  .tile { flex:1; background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:14px 16px; }
+  .tile .t { font-size:12px; font-weight:600; color:#6b7684; }
+  .tile .n { margin-top:8px; font-size:30px; font-weight:700; color:#191f28; line-height:1; letter-spacing:-.03em; }
+  .tile .n.blue { color:#1b64da; } .tile .n.red { color:#d0223a; }
+  .tile .s { margin-top:7px; font-size:12px; color:#8b95a1; }
+
+  /* 계획 카드 */
+  .plan { display:flex; gap:12px; align-items:flex-start; }
+  .plan .dd { min-width:56px; text-align:center; background:#e8f3ff; border-radius:12px; padding:9px 4px; }
+  .plan .dd .d1 { font-size:15px; font-weight:700; color:#1b64da; }
+  .plan .dd .d1.late { color:#d0223a; }
+  .plan .dd .d2 { font-size:11px; color:#6b7684; margin-top:2px; }
+  .plan .bd { flex:1; }
+  .plan .h { font-size:16.5px; font-weight:700; color:#191f28; }
+  .plan .p { font-size:14px; color:#6b7684; margin-top:3px; line-height:1.5; }
+  .plan .tag { display:inline-block; margin-top:8px; font-size:12px; font-weight:600; color:#1b64da; background:#e8f3ff; border-radius:999px; padding:4px 11px; }
+  .plan .acts { display:flex; flex-direction:column; gap:7px; }
+  .btn { font-family:inherit; font-size:13.5px; font-weight:600; padding:10px 16px; border:1px solid #e5e8eb; background:#fff; color:#4e5968; border-radius:12px; cursor:pointer; }
+  .btn.pri { background:#3182f6; border-color:#3182f6; color:#fff; }
+  .btn.ghost { color:#8b95a1; }
+  .btn:active { transform:scale(.96); opacity:.85; }
+
+  .empty { text-align:center; padding:30px 0; font-size:14px; color:#8b95a1; line-height:1.7; }
+
+  /* 폼 */
+  label.f { display:block; font-size:13px; font-weight:600; color:#6b7684; margin:16px 4px 7px; }
+  input[type=text], input[type=date], input[type=month], input[type=password], select, textarea {
+    width:100%; font-family:inherit; font-size:16px; font-weight:400; padding:12px 14px;
+    border:1px solid #e5e8eb; background:#fff; color:#191f28; border-radius:12px; -webkit-appearance:none; appearance:none;
+  }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:#3182f6; box-shadow:0 0 0 3px rgba(49,130,246,.16); }
+  textarea { min-height:100px; resize:vertical; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { font-size:14px; font-weight:500; padding:9px 15px; border:none; background:#f2f4f6; color:#4e5968; border-radius:999px; cursor:pointer; }
+  .chip.on { background:#3182f6; color:#fff; font-weight:700; }
+  .chip.green.on { background:#03b26c; }
+  .tag.ncare { color:#058652; background:#e5f7ef; }
+  .tag.equip { color:#058652; background:#e5f7ef; }
+  /* 문의 상태 칩 — Meta DB 카드용. .plan 밖이라 .plan .tag 규칙이 안 닿는다(맨 텍스트로 나왔었다) */
+  .tag-red, .tag-orange, .tag-blue, .tag-green, .tag-grey {
+    display:inline-block; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; white-space:nowrap; }
+  .tag-red { color:#d0223a; background:#ffeaed; }
+  .tag-orange { color:#a35c11; background:#fff4e0; }
+  .tag-blue { color:#1b64da; background:#e8f3ff; }
+  .tag-green { color:#058652; background:#e5f7ef; }
+  .tag-grey { color:#6b7684; background:#f2f4f6; }
+  .badge.tgt { background:#fff4e0; color:#a35c11; }
+  .row2 { display:flex; gap:10px; } .row2 > div { flex:1; }
+  .save { width:100%; margin-top:22px; font-size:16px; font-weight:700; padding:15px; background:#3182f6; color:#fff; border:none; border-radius:12px; cursor:pointer; }
+  .save:active { transform:scale(.985); opacity:.92; }
+  .save:disabled { background:#8b95a1; }
+
+  /* 리드 카드 */
+  .lead .h { font-size:16.5px; font-weight:700; color:#191f28; }
+  .lead .m { font-size:13px; color:#6b7684; margin-top:4px; }
+  .lead .memo { font-size:14px; color:#4e5968; margin-top:7px; line-height:1.5; }
+  .lead .stg { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+  .stgchip { font-size:13px; font-weight:500; padding:7px 13px; border:none; background:#f2f4f6; color:#4e5968; border-radius:999px; cursor:pointer; }
+  .stgchip.on { background:#191f28; color:#fff; font-weight:700; }
+  .stgchip.deal.on { background:#3182f6; }
+  .lead.done { opacity:.55; }
+  .badge { display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; margin-left:7px; border-radius:999px; }
+  .badge.deal { background:#e5f7ef; color:#058652; }
+
+  /* 홈 바로 가기 — 하단 탭 5개에 없는 화면으로 한 번에. 모바일 전용(PC는 사이드바에 다 있다).
+     예전 스윕 2페이지의 그라디언트 컬러 타일을 대체한다 — 색은 아이콘 칩에만 쓴다. */
+  .mobonly { display:block; }
+  .qgrid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .qtile { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:18px 16px; cursor:pointer; text-align:left; }
+  .qtile:active { transform:scale(.98); }
+  .qtile .qi { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; font-size:15px; font-weight:700; margin-bottom:12px; }
+  .qtile .qt { font-size:16px; font-weight:700; color:#191f28; letter-spacing:-.02em; }
+  .qtile .qs { margin-top:4px; font-size:13px; color:#6b7684; }
+  /* 숨김 규칙은 .qgrid{display:grid} 뒤에 와야 이긴다 — 같은 특이도면 소스 순서가 결정한다.
+     .qgrid.mobonly는 두 클래스라 미디어 쿼리 안에서도 확실히 우선한다. */
+  @media (min-width: 900px) { .mobonly, .qgrid.mobonly { display:none; } }
+
+  /* 하단 탭 (모바일) */
+  .nav { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.94); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid #e5e8eb; display:flex; z-index:20; }
+  /* 모바일은 탭 5개(홈·현황·흐름·리드·더보기)만 — 9개는 아이폰 폭(390px)에 안 들어간다.
+     나머지 5개는 더보기 화면 안으로. PC는 사이드바라 9개를 그대로 펼친다. */
+  #nav-more { display:none; }
+  @media (max-width: 899px) {
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta { display:none; }
+    #nav-more { display:block; }
+  }
+  /* 더보기 화면 메뉴 */
+  .mlist { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:6px; }
+  .mrow { display:flex; align-items:center; gap:13px; padding:14px; border-radius:12px; cursor:pointer; min-height:44px; }
+  .mrow + .mrow { box-shadow:inset 0 1px 0 #f2f4f6; }
+  .mrow:active { background:#f9fafb; }
+  .mrow .mi { flex:0 0 40px; height:40px; border-radius:13px; display:grid; place-items:center; font-size:15px; font-weight:700; color:#fff; }
+  .mrow .mb2 { flex:1; min-width:0; }
+  .mrow .mb2 .mn { font-size:15.5px; font-weight:600; color:#191f28; }
+  .mrow .mb2 .ms2 { margin-top:2px; font-size:13px; color:#6b7684; }
+  .mrow .mc { color:#b0b8c1; font-size:17px; font-weight:700; }
+  .nav button { flex:1; font-family:inherit; background:none; border:none; color:#6b7684; font-size:13.5px; font-weight:600; min-height:44px; padding:15px 0 max(15px, env(safe-area-inset-bottom)); cursor:pointer; }
+  .nav button.on { color:#1b64da; font-weight:700; }
+
+  /* 오버레이 */
+  #loading, #gate { position:fixed; inset:0; background:#f9fafb; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; }
+  #gate { display:none; }
+  .spin { width:32px; height:32px; border:3px solid #e5e8eb; border-top-color:#3182f6; border-radius:50%; animation:sp 0.8s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:60; display:none; max-width:88%; }
+  #toast.err { background:#f04452; }
+  .pconly { display:none; }
+  .seg { display:flex; gap:8px; margin-bottom:12px; }
+  .seg .chip { flex:1; text-align:center; }
+  /* 칩이 많은 세그먼트(Meta DB는 상태 6개)는 좁은 폰에서 넘친다 — 그 줄만 옆으로 민다.
+     .seg 전체에 걸면 칩 2~3개짜리 세그먼트가 flex:1 균등 분할을 잃는다 */
+  .seg.scrollx { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .seg.scrollx::-webkit-scrollbar { display:none; }
+  .seg.scrollx .chip { flex:0 0 auto; white-space:nowrap; }
+  .view { display:none; } .view.on { display:block; animation:viewin .24s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes viewin { from { opacity:.35; transform:translateX(14px); } to { opacity:1; transform:none; } }
+
+  /* 숫자 자릿수 정렬 — 지표·표 공통 */
+  .tile .n, .gtile .gv .a, .gtile .gv .pc, .gpace, .krow .kv, .krow .kt .pct, .fcol .fnum, .dt td, .ptab .cnt { font-variant-numeric:tabular-nums; }
+
+  /* 대시보드 테이블 */
+  .dt { width:100%; border-collapse:collapse; font-size:13.5px; }
+  .dt th { text-align:left; font-size:11.5px; font-weight:600; color:#6b7684; border-bottom:1px solid #e5e8eb; padding:7px 8px; white-space:nowrap; }
+  .dt td { border-bottom:1px solid #f2f4f6; padding:10px 8px; color:#4e5968; vertical-align:top; }
+  .dt tr:last-child td { border-bottom:none; }
+  .dt .c { text-align:center; } .dt .r { text-align:right; white-space:nowrap; }
+  .dt b.blue { color:#1b64da; } .dt b.red { color:#d0223a; }
+  .refresh { font-family:inherit; font-size:12.5px; font-weight:600; padding:9px 16px; border:1px solid #e5e8eb; background:#fff; color:#4e5968; border-radius:10px; cursor:pointer; }
+
+  /* 홈 2단 레이아웃 (PC: 계획 | KPI) */
+  .home2 { display:flex; flex-direction:column; }
+  .home2 .hcol { min-width:0; }
+
+  /* KPI 패널 */
+  .krow { padding:12px 0; border-bottom:1px solid #f2f4f6; }
+  .krow:last-child { border-bottom:none; padding-bottom:4px; }
+  .krow .kt { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:600; color:#6b7684; }
+  .krow .kt .pct { font-size:13px; font-weight:700; color:#1b64da; }
+  .krow .kt .pct.low { color:#d0223a; } .krow .kt .pct.mid { color:#191f28; }
+  .krow .kt .pct.none { color:#8b95a1; font-weight:600; }
+  .krow .kv { margin-top:5px; font-size:20px; font-weight:700; color:#191f28; letter-spacing:-.02em; }
+  .krow .kv .of { font-size:14px; font-weight:600; color:#8b95a1; }
+  .kbar { margin-top:8px; height:6px; background:#f2f4f6; border-radius:99px; overflow:hidden; }
+  .kbar > div { height:100%; border-radius:99px; background:#3182f6; }
+  .kbar > div.low { background:#f04452; } .kbar > div.done { background:#03b26c; }
+
+  /* 흐름(퍼널) 탭 */
+  .fmonth { display:flex; align-items:center; gap:8px; }
+  .fmonth input[type=month] { width:auto; padding:8px 12px; font-size:14px; }
+  .fcols { display:flex; gap:8px; overflow-x:auto; align-items:stretch; padding-bottom:4px; }
+  .fcol { flex:1; min-width:152px; background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:15px 14px; }
+  .fcol .flab { font-size:15px; font-weight:700; color:#191f28; white-space:nowrap; }
+  .fcol .fnum { font-size:36px; font-weight:700; margin-top:6px; line-height:1; letter-spacing:-.03em; }
+  .fcol .fcv { font-size:12px; font-weight:700; color:#1b64da; margin-top:6px; min-height:15px; }
+  .fcol .fcv .sub { color:#6b7684; font-weight:600; }
+  .fcol .flist { margin-top:11px; border-top:1px solid #f2f4f6; padding-top:8px; }
+  .fcol .fli { font-size:11.5px; color:#4e5968; padding:3px 0; font-weight:600; line-height:1.4; }
+  .fcol .fli .fr { font-size:10px; color:#8b95a1; margin-left:4px; font-weight:500; }
+  .fcol.fail { background:#fff5f6; border:1px dashed #ffd0d5; margin-left:6px; }
+  .farr2 { align-self:center; color:#b0b8c1; font-weight:700; font-size:17px; flex:0 0 auto; }
+  .fmore { font-family:inherit; font-size:11.5px; font-weight:600; color:#1b64da; background:none; border:none; padding:4px 0; cursor:pointer; }
+
+  /* 리드 탭 장비/N-Care 2단 */
+  .lead2 { display:grid; grid-template-columns:1fr; column-gap:14px; align-items:start; }
+  @media (min-width: 900px) { .lead2 { grid-template-columns:1fr 1fr; } }
+
+  /* 리드 탭 관리자 — 담당자 타일 */
+  .repgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .reptile { cursor:pointer; border-radius:16px; padding:20px 16px; color:#fff; }
+  .reptile:hover { transform:translateY(-2px); }
+  .reptile .rn { font-size:17px; font-weight:700; }
+  .reptile .rs { margin-top:6px; font-size:12px; opacity:.88; }
+
+  /* 현황 최근 활동 — 월/주 선택 탭 */
+  .ptabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .ptab { font-family:inherit; cursor:pointer; text-align:center; background:#fff; border:1px solid #e5e8eb; border-radius:14px; padding:10px 20px; font-size:15px; font-weight:700; color:#4e5968; }
+  .ptab:hover { border-color:#b0d3ff; }
+  .ptab .cnt { display:block; font-size:11px; font-weight:600; color:#8b95a1; margin-top:3px; }
+  .ptab.on { background:#3182f6; border-color:#3182f6; color:#fff; }
+  .ptab.on .cnt { color:#cfe4ff; }
+  .ptab.sm { padding:8px 14px; font-size:13px; border-radius:11px; }
+
+  /* 학회/세미나 탭 */
+  .evt-sum { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  .evt-sum .pill { font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:999px; background:#f2f4f6; color:#4e5968; }
+  .evt-sum .pill b { font-weight:700; }
+  .evt-sum .pill.blue { background:#e8f3ff; color:#1b64da; }
+  .evt-sum .pill.green { background:#e5f7ef; color:#058652; }
+  .evt-sum .pill.amber { background:#fff4e0; color:#a35c11; }
+
+  /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
+  @media (max-width: 899px) {
+    .nav button { font-size:12px; }
+    .fcols { flex-direction:column; overflow-x:visible; }
+    .fcol { min-width:0; }
+    .farr2 { transform:rotate(90deg); align-self:center; line-height:1; padding:2px 0; }
+    .fcol.fail { margin-left:0; margin-top:8px; }
+  }
+  .fcol.selon { border-color:#3182f6; box-shadow:0 0 0 3px rgba(49,130,246,.16); }
+
+  /* 현황 — 월 목표 진척 (1군 지표) */
+  .goals { display:grid; grid-template-columns:1fr; gap:12px; }
+  .gtile { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:18px 20px; }
+  .gtile .gt { font-size:13px; font-weight:700; color:#6b7684; }
+  .gtile .gv { margin-top:11px; display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
+  .gtile .gv .a { font-size:38px; font-weight:700; color:#191f28; line-height:1; letter-spacing:-.03em; }
+  .gtile .gv .b { font-size:17px; font-weight:600; color:#8b95a1; }
+  .gtile .gv .pc { margin-left:auto; font-size:17px; font-weight:700; color:#1b64da; }
+  .gtile .gv .pc.done { color:#058652; } .gtile .gv .pc.low { color:#d0223a; }
+  .gbar { margin-top:12px; height:8px; background:#f2f4f6; border-radius:99px; overflow:hidden; position:relative; }
+  .gbar > i { display:block; height:100%; border-radius:99px; background:#3182f6; }
+  .gbar > i.done { background:#03b26c; } .gbar > i.low { background:#f04452; }
+  .gbar > u { position:absolute; top:-3px; bottom:-3px; width:2px; background:#b0b8c1; }
+  .gpace { margin-top:9px; font-size:12.5px; color:#6b7684; display:flex; justify-content:space-between; gap:8px; }
+  .gpace b { font-weight:700; }
+  .gpace b.ok { color:#058652; } .gpace b.bad { color:#d0223a; }
+  .gnote { font-size:12.5px; color:#6b7684; margin:8px 4px 0; line-height:1.6; }
+
+  /* 목표 입력 경고 — 현황·KPI 탭 공용 */
+  .warnbox { background:#fff4e0; border-radius:16px; padding:15px 17px; margin-top:10px; font-size:13.5px; color:#a35c11; line-height:1.65; }
+  .warnbox .wt { display:block; font-weight:700; margin-bottom:6px; font-size:14px; }
+  .warnbox ul { margin:0; padding-left:17px; }
+  .warnbox li { margin-top:4px; }
+  .warnbox .wf { margin-top:9px; font-size:12.5px; opacity:.9; }
+
+  /* 현황 — 접이식 보조 지표(방문 활동) */
+  details.sub { margin-top:22px; border-top:1px solid #e5e8eb; padding-top:6px; }
+  details.sub > summary {
+    list-style:none; cursor:pointer; padding:12px 4px; font-size:15px; font-weight:700; color:#6b7684;
+    display:flex; align-items:center; gap:8px;
+  }
+  details.sub > summary::-webkit-details-marker { display:none; }
+  details.sub > summary::after { content:'▾'; font-size:12px; color:#b0b8c1; transition:transform .2s cubic-bezier(0.16,1,0.3,1); }
+  details.sub[open] > summary::after { transform:rotate(180deg); }
+  details.sub[open] > summary { color:#191f28; }
+  details.sub > summary .cnt { font-size:12.5px; font-weight:600; color:#8b95a1; margin-left:auto; }
+
+  /* PC 화면: 왼쪽 사이드바 + 본문 왼쪽 정렬 + 글씨 확대 */
+  @media (min-width: 900px) {
+    body { padding-left:200px; padding-bottom:24px; }
+    .nav { top:0; bottom:0; left:0; right:auto; width:200px; background:#fff; backdrop-filter:none; border-top:none; border-right:1px solid #e5e8eb; flex-direction:column; justify-content:flex-start; padding:26px 14px 0; gap:6px; }
+    .nav button { flex:0 0 auto; width:100%; text-align:left; padding:13px 18px; font-size:15px; border-radius:12px; }
+    .nav button.on { background:#3182f6; color:#fff; }
+    .hero { padding-left:36px; padding-right:36px; }
+    .wrap { margin:0; max-width:880px; padding-left:36px; padding-right:24px; }
+    #toast { bottom:40px; }
+    .hero h1 { font-size:31px; }
+    .hero .meta { font-size:15px; }
+    .tile .n { font-size:36px; }
+    .tile .t, .tile .s { font-size:13px; }
+    .plan .h, .lead .h { font-size:18px; }
+    .plan .p, .lead .memo { font-size:15px; }
+    .kicker .lbl { font-size:17px; }
+    .btn { font-size:14.5px; }
+    .home2 { display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start; }
+    #view-home .wrap, #view-flow .wrap { max-width:1400px; }
+    #view-dash .wrap, #view-evt .wrap { max-width:1040px; }
+    .pconly { display:inline; }
+    .seg { max-width:420px; }
+    #view-guide .wrap { max-width:1280px; }
+    .guide2 { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
+    .gqr { position:sticky; top:20px; }
+    .fcol .flab { font-size:16px; }
+    .fcol .fnum { font-size:42px; }
+    .fcol .fli { font-size:12.5px; }
+    .fcol .fli .fr { font-size:11px; }
+    .goals { grid-template-columns:repeat(3,1fr); }
+    .gtile .gv .a { font-size:42px; }
+  }
+
+  /* ── 스플래시 (ADR 0008) ──
+     셸에서 옮겨 왔다. 예전 셸은 `Math.max(0, 3200 - 경과)`로 **최소 3.2초를 강제로**
+     붙들었고, 페이드 0.45초까지 더해 바닥이 3.65초였다. 앱 켜기 4.5초의 대부분이
+     이것이었고, GAS가 HTML을 내려주는 2.2초는 그 안에 가려져 있었다.
+     여기서는 붙들지 않는다 — 부트가 끝나면 바로 사라진다. 애니메이션은 "기다리게 하는
+     장치"가 아니라 "기다리는 동안 보여 주는 것"이다. */
+  #splash { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+            justify-content:center; background:#FFFFFF; z-index:2000; transition:opacity .28s ease; }
+  #splash.off { opacity:0; pointer-events:none; }
+  #splash .wm { position:relative; font-size:min(21vw,110px); font-weight:800; line-height:1;
+        background:linear-gradient(120deg,#0A84FF 20%,#0A57C2 80%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent; color:#0A84FF;
+        animation:focusin 1.8s cubic-bezier(.16,1,.3,1) both; }
+  #splash .on-dot { position:absolute; top:0; right:-26px; width:20px; height:20px; border-radius:50%;
+                background:#3ED07E; opacity:0; transform:scale(0);
+                animation:doton .5s cubic-bezier(.2,1.6,.4,1) 1.65s forwards,
+                          breath 2.2s ease-in-out 2.3s infinite; }
+  #splash .sub { margin-top:24px; font-size:14px; font-weight:600; color:#B9B9C0;
+         letter-spacing:.42em; text-indent:.42em; opacity:0; animation:subin 1.1s ease 1.2s forwards; }
+  @keyframes focusin {
+    0%   { opacity:0; letter-spacing:.34em; filter:blur(14px); transform:scale(1.06); }
+    55%  { opacity:1; }
+    100% { opacity:1; letter-spacing:-.02em; filter:blur(0); transform:scale(1); }
+  }
+  @keyframes doton { 0% { opacity:0; transform:scale(0); } 100% { opacity:1; transform:scale(1); } }
+  @keyframes breath {
+    0%,100% { box-shadow:0 0 0 0 rgba(62,208,126,.45); }
+    50%     { box-shadow:0 0 0 9px rgba(62,208,126,0); }
+  }
+  @keyframes subin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+</head>
+<body>
+<div id="splash">
+  <div class="wm">SalesON<span class="on-dot"></span></div>
+  <div class="sub">BAZ BIOMEDIC</div>
+</div>
+
+<div class="hero"><div class="inner">
+  <div class="kick"><div class="bar"></div><div class="lbl">SalesON · BAZ BIOMEDIC</div></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+    <h1 id="heroTitle" style="margin-top:0;">BAZ SalesON</h1>
+    <button class="logout" style="color:#1b64da;border-color:#b0d3ff;" onclick="show('guide')">가이드</button>
+    <button class="logout" onclick="doLogout()">로그아웃</button>
+  </div>
+  <div class="meta" id="heroMeta">불러오는 중…</div>
+</div></div>
+
+<!-- 홈 — 세로 한 장. 예전엔 좌우 스윕 2페이지였는데, 2페이지 컬러 메뉴가
+     하단 탭 '더보기'와 기능이 겹치고 스와이프를 눈치채야 발견되는 구조였다. -->
+<div class="view on" id="view-home"><div class="wrap">
+  <div class="home2" id="home2">
+    <div class="hcol" id="homeMain">
+      <div class="kicker" style="margin-top:0;"><div class="bar"></div><div class="lbl" id="tilesTitle">이번 주 현황</div></div>
+      <div class="tiles" id="homeTiles"></div>
+      <div id="monthlyWrap"></div>
+      <div id="staleWrap"></div>
+      <div class="kicker"><div class="bar"></div><div class="lbl" id="planTitle">이번 주 방문 계획</div></div>
+      <div id="planList"></div>
+      <div class="kicker mobonly"><div class="bar"></div><div class="lbl">바로 가기</div></div>
+      <div class="qgrid mobonly" id="homeQuick">
+        <div class="qtile" id="quick-log" onclick="show('log')">
+          <div class="qi" style="background:#e8f3ff;color:#1b64da;">기</div>
+          <div class="qt">기록</div><div class="qs">방문 결과 입력</div>
+        </div>
+        <div class="qtile" id="quick-plan" onclick="show('plan')">
+          <div class="qi" style="background:#fff4e0;color:#a35c11;">계</div>
+          <div class="qt">계획</div><div class="qs">다음 주 방문 계획</div>
+        </div>
+        <div class="qtile" onclick="show('mat')">
+          <div class="qi" style="background:#f3e8fa;color:#7b1fa2;">자</div>
+          <div class="qt">자료</div><div class="qs">공식 영업 자료실</div>
+        </div>
+        <div class="qtile" onclick="show('kpi')">
+          <div class="qi" style="background:#e5f7ef;color:#058652;">K</div>
+          <div class="qt">KPI</div><div class="qs">목표 · 달성 관리</div>
+        </div>
+      </div>
+    </div>
+    <div class="hcol" id="homeKpi"></div>
+  </div>
+</div></div>
+
+<!-- 계획 입력 -->
+<div class="view" id="view-plan"><div class="wrap">
+  <div style="text-align:right;margin-bottom:8px;">
+    <button class="btn" onclick="toggleEvtReg()">＋ 행사 등록</button>
+  </div>
+  <div class="card" id="evtRegCard" style="display:none;border-color:#c9e0ff;">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:4px;" id="evtRegTitle">새 학회/세미나 등록</div>
+    <div id="eEditWrap" style="display:none;">
+      <label class="f">수정할 행사 선택 (새 행사 등록이면 비워두세요)</label>
+      <select id="eEdit" onchange="fillEvtForm()"><option value="">— 새 행사 등록 —</option></select>
+    </div>
+    <label class="f">구분 *</label>
+    <div class="chips" id="eType"></div>
+    <label class="f">행사명 *</label>
+    <input type="text" id="eName" placeholder="예: 핸즈온 세미나(병원명)">
+    <div class="row2">
+      <div><label class="f">장소</label><input type="text" id="ePlace" placeholder="예: 인터콘티넨탈"></div>
+      <div><label class="f">일자</label><input type="date" id="eDate"></div>
+    </div>
+    <label class="f">행사 비용(원) — 나중에 시트에서 채워도 됩니다</label>
+    <input type="text" id="eCost" inputmode="numeric" placeholder="예: 35920095">
+    <div id="evtReqSec" style="margin-top:16px;border:1px solid #EDEDF0;border-radius:14px;padding:4px 14px 14px;">
+      <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1A1A1A;">자료 요청 (선택)</div>
+      <div style="margin-top:4px;font-size:12px;color:#6b7684;line-height:1.5;">체크한 팀에 행사 안내 메일과 함께 요청 내용이 전달됩니다</div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="rq_CLabs" onchange="document.getElementById('rqBox_CLabs').style.display=this.checked?'block':'none'" style="width:17px;height:17px;accent-color:#3182f6;margin:0;">C-Labs에 자료 요청
+      </label>
+      <div id="rqBox_CLabs" style="display:none;">
+        <label class="f">요청 자료 *</label>
+        <textarea id="rqItems_CLabs" rows="2" placeholder="예: 데모 장비 1대, 노즐 30개" style="width:100%;resize:vertical;"></textarea>
+        <label class="f">준비 기한</label>
+        <input type="date" id="rqDue_CLabs">
+      </div>
+      <label class="f" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="rq_MA" onchange="document.getElementById('rqBox_MA').style.display=this.checked?'block':'none'" style="width:17px;height:17px;accent-color:#3182f6;margin:0;">MA에 자료 요청
+      </label>
+      <div id="rqBox_MA" style="display:none;">
+        <label class="f">요청 자료 *</label>
+        <textarea id="rqItems_MA" rows="2" placeholder="예: 브로슈어 100부, 배너 2개" style="width:100%;resize:vertical;"></textarea>
+        <label class="f">준비 기한</label>
+        <input type="date" id="rqDue_MA">
+      </div>
+    </div>
+    <button class="save" id="eSave" onclick="saveEvt()">행사 등록</button>
+  </div>
+  <div class="card">
+    <label class="f">병원 검색</label>
+    <input type="text" id="pHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkNewHosp()">
+    <div id="pLeadSec" style="display:none;border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">
+      <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">처음 보는 병원이네요 — 리드로 함께 등록합니다</div>
+      <label class="f">판매 구분 *</label>
+      <div class="chips" id="pCh"></div>
+      <div id="pDealerWrap" style="display:none;">
+        <label class="f">딜러명 *</label>
+        <input type="text" id="pDealer" placeholder="예: OO메디칼" autocomplete="off">
+      </div>
+      <label class="f">리드 소스 *</label>
+      <div class="chips" id="pSrc"></div>
+      <div id="pEvtWrap" style="display:none;">
+        <label class="f">어느 행사에서 확보했나요?</label>
+        <select id="pEvt"><option value="">행사 선택</option></select>
+      </div>
+      <div id="pReferWrap" style="display:none;">
+        <label class="f">소개처 (병원/사람)</label>
+        <input type="text" id="pRefer" placeholder="예: 예시클리닉 최원장 소개">
+      </div>
+    </div>
+    <div id="pEquipHint" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;"></div>
+    <label class="f">판매 카테고리 *</label>
+    <div class="chips" id="pCat"></div>
+    <label class="f">방문 예정일</label>
+    <input type="date" id="pDate">
+    <label class="f">활동 유형</label>
+    <div class="chips" id="pType"></div>
+    <input type="text" id="pTypeEtc" style="display:none;" placeholder="활동 유형 직접 입력 (예: 온라인 미팅)" autocomplete="off">
+    <label class="f">방문 목적 *</label>
+    <input type="text" id="pPurpose" placeholder="예: 장비 데모 진행">
+    <label class="f">접촉 예정자</label>
+    <input type="text" id="pContact" placeholder="예: 원장 최OO">
+    <label class="f">준비 사항</label>
+    <input type="text" id="pPrep" placeholder="예: 데모 장비, 제안서 지참">
+    <button class="save" id="pSave" onclick="savePlan()">계획 저장</button>
+    <div style="margin-top:12px;font-size:12.5px;color:#9A9A9A;text-align:center;">저장 후 이어서 다음 계획을 등록할 수 있습니다</div>
+  </div>
+</div></div>
+
+<!-- 기록 입력 -->
+<div class="view" id="view-log"><div class="wrap">
+  <div id="draftBar" class="warnbox" style="display:none;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+    <span class="dtxt"></span>
+    <span style="display:flex;gap:7px;"><button class="btn dload">이어서 쓰기</button><button class="btn ghost ddrop">버리기</button></span>
+  </div>
+  <div id="editBanner" class="warnbox" style="display:none;align-items:center;gap:10px;justify-content:space-between;">
+    <span><b>기록을 수정하는 중입니다.</b> 병원은 바꿀 수 없습니다.</span>
+    <button class="btn" onclick="cancelEdit()">취소</button>
+  </div>
+  <div class="card">
+    <label class="f">병원 검색</label>
+    <input type="text" id="fHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off">
+    <datalist id="hospList"></datalist>
+    <div class="row2">
+      <div><label class="f">방문일</label><input type="date" id="fDate"></div>
+      <div><label class="f">다음 방문 예정일</label><input type="date" id="fNext"></div>
+    </div>
+    <label class="f">판매 카테고리 *</label>
+    <div class="chips" id="fCat"></div>
+    <label class="f">활동 유형</label>
+    <div class="chips" id="fType"></div>
+    <label class="f">판매 단계</label>
+    <select id="fStage"><option value="">선택 안 함</option></select>
+    <label class="f">데모 노즐 사용량 (개)</label>
+    <input type="text" id="fNozzle" inputmode="numeric" placeholder="데모에 사용한 노즐 수량 (없으면 비워두기)">
+    <label class="f">배포 자료 (복수 선택 가능)</label>
+    <div class="chips" id="fMat"></div>
+    <div id="fMatDetails"></div>
+    <label class="f">접촉자</label>
+    <input type="text" id="fContact" placeholder="예: 원장 최OO">
+    <label class="f">주요 논의 내용 *</label>
+    <textarea id="fNote" placeholder="논의 내용을 구체적으로 (다른 사람이 봐도 이해되게)"></textarea>
+    <label class="f">고객 반응</label>
+    <input type="text" id="fReaction" placeholder="예: 관심 높음, 가격 문의">
+    <label class="f">Follow-up 사항</label>
+    <input type="text" id="fFu" placeholder="예: 견적서 발송 후 재방문">
+    <button class="save" id="fSave" onclick="saveLog()">방문기록 저장</button>
+  </div>
+</div></div>
+
+<!-- 내 리드 -->
+<div class="view" id="view-lead"><div class="wrap">
+  <div class="kicker"><div class="bar"></div><div class="lbl" id="leadTitle">내 리드 — 단계를 탭해서 변경</div></div>
+  <div class="seg" id="leadSeg"></div>
+  <div id="leadList"></div>
+</div></div>
+
+<!-- 영업자료 — MA·C-Labs 공식 배포 자료 -->
+<div class="view" id="view-mat"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-size:13px;color:#4e5968;">회사 공식 영업 자료 — 항상 최신 자료를 사용하세요</span>
+    <button class="refresh" onclick="MATL=null;loadMat()">새로고침</button>
+  </div>
+  <div class="card" id="matUpCard" style="display:none;border-color:#c9e0ff;">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:2px;">자료 업로드 — 등록하면 영업사원 전체에게 메일이 갑니다</div>
+    <label class="f">카테고리 *</label>
+    <div class="chips" id="mCat"></div>
+    <label class="f">자료명 *</label>
+    <input type="text" id="mTitle" placeholder="예: CURE-JET 브로슈어 2026 하반기 (v2)">
+    <label class="f">설명 (변경 사항 · 사용처)</label>
+    <textarea id="mDesc" rows="2" style="min-height:64px;" placeholder="예: 가격표 갱신본 — 이전 버전은 폐기해 주세요"></textarea>
+    <label class="f">파일 첨부 (20MB 이하 — 초과 시 아래 대용량 안내)</label>
+    <input type="file" id="mFile" style="font-size:13px;">
+    <label class="f">또는 자료 링크(URL)</label>
+    <input type="text" id="mLink" placeholder="https:// 드라이브·홈페이지 링크" autocomplete="off">
+    <button class="save" id="mSave" onclick="submitMat()">업로드 + 메일 알림</button>
+    <div id="mBigHint" style="display:none;margin-top:12px;font-size:12px;color:#6b7684;line-height:1.7;background:#f2f4f6;border-radius:10px;padding:12px 14px;">
+      <b style="color:#4e5968;">20MB 넘는 대용량 파일 올리는 법</b><br>
+      ① [자료 폴더 열기]로 드라이브 폴더에 파일을 직접 업로드 → ② 파일 우클릭 → 링크 복사 → ③ 위 "자료 링크"에 붙여넣고 등록.<br>메일 알림·자료 리스트는 동일하게 동작합니다.
+      <div style="margin-top:10px;"><a id="mFolderBtn" class="btn" style="text-decoration:none;display:inline-block;" href="#" target="_blank" rel="noopener">자료 폴더 열기</a></div>
+    </div>
+  </div>
+  <div class="seg" id="matSeg"></div>
+  <div id="matList"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 가이드 — 팀원 온보딩 · 사용법 -->
+<div class="view" id="view-guide"><div class="wrap">
+  <div class="kicker" style="margin-top:0;"><div class="bar"></div><div class="lbl">SalesON 사용 가이드</div></div>
+
+  <div class="guide2"><div>
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">① 매일 하는 일은 딱 3가지</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      <b>1. 계획 등록</b> — <b>계획 탭</b>에서 다음 주 방문 계획을 금요일까지 등록<br>
+      <b>2. 방문 기록</b> — 방문 후 <b>기록 탭</b>에서 결과 입력 (홈 계획 카드의 [기록 쓰기]를 누르면 자동으로 채워져요)<br>
+      <b>3. 리드 관리</b> — <b>리드 탭</b>에서 내 리드의 단계를 탭해서 변경 (컨택 → 데모 → 협의 → 계약)
+    </div>
+    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">기록을 남기면 같은 병원의 계획이 자동으로 '완료' 처리됩니다. 방문 못 간 계획은 홈에서 [연기/취소]로 정리해 주세요 — 안 하면 매일 아침 미기록 알림이 갑니다.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">② 기록할 때 꼭 선택할 것</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      · <b>판매 카테고리</b> — <span class="tag" style="margin:0;">장비 판매</span> <span class="tag ncare" style="margin:0;">N-Care</span> 중 선택 (필수)<br>
+      · <b>판매 단계</b> — 데모 완료·협의중·제안 완료·계약 등. <b>퍼널·KPI가 전부 이걸로 집계</b>되니 정확하게!<br>
+      · <b>데모 노즐 사용량 · 배포 자료</b> — 데모/자료 전달 시 함께 입력
+    </div>
+    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">단계를 '계약'으로 저장하면 해당 병원 리드가 자동으로 계약·달성 처리됩니다.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">③ 학회 · 세미나 모객</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      <b>학회/세미나 탭</b> → 행사 카드의 <b>[＋ 참석자 등록 (내 모객)]</b>으로 내가 모객한 원장님을 등록하세요.<br>
+      등록하는 순간 <b>내 리드가 되고, 달성 목표가 내 KPI</b>로 잡힙니다.
+    </div>
+    <div style="margin-top:10px;font-size:13px;line-height:1.7;color:#4e5968;">
+      달성 목표 카테고리:<br>
+      · <b>장비 판매</b> — 장비 미보유 병원의 구매 유도<br>
+      · <b>N-care_Basic / Standard / Pro / Premium</b> — 가입·업그레이드 목표
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">④ 화면 한눈에 보기</div>
+    <table class="dt" style="margin-top:8px;">
+      <tbody>
+      <tr><td style="white-space:nowrap;"><b>홈</b></td><td>이번 주 내 계획 + 내 KPI + 월별 누적. 옆으로 밀면 전체 메뉴</td></tr>
+      <tr><td><b>계획</b></td><td>방문 계획 등록 (새 병원이면 리드도 자동 생성)</td></tr>
+      <tr><td><b>기록</b></td><td>방문 결과 입력</td></tr>
+      <tr><td><b>리드</b></td><td>내 리드 단계 관리 · 실패 리드 재컨택 추적</td></tr>
+      <tr><td><b>자료</b></td><td>회사 공식 영업 자료실 (MA·C-Labs 업로드) — 항상 여기 있는 최신 자료로 배포</td></tr>
+      <tr><td style="white-space:nowrap;"><b>학회/세미나</b></td><td>행사별 참석자·달성 현황, 내 모객 등록</td></tr>
+      <tr><td><b>흐름</b></td><td>월별 영업 퍼널 (리드→제안→계약→입금)</td></tr>
+      <tr><td><b>KPI</b></td><td>내 목표 대비 달성률, 목표 시기 임박 리드</td></tr>
+      <tr><td><b>현황</b></td><td>이번 주 팀 활동 모니터링</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">⑤ 자동으로 오는 메일</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      · <b>월요일 아침</b> — 이번 주 내 방문 계획 브리핑<br>
+      · <b>금요일 오후</b> — 주간 활동 리포트 (내 실적 + 팀 현황)<br>
+      · <b>매일 아침</b> — 방문기록 미입력 알림 (있을 때만)<br>
+      · <b>수요일 아침</b> — 14일 이상 접촉 없는 내 리드 알림<br>
+      · <b>목요일 아침</b> — 내 실패 리드 추적 (재컨택 시기 도래 알림)<br>
+      · <b>금요일 아침</b> — 다음 주 방문 계획 등록 리마인더 (금요일까지 등록 원칙)<br>
+      · <b>수시</b> — 새 영업 자료 등록 알림
+    </div>
+    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">알림을 받으려면 관리자에게 이메일 등록을 확인하세요. 리드에 방문 계획만 등록해도 방치 알림에서 빠집니다.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">⑥ 폰에 앱처럼 설치하기</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      <b>안드로이드 (Chrome)</b> — 이 페이지에서 오른쪽 위 <b>⋮</b> → <b>홈 화면에 추가</b><br>
+      <b>아이폰 (Safari)</b> — 하단 <b>공유 버튼(⬆)</b> → <b>홈 화면에 추가</b>
+    </div>
+    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">카톡 안에서 열린 상태에서는 안 됩니다 — 오른쪽 위 메뉴에서 [다른 브라우저로 열기]를 먼저 눌러 Chrome/Safari로 연 다음 추가하세요. 추가하면 바탕화면 아이콘으로 앱처럼 실행되고 로그인도 유지됩니다.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;">⑦ 로그인이 안 될 때</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
+      · 이름은 사번 없이 <b>실명 그대로</b> (예: 홍길동)<br>
+      · PIN은 관리자(유영환)에게 받은 번호<br>
+      · 인증번호 메일이 안 오면 스팸함 확인 → 그래도 없으면 관리자에게 이메일 등록 요청<br>
+      · 화면이 이상하면 브라우저 새로고침 (카톡에서 열었다면 창을 닫고 다시 열기)
+    </div>
+  </div>
+
+  <div style="margin-top:4px;margin-bottom:8px;font-size:12px;color:#8b95a1;text-align:center;">문의: 유영환 · 시스템은 계속 업데이트됩니다</div>
+  </div>
+
+  <div class="gqr"><div class="card" style="text-align:center;">
+    <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:4px;">SalesON 접속 QR</div>
+    <div style="margin-top:6px;font-size:12.5px;color:#6b7684;line-height:1.6;">동료에게 이 화면을 보여주면<br>카메라로 찍고 바로 접속할 수 있어요</div>
+    <img alt="SalesON 접속 QR" style="width:200px;height:200px;display:block;margin:14px auto 8px;" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAAAklEQVR4AewaftIAAAqASURBVO3BwbEkNpIlwMewukEm6AERoQdkwpnL4xxmeg1hzGZ+lrv/8edfAgCPKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuW/YKwT/l53z3zSWCcv7p55MdbJi7tnvs1YJ/zf7p55MdYJf6+7Zz6pAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAw698obtnfidjnXybu2dejHXy4u6ZF2OdvLh75tPunvkmY528uHvmp7t75ncy1sk3qQBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/wJjnXyTu2e+zVgnL+6eeXH3zIuxTr7JWCev7p55MdbJi7tnXtw982Ksk0+6e+bbjHXyTe6e+ckqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/Ar8L8Y6+aS7Z77J3TPfZqyTF3fPfNLdM/A/VQCgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaPgV+AeMdfK7uXvmxVgnL8Y6gf+mCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADb/yL3D3DP+su2c+aayTn26sk0+6e4b/7O4Z/j4VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuULjXXCP+vumRdjnby4e+aT7p55MdbJq7tnXox18uLumRdjnby4e+bFWCcv7p75tLFO+OdUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAwx9//iX864118kl3z3yTsU5e3D3zaqyTF3fPfJOxTl7cPQP/UwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIZf+S8Y6+TF3TMvxjr53dw98+LumU8a6+Sb3D3zYqyTbzPWySfdPfNNxjr53dw985NVAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBo+OPPv+TLjHXySXfPvBjr5JPunnk11skn3T3zSWOdvLh75tuMdcK/290z32Sskxd3z3xSBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhj/+/Es+bKyTF3fPvBjr5JPunvmksU6+zd0zL8Y6+SZ3z/x0Y528uHvmk8Y6+TZ3z/DPqQBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PArv6G7Z16MdfLi7pkXd898m7FOXtw982Kskxd3z3zSWCev7p55MdbJi7tnfrK7Z77NWCefdPfMi7FOXtw9800qANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/PHnX/JhY538ZHfPvBjr5NvcPfNJY528uHvmxVgnL+6e+enGOnlx98wnjXXy4u6Zn26sk0+6e+YnqwBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PDHn3/JDzfWyYu7Z16MdfJJd8+8GuuEn+XumW8y1gn/2d0z32Sskxd3z3xSBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhj/+/Es+bKyTT7p75sVYJy/unnkx1sm3uXvmxVgn/LvdPfNNxjp5dffMJ4118kl3z/xkFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/H+NdfJJd8/8dHfPfJOxTl7cPfNpY528uHuGf9bdM5801smLu2e+SQUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIY//vxLfrixTj7p7plPGuvk1d0zL8Y6+Z3cPfNirJNXd8980lgnL+6eeTHWyYu7Z16MdfLi7plXY528uHvmxVgnn3T3zE9WAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Y8//5IPG+vkk+6eeTHWySfdPfNpY5180t0znzTWySfdPfO7GeuEv9fdMy/GOnlx98yLsU5e3D3zSRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABp+5QvdPfOTjXXy04118kl3z/x0Y528uHvmm9w9803GOuE/u3vmm1QAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGj4ld/Q3TOfNNbJi7tnXo118k3unvnJxjp5dffMi7FOXtw98+LumU8a6+Tb3D3zYqyTT7p75sVYJy/unvkmFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGn7lNzTWyYu7Zz5prJNXd8+8GOvkxd0zL8Y6eXH3zIuxTl7cPfPi7plPu3vmxVgnL+6e+d2MdfJNxjr5pLFOXtw980kVAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuW/4O6Zb3L3zCfdPcN/NtbJi7tnXox18ml3z7wY6+STxjr5JnfPfJuxTl6MdcL/rQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaKgAQMOv/BeMdcLf6+6ZF3fPvBjr5MXdM5801sm3Gevkk+6e+aSxTr7JWCev7p75ye6e+ckqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Ve+0N0zv5OxTj5trJMXd898k7tnXox18uLumU8b6+STxjr5ye6e+TZ3z/B/qwBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/wJjnXyTu2d+urFOXtw982Ksk0+6e+bFWCev7p55cffMi7FOXtw980ljnbwY6+R3M9bJJ909800qANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/Ar8L+6eeTHWyYu7Zz5prJMXd8982lgnL+6eeTHWySfdPfO7Gevkm4x18uLumU+qAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQ8Cvwvxjr5JPGOnlx98yLu2dejHXy090980ljnfDPunvmm1QAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGj4lX+Bu2f4z+6eeTHWyYu7Z16MdfJirJMXd8+8uHuGv9fdMz/dWCcv7p55MdbJT1YBgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKDhV77QWCf8vcY6+aSxTj7p7pkXY538bu6eeTHWyYu7Zz5prJNXd8+8GOvkxd0zL8Y6eXH3zE9WAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Y8//xIAeFQBgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGv4fUys1STlr4H8AAAAASUVORK5CYII=">
+    <div style="font-size:11.5px;color:#8b95a1;">bazbio.github.io/saleson</div>
+    <div style="margin-top:12px;font-size:12px;color:#6b7684;line-height:1.6;border-top:1px solid #f2f4f6;padding-top:10px;">접속 후 <b>홈 화면에 추가</b>하면<br>파란 S 아이콘의 앱으로 설치됩니다</div>
+  </div></div>
+  </div>
+</div></div>
+
+<!-- KPI — 내 KPI 확인 / 팀 KPI 관리 -->
+<div class="view" id="view-kpi"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <span style="font-size:13px;color:#4e5968;">KPI 목표 · 달성 관리</span>
+    <button class="refresh" onclick="KPIT=null;loadKpiTab()">새로고침</button>
+  </div>
+  <div id="kpiBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 흐름 — 월별 영업 퍼널 -->
+<div class="view" id="view-flow"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div class="fmonth">
+      <input type="month" id="fMonth" onchange="loadFlow(this.value)">
+    </div>
+    <button class="refresh" onclick="loadFlow(document.getElementById('fMonth').value)">새로고침</button>
+  </div>
+  <div id="flowBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 학회/세미나 — 행사별 참석자 · 목표 달성 현황 -->
+<div class="view" id="view-evt"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-size:13px;color:#4e5968;">행사별 참석자 · 달성 현황</span>
+    <button class="refresh" onclick="EVT=null;loadEvt()">새로고침</button>
+  </div>
+  <div class="seg" id="evtSeg">
+    <div class="chip on" onclick="evtGrp('학회',this)">학회</div>
+    <div class="chip" onclick="evtGrp('세미나',this)">세미나</div>
+    <div class="chip" onclick="evtGrp('기타',this)">기타</div>
+  </div>
+  <div id="evtBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 현황 대시보드 -->
+<div class="view" id="view-dash"><div class="wrap">
+  <div id="dashBody">
+    <div class="card empty">불러오는 중…</div>
+  </div>
+</div></div>
+
+<!-- Meta DB — 광고 문의함 (ADR 0002). 문의는 리드가 아니다.
+     통화로 확인한 것만 [계획 등록]을 거쳐 리드로 승격된다 -->
+<div class="view" id="view-meta"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;color:#6b7684;">광고 문의 — 빠른 첫 통화가 전환율을 가릅니다. 먼저 통화하는 분이 담당입니다</span>
+    <button class="refresh" onclick="METAQ=null;loadMeta()">새로고침</button>
+  </div>
+  <div class="seg scrollx" id="metaSeg"></div>
+  <div id="metaBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 내 입력 — 본인이 넣은 방문기록을 다시 보고 고친다 (팀원 피드백 5번),
+     계약일 수정도 여기서 한다 (피드백 2번) -->
+<div class="view" id="view-mine"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;color:#6b7684;">내가 입력한 내용을 보고 고칠 수 있습니다</span>
+    <button class="refresh" onclick="MINE=null;loadMine()">새로고침</button>
+  </div>
+  <div class="seg" id="mineSeg"></div>
+  <div id="mineBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- 더보기 — 모바일에서 하단 탭 5개에 안 들어간 화면들 (PC는 사이드바에 다 있어 안 쓴다) -->
+<div class="view" id="view-more"><div class="wrap">
+  <div class="kicker"><div class="bar"></div><div class="lbl">전체 메뉴</div></div>
+  <div class="mlist">
+    <div class="mrow" id="more-plan" onclick="show('plan')">
+      <div class="mi" style="background:#3182f6;">계</div>
+      <div class="mb2"><div class="mn">계획</div><div class="ms2">다음 주 방문 계획 등록</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-log" onclick="show('log')">
+      <div class="mi" style="background:#18a5a5;">기</div>
+      <div class="mb2"><div class="mn">기록</div><div class="ms2">방문 결과 입력</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-meta" onclick="show('meta')">
+      <div class="mi" style="background:#1877f2;">M</div>
+      <div class="mb2"><div class="mn">Meta DB</div><div class="ms2">광고 문의 — 빠른 통화 · 승격</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-mine" onclick="show('mine')">
+      <div class="mi" style="background:#03b26c;">내</div>
+      <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-mat" onclick="show('mat')">
+      <div class="mi" style="background:#a234c7;">자</div>
+      <div class="mb2"><div class="mn">자료</div><div class="ms2">공식 영업 자료실</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-evt" onclick="show('evt')">
+      <div class="mi" style="background:#fe9800;">학</div>
+      <div class="mb2"><div class="mn">학회 / 세미나</div><div class="ms2">행사별 참석자 · 달성</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-kpi" onclick="show('kpi')">
+      <div class="mi" style="background:#03b26c;">K</div>
+      <div class="mb2"><div class="mn">KPI</div><div class="ms2">목표 · 달성 관리</div></div>
+      <div class="mc">›</div>
+    </div>
+    <div class="mrow" id="more-guide" onclick="show('guide')">
+      <div class="mi" style="background:#6b7684;">?</div>
+      <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
+      <div class="mc">›</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="nav">
+  <button id="nav-home" class="on" onclick="show('home')">홈</button>
+  <button id="nav-dash" onclick="show('dash')">현황</button>
+  <button id="nav-flow" onclick="show('flow')">흐름</button>
+  <button id="nav-plan" onclick="show('plan')">계획</button>
+  <button id="nav-log" onclick="show('log')">기록</button>
+  <button id="nav-lead" onclick="show('lead')">리드</button>
+  <button id="nav-meta" onclick="show('meta')">Meta DB</button>
+  <button id="nav-mine" onclick="show('mine')">내 입력</button>
+  <button id="nav-mat" onclick="show('mat')">자료</button>
+  <button id="nav-evt" onclick="show('evt')">학회<span class="pconly">/세미나</span></button>
+  <button id="nav-kpi" onclick="show('kpi')">KPI</button>
+  <button id="nav-more" onclick="show('more')">더보기</button>
+</div>
+
+<!-- 병원 상세 모달 — 흐름·케어 보드에서 병원 클릭 시 -->
+<div id="hospModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:560px;width:100%;margin:0;max-height:85vh;overflow-y:auto;" id="hospModalBody"></div>
+</div>
+
+<!-- 리드 실패 처리 모달 — 실패 요인·재컨택 조건 기록 -->
+<div id="failModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;">
+  <div class="card" style="max-width:480px;width:100%;margin:0;max-height:90vh;overflow-y:auto;">
+    <div style="font-size:15px;font-weight:700;color:#d0223a;margin-top:2px;">리드 실패 처리</div>
+    <div id="failHosp" style="margin-top:6px;font-size:13px;color:#6b7684;"></div>
+    <label class="f">실패 요인 (상세히) *</label>
+    <textarea id="failWhy" style="min-height:80px;" placeholder="예: 올해 장비 예산 소진 — 원장 관심은 높으나 내년 예산 확정 전까지 구매 불가"></textarea>
+    <label class="f">재컨택 조건 — 어떤 문제가 해결되면 다시 컨택할까요?</label>
+    <textarea id="failFix" style="min-height:64px;" placeholder="예: 내년 1분기 예산 확정 후 / 신규 지점 오픈 시 / 기존 장비 리스 만료 시"></textarea>
+    <label class="f">재컨택 목표일</label>
+    <input type="date" id="failRetry">
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn" style="flex:1;" onclick="closeFail()">취소</button>
+      <button class="btn pri" style="flex:1;background:#f04452;border-color:#f04452;" onclick="submitFail()">실패 처리</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading"><div class="spin"></div><div style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
+<div id="gate">
+  <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
+  <div style="margin-top:10px;font-size:12px;font-weight:600;color:#B9B9C0;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
+  <div style="margin-top:26px;font-size:19px;font-weight:700;color:#1A1A1A;">임직원 로그인</div>
+  <div style="margin-top:8px;font-size:12.5px;color:#6b7684;line-height:1.6;">국내영업 · 관리자 · 조회 계정 공통<br>새 기기는 최초 1회 메일 인증이 필요합니다</div>
+  <div style="margin-top:20px;width:100%;max-width:320px;text-align:left;">
+    <div id="loginStep">
+      <label class="f">이름</label>
+      <input type="text" id="liName" placeholder="예: 홍길동" autocomplete="off">
+      <label class="f">PIN (웹 비밀번호)</label>
+      <input type="password" id="liPin" inputmode="numeric" placeholder="관리자에게 받은 번호">
+      <button class="save" onclick="doLogin()">로그인</button>
+    </div>
+    <div id="otpWrap" style="display:none;">
+      <div id="otpMsg" style="margin-top:4px;font-size:13.5px;color:#4e5968;line-height:1.6;text-align:center;"></div>
+      <label class="f">인증번호 6자리</label>
+      <input type="text" id="liOtp" inputmode="numeric" maxlength="6" placeholder="메일로 받은 번호" autocomplete="off">
+      <button class="save" onclick="doOtp()">확인</button>
+      <div style="margin-top:12px;display:flex;justify-content:center;gap:8px;">
+        <button class="btn ghost" onclick="backToLogin()">뒤로</button>
+        <button class="btn" onclick="doLogin()">인증번호 재전송</button>
+      </div>
+    </div>
+    <div id="gateMsg" style="margin-top:14px;font-size:13.5px;color:#d0223a;text-align:center;line-height:1.6;white-space:pre-line;"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+var DATA = null;
+var DASH = null;
+var EVT = null;
+var EVTEDIT = null;
+var EVTGRP = '학회';
+var EVTREG = null;
+var FLOW = null;
+var KPIT = null;
+var MATL = null;
+var MINE = null;        // 내 입력 탭 데이터
+var MINESEG = '방문기록';
+var EDITROW = 0;        // 0이면 새 기록, 아니면 그 행을 수정 중
+var METAQ = null;       // Meta DB 탭 데이터
+var METASEG = '전체';
+var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
+var MATSEG = '전체';
+var LEADSEG = 'open';
+var LEADREP = '';
+var FAILROW = 0;
+var DASHTEAM = '전체';
+var DASHM = '';
+var DASHW = '';
+var DASHREP = '';
+var selType = '';
+var selPType = '';
+var selPCh = '';
+var selPSrc = '';
+var selEType = '';
+var selPCat = '';
+var selFCat = '';
+var selMats = [];
+var matVals = {};
+/* 토큰과 기기 ID (ADR 0008).
+ *
+ * 예전에는 화면이 GAS iframe(googleusercontent.com)에 있었다. iOS가 그 저장소를
+ * 서드파티로 취급해 주기적으로 비웠고, 그때마다 새 기기로 인식돼 인증번호가 또 갔다.
+ * 그래서 셸(bazbio.github.io)이 값을 들고 postMessage로 건네는 구조를 만들었었다.
+ *
+ * 화면이 셸과 같은 origin으로 오면서 그 우회가 통째로 필요 없어졌다 — 여기가 곧
+ * 홈 화면 앱의 1차 저장소다. **열쇠 이름은 셸이 쓰던 것을 그대로 쓴다.** 그래야
+ * 이미 로그인해 둔 사람이 재로그인도 인증번호도 안 겪는다. */
+var TOKEN = '';
+try { TOKEN = localStorage.getItem('saleson_token') || ''; } catch (e) {}
+var DEV = '';   // 기기 식별자 — 메일 인증을 마친 기기는 서버가 기억해 인증번호를 생략
+try {
+  DEV = localStorage.getItem('saleson_device') || '';
+  if (!DEV) {
+    if (window.crypto && crypto.getRandomValues) {
+      var a = new Uint8Array(16); crypto.getRandomValues(a);
+      DEV = Array.prototype.map.call(a, function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    } else {
+      DEV = String(Date.now()) + Math.random().toString(16).slice(2);
+    }
+    localStorage.setItem('saleson_device', DEV);
+  }
+} catch (e) {}
+/* 셸에서 넘어오던 「직전 기기 ID」 승계 경로는 사라졌다. 같은 저장소를 그대로 읽으므로
+   갈아탈 ID가 없다 — 서버 인자는 유지하되 항상 빈 값을 보낸다. */
+var DEV_OLD = '';
+
+/* 서버 호출 통로 (ADR 0008) — 화면은 google.script.run을 직접 만지지 않는다.
+ *
+ * 화면이 GAS 밖(GitHub Pages)으로 나오면서 google.script.run이 없어졌다. 대신 GAS의
+ * doPost 디스패처를 fetch로 부른다. 호출부 38곳은 한 줄도 안 바뀐다 — 같은 모양
+ * (withSuccessHandler → withFailureHandler → 서버함수명)을 내는 프록시를 돌려준다.
+ *
+ * ⚠ 여기서 가장 중요한 것은 **오류 문구를 잃지 않는 것**이다. google.script.run은
+ *   withFailureHandler에 서버 예외를 그대로 줬고, 화면 38곳이 그 e.message를 토스트로
+ *   띄운다("다른 사람이 저장하는 중입니다", "이미 리드로 전환된 문의입니다" …).
+ *   디스패처가 {ok:false,error}로 실어 보낸 문구를 여기서 Error로 되살려야 그 문구가 산다.
+ *
+ * 매번 새 프록시를 만드는 이유: 핸들러를 한 객체에 저장해 두면 동시 호출(prefetch 등)이
+ * 서로의 핸들러를 덮어써 엉뚱한 화면이 그려진다. 진짜 google.script.run도 같은 이유로
+ * 체이닝마다 새 러너를 돌려준다. */
+var API_URL = 'https://script.google.com/macros/s/AKfycbyfSsrOx0Vzq1wBGwRBeznbns_wEbYA4FEaXWmNHGaIEG8HGwnrigaCz7LKYGvFHmyQqw/exec';
+var API_TIMEOUT = 60000;   // 쓰기는 잠금 대기 20초가 붙을 수 있다 — 넉넉히 잡는다
+
+function gsrun() { return 러너_(null, null); }
+
+/* 이름을 미리 나열하지 않고 Proxy로 받는다 — 목록을 손으로 유지하면 새 서버 함수를
+   쓸 때 빠뜨리고, 그러면 조용히 실패한다. 하네스 목 런타임도 같은 방식이다. */
+function 러너_(ok, fail) {
+  return new Proxy({}, {
+    get: function (_t, p) {
+      if (p === 'withSuccessHandler') return function (h) { return 러너_(h, fail); };
+      if (p === 'withFailureHandler') return function (h) { return 러너_(ok, h); };
+      if (p === 'withUserObject') return function () { return 러너_(ok, fail); };
+      if (typeof p !== 'string') return undefined;
+      return function () { 호출_(p, [].slice.call(arguments), ok, fail); };
+    }
+  });
+}
+
+/* 실제 왕복. 실패는 전부 Error로 만들어 fail(e)에 넘긴다 — 호출부가 e.message를 읽는다. */
+function 호출_(fn, args, ok, fail) {
+  var 끝난 = false;
+  var 실패 = function (msg) {
+    if (끝난) return;
+    끝난 = true;
+    if (fail) fail(new Error(msg));
+  };
+  var 타이머 = setTimeout(function () {
+    실패('응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.');
+  }, API_TIMEOUT);
+
+  fetch(API_URL, {
+    method: 'POST',
+    // text/plain이라야 CORS 사전요청이 없다(왕복이 하나 줄어든다).
+    // ⚠ 본문은 percent-encoding해서 **순수 ASCII로** 보낸다 — GAS는 charset을 명시해도
+    //   POST 본문을 UTF-8로 안 읽어서 한글이 U+FFFD로 깨진다(2026-08-01 배포로 확인).
+    //   서버 함수 이름이 한글이라 이대로면 아무 요청도 이름을 못 찾는다.
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: encodeURIComponent(JSON.stringify({ fn: fn, args: args }))
+  }).then(function (res) {
+    return res.text();
+  }).then(function (본문) {
+    clearTimeout(타이머);
+    if (끝난) return;
+    var r;
+    try { r = JSON.parse(본문); } catch (e) { return 실패('서버 응답을 읽지 못했습니다.'); }
+    if (!r || r.ok !== true) return 실패((r && r.error) || '요청을 처리하지 못했습니다.');
+    끝난 = true;
+    if (ok) ok(r.data);
+  }).catch(function (e) {
+    clearTimeout(타이머);
+    실패((e && e.message) || '서버에 연결하지 못했습니다.');
+  });
+}
+
+function boot() {
+  if (!TOKEN) { showLogin(''); return; }
+  gsrun().withSuccessHandler(onBoot).withFailureHandler(function() { showLogin(''); }).웹_부트(TOKEN);
+}
+/* 부트 응답 = 초기데이터 + 무거운 탭 다섯 개를 한 번에 받은 것.
+   예전엔 여기서 서버를 여섯 번 불렀고 GAS가 그걸 여섯 실행으로 돌려 같은 시트를 여섯 번 읽었다.
+   탭 캐시를 먼저 채워 두면 onData 끝의 prefetch가 '이미 있음'으로 지나간다 —
+   한 조각이 서버에서 실패해 비어 오면 그 조각만 예전 경로로 채워진다. */
+function onBoot(b) {
+  b = b || {};
+  if (b.dash) DASH = b.dash;
+  if (b.evt) EVT = b.evt;
+  if (b.flow) { FLOW = b.flow; FLOWX = {}; }
+  if (b.kpi) KPIT = b.kpi;
+  if (b.matl) MATL = b.matl;
+  onData(b.init);
+}
+function onData(d) {
+  DATA = d;
+  스플래시끄기_();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('heroTitle').textContent = d.me.name + ' 님';
+  document.getElementById('heroMeta').textContent = (d.me.team ? d.me.team + ' · ' : '') + d.today;
+  // 조회 전용 계정: 입력 탭(홈·계획·기록·리드) 숨기고 현황부터
+  var vw = !!d.me.viewer;
+  // 조회 전용은 입력을 못 하니 '내 입력'도 볼 게 없다 — 함께 숨긴다.
+  // Meta DB는 개인 연락처(휴대폰)가 있어 조회 전용 계정에게도 숨긴다
+  ['home', 'plan', 'log', 'lead', 'mine', 'meta'].forEach(function(k) {
+    var nb = document.getElementById('nav-' + k);
+    if (nb) nb.style.display = vw ? 'none' : '';
+  });
+  // 더보기 메뉴·홈 바로 가기에서도 입력 화면을 지운다 — 탭만 숨기면 우회 진입이 된다
+  ['more-plan', 'more-log', 'more-mine', 'more-meta', 'quick-plan', 'quick-log'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = vw ? 'none' : '';
+  });
+  renderHome(); renderForm(); renderLeads(); 임시저장복구_();
+  if (vw) show('dash');
+  setTimeout(prefetch, 1200);
+}
+function doLogout() {
+  if (!confirm('로그아웃할까요?')) return;
+  TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
+  try { localStorage.removeItem('saleson_token'); } catch (e) {}
+  document.getElementById('liName').value = '';
+  document.getElementById('liPin').value = '';
+  show('home');
+  showLogin('로그아웃되었습니다.');
+}
+/* 스플래시는 화면이 실제로 쓸 수 있게 된 순간에만 걷는다 — 부트가 끝났거나(onData)
+   로그인 화면을 띄웠거나(showLogin). 시간으로 걷으면 흰 화면이 먼저 보인다. */
+function 스플래시끄기_() {
+  var s = document.getElementById('splash');
+  if (!s || s.classList.contains('off')) return;
+  s.classList.add('off');
+  setTimeout(function () { s.style.display = 'none'; }, 300);
+}
+
+function showLogin(msg) {
+  스플래시끄기_();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('gate').style.display = 'flex';
+  document.getElementById('gateMsg').textContent = msg || '';
+  backToLogin();
+}
+function backToLogin() {
+  document.getElementById('loginStep').style.display = 'block';
+  document.getElementById('otpWrap').style.display = 'none';
+}
+function otpStep(hint) {
+  document.getElementById('loginStep').style.display = 'none';
+  document.getElementById('otpWrap').style.display = 'block';
+  document.getElementById('otpMsg').textContent = hint + ' 메일로 인증번호를 보냈습니다.\n10분 안에 입력해 주세요.\n인증 후 이 기기에서는 90일간 로그인 상태가 유지됩니다.';
+  document.getElementById('liOtp').value = '';
+  document.getElementById('gateMsg').textContent = '';
+}
+function doLogin() {
+  var n = document.getElementById('liName').value.trim();
+  var p = document.getElementById('liPin').value.trim();
+  if (!n || !p) return showLogin('이름과 PIN을 모두 입력해 주세요.');
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false);
+    if (r && r.token) {          // 신뢰 기기 — 인증번호 없이 바로 로그인
+      TOKEN = r.token;
+      try { localStorage.setItem('saleson_token', TOKEN); } catch (e) {}
+      backToLogin();
+      onBoot(r.data);
+      return;
+    }
+    if (r && r.need === 'otp') otpStep(r.hint);
+  }).withFailureHandler(function(e) {
+    busy(false); showLogin(String(e && e.message ? e.message : e));
+  }).웹_로그인(n, p, DEV, DEV_OLD);
+}
+function doOtp() {
+  var n = document.getElementById('liName').value.trim();
+  var p = document.getElementById('liPin').value.trim();
+  var c = document.getElementById('liOtp').value.trim();
+  if (!c) return document.getElementById('gateMsg').textContent = '인증번호를 입력해 주세요.';
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    TOKEN = r.token;
+    try { localStorage.setItem('saleson_token', TOKEN); } catch (e) {}
+    backToLogin();
+    onBoot(r.data);
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('gateMsg').textContent = String(e && e.message ? e.message : e);
+  }).웹_인증확인(n, p, c, DEV);
+}
+/* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
+   이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta'];
+function show(v) {
+  ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta'].forEach(function(k) {
+    document.getElementById('view-' + k).classList.toggle('on', k === v);
+    var nb = document.getElementById('nav-' + k);
+    if (nb) nb.classList.toggle('on', k === v);
+  });
+  var nm = document.getElementById('nav-more');
+  if (nm) nm.classList.toggle('on', v === 'more' || UNDER_MORE.indexOf(v) >= 0);
+  window.scrollTo(0, 0);
+  if (v === 'mat') { MATL ? renderMat() : loadMat(); }
+  if (v === 'dash') { DASH ? renderDash() : loadDash(); }
+  if (v === 'evt') { EVT ? renderEvt() : loadEvt(); }
+  if (v === 'kpi') { KPIT ? renderKpiTab() : loadKpiTab(); }
+  if (v === 'mine') { MINE ? renderMine() : loadMine(); }
+  if (v === 'meta') { METAQ ? renderMeta() : loadMeta(); }
+  if (v === 'flow') {
+    if (FLOW) { document.getElementById('fMonth').value = FLOW.ym; renderFlow(); }
+    else loadFlow('');
+  }
+}
+
+/* 로그인 직후 무거운 탭 데이터를 미리 받아둠 — 스윕 전환이 즉시 뜨도록 */
+function prefetch() {
+  if (!TOKEN) return;
+  if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
+  if (!EVT) gsrun().withSuccessHandler(function(d) { EVT = d; }).웹_행사현황(TOKEN);
+  if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
+  if (!KPIT) gsrun().withSuccessHandler(function(d) { KPIT = d; }).웹_KPI현황(TOKEN);
+  if (!MATL) gsrun().withSuccessHandler(function(d) { MATL = d; }).웹_영업자료목록(TOKEN);
+}
+function openEvtReg() {
+  show('plan');
+  document.getElementById('evtRegCard').style.display = 'block';
+}
+function toast(msg, err) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block';
+  setTimeout(function() { t.style.display = 'none'; }, 2600);
+}
+function busy(on) { document.getElementById('loading').style.display = on ? 'flex' : 'none'; }
+function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+/* ── 홈 ── */
+function tile(label, val, cls, sub) {
+  return '<div class="tile"><div class="t">' + esc(label) + '</div>'
+    + '<div class="n' + (cls ? ' ' + cls : '') + '">' + val + '</div>'
+    + '<div class="s">' + esc(sub) + '</div></div>';
+}
+function renderHome() {
+  var stale = DATA.plans.filter(function(p) { return p.dday < 0; });
+  var week = DATA.plans.filter(function(p) { return p.dday >= 0; });
+  var team = DATA.kpi && DATA.kpi.scope === 'team' && DATA.team;
+
+  document.getElementById('tilesTitle').textContent = team ? '이번 주 팀 현황' : '이번 주 현황';
+  document.getElementById('homeTiles').innerHTML = team
+    ? tile('이번 주 팀 계획', DATA.team.plan, 'blue', '팀 전체 · 예정 기준')
+      + tile('팀 미기록', DATA.team.stale, DATA.team.stale ? 'red' : '', '예정일 경과')
+      + tile('이달 팀 방문', DATA.team.monthVisits, '',
+          DATA.kpi.visit.tgt ? '목표 ' + DATA.kpi.visit.tgt + '건' : '목표 미설정')
+    : tile('이번 주 내 계획', week.length, 'blue', '예정 상태 기준')
+      + tile('미기록', stale.length, stale.length ? 'red' : '', '예정일 경과')
+      + tile('이달 방문', DATA.month.visits, '',
+          DATA.month.target ? '목표 ' + DATA.month.target + '건' : '목표 미설정');
+
+  renderMonthly(!!team);
+
+  var sw = document.getElementById('staleWrap');
+  sw.innerHTML = '';
+  if (stale.length) {
+    sw.innerHTML = '<div class="kicker red"><div class="bar"></div><div class="lbl">방문기록 미입력 — 기록하거나 연기/취소 처리</div></div>'
+      + stale.map(planCard).join('');
+  }
+  if (team && DATA.team.week) {
+    document.getElementById('planTitle').textContent = '팀원별 이번 주 계획 · 방문 (' + DATA.team.week.period + ')';
+    document.getElementById('planList').innerHTML = renderTeamWeek(DATA.team.week);
+  } else {
+    document.getElementById('planTitle').textContent = '이번 주 방문 계획';
+    document.getElementById('planList').innerHTML = week.length
+      ? week.map(planCard).join('')
+      : '<div class="card empty">이번 주 등록된 계획이 없습니다.<br><br><button class="btn pri" onclick="show(\'plan\')">+ 계획 등록하기</button></div>';
+  }
+  renderKpi();
+}
+
+/* ── 관리자 홈: 팀원별 이번 주 방문 계획 · 실제 방문 ── */
+function renderTeamWeek(w) {
+  if (!w.reps || !w.reps.length) return '<div class="card empty">등록된 담당자가 없습니다.</div>';
+  var chip = function(txt, color, tint) {
+    return '<span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;'
+      + 'color:' + color + ';background:' + tint + ';white-space:nowrap;">' + esc(txt) + '</span>';
+  };
+  var secLbl = function(t) {
+    return '<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:#8b95a1;letter-spacing:.4px;">' + t + '</div>';
+  };
+  var dateCell = function(x) {
+    return '<td style="white-space:nowrap;font-size:12px;color:#6b7684;">' + esc(x.date.slice(5).replace('-', '/')) + ' ' + esc(x.dow) + '</td>';
+  };
+  return w.reps.map(function(r) {
+    var h = '<div class="card">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+      + '<b style="font-size:15px;">' + esc(r.name) + '</b>'
+      + '<span style="font-size:12px;color:#6b7684;">계획 <b class="blue">' + r.plans.length + '</b> · 방문 <b style="color:#058652;">' + r.visits.length + '</b></span>'
+      + '</div>';
+
+    h += secLbl('방문 계획');
+    if (r.plans.length) {
+      h += '<table class="dt"><tbody>' + r.plans.map(function(p) {
+        var st = p.status === '완료' ? chip('완료', '#03b26c', '#e5f7ef')
+          : p.status === '연기' ? chip('연기', '#6b7684', '#f2f4f6')
+          : p.past ? chip('미기록', '#f04452', '#ffeaec')
+          : chip('예정', '#3182f6', '#e8f3ff');
+        return '<tr>' + dateCell(p)
+          + '<td><b>' + esc(p.hname) + '</b>'
+          + (p.purpose ? '<div style="font-size:12px;color:#6b7684;">' + esc(p.purpose) + '</div>' : '') + '</td>'
+          + '<td class="r">' + st + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    } else {
+      h += '<div style="font-size:12.5px;color:#b0b8c1;">등록된 계획이 없습니다.</div>';
+    }
+
+    h += secLbl('실제 방문');
+    if (r.visits.length) {
+      h += '<table class="dt"><tbody>' + r.visits.map(function(v) {
+        return '<tr>' + dateCell(v)
+          + '<td><b>' + esc(v.hname) + '</b>'
+          + (v.note ? '<div style="font-size:12px;color:#6b7684;">' + esc(v.note) + '</div>' : '') + '</td>'
+          + '<td class="r" style="white-space:nowrap;">'
+          + (v.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>' : (v.cat === '장비 판매' ? '<span class="tag">장비</span>' : ''))
+          + '<span class="tag">' + esc(v.type) + '</span>'
+          + (v.stage ? ' <span style="font-size:11px;color:#6b7684;">' + esc(v.stage) + '</span>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    } else {
+      h += '<div style="font-size:12.5px;color:#b0b8c1;">이번 주 방문 기록이 없습니다.</div>';
+    }
+
+    return h + '</div>';
+  }).join('');
+}
+
+/* ── 월별 누적 표 (관리자=팀 · 팀원=본인) ── */
+function renderMonthly(team) {
+  var rows = DATA.monthly || [];
+  var el = document.getElementById('monthlyWrap');
+  if (!rows.length) { el.innerHTML = ''; return; }
+  var h = '<div class="kicker"><div class="bar"></div><div class="lbl">월별 누적'
+    + (team ? ' — 팀 전체' : ' — 내 실적') + '</div></div>'
+    + '<div class="card"><table class="dt"><thead><tr>'
+    + '<th>월</th><th class="c">방문</th><th class="c">데모처</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">신규 리드</th>'
+    + '</tr></thead><tbody>';
+  var tot = { visits: 0, demos: 0, sales: 0, ncare: 0, newLeads: 0 };
+  rows.forEach(function(r) {
+    tot.visits += r.visits; tot.demos += r.demos; tot.sales += r.sales;
+    tot.ncare += r.ncare; tot.newLeads += r.newLeads;
+    h += '<tr><td><b>' + esc(r.m) + '</b></td>'
+      + '<td class="c">' + (r.visits || '-') + '</td>'
+      + '<td class="c">' + (r.demos || '-') + '</td>'
+      + '<td class="c">' + (r.sales ? '<b class="blue">' + r.sales + '</b>' : '-') + '</td>'
+      + '<td class="c">' + (r.ncare ? '<b style="color:#058652;">' + r.ncare + '</b>' : '-') + '</td>'
+      + '<td class="c">' + (r.newLeads || '-') + '</td></tr>';
+  });
+  h += '<tr style="background:#FAFAFC;"><td><b>누적</b></td>'
+    + '<td class="c"><b>' + tot.visits + '</b></td>'
+    + '<td class="c"><b>' + tot.demos + '</b></td>'
+    + '<td class="c"><b class="blue">' + tot.sales + '</b></td>'
+    + '<td class="c"><b style="color:#058652;">' + tot.ncare + '</b></td>'
+    + '<td class="c"><b>' + tot.newLeads + '</b></td></tr>';
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
+}
+
+/* ── 홈 KPI 패널 (관리자=팀 전체 · 팀원=본인) ── */
+function kpiRow(label, unit, x, noneText) {
+  var tgt = x.tgt || 0, act = x.act || 0;
+  var pct = tgt ? Math.round(act / tgt * 100) : null;
+  var pctCls = pct === null ? 'none' : (pct >= 100 ? '' : (pct >= 80 ? '' : (pct >= 50 ? 'mid' : 'low')));
+  var barCls = pct !== null && pct >= 100 ? 'done' : (pct !== null && pct < 50 ? 'low' : '');
+  return '<div class="krow">'
+    + '<div class="kt"><span>' + esc(label) + '</span>'
+    + '<span class="pct ' + pctCls + '">' + (pct === null ? (noneText || '목표 미설정') : '달성률 ' + pct + '%') + '</span></div>'
+    + '<div class="kv">' + act + '<span class="of"> / ' + (tgt || '-') + unit + '</span></div>'
+    + '<div class="kbar"><div class="' + barCls + '" style="width:' + (pct === null ? 0 : Math.min(100, pct)) + '%;"></div></div>'
+    + '</div>';
+}
+function renderKpi() {
+  var k = DATA.kpi;
+  var el = document.getElementById('homeKpi');
+  if (!k) { el.innerHTML = ''; return; }
+  var team = k.scope === 'team';
+  el.innerHTML =
+    '<div class="kicker" style="margin-top:0;"><div class="bar"></div><div class="lbl">'
+      + esc(k.monthLabel) + (team ? ' 팀 KPI' : ' 내 KPI') + '</div></div>'
+    + '<div class="card">'
+    + (team ? '' : kpiRow('방문', '건', k.visit))
+    + kpiRow('장비 · 확보 데모처', '곳', k.demo)
+    + kpiRow('장비 · 판매', '대', k.sale)
+    + kpiRow('N-Care · 신규', '건', k.ncare)
+    + kpiRow('학회 달성 목표 (누적)', '건', k.evt)
+    + '</div>'
+    + '<div class="kicker"><div class="bar"></div><div class="lbl">목표 카테고리별 달성 (누적)</div></div>'
+    + '<div class="card">'
+    + (k.cats || []).map(function(c) {
+        return kpiRow(c.cat, '건', { tgt: c.tgt, act: c.ach }, '목표 리드 없음');
+      }).join('')
+    + '</div>'
+    + '<div style="margin-top:8px;font-size:12px;color:#8b95a1;line-height:1.6;">'
+    + (team ? '팀 전체 기준 · 카테고리별 수치는 리드의 달성 목표에서 집계됩니다. 판매 목표는 06_월간KPI 시트에서 설정합니다.'
+            : '내 실적 기준 · 카테고리별 수치는 내 리드의 달성 목표에서 집계됩니다.')
+    + '</div>';
+  // 관리자는 KPI 패널을 왼쪽(먼저)으로
+  var wrap = document.getElementById('home2');
+  var main = document.getElementById('homeMain');
+  if (team && wrap.firstElementChild !== el) wrap.insertBefore(el, main);
+  if (!team && wrap.firstElementChild !== main) wrap.insertBefore(main, el);
+}
+
+/* ── 학회/세미나 탭 ── */
+/* ── KPI 탭 (내 KPI 확인 · 팀 KPI 관리) ── */
+function loadKpiTab() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    KPIT = d; busy(false); renderKpiTab();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('kpiBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_KPI현황(TOKEN);
+}
+function renderKpiTab() {
+  var d = KPIT, h = '';
+  var k = d.admin ? d.team : d.mine;
+  var t = (k && k.tgt) || {};
+
+  h += kick(d.monthLabel + (d.admin ? ' 팀 KPI' : ' 내 KPI'));
+  h += goalCheckBanner(d.goalCheck);
+  h += '<div class="card">'
+    + (d.admin ? '' : kpiRow('방문', '건', { tgt: t.visit, act: k.visit }))
+    + kpiRow('장비 · 확보 데모처', '곳', { tgt: t.demo, act: k.demo })
+    + kpiRow('장비 · 판매', '대', { tgt: t.equip, act: k.sale })
+    + kpiRow('N-Care · 신규', '건', { tgt: t.ncare, act: k.ncare })
+    + '</div>';
+
+  h += kick('목표 카테고리별 달성 (누적)');
+  h += '<div class="card">'
+    + (k.cats || []).map(function(c) {
+        return kpiRow(c.cat, '건', { tgt: c.tgt, act: c.ach }, '목표 리드 없음');
+      }).join('')
+    + '</div>';
+
+  if (d.dues && d.dues.length) {
+    h += kick('목표 시기 임박 리드');
+    h += '<div class="card"><table class="dt"><tbody>';
+    d.dues.forEach(function(x) {
+      var late = x.dday < 0;
+      var dd = x.dday === 0 ? '오늘' : (late ? 'D+' + Math.abs(x.dday) : 'D-' + x.dday);
+      h += '<tr><td style="white-space:nowrap;"><b style="color:' + (late ? '#f04452' : (x.dday <= 7 ? '#3182f6' : '#4e5968')) + ';">' + dd + '</b></td>'
+        + '<td><b>' + esc(x.hname) + '</b>'
+        + (d.admin && x.rep ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(x.rep) + '</span>' : '') + '</td>'
+        + '<td style="font-size:12px;">' + esc(x.target) + '</td>'
+        + '<td class="r" style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(x.due) + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
+  if (d.admin) {
+    h += kick('담당자별 KPI (' + d.monthLabel + ')');
+    var kth = 'font-size:13.5px;font-weight:700;color:#1b64da;background:#e8f3ff;padding:11px 8px;border-bottom:none;';
+    h += '<div class="card"><table class="dt"><thead><tr>'
+      + '<th style="' + kth + 'border-radius:10px 0 0 10px;">담당자</th>'
+      + '<th class="c" style="' + kth + '">장비 판매<div style="font-size:10.5px;font-weight:600;color:#7fb0f2;">이달</div></th>'
+      + '<th class="c" style="' + kth + '">N-Care<div style="font-size:10.5px;font-weight:600;color:#7fb0f2;">이달</div></th>'
+      + '<th class="c" style="' + kth + 'border-radius:0 10px 10px 0;">목표 달성<div style="font-size:10.5px;font-weight:600;color:#7fb0f2;">누적</div></th>'
+      + '</tr></thead><tbody>';
+    var kcell = function(a, tg) {
+      var pct = tg ? Math.round(a / tg * 100) : null;
+      var color = pct == null ? '#b0b8c1' : (pct >= 100 ? '#03b26c' : (pct >= 50 ? '#3182f6' : '#f04452'));
+      var tint = pct == null ? '#f2f4f6' : (pct >= 100 ? '#e5f7ef' : (pct >= 50 ? '#e8f3ff' : '#ffeaec'));
+      return '<div style="font-size:16px;font-weight:700;color:' + (a ? '#191f28' : '#b0b8c1') + ';line-height:1.2;">'
+        + a + '<span style="font-size:11px;font-weight:600;color:#8b95a1;"> / ' + (tg || '-') + '</span></div>'
+        + '<span style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;color:' + color + ';background:' + tint + ';">'
+        + (pct == null ? '목표 없음' : pct + '%') + '</span>';
+    };
+    d.reps.forEach(function(r) {
+      h += '<tr><td style="white-space:nowrap;"><b>' + esc(r.name) + '</b></td>'
+        + '<td class="c">' + kcell(r.sale, r.tgt.equip) + '</td>'
+        + '<td class="c">' + kcell(r.ncare, r.tgt.ncare) + '</td>'
+        + '<td class="c">' + kcell(r.catAch, r.catTgt) + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">방문·데모처 현황은 현황 탭의 월간 실적에서 확인할 수 있습니다.</div>';
+
+    h += kick('목표 설정 — 저장하면 06_월간KPI에 반영');
+    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">신규 Lead</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
+    var inpCell = function(id, v) {
+      return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" style="width:54px;padding:6px 4px;text-align:center;font-size:13.5px;border-radius:8px;">';
+    };
+    var tt = d.teamTgt || {};
+    h += '<tr style="background:#fff4e0;"><td><b>팀 목표</b><div style="font-size:10px;color:#a35c11;">월간 팀 전체</div></td>'
+      + '<td class="c">' + inpCell('kt_team_visit', tt.visit) + '</td>'
+      + '<td class="c">' + inpCell('kt_team_lead', tt.lead) + '</td>'
+      + '<td class="c">' + inpCell('kt_team_equip', tt.equip) + '</td>'
+      + '<td class="c">' + inpCell('kt_team_ncare', tt.ncare) + '</td>'
+      + '<td class="c">' + inpCell('kt_team_demo', tt.demo) + '</td></tr>';
+    d.reps.forEach(function(r, i) {
+      var inp = function(f, v) { return inpCell('kt_' + i + '_' + f, v); };
+      h += '<tr><td><b>' + esc(r.name) + '</b></td>'
+        + '<td class="c">' + inp('visit', r.tgt.visit) + '</td>'
+        + '<td class="c">' + inp('lead', r.tgt.lead) + '</td>'
+        + '<td class="c">' + inp('equip', r.tgt.equip) + '</td>'
+        + '<td class="c">' + inp('ncare', r.tgt.ncare) + '</td>'
+        + '<td class="c">' + inp('demo', r.tgt.demo) + '</td></tr>';
+    });
+    h += '</tbody></table>'
+      + '<div style="margin-top:10px;font-size:12px;color:#8b95a1;line-height:1.6;">팀 목표를 입력하면 팀 KPI(홈·KPI 탭)의 목표로 사용됩니다. 비워두면 담당자별 목표의 합계를 사용합니다.</div>'
+      + '<button class="save" style="margin-top:12px;" onclick="saveKpiTargets()">목표 저장</button></div>';
+  } else {
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">목표는 관리자가 설정합니다. 카테고리별 수치는 내 리드의 달성 목표에서 집계됩니다.</div>';
+  }
+
+  document.getElementById('kpiBody').innerHTML = h;
+}
+function saveKpiTargets() {
+  var rows = KPIT.reps.map(function(r, i) {
+    var g = function(f) { return document.getElementById('kt_' + i + '_' + f).value.trim(); };
+    return { name: r.name, visit: g('visit'), lead: g('lead'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
+  });
+  var gt = function(f) { return document.getElementById('kt_team_' + f).value.trim(); };
+  var team = { visit: gt('visit'), lead: gt('lead'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg);
+    // 쓰기 응답이 KPI 현황과 초기데이터를 같이 실어 온다 — 예전에는 각각 다시 받아 왕복이 셋이었다
+    if (r.init) { DATA = r.init; renderHome(); }   // 홈 KPI 패널도 새 목표로
+    if (r.kpi) { KPIT = r.kpi; renderKpiTab(); } else { KPIT = null; loadKpiTab(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_KPI목표저장(TOKEN, rows, team);
+}
+
+/* ── 흐름 탭 (월별 영업 퍼널) ── */
+function loadFlow(ym) {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    FLOW = d; FLOWX = {}; busy(false);
+    document.getElementById('fMonth').value = d.ym;
+    renderFlow();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('flowBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_영업흐름(TOKEN, ym || '');
+}
+var FLOWX = {};
+var FLOWSEG = '장비';
+var FLOWSTAGE = 'demo';
+function flowMore(key) { FLOWX[key] = !FLOWX[key]; renderFlow(); }
+function fcol(key, label, color, items, conv, sub, isFail) {
+  var open = !!FLOWX[key];
+  var sid = key.slice(2);  // e_demo → demo
+  var sel = FLOWSTAGE === sid;
+  var shown = open ? items : items.slice(0, 8);
+  var list = shown.map(function(it) {
+    return '<div class="fli">'
+      + (it.d ? '<span class="fr" style="float:right;margin-left:6px;">' + esc(it.d) + '</span>' : '')
+      + esc(it.h) + (it.r ? '<span class="fr">' + esc(it.r) + '</span>' : '') + '</div>';
+  }).join('');
+  if (items.length > 8) {
+    list += '<button class="fmore" onclick="event.stopPropagation();flowMore(\'' + key + '\')">'
+      + (open ? '접기' : '+ ' + (items.length - 8) + '곳 더보기') + '</button>';
+  }
+  var cv = conv === null ? '' : '전환 ' + conv + '%';
+  if (sub) cv += (cv ? ' <span class="sub">· ' : '<span class="sub">') + sub + '</span>';
+  return '<div class="fcol' + (isFail ? ' fail' : '') + (sel ? ' selon' : '') + '" style="cursor:pointer;" onclick="flowStage(\'' + sid + '\')">'
+    + '<div class="flab">' + esc(label) + (items.length ? ' <span style="font-size:10.5px;font-weight:600;color:' + (sel ? '#3182f6' : '#b0b8c1') + ';">' + (sel ? '상세 ▼' : '클릭') + '</span>' : '') + '</div>'
+    + '<div class="fnum" style="color:' + color + ';">' + items.length + '</div>'
+    + '<div class="fcv">' + (cv || '&nbsp;') + '</div>'
+    + (items.length ? '<div class="flist">' + list + '</div>' : '')
+    + '</div>';
+}
+function flowStage(s) { FLOWSTAGE = FLOWSTAGE === s ? '' : s; renderFlow(); }
+function renderFlow() {
+  var d = FLOW;
+  var nc = FLOWSEG === 'N-Care';
+  var f = nc
+    ? (d.ncare || { stages: { lead: [], demo: [], prop: [], deal: [], fail: [], paid: [] }, dealAmt: '', reps: [], deals: [] })
+    : { stages: d.stages, dealAmt: d.dealAmt, reps: d.reps, deals: d.deals };
+  var st = f.stages;
+  var k = nc ? 'n_' : 'e_';
+  var pct = function(a, b) { return b.length ? Math.round(a.length / b.length * 100) : null; };
+  var h = '';
+
+  h += '<div class="seg" style="margin-bottom:10px;">'
+    + '<div class="chip' + (!nc ? ' on' : '') + '" onclick="FLOWSEG=\'장비\';renderFlow()">장비 영업</div>'
+    + '<div class="chip' + (nc ? ' on' : '') + '" onclick="FLOWSEG=\'N-Care\';renderFlow()">N-Care (노즐)</div>'
+    + '</div>';
+
+  h += kick(d.label + (nc ? ' N-Care 영업 흐름' : ' 장비 영업 흐름'));
+  h += '<div class="fcols">'
+    + fcol(k + 'lead', '리드 확보', '#3182f6', st.lead, null, '')
+    + '<div class="farr2">›</div>'
+    + fcol(k + 'demo', '데모 중', '#0BB8A5', st.demo, pct(st.demo, st.lead), '')
+    + '<div class="farr2">›</div>'
+    + fcol(k + 'prop', '제안 완료', '#8E7CF8', st.prop, pct(st.prop, st.demo), '')
+    + '<div class="farr2">›</div>'
+    + fcol(k + 'deal', '계약', '#1b64da', st.deal, pct(st.deal, st.prop), f.dealAmt ? esc(f.dealAmt) : '')
+    + '<div class="farr2">›</div>'
+    + fcol(k + 'paid', '입금', '#03b26c', st.paid, pct(st.paid, st.deal), '')
+    + fcol(k + 'fail', '실패', '#f04452', st.fail, null, '진행 중단', true)
+    + '</div>';
+  h += '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+    + (nc
+      ? '노즐(N-Care) 영업 퍼널 — 장비 보유(유저) 병원 리드 + 판매 카테고리 N-Care 기록 기준<br>'
+        + '리드=유저 병원 리드 신규 등록 · 데모 중=N-Care \'방문/데모\' 기록·리드 데모일 · 제안 완료=N-Care \'제안 완료\' 방문 · 계약=N-Care 계약 기록·리드 계약일 · 실패/입금=해당 월 기준<br>'
+        + '<b>여섯 단계 모두 병원 수(곳)입니다</b> — 한 병원에 리드가 여러 건이어도 한 곳으로 셉니다.'
+      : '장비 영업 퍼널 — <b>달성 목표가 N-care인 리드와 장비 보유(유저) 병원 리드는 N-Care 탭</b>으로 분류됩니다'
+        + (d.excluded ? ' (이달 ' + d.excluded + '곳)' : '') + '. 분류가 틀리면 리드 탭에서 달성 목표를 바꿔 주세요.<br>'
+        + '리드=신규 등록 · <b>데모 중=그 달 \'방문/데모\' 기록 (2차·3차 데모 포함 — 첫 기록 시 리드 데모일 자동)</b> · 제안 완료=장비 \'제안 완료\' 방문 · 계약/입금=해당 월 기준 · 실패=그 달 리드 중 진행 중단<br>'
+        + '<b>여섯 단계 모두 병원 수(곳)입니다</b> — 한 병원에 리드가 여러 건이어도 한 곳으로 셉니다. 단, 같은 병원에 장비 리드와 N-Care 리드가 따로 있으면 양쪽 탭에 각각 뜹니다.<br>'
+        + '데모가 끝나면 리드 탭에서 단계를 \'데모완료\'로 직접 변경해 주세요.') + '</div>';
+
+  h += dupBanner(d.dup);
+  h += simBanner(d.similar);
+
+  // 선택한 단계의 진행 상세 — 같은 화면에서 병원별 리드·최근 기록 표시 (서버 왕복 없음)
+  var STAGE_LABEL = { lead: '리드 확보', demo: '데모 중', prop: '제안 완료', deal: '계약', paid: '입금', fail: '실패' };
+  var selItems = FLOWSTAGE ? (st[FLOWSTAGE] || []) : [];
+  if (FLOWSTAGE && selItems.length) {
+    h += kick(STAGE_LABEL[FLOWSTAGE] + ' — 진행 상세 ' + selItems.length + '곳');
+    selItems.forEach(function(it) {
+      var dt = (d.detail || {})[(nc ? 'N|' : 'E|') + it.h] || {};
+      h += '<div class="card">'
+        + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">'
+        + '<b style="font-size:15px;">' + esc(it.h) + '</b>'
+        + '<span style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(dt.rep || it.r || '-')
+        + (dt.stage ? ' · ' + esc(dt.stage) : '') + '</span></div>'
+        + (dt.target ? '<div style="margin-top:4px;font-size:12px;color:#6b7684;">목표 ' + esc(dt.target)
+          + (dt.achv === '달성' ? ' <span class="badge deal">달성</span>' : '') + '</div>' : '')
+        + (dt.logs && dt.logs.length
+          ? dt.logs.map(function(l) {
+              var catTag = l.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
+                : (l.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
+              return '<div style="margin-top:9px;padding-top:9px;border-top:1px solid #f2f4f6;">'
+                + '<div style="font-size:11.5px;color:#9A9A9A;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
+                + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
+                + (l.note ? '<div style="margin-top:3px;font-size:12.5px;line-height:1.65;color:#4e5968;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
+                + '</div>';
+            }).join('')
+          : '<div style="margin-top:8px;font-size:12px;color:#b0b8c1;">' + (nc ? 'N-Care' : '장비') + ' 방문 기록이 없습니다.</div>')
+        + '</div>';
+    });
+  }
+
+  if (f.reps.length) {
+    h += kick('담당자별 흐름' + (nc ? ' — N-Care' : ' — 장비'));
+    h += '<div class="card"><table class="dt"><thead><tr><th>담당자</th><th class="c">리드</th><th class="c">데모</th><th class="c">제안 완료</th><th class="c">계약</th><th class="c">실패</th><th class="c">입금</th></tr></thead><tbody>';
+    f.reps.forEach(function(r) {
+      h += '<tr><td><b>' + esc(r.name) + '</b></td>'
+        + '<td class="c">' + (r.lead || '-') + '</td>'
+        + '<td class="c">' + (r.demo || '-') + '</td>'
+        + '<td class="c">' + (r.prop || '-') + '</td>'
+        + '<td class="c">' + (r.deal ? '<b class="blue">' + r.deal + '</b>' : '-') + '</td>'
+        + '<td class="c">' + (r.fail ? '<b class="red">' + r.fail + '</b>' : '-') + '</td>'
+        + '<td class="c">' + (r.paid ? '<b style="color:#058652;">' + r.paid + '</b>' : '-') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
+  if (f.deals.length) {
+    var admin = DATA && (DATA.me.admin || DATA.me.finance);
+    h += kick('계약 목록 · 입금 확인' + (nc ? ' — N-Care' : ' — 장비'));
+    h += '<div class="card"><table class="dt"><thead><tr><th>병원</th><th class="c">담당</th><th class="r">금액</th><th class="c">계약일</th><th class="c">입금</th></tr></thead><tbody>';
+    f.deals.forEach(function(l) {
+      h += '<tr><td><b>' + esc(l.hname) + '</b></td>'
+        + '<td class="c">' + esc(l.rep) + '</td>'
+        + '<td class="r">' + esc(l.amt) + '</td>'
+        + '<td class="c">' + esc(l.date) + '</td>'
+        + '<td class="c">'
+        + (l.paid
+          ? '<span class="badge deal" style="margin-left:0;">' + esc(l.paid) + '</span>'
+            + (admin ? ' <button class="btn ghost" style="padding:4px 9px;font-size:11.5px;" onclick="payToggle(' + l.row + ',true)">취소</button>' : '')
+          : (admin
+            ? '<button class="btn pri" style="padding:5px 12px;font-size:12px;" onclick="payToggle(' + l.row + ',false)">입금 처리</button>'
+            : '<span class="badge tgt" style="margin-left:0;">대기</span>'))
+        + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">입금 처리하면 08_리드관리의 입금일에 오늘 날짜가 기록됩니다.</div>';
+  }
+
+  document.getElementById('flowBody').innerHTML = h;
+}
+function payToggle(row, clear) {
+  if (clear && !confirm('입금 표시를 지울까요?')) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg);
+    loadFlow(document.getElementById('fMonth').value);
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_입금처리(TOKEN, row, clear);
+}
+
+function evtRegOpen(code) {
+  EVTREG = (EVTREG === code) ? null : code;
+  EVTEDIT = null;
+  renderEvt();
+}
+function evtRegSave(code) {
+  var f = {
+    ecode: code,
+    hname: document.getElementById('erHosp').value.trim(),
+    contact: document.getElementById('erName').value.trim(),
+    phone: document.getElementById('erPhone').value.trim(),
+    target: document.getElementById('erTgt').value,
+    due: document.getElementById('erDue').value,
+  };
+  if (!f.hname) return toast('병원명을 입력해 주세요', true);
+  if (!f.target) return toast('달성 목표를 선택해 주세요', true);
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    EVTREG = null; busy(false); toast(r.msg);
+    // 쓰기 응답이 행사현황과 초기데이터를 같이 실어 온다 — 예전에는 각각 다시 받아 왕복이 셋이었다
+    if (r.init) { DATA = r.init; renderHome(); renderLeads(); }   // 내 리드·홈 KPI
+    if (r.evt) { EVT = r.evt; renderEvt(); } else { EVT = null; loadEvt(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_행사리드등록(TOKEN, f);
+}
+function evtEditSave(row) {
+  var f = {
+    rep: document.getElementById('eeRep').value,
+    target: document.getElementById('eeTgt').value.trim(),
+    achv: document.getElementById('eeAchv').value,
+    due: document.getElementById('eeDue').value,
+  };
+  busy(true);
+  gsrun().withSuccessHandler(function() {
+    EVTEDIT = null; EVT = null; busy(false); loadEvt(); toast('수정했습니다');
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_리드정보수정(TOKEN, row, f);
+}
+function loadEvt() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    EVT = d; busy(false); renderEvt();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('evtBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_행사현황(TOKEN);
+}
+function evtGrp(g, el) {
+  EVTGRP = g; EVTREG = null; EVTEDIT = null;
+  document.querySelectorAll('#evtSeg .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  renderEvt();
+}
+function tgtOptions(cur) {
+  var cats = (EVT && EVT.targetCats) || [];
+  var opts = '<option value=""' + (cur ? '' : ' selected') + '>— 선택 —</option>';
+  cats.forEach(function(c) {
+    opts += '<option value="' + esc(c) + '"' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>';
+  });
+  if (cur && cats.indexOf(cur) < 0) {
+    opts += '<option value="' + esc(cur) + '" selected>' + esc(cur) + ' (기존 값)</option>';
+  }
+  return opts;
+}
+function renderEvt() {
+  var evs = ((EVT && EVT.events) || []).filter(function(ev) { return ev.group === EVTGRP; });
+  if (!evs.length) {
+    document.getElementById('evtBody').innerHTML =
+      '<div class="card empty">' + esc(EVTGRP) + ' 행사가 없습니다.' + (DATA && DATA.me.viewer ? '' : '<br><br><button class="btn pri" onclick="openEvtReg()">+ 행사 등록하기</button>') + '</div>';
+    return;
+  }
+  var h = '';
+  evs.forEach(function(ev) {
+    var rate = ev.tgt ? Math.round(ev.ach / ev.tgt * 100) : null;
+    h += '<div class="card">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
+      + '<div style="font-size:16.5px;font-weight:700;color:#191f28;">' + esc(ev.name) + '</div>'
+      + '<div style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(ev.type) + (ev.date ? ' · ' + esc(ev.date) : '') + '</div></div>'
+      + '<div class="evt-sum">'
+      + '<span class="pill">참석자 <b>' + ev.cnt + '</b></span>'
+      + '<span class="pill blue">데모 <b>' + ev.demos + '</b></span>'
+      + '<span class="pill blue">계약 <b>' + ev.deals + '</b></span>'
+      + '<span class="pill amber">달성 목표 <b>' + ev.tgt + '</b></span>'
+      + '<span class="pill green">달성 <b>' + ev.ach + '</b>' + (rate === null ? '' : ' (' + rate + '%)') + '</span>'
+      + (function() {
+          var vr = ev.cnt ? Math.round(ev.visited / ev.cnt * 100) : null;
+          var low = vr !== null && vr < 50;
+          return '<span class="pill"' + (low ? ' style="background:#ffeaec;color:#d0223a;"' : '') + '>행사 후 방문 <b>'
+            + ev.visited + '</b>/' + ev.cnt + (vr === null ? '' : ' (' + vr + '%)') + '</span>';
+        })()
+      + '</div>'
+      + (DATA && DATA.me.viewer ? '' : '<div style="margin-top:10px;">'
+      + '<button class="btn" style="font-size:12.5px;padding:7px 13px;" onclick="evtRegOpen(\'' + esc(ev.code) + '\')">＋ 참석자 등록 (내 모객)</button>'
+      + '</div>');
+    if (EVTREG === ev.code) {
+      h += '<div style="border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">'
+        + '<div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">' + esc(ev.name) + ' — 참석자 등록 (담당: ' + esc(DATA.me.name) + ')</div>'
+        + '<label class="f">병원명 *</label><input type="text" id="erHosp" list="hospList" autocomplete="off" placeholder="병원명 입력 또는 선택">'
+        + '<div class="row2">'
+        + '<div><label class="f">참석자(원장)</label><input type="text" id="erName" placeholder="예: 최OO 원장"></div>'
+        + '<div><label class="f">연락처</label><input type="text" id="erPhone" placeholder="예: 010-0000-0000"></div>'
+        + '</div>'
+        + '<div class="row2">'
+        + '<div><label class="f">달성 목표 *</label><select id="erTgt">' + tgtOptions('') + '</select></div>'
+        + '<div><label class="f">목표 시기</label><input type="date" id="erDue"></div>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">'
+        + '<button class="btn ghost" onclick="EVTREG=null;renderEvt()">취소</button>'
+        + '<button class="btn pri" onclick="evtRegSave(\'' + esc(ev.code) + '\')">등록</button>'
+        + '</div></div>';
+    }
+    if (ev.leads.length) {
+      var admin = DATA && DATA.me.admin;
+      h += '<table class="dt" style="margin-top:12px;"><thead><tr><th>병원 · 참석자</th><th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
+        + (admin ? '<th></th>' : '') + '</tr></thead><tbody>';
+      ev.leads.forEach(function(l) {
+        if (admin && EVTEDIT === l.row) {
+          var opts = '<option value="">— 미배정 —</option>' + (EVT.reps || []).map(function(n) {
+            return '<option value="' + esc(n) + '"' + (n === l.rep ? ' selected' : '') + '>' + esc(n) + '</option>';
+          }).join('');
+          h += '<tr><td colspan="7" style="background:#e8f3ff;border-radius:10px;">'
+            + '<div style="font-size:13px;font-weight:700;color:#1b64da;margin:4px 0 2px;">' + esc(l.hname) + ' 수정</div>'
+            + '<div class="row2" style="margin-top:6px;">'
+            + '<div><label class="f" style="margin:6px 2px 5px;">담당자</label><select id="eeRep">' + opts + '</select></div>'
+            + '<div><label class="f" style="margin:6px 2px 5px;">달성 목표</label><select id="eeTgt">' + tgtOptions(l.target) + '</select></div>'
+            + '</div>'
+            + '<div class="row2" style="margin-top:2px;">'
+            + '<div><label class="f" style="margin:6px 2px 5px;">목표 시기</label><input type="date" id="eeDue" value="' + esc(l.due || '') + '"></div>'
+            + '<div><label class="f" style="margin:6px 2px 5px;">달성 여부</label><select id="eeAchv">'
+            + '<option value=""' + (l.achv === '달성' ? '' : ' selected') + '>진행 중</option>'
+            + '<option value="달성"' + (l.achv === '달성' ? ' selected' : '') + '>달성</option>'
+            + '</select></div>'
+            + '</div>'
+            + '<div style="display:flex;gap:8px;justify-content:flex-end;margin:10px 0 6px;">'
+            + '<button class="btn ghost" onclick="EVTEDIT=null;renderEvt()">취소</button>'
+            + '<button class="btn pri" onclick="evtEditSave(' + l.row + ')">저장</button>'
+            + '</div></td></tr>';
+          return;
+        }
+        var done = l.achv === '달성';
+        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l.contact) + '</span>' : '') + '</td>'
+          + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
+          + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
+          + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#b0b8c1;">-</span>')
+          + (l.due ? '<div style="font-size:10.5px;color:#8b95a1;margin-top:2px;">시기 ' + esc(l.due) + '</div>' : '') + '</td>'
+          + '<td class="c">' + (l.stage === '계약' || l.achv === '달성'
+            ? (l.visits > 0 ? l.visits + '회' : '-')
+            : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>')) + '</td>'
+          + '<td class="c">' + (l.target ? (done ? '<span class="badge deal" style="margin-left:0;">달성</span>' : '<span class="badge tgt" style="margin-left:0;">진행 중</span>') : '-') + '</td>'
+          + (admin ? '<td class="c"><button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="EVTEDIT=' + l.row + ';renderEvt()">수정</button></td>' : '')
+          + '</tr>';
+      });
+      h += '</tbody></table>';
+    } else {
+      h += '<div style="margin-top:12px;font-size:13px;color:#8b95a1;">등록된 참석자(리드)가 없습니다.</div>';
+    }
+    h += '</div>';
+  });
+  document.getElementById('evtBody').innerHTML = h;
+}
+function planCard(p) {
+  var late = p.dday < 0;
+  var dd = p.dday === 0 ? '오늘' : (late ? 'D+' + Math.abs(p.dday) : 'D-' + p.dday);
+  return '<div class="card plan">'
+    + '<div class="dd"><div class="d1' + (late ? ' late' : '') + '">' + dd + '</div><div class="d2">' + p.date.slice(5).replace('-', '/') + ' ' + esc(p.dow) + '</div></div>'
+    + '<div class="bd"><div class="h">' + esc(p.hname) + '</div><div class="p">' + esc(p.purpose) + '</div>'
+    + (p.cat ? '<span class="tag' + (p.cat === 'N-Care' ? ' ncare' : '') + '" style="margin-right:6px;">' + esc(p.cat) + '</span>' : '')
+    + (p.type ? '<span class="tag">' + esc(p.type) + '</span>' : '') + '</div>'
+    + '<div class="acts">'
+    + '<button class="btn pri" onclick="prefill(' + p.row + ')">기록 쓰기</button>'
+    + '<button class="btn" onclick="planStatus(' + p.row + ',\'연기\')">연기</button>'
+    + '<button class="btn ghost" onclick="planStatus(' + p.row + ',\'취소\')">취소</button>'
+    + '</div></div>';
+}
+function planStatus(row, status) {
+  if (!confirm('이 계획을 \'' + status + '\' 처리할까요?')) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { onData(d); toast(status + ' 처리했습니다'); })
+    .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_계획상태변경(TOKEN, row, status);
+}
+
+/* ── 기록 입력 ── */
+function renderForm() {
+  var dl = document.getElementById('hospList');
+  dl.innerHTML = DATA.hospitals.map(function(h) { return '<option value="' + esc(h.name) + '">'; }).join('');
+  document.getElementById('fDate').value = DATA.today;
+  // 입력할 때마다 임시저장 — 앱이 닫히거나 저장이 실패해도 내용을 잃지 않는다
+  ['fHosp', 'fNote', 'fContact', 'fReaction', 'fFu', 'fNozzle', 'fNext', 'fDate'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el.dataset.draft) { el.dataset.draft = '1'; el.addEventListener('input', 임시저장_); }
+  });
+  var tw = document.getElementById('fType');
+  tw.innerHTML = DATA.types.map(function(t) {
+    return '<div class="chip" data-v="' + esc(t) + '" onclick="pickType(this)">' + esc(t) + '</div>';
+  }).join('');
+  var st = document.getElementById('fStage');
+  st.innerHTML = '<option value="">선택 안 함</option>';
+  DATA.stages.forEach(function(s) {
+    var o = document.createElement('option'); o.value = s; o.textContent = s; st.appendChild(o);
+  });
+  // 판매 카테고리 칩 (장비 판매=파랑, N-Care=초록)
+  var catChips = function(fn) {
+    return (DATA.saleCats || []).map(function(c) {
+      return '<div class="chip' + (c === 'N-Care' ? ' green' : '') + '" data-v="' + esc(c) + '" onclick="' + fn + '(this)">' + esc(c) + '</div>';
+    }).join('');
+  };
+  document.getElementById('pCat').innerHTML = catChips('pickPCat');
+  document.getElementById('fCat').innerHTML = catChips('pickFCat');
+  // 배포 자료 칩 (복수 선택)
+  document.getElementById('fMat').innerHTML = (DATA.matCats || []).map(function(m) {
+    return '<div class="chip" data-v="' + esc(m) + '" onclick="toggleMat(this)">' + esc(m) + '</div>';
+  }).join('');
+  // 계획 입력 폼
+  document.getElementById('pDate').value = DATA.today;
+  document.getElementById('pType').innerHTML = DATA.types.map(function(t) {
+    return '<div class="chip" data-v="' + esc(t) + '" onclick="pickPType(this)">' + esc(t) + '</div>';
+  }).join('') + '<div class="chip" data-v="__etc" onclick="pickPType(this)">기타 (직접 입력)</div>';
+  // 신규 병원 리드 분류 (판매 구분 · 소스 · 행사)
+  document.getElementById('pCh').innerHTML = (DATA.channels || []).map(function(c) {
+    return '<div class="chip" data-v="' + esc(c) + '" onclick="pickPCh(this)">' + esc(c) + '</div>';
+  }).join('');
+  document.getElementById('pSrc').innerHTML = (DATA.sources || []).map(function(s) {
+    return '<div class="chip" data-v="' + esc(s) + '" onclick="pickPSrc(this)">' + esc(s) + '</div>';
+  }).join('');
+  var pe = document.getElementById('pEvt');
+  pe.innerHTML = '<option value="">행사 선택</option>';
+  (DATA.evtList || []).forEach(function(ev) {
+    var o = document.createElement('option'); o.value = ev.code; o.textContent = ev.name; pe.appendChild(o);
+  });
+  // 행사 등록 폼 (구분 칩 + 관리자용 수정 드롭다운)
+  document.getElementById('eType').innerHTML = (DATA.evtTypes || []).map(function(t) {
+    return '<div class="chip" data-v="' + esc(t) + '" onclick="pickEType(this)">' + esc(t) + '</div>';
+  }).join('');
+  document.getElementById('eEditWrap').style.display = DATA.me.admin ? 'block' : 'none';
+  var ee = document.getElementById('eEdit');
+  ee.innerHTML = '<option value="">— 새 행사 등록 —</option>';
+  (DATA.evtList || []).forEach(function(ev) {
+    var o = document.createElement('option'); o.value = ev.code; o.textContent = ev.name; ee.appendChild(o);
+  });
+  checkNewHosp();
+}
+function fillEvtForm() {
+  var code = document.getElementById('eEdit').value;
+  var ev = null;
+  (DATA.evtList || []).forEach(function(e) { if (e.code === code) ev = e; });
+  document.getElementById('evtRegTitle').textContent = ev ? '행사 수정 — ' + ev.name : '새 학회/세미나 등록';
+  document.getElementById('evtReqSec').style.display = ev ? 'none' : 'block';  // 자료 요청은 신규 등록 때만
+  document.getElementById('eName').value = ev ? ev.name : '';
+  document.getElementById('ePlace').value = ev ? ev.place : '';
+  document.getElementById('eDate').value = ev ? ev.date : '';
+  document.getElementById('eCost').value = ev && ev.cost ? String(ev.cost) : '';
+  selEType = ev ? ev.type : '';
+  document.querySelectorAll('#eType .chip').forEach(function(c) {
+    c.classList.toggle('on', !!ev && c.getAttribute('data-v') === ev.type);
+  });
+}
+function toggleEvtReg() {
+  var c = document.getElementById('evtRegCard');
+  c.style.display = c.style.display === 'none' ? 'block' : 'none';
+}
+function pickEType(el) {
+  selEType = el.getAttribute('data-v');
+  document.querySelectorAll('#eType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+}
+function saveEvt() {
+  var editCode = document.getElementById('eEdit').value;
+  var f = {
+    code: editCode,
+    type: selEType,
+    name: document.getElementById('eName').value,
+    place: document.getElementById('ePlace').value,
+    date: document.getElementById('eDate').value,
+    cost: document.getElementById('eCost').value.replace(/[^0-9]/g, ''),
+  };
+  if (!f.type) return toast('구분을 선택해 주세요', true);
+  if (!f.name.trim()) return toast('행사명을 입력해 주세요', true);
+  // 자료 요청 수집 — 새 행사 등록일 때만 (수정 시에는 메일이 안 나가므로 제외)
+  if (!editCode) {
+    var reqs = [];
+    var reqErr = '';
+    ['CLabs', 'MA'].forEach(function(k) {
+      if (!document.getElementById('rq_' + k).checked) return;
+      var items = document.getElementById('rqItems_' + k).value.trim();
+      var teamName = k === 'CLabs' ? 'C-Labs' : 'MA';
+      if (!items) { reqErr = teamName + ' 요청 자료 내용을 입력해 주세요'; return; }
+      reqs.push({ team: teamName, items: items, due: document.getElementById('rqDue_' + k).value });
+    });
+    if (reqErr) return toast(reqErr, true);
+    f.reqs = reqs;
+  }
+  document.getElementById('eSave').disabled = true;
+  busy(true);
+  var done = function(d) {
+    onData(d); show('plan');
+    ['eName', 'ePlace', 'eDate', 'eCost', 'rqItems_CLabs', 'rqDue_CLabs', 'rqItems_MA', 'rqDue_MA'].forEach(function(id) { document.getElementById(id).value = ''; });
+    ['CLabs', 'MA'].forEach(function(k) {
+      document.getElementById('rq_' + k).checked = false;
+      document.getElementById('rqBox_' + k).style.display = 'none';
+    });
+    selEType = '';
+    document.getElementById('eEdit').value = '';
+    document.getElementById('evtRegTitle').textContent = '새 학회/세미나 등록';
+    document.querySelectorAll('#eType .chip').forEach(function(c) { c.classList.remove('on'); });
+    document.getElementById('evtRegCard').style.display = 'none';
+    document.getElementById('eSave').disabled = false;
+    toast(editCode ? '행사 정보를 수정했습니다' : '행사가 등록되었습니다. 행사 드롭다운에서 선택하세요');
+  };
+  var fail = function(e) {
+    busy(false); document.getElementById('eSave').disabled = false; toast(e.message, true);
+  };
+  if (editCode) {
+    gsrun().withSuccessHandler(done).withFailureHandler(fail).웹_행사수정(TOKEN, f);
+  } else {
+    gsrun().withSuccessHandler(done).withFailureHandler(fail).웹_행사등록(TOKEN, f);
+  }
+}
+function norm(s) { return String(s || '').replace(/\s/g, ''); }
+function checkNewHosp() {
+  var v = norm(document.getElementById('pHosp').value);
+  var known = false;
+  var equip = '';
+  if (v) {
+    (DATA.hospitals || []).forEach(function(h) { if (norm(h.name) === v) { known = true; equip = h.equip || ''; } });
+    (DATA.leadNames || []).forEach(function(n) { if (norm(n) === v) known = true; });
+  }
+  document.getElementById('pLeadSec').style.display = (v && !known) ? 'block' : 'none';
+  // 장비 보유 인식: N-Care 영업 대상 여부 표시
+  var hint = document.getElementById('pEquipHint');
+  if (v && known && equip === '보유') {
+    hint.style.display = 'block'; hint.style.color = '#058652';
+    hint.textContent = '✓ 장비 보유 고객 — N-Care 영업 대상입니다';
+  } else if (v && selPCat === 'N-Care' && known && equip !== '보유') {
+    hint.style.display = 'block'; hint.style.color = '#E8850C';
+    hint.textContent = '⚠ 장비 보유 이력이 없는 병원입니다 — N-Care는 장비 고객 대상이에요';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+function pickPCat(el) {
+  selPCat = el.getAttribute('data-v');
+  document.querySelectorAll('#pCat .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  checkNewHosp();
+}
+function pickFCat(el) {
+  selFCat = el.getAttribute('data-v');
+  document.querySelectorAll('#fCat .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+}
+function toggleMat(el) {
+  selMats.forEach(function(m, i) {
+    var inp = document.getElementById('fMatD' + i);
+    if (inp) matVals[m] = inp.value;
+  });
+  var v = el.getAttribute('data-v');
+  var idx = selMats.indexOf(v);
+  if (idx >= 0) selMats.splice(idx, 1); else selMats.push(v);
+  el.classList.toggle('on', idx < 0);
+  renderMatDetails();
+}
+function renderMatDetails() {
+  var h = '';
+  selMats.forEach(function(m, i) {
+    h += '<label class="f">' + esc(m) + ' — 세부내용</label>'
+      + '<input type="text" id="fMatD' + i + '" placeholder="배포한 자료를 구체적으로 (예: OO 논문 요약본)" value="' + esc(matVals[m] || '') + '">';
+  });
+  document.getElementById('fMatDetails').innerHTML = h;
+}
+function pickPCh(el) {
+  selPCh = el.getAttribute('data-v');
+  document.querySelectorAll('#pCh .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('pDealerWrap').style.display = selPCh === '딜러' ? 'block' : 'none';
+}
+function pickPSrc(el) {
+  selPSrc = el.getAttribute('data-v');
+  document.querySelectorAll('#pSrc .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('pEvtWrap').style.display = selPSrc === '학회/세미나' ? 'block' : 'none';
+  document.getElementById('pReferWrap').style.display = selPSrc === '소개' ? 'block' : 'none';
+}
+function pickPType(el) {
+  selPType = el.getAttribute('data-v');
+  document.querySelectorAll('#pType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  var etc = document.getElementById('pTypeEtc');
+  etc.style.display = selPType === '__etc' ? 'block' : 'none';
+  if (selPType === '__etc') etc.focus();
+}
+function savePlan() {
+  var name = document.getElementById('pHosp').value.trim();
+  var code = '';
+  DATA.hospitals.forEach(function(h) { if (h.name === name) code = h.code; });
+  var f = {
+    hname: name, hcode: code,
+    date: document.getElementById('pDate').value,
+    type: selPType === '__etc' ? document.getElementById('pTypeEtc').value.trim() : selPType,
+    purpose: document.getElementById('pPurpose').value,
+    contact: document.getElementById('pContact').value,
+    prep: document.getElementById('pPrep').value,
+    metaRow: META_PREFILL ? META_PREFILL.row : '',   // Meta 문의에서 왔으면 저장 시 승격된다
+  };
+  f.cat = selPCat;
+  if (!f.hname) return toast('병원명을 입력해 주세요', true);
+  if (!f.cat) return toast('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', true);
+  if (!f.date) return toast('방문 예정일을 선택해 주세요', true);
+  if (!f.type) return toast(selPType === '__etc' ? '활동 유형을 직접 입력해 주세요' : '활동 유형을 선택해 주세요', true);
+  if (!f.purpose.trim()) return toast('방문 목적을 입력해 주세요', true);
+  if (document.getElementById('pLeadSec').style.display !== 'none') {
+    if (!selPCh) return toast('판매 구분(직판/딜러)을 선택해 주세요', true);
+    if (selPCh === '딜러' && !document.getElementById('pDealer').value.trim()) return toast('딜러명을 입력해 주세요', true);
+    if (!selPSrc) return toast('리드 소스를 선택해 주세요', true);
+    if (selPSrc === '학회/세미나' && !document.getElementById('pEvt').value) return toast('행사를 선택해 주세요', true);
+    f.lead = {
+      channel: selPCh, source: selPSrc,
+      ecode: document.getElementById('pEvt').value,
+      refer: document.getElementById('pRefer').value,
+      dealer: document.getElementById('pDealer').value.trim(),
+    };
+  }
+  document.getElementById('pSave').disabled = true;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    var keepDate = document.getElementById('pDate').value;
+    onData(d); resetPlanForm(keepDate); show('plan');
+    toast('계획을 저장했습니다. 이어서 등록하세요');
+    document.getElementById('pSave').disabled = false;
+  }).withFailureHandler(function(e) {
+    busy(false); document.getElementById('pSave').disabled = false; toast(e.message, true);
+  }).웹_계획저장(TOKEN, f);
+}
+function resetPlanForm(keepDate) {
+  ['pHosp', 'pPurpose', 'pContact', 'pPrep', 'pRefer', 'pDealer'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('pDealerWrap').style.display = 'none';
+  document.getElementById('pDate').value = keepDate || DATA.today;
+  document.getElementById('pEvt').value = '';
+  selPType = ''; selPCh = ''; selPSrc = ''; selPCat = ''; META_PREFILL = null; METAQ = null;
+  document.querySelectorAll('#pType .chip, #pCh .chip, #pSrc .chip, #pCat .chip').forEach(function(c) { c.classList.remove('on'); });
+  document.getElementById('pTypeEtc').value = '';
+  document.getElementById('pTypeEtc').style.display = 'none';
+  document.getElementById('pEvtWrap').style.display = 'none';
+  document.getElementById('pReferWrap').style.display = 'none';
+  checkNewHosp();
+}
+function pickType(el) {
+  selType = el.getAttribute('data-v');
+  document.querySelectorAll('#fType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+}
+/* 계획 카드 [기록 쓰기] → 기록 폼 채우기.
+   예전엔 병원명과 활동 유형만 채웠다. 그래서 두 가지가 "저장이 안 된다"로 나타났다:
+   ① 판매 카테고리가 비어 저장이 거부됐다 (토스트를 놓치면 아무 일도 안 일어난 것처럼 보인다)
+   ② 병원코드가 안 실려 계획완료처리_가 계획을 못 찾아 '예정'으로 남았다 —
+      기록은 저장됐는데 홈 '방문기록 미입력'에 그대로 있으니 저장이 안 된 걸로 보인다 */
+var PREFILL = null;   // 계획에서 넘어온 병원코드 — 거래처 목록에 이름이 없어도 코드를 잃지 않는다
+function prefill(row) {
+  var p = DATA.plans.filter(function(x) { return x.row === row; })[0];
+  PREFILL = null;
+  if (p) {
+    PREFILL = { hname: p.hname, hcode: p.hcode || '' };
+    document.getElementById('fHosp').value = p.hname;
+    document.querySelectorAll('#fType .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === p.type) pickType(c);
+    });
+    if (p.cat) {
+      document.querySelectorAll('#fCat .chip').forEach(function(c) {
+        if (c.getAttribute('data-v') === p.cat) pickFCat(c);
+      });
+    }
+  }
+  show('log');
+}
+function saveLog() {
+  var name = document.getElementById('fHosp').value.trim();
+  var code = '';
+  DATA.hospitals.forEach(function(h) { if (h.name === name) code = h.code; });
+  // 거래처 목록에 이름이 없으면(신규 병원, 표기 갈림) 계획에서 받은 코드를 쓴다.
+  // 코드가 비면 서버가 계획을 못 찾아 '예정'으로 남는다 — 저장이 안 된 것처럼 보이는 원인이었다
+  if (!code && PREFILL && PREFILL.hname === name) code = PREFILL.hcode;
+  selMats.forEach(function(m, i) {
+    var inp = document.getElementById('fMatD' + i);
+    if (inp) matVals[m] = inp.value;
+  });
+  var matDetails = {};
+  selMats.forEach(function(m) { matDetails[m] = matVals[m] || ''; });
+  var f = {
+    hname: name, hcode: code,
+    date: document.getElementById('fDate').value,
+    next: document.getElementById('fNext').value,
+    type: selType,
+    cat: selFCat,
+    stage: document.getElementById('fStage').value,
+    contact: document.getElementById('fContact').value,
+    note: document.getElementById('fNote').value,
+    reaction: document.getElementById('fReaction').value,
+    fu: document.getElementById('fFu').value,
+    nozzle: document.getElementById('fNozzle').value.replace(/[^0-9]/g, ''),
+    mats: selMats.slice(),
+    matDetails: matDetails,
+  };
+  if (!f.hname) return toast('병원명을 입력해 주세요', true);
+  if (!f.cat) return toast('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', true);
+  if (!f.type) return toast('활동 유형을 선택해 주세요', true);
+  if (!f.note.trim()) return toast('논의 내용을 입력해 주세요', true);
+  document.getElementById('fSave').disabled = true;
+  busy(true);
+  if (EDITROW) {
+    var row = EDITROW;
+    gsrun().withSuccessHandler(function(r) {
+      busy(false); document.getElementById('fSave').disabled = false;
+      EDITROW = 0; resetForm(); editMode(false); 임시저장지우기_();
+      DASH = null; FLOW = null; KPIT = null;
+      // 쓰기 응답이 '내 입력' 목록을 실어 온다 — 예전에는 저장 후 다시 받아 왕복이 둘이었다
+      MINE = r.mine || null;
+      toast(r.msg); show('mine');
+    }).withFailureHandler(function(e) {
+      busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
+    }).웹_방문기록수정(TOKEN, row, f);
+    return;
+  }
+  gsrun().withSuccessHandler(function(d) {
+    onData(d); resetForm(); 임시저장지우기_(); show('home');
+    toast('저장했습니다. 계획이 있으면 자동 완료됩니다');
+    document.getElementById('fSave').disabled = false;
+  }).withFailureHandler(function(e) {
+    busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
+  }).웹_방문기록저장(TOKEN, f);
+}
+function resetForm() {
+  ['fHosp', 'fNext', 'fContact', 'fNote', 'fReaction', 'fFu', 'fNozzle'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('fDate').value = DATA.today;
+  document.getElementById('fStage').value = '';
+  selType = ''; selFCat = ''; PREFILL = null;
+  selMats = []; matVals = {};
+  document.getElementById('fMatDetails').innerHTML = '';
+  document.querySelectorAll('#fType .chip, #fCat .chip, #fMat .chip').forEach(function(c) { c.classList.remove('on'); });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Meta DB — 광고 문의함 (ADR 0002)
+   문의는 리드가 아니다. [계획 등록]을 거쳐야만 '리드 전환'이 된다.
+   ══════════════════════════════════════════════════════════════ */
+function loadMeta() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    METAQ = d; busy(false); renderMeta();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('metaBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_메타문의(TOKEN);
+}
+
+function 경과문구_(ms) {
+  var m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 60) return m + '분';
+  if (m < 1440) return Math.round(m / 60) + '시간';
+  return Math.round(m / 1440) + '일';
+}
+function metaSeg(s) { METASEG = s; renderMeta(); }
+/* 쓰기 응답에 실려 온 한 건으로 목록의 그 자리만 갈아끼운다.
+   예전에는 쓰기가 끝나면 목록을 통째로 다시 받아 왕복이 두 번이었다 — GAS 왕복이 편도
+   1.8초라 기다림의 절반이 여기였다. 서버가 못 실어 보냈으면 false를 주고, 부르는 쪽이
+   예전처럼 다시 받는다(구버전 서버·깨진 줄에서도 화면이 멈추지 않게). */
+function 문의갱신_(q) {
+  if (!q || !METAQ || !METAQ.inquiries) return false;
+  for (var i = 0; i < METAQ.inquiries.length; i++) {
+    if (METAQ.inquiries[i].row !== q.row) continue;
+    // 방문 지표(visits·firstDays)는 목록 조회에서만 붙는다 — 있던 값을 잃지 않게 얹는다
+    var 이전 = METAQ.inquiries[i];
+    if (이전.visits !== undefined && q.visits === undefined) {
+      q.visits = 이전.visits; q.firstDays = 이전.firstDays;
+    }
+    METAQ.inquiries[i] = q;
+    renderMeta();
+    return true;
+  }
+  return false;
+}
+function renderMeta() {
+  var list = (METAQ && METAQ.inquiries) || [];
+  var cnt = function(s) { return list.filter(function(q) { return q.status === s; }).length; };
+  document.getElementById('metaSeg').innerHTML =
+    [['전체', list.length], ['신규', cnt('신규')], ['통화중', cnt('통화중')],
+     ['재통화 대기', cnt('재통화 대기')], ['리드 전환', cnt('리드 전환')], ['제외', cnt('제외')]].map(function(t) {
+      return '<div class="chip' + (METASEG === t[0] ? ' on' : '') + '" onclick="metaSeg(\'' + t[0] + '\')">'
+        + t[0] + ' ' + t[1] + '</div>';
+    }).join('');
+
+  var rows = METASEG === '전체' ? list : list.filter(function(q) { return q.status === METASEG; });
+  var h = rows.length ? rows.map(metaCard).join('')
+    : '<div class="card empty">' + (METASEG === '전체' ? '아직 문의가 없습니다.' : METASEG + ' 문의가 없습니다.') + '</div>';
+  h += '<div class="gnote">문의는 아직 리드가 아닙니다 — 통화로 병원·관심을 확인한 뒤 [계획 등록]하면 리드로 잡힙니다. '
+    + '반응 시간(접수 → 통화)은 접수 순서가 아니라 잡은 시각 기준입니다.</div>';
+  document.getElementById('metaBody').innerHTML = h;
+}
+function metaCard(q) {
+  var me = DATA && DATA.me ? DATA.me : {};
+  var mine = q.rep === me.name;
+  var stTag = { '신규': 'tag-red', '통화중': 'tag-orange', '재통화 대기': 'tag-blue',
+                '리드 전환': 'tag-green', '제외': 'tag-grey' }[q.status] || 'tag-grey';
+  var h = '<div class="card">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
+    + '<b style="font-size:16px;">' + esc(q.hname2 || q.company || '(업체명 없음)') + '</b>'
+    + '<span class="tag ' + stTag + '">' + esc(q.status) + '</span></div>';
+  h += '<div style="margin-top:4px;font-size:13px;color:#6b7684;">'
+    + esc(q.name) + (q.title ? ' · ' + esc(q.title) : '') + ' · ' + esc(q.platform || '')
+    + ' · 접수 ' + esc(q.created) + ' <b style="color:' + (q.status === '신규' && Date.now() - q.createdMs > 3600000 ? '#d0223a' : '#8b95a1') + ';">(' + 경과문구_(q.createdMs) + ' 전)</b></div>';
+  if (q.phone) {
+    h += '<div style="margin-top:9px;"><a href="tel:' + esc(q.phone.replace(/-/g, '')) + '" '
+      + 'style="font-size:17px;font-weight:700;color:#1b64da;text-decoration:none;">📞 ' + esc(q.phone) + '</a></div>';
+  }
+  if (q.status === '통화중') {
+    h += '<div style="margin-top:7px;font-size:12.5px;color:#a35c11;">담당 <b>' + esc(q.rep) + '</b>'
+      + (q.calledMs ? ' · 반응 ' + Math.max(1, Math.round((q.calledMs - q.createdMs) / 60000)) + '분' : '') + '</div>';
+  }
+  if (q.status === '재통화 대기') {
+    // 예정 시각이 지났으면 빨강 — 아침 메일과 같은 기준이라 화면·메일이 어긋나지 않는다
+    var 지남 = q.nextMs && q.nextMs < Date.now();
+    h += '<div style="margin-top:7px;font-size:12.5px;color:' + (지남 ? '#d0223a' : '#1b64da') + ';">'
+      + '담당 <b>' + esc(q.rep) + '</b> · 재통화 <b>' + esc(q.next || '시각 미지정') + '</b>'
+      + (지남 ? ' <b>(지났습니다)</b>' : '')
+      + ' · ' + q.tries + '회 시도</div>';
+  }
+  if (q.status === '리드 전환') {
+    var visit = q.visits > 0
+      ? '방문 <b>' + q.visits + '회</b>' + (q.firstDays >= 0 ? ' · 첫 방문까지 <b>' + (q.firstDays === 0 ? '당일' : q.firstDays + '일') + '</b>' : '')
+      : '<b style="color:#d0223a;">아직 방문 없음</b>';
+    h += '<div style="margin-top:7px;font-size:12.5px;color:#058652;">담당 <b>' + esc(q.rep) + '</b>'
+      + (q.hname2 && q.hname2 !== q.company ? ' · 병원명 확정: ' + esc(q.hname2) : '')
+      + ' · ' + visit + '</div>';
+  }
+  if (q.status === '제외') {
+    h += '<div style="margin-top:7px;font-size:12.5px;color:#8b95a1;">' + esc(q.rep) + ' · ' + esc(q.why) + '</div>';
+  }
+  if (q.memo) {
+    // 통화 시도 이력 — 최신이 위. "7/30 14:00 차성민: 부재중, 내일 재통화" 형식
+    h += '<div style="margin-top:9px;background:#f9fafb;border-radius:10px;padding:9px 12px;'
+      + 'font-size:12.5px;color:#4e5968;line-height:1.7;white-space:pre-wrap;">' + esc(q.memo) + '</div>';
+  }
+  // 통화 직후 바로 분류 — 폰에서 쓰는 흐름이라 한 화면에서 끝나게 한다
+  if (METAOPEN === q.row && q.status !== '리드 전환') {
+    h += metaAssignBox(q);
+  }
+  var btn = [];
+  if (q.status === '신규') {
+    btn.push('<button class="btn pri" onclick="metaTake(' + q.row + ')">통화 잡기</button>');
+    btn.push('<button class="btn" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
+  } else if (q.status === '통화중' && (mine || me.admin)) {
+    btn.push('<button class="btn pri" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+  } else if (q.status === '재통화 대기' && (mine || me.admin)) {
+    // 재통화 대기는 "다시 걸 차례"다 — 분류 상자가 첫 버튼이어야 통화 직후 바로 끝난다
+    btn.push('<button class="btn pri" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+  } else if (q.status === '제외' && (mine || me.admin)) {
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+  }
+  // 통화 메모는 상태와 무관 — 부재중·재통화 예정 같은 시도 이력을 남긴다
+  btn.push('<button class="btn ghost" onclick="metaMemo(' + q.row + ')">메모</button>');
+  if (btn.length) h += '<div style="margin-top:12px;display:flex;gap:7px;flex-wrap:wrap;">' + btn.join('') + '</div>';
+  return h + '</div>';
+}
+function metaMemo(row) {
+  var t = prompt('통화 메모 (예: 부재중, 내일 오전 재통화)');
+  if (t == null) return;
+  if (!t.trim()) return toast('메모 내용을 입력해 주세요', true);
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg);
+    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_메타메모(TOKEN, row, t.trim());
+}
+function metaAct_(row, action, why, okMsg) {
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg || okMsg);
+    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true); METAQ = null; loadMeta();   // 남이 먼저 잡았을 수 있다 — 최신으로
+  }).웹_메타상태변경(TOKEN, row, action, why || '');
+}
+function metaTake(row) { metaAct_(row, '통화중'); }
+function metaUndo(row) { metaAct_(row, '취소'); }
+function metaExclude(row) {
+  var why = prompt('제외 사유를 입력해 주세요 (예: 병원 아님, 연락 불가, 스팸)');
+  if (why == null) return;
+  if (!why.trim()) return toast('사유가 있어야 제외할 수 있습니다', true);
+  metaAct_(row, '제외', why.trim());
+}
+/* 통화 완료 · 분류 상자 — 폰 통화 직후 한 화면에서 끝낸다 (1차 통화자 워크플로).
+   리드 전환이면 담당자를 골라 배정(웹_메타리드전환 → 배정 메일), 아니면 제외.
+   내가 직접 담당할 거면 기존 [계획 등록] 경로로 넘어간다 */
+var METAOPEN = 0;   // 분류 상자가 열린 문의 행
+var METAREP = '';   // 상자에서 고른 담당자
+function metaOpen(row) { METAOPEN = METAOPEN === row ? 0 : row; METAREP = ''; METANEXT = ''; renderMeta(); }
+function metaPickRep(el) {
+  METAREP = el.getAttribute('data-v');
+  document.querySelectorAll('#mxReps .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+}
+function metaAssignBox(q) {
+  var reps = (METAQ && METAQ.reps) || [];
+  var cats = (METAQ && METAQ.targetCats) || [];
+  var h = '<div style="margin-top:12px;border:1px solid #c9e0ff;background:#f0f7ff;border-radius:14px;padding:14px;">';
+  h += '<div style="font-size:13.5px;font-weight:700;color:#1b64da;">통화 결과 분류</div>';
+  h += '<label class="f">병원명 (실제 병원명으로 고쳐 주세요)</label>'
+    + '<input type="text" id="mxHosp" value="' + esc(q.hname2 || q.company || '') + '">';
+  h += '<label class="f">리드 담당자 — 누구에게 넘길까요?</label>'
+    + '<div class="chips" id="mxReps">' + reps.map(function(n) {
+        return '<div class="chip' + (METAREP === n ? ' on' : '') + '" data-v="' + esc(n) + '" onclick="metaPickRep(this)">' + esc(n) + '</div>';
+      }).join('') + '</div>';
+  h += '<label class="f">달성 목표 (선택)</label>'
+    + '<select id="mxCat"><option value="">나중에 정함</option>'
+    + cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('') + '</select>';
+  h += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;">'
+    + '<button class="btn pri" onclick="metaAssign(' + q.row + ')">리드 전환 — 배정 + 메일</button>'
+    + '<button class="btn" onclick="metaPlan(' + q.row + ')">내가 직접 (계획 등록)</button>'
+    + '</div>';
+  // 부재중 — 통화가 안 됐을 때. 다음 시각을 반드시 쥐고 나가야 아침 메일이 다시 깨워 준다.
+  // 폰 통화 직후에 누르는 자리라 날짜 피커 대신 칩으로 고른다
+  // 앞으로 [부재중]을 몇 번 더 누를 수 있나 — 마지막 한 번이 자동 제외다.
+  // 한도 3, 시도 1회면 남은 2회이고 그 2번째가 제외를 부른다 (한 칸 어긋나기 쉬운 계산)
+  var 남은 = Math.max(0, (METAQ && METAQ.tryLimit ? METAQ.tryLimit : 3) - (q.tries || 0));
+  h += '<div style="margin-top:12px;border-top:1px solid #d6e6ff;padding-top:12px;">'
+    + '<div style="font-size:12.5px;font-weight:700;color:#4e5968;">부재중 — 언제 다시 걸까요?</div>'
+    + '<div class="chips" id="mxNext" style="margin-top:8px;">'
+    + [['오늘 오후', 'today'], ['내일 오전', 'tmr'], ['모레', 'day2'], ['직접 선택', 'pick']].map(function(t) {
+        return '<div class="chip" data-v="' + t[1] + '" onclick="metaPickNext(this)">' + t[0] + '</div>';
+      }).join('')
+    + '</div>'
+    + '<input type="datetime-local" id="mxNextAt" style="display:none;margin-top:8px;">'
+    + '<div style="margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
+    + '<button class="btn" onclick="metaMissed(' + q.row + ')">부재중으로 넘기기</button>'
+    + '<span style="font-size:11.5px;color:#8b95a1;">'
+    + (남은 > 1 ? (q.tries || 0) + '회 시도 · ' + 남은 + '회 더 부재중이면 자동 제외'
+                : '<b style="color:#d0223a;">' + (q.tries || 0) + '회 시도 · 다음 부재중이면 연락 불가로 자동 제외됩니다</b>') + '</span>'
+    + '</div></div>';
+  h += '<div style="margin-top:12px;border-top:1px solid #d6e6ff;padding-top:12px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;">'
+    + '<input type="text" id="mxWhy" placeholder="제외 사유 (예: 병원 아님, 관심 없음)" style="flex:1;min-width:150px;">'
+    + '<button class="btn" onclick="metaExcludeBox(' + q.row + ')">제외</button>'
+    + '<button class="btn ghost" onclick="metaOpen(0)">닫기</button></div>';
+  return h + '</div>';
+}
+function metaAssign(row) {
+  var hname = (document.getElementById('mxHosp') || {}).value || '';
+  if (!hname.trim()) return toast('병원명을 입력해 주세요', true);
+  if (!METAREP) return toast('리드 담당자를 선택해 주세요', true);
+  var cat = (document.getElementById('mxCat') || {}).value || '';
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg); METAOPEN = 0; METAREP = '';
+    // 예전에는 여기서 문의 목록과 초기데이터를 각각 다시 받아 왕복이 셋이었다(5.5초).
+    // 이제 쓰기 응답이 둘 다 실어 온다 — 서버가 못 실어 보냈으면 예전 경로로 돌아간다.
+    if (r.init) onData(r.init);   // 리드 목록·홈 KPI 갱신
+    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_메타리드전환(TOKEN, row, hname.trim(), METAREP, cat);
+}
+/* 재통화 시각 칩 — 사무실 통화 리듬에 맞춘 기본값. '직접 선택'만 피커를 연다 */
+var METANEXT = '';
+function metaPickNext(el) {
+  METANEXT = el.getAttribute('data-v');
+  document.querySelectorAll('#mxNext .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  var at = document.getElementById('mxNextAt');
+  if (at) {
+    at.style.display = METANEXT === 'pick' ? 'block' : 'none';
+    if (METANEXT === 'pick' && !at.value) at.value = 다음시각_('tmr');
+  }
+}
+function 다음시각_(kind) {
+  var d = new Date();
+  if (kind === 'today') d.setHours(14, 0, 0, 0);
+  else if (kind === 'tmr') { d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0); }
+  else if (kind === 'day2') { d.setDate(d.getDate() + 2); d.setHours(10, 0, 0, 0); }
+  else return '';
+  var p = function(n) { return ('0' + n).slice(-2); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+    + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function metaMissed(row) {
+  if (!METANEXT) return toast('다시 걸 시각을 골라 주세요', true);
+  var next = METANEXT === 'pick'
+    ? String((document.getElementById('mxNextAt') || {}).value || '').replace('T', ' ')
+    : 다음시각_(METANEXT);
+  if (!next) return toast('다시 걸 시각을 골라 주세요', true);
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg); METAOPEN = 0; METANEXT = '';
+    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_메타상태변경(TOKEN, row, '부재중', '', next);
+}
+function metaExcludeBox(row) {
+  var why = (document.getElementById('mxWhy') || {}).value || '';
+  if (!why.trim()) return toast('제외 사유를 입력해 주세요', true);
+  METAOPEN = 0; metaAct_(row, '제외', why.trim());
+}
+
+/* 문의 → 계획 등록 — 병원명·접촉자·소스를 채우고 문의 행번호를 들고 간다.
+   병원명은 고칠 수 있다(광고 폼의 업체명이 실제 병원명과 다를 수 있다). 저장 시 서버가
+   문의를 '리드 전환'으로 승격하고 리드행·확정 병원명을 문의에 적는다 */
+function metaPlan(row) {
+  var q = ((METAQ && METAQ.inquiries) || []).filter(function(x) { return x.row === row; })[0];
+  if (!q) return;
+  META_PREFILL = { row: row };
+  show('plan');
+  document.getElementById('pHosp').value = q.hname2 || q.company || '';
+  document.getElementById('pContact').value = q.name + (q.title ? ' (' + q.title + ')' : '');
+  checkNewHosp();
+  if (document.getElementById('pLeadSec').style.display !== 'none') {
+    document.querySelectorAll('#pSrc .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === 'Meta DB') pickPSrc(c);
+    });
+  }
+  toast('문의 정보를 채웠습니다. 병원명을 확인하고 저장하면 리드로 전환됩니다');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   내 입력 — 내가 쓴 기록 보기·고치기 (피드백 5번) + 계약일 수정 (피드백 2번)
+   "입력한 걸 확인할 방법이 없다"가 '저장이 안 된다'는 체감의 큰 몫이었다.
+   ══════════════════════════════════════════════════════════════ */
+/* 기록 임시저장 (피드백 1번) — 저장이 실패하거나 앱이 닫혀도 쓰던 내용을 잃지 않게.
+   저장 성공 시에만 지운다. 수정 모드에서는 남기지 않는다(원본이 이미 시트에 있다). */
+var 임시저장키_ = 'saleson_draft_log';
+function 임시저장_() {
+  if (EDITROW) return;
+  try {
+    var d = {
+      hname: document.getElementById('fHosp').value,
+      date: document.getElementById('fDate').value,
+      next: document.getElementById('fNext').value,
+      stage: document.getElementById('fStage').value,
+      contact: document.getElementById('fContact').value,
+      note: document.getElementById('fNote').value,
+      reaction: document.getElementById('fReaction').value,
+      fu: document.getElementById('fFu').value,
+      nozzle: document.getElementById('fNozzle').value,
+      type: selType, cat: selFCat, at: Date.now(),
+    };
+    if (!d.hname && !d.note) { localStorage.removeItem(임시저장키_); return; }
+    localStorage.setItem(임시저장키_, JSON.stringify(d));
+  } catch (e) {}
+}
+function 임시저장지우기_() { try { localStorage.removeItem(임시저장키_); } catch (e) {} }
+function 임시저장복구_() {
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem(임시저장키_) || 'null'); } catch (e) {}
+  if (!d || (!d.hname && !d.note)) return;
+  if (Date.now() - (d.at || 0) > 3 * 86400000) { 임시저장지우기_(); return; }   // 사흘 지난 건 버린다
+  var el = document.getElementById('draftBar');
+  if (!el) return;
+  el.style.display = 'flex';
+  el.querySelector('.dtxt').textContent =
+    '저장하지 않은 기록이 있습니다 — ' + (d.hname || '(병원 미입력)');
+  el.querySelector('.dload').onclick = function() {
+    document.getElementById('fHosp').value = d.hname || '';
+    document.getElementById('fDate').value = d.date || DATA.today;
+    document.getElementById('fNext').value = d.next || '';
+    document.getElementById('fStage').value = d.stage || '';
+    document.getElementById('fContact').value = d.contact || '';
+    document.getElementById('fNote').value = d.note || '';
+    document.getElementById('fReaction').value = d.reaction || '';
+    document.getElementById('fFu').value = d.fu || '';
+    document.getElementById('fNozzle').value = d.nozzle || '';
+    document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.type) pickType(c); });
+    document.querySelectorAll('#fCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.cat) pickFCat(c); });
+    el.style.display = 'none';
+    show('log');
+  };
+  el.querySelector('.ddrop').onclick = function() { 임시저장지우기_(); el.style.display = 'none'; };
+}
+
+function loadMine() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    MINE = d; busy(false); renderMine();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('mineBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_내입력(TOKEN);
+}
+function mineSeg(s) { MINESEG = s; renderMine(); }
+function renderMine() {
+  var d = MINE || { logs: [], leads: [] };
+  document.getElementById('mineSeg').innerHTML =
+    [['방문기록', d.logs.length], ['계약일', d.leads.length]].map(function(t) {
+      return '<div class="chip' + (MINESEG === t[0] ? ' on' : '') + '" onclick="mineSeg(\'' + t[0] + '\')">'
+        + t[0] + ' ' + t[1] + '</div>';
+    }).join('');
+
+  var h = '';
+  if (MINESEG === '방문기록') {
+    h += kick('내가 쓴 방문기록' + (d.admin ? ' (관리자 — 전체)' : '') + ' ' + d.logs.length + '건');
+    h += d.logs.length ? d.logs.map(mineLogCard).join('')
+      : '<div class="card empty">아직 입력한 방문기록이 없습니다.</div>';
+    h += '<div class="gnote">최근 100건까지 보여줍니다. 병원명은 수정할 수 없습니다 — '
+      + '잘못 고른 병원이면 새로 기록하고 관리자에게 알려 주세요.</div>';
+  } else {
+    // 장비/N-Care를 갈라서 — 퍼널과 같은 판정(달성 목표 우선, 없으면 장비 보유 여부)
+    var eq = d.leads.filter(function(l) { return !l.isN; });
+    var nc = d.leads.filter(function(l) { return l.isN; });
+    h += kick('장비 판매 계약 ' + eq.length + '건');
+    h += eq.length ? eq.map(mineLeadCard).join('')
+      : '<div class="card empty">장비 계약이 없습니다.</div>';
+    h += kick('N-Care 계약 ' + nc.length + '건');
+    h += nc.length ? nc.map(mineLeadCard).join('')
+      : '<div class="card empty">N-Care 계약이 없습니다.</div>';
+    h += '<div class="gnote">칸 구분은 리드의 <b>달성 목표</b> 기준입니다(없으면 장비 보유 여부) — '
+      + '엉뚱한 칸에 있으면 리드 탭에서 달성 목표를 고쳐 주세요.<br>'
+      + '계약일을 바꾸면 현황·흐름의 그 달 집계가 함께 움직입니다. 비우고 저장하면 계약일이 지워집니다.</div>';
+  }
+  document.getElementById('mineBody').innerHTML = h;
+}
+function mineLogCard(l) {
+  return '<div class="card">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
+    + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
+    + '<span style="font-size:12px;color:#8b95a1;white-space:nowrap;">' + esc(l.date) + ' ' + esc(l.dow) + '</span></div>'
+    + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
+    + (l.cat ? '<span class="tag' + (l.cat === 'N-Care' ? ' ncare' : '') + '">' + esc(l.cat) + '</span>' : '')
+    + (l.type ? '<span class="tag">' + esc(l.type) + '</span>' : '')
+    + (l.stage ? '<span class="tag">' + esc(l.stage) + '</span>' : '')
+    + (MINE.admin && l.rep ? '<span class="tag">' + esc(l.rep) + '</span>' : '')
+    + '</div>'
+    + (l.note ? '<div style="margin-top:9px;font-size:14px;color:#4e5968;line-height:1.6;">' + esc(l.note) + '</div>' : '')
+    + '<div style="margin-top:12px;text-align:right;">'
+    + '<button class="btn" onclick="editLog(' + l.row + ')">수정</button></div></div>';
+}
+function mineLeadCard(l) {
+  return '<div class="card">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
+    + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
+    + '<span style="font-size:12px;color:#8b95a1;">' + esc(l.stage || '') + (MINE.admin && l.rep ? ' · ' + esc(l.rep) : '') + '</span></div>'
+    + (l.target
+        ? '<div style="margin-top:5px;font-size:13px;color:#6b7684;">' + esc(l.target) + '</div>'
+        : '<div style="margin-top:5px;font-size:13px;color:#d0223a;">달성 목표 미입력 — 칸 분류가 부정확할 수 있어요</div>')
+    + '<label class="f">계약일</label>'
+    + '<div class="row2"><div><input type="date" id="dl' + l.row + '" value="' + esc(l.dealDate) + '"></div>'
+    + '<div><button class="btn pri" style="width:100%;padding:12px;" onclick="saveDealDate(' + l.row + ')">저장</button></div></div>'
+    + (l.paid ? '<div style="margin-top:8px;font-size:12.5px;color:#058652;">입금 ' + esc(l.paid) + '</div>' : '')
+    + '</div>';
+}
+function saveDealDate(row) {
+  var v = document.getElementById('dl' + row).value;
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    busy(false); toast(r.msg); MINE = null; DASH = null; FLOW = null; loadMine();
+  }).withFailureHandler(function(e) {
+    busy(false); toast(e.message, true);
+  }).웹_리드계약일수정(TOKEN, row, v);
+}
+/* 기록 수정 — 기록 폼을 그대로 쓰고 EDITROW로 갈래를 나눈다.
+   병원은 서버가 안 고치므로 입력을 잠근다 */
+function editLog(row) {
+  var l = (MINE.logs || []).filter(function(x) { return x.row === row; })[0];
+  if (!l) return;
+  EDITROW = row;
+  resetForm();
+  EDITROW = row;   // resetForm이 지우므로 다시 세운다
+  document.getElementById('fHosp').value = l.hname;
+  document.getElementById('fDate').value = l.date;
+  document.getElementById('fNext').value = l.next || '';
+  document.getElementById('fStage').value = l.stage || '';
+  document.getElementById('fContact').value = l.contact || '';
+  document.getElementById('fNote').value = l.note || '';
+  document.getElementById('fReaction').value = l.reaction || '';
+  document.getElementById('fFu').value = l.fu || '';
+  document.getElementById('fNozzle').value = l.nozzle || '';
+  document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === l.type) pickType(c); });
+  document.querySelectorAll('#fCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === l.cat) pickFCat(c); });
+  (l.mats || []).forEach(function(m) {
+    document.querySelectorAll('#fMat .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === m && !c.classList.contains('on')) toggleMat(c);
+    });
+  });
+  matVals = {};
+  Object.keys(l.matDetails || {}).forEach(function(k) { matVals[k] = l.matDetails[k]; });
+  renderMatDetails();
+  editMode(true);
+  show('log');
+}
+function editMode(on) {
+  var hosp = document.getElementById('fHosp');
+  hosp.readOnly = !!on;
+  hosp.style.background = on ? '#f2f4f6' : '';
+  document.getElementById('fSave').textContent = on ? '수정 저장' : '방문기록 저장';
+  var b = document.getElementById('editBanner');
+  if (b) b.style.display = on ? 'flex' : 'none';
+}
+function cancelEdit() { EDITROW = 0; resetForm(); editMode(false); show('mine'); }
+
+/* ── 내 리드 ── */
+var REP_GRADIENTS = [
+  'linear-gradient(135deg,#4FACFE,#00C6FB)', 'linear-gradient(135deg,#5B7CFA,#8B5CF6)',
+  'linear-gradient(135deg,#34C77B,#0BB8A5)', 'linear-gradient(135deg,#F7971E,#FF6A6A)',
+  'linear-gradient(135deg,#8E7CF8,#B39DFA)', 'linear-gradient(135deg,#0BA5A5,#3ED0B9)',
+  'linear-gradient(135deg,#fe9800,#FFC53D)', 'linear-gradient(135deg,#FF5E9C,#FF8FB1)',
+];
+function renderLeads() {
+  var isAdmin = DATA.me.admin;
+  var pool = DATA.leads;
+  var title = document.getElementById('leadTitle');
+
+  // 관리자: 담당자 타일 목록 → 클릭 시 해당 담당자 리드
+  if (isAdmin && !LEADREP) {
+    title.textContent = '팀 리드 — 담당자를 선택하세요';
+    document.getElementById('leadSeg').innerHTML = '';
+    var reps = {}, names = [];
+    pool.forEach(function(l) {
+      var n = l.rep || '미배정';
+      if (!reps[n]) { reps[n] = { open: 0, fail: 0 }; names.push(n); }
+      if (l.stage === '실패') reps[n].fail++; else reps[n].open++;
+    });
+    names.sort(function(a, b) {
+      if (a === '미배정') return 1;
+      if (b === '미배정') return -1;
+      return (reps[b].open + reps[b].fail) - (reps[a].open + reps[a].fail);
+    });
+    document.getElementById('leadList').innerHTML = names.length
+      ? '<div class="repgrid">' + names.map(function(n, i) {
+          var bg = n === '미배정' ? 'linear-gradient(135deg,#6B7280,#9CA3AF)' : REP_GRADIENTS[i % REP_GRADIENTS.length];
+          return '<div class="reptile" style="background:' + bg + ';" data-r="' + esc(n) + '" onclick="LEADREP=this.getAttribute(\'data-r\');LEADSEG=\'open\';renderLeads()">'
+            + '<div class="rn">' + esc(n) + '</div>'
+            + '<div class="rs">진행 ' + reps[n].open + ' · 실패 ' + reps[n].fail + '</div></div>';
+        }).join('') + '</div>'
+      : '<div class="card empty">등록된 리드가 없습니다.</div>';
+    return;
+  }
+  if (isAdmin) {
+    title.textContent = LEADREP + ' 님의 리드';
+    pool = pool.filter(function(l) { return (l.rep || '미배정') === LEADREP; });
+  } else {
+    title.textContent = '내 리드 — 단계를 탭해서 변경';
+  }
+
+  var open = pool.filter(function(l) { return l.stage !== '실패'; });
+  var fails = pool.filter(function(l) { return l.stage === '실패'; });
+  document.getElementById('leadSeg').innerHTML =
+    (isAdmin ? '<div class="chip" onclick="LEADREP=\'\';renderLeads()">← 담당자 목록</div>' : '') +
+    '<div class="chip' + (LEADSEG === 'open' ? ' on' : '') + '" onclick="LEADSEG=\'open\';renderLeads()">진행 중 ' + open.length + '</div>'
+    + '<div class="chip' + (LEADSEG === 'fail' ? ' on' : '') + '" onclick="LEADSEG=\'fail\';renderLeads()">실패 · 재컨택 ' + fails.length + '</div>';
+  if (LEADSEG === 'fail') {
+    fails.sort(function(a, b) { return (a.failRetry || '9999') < (b.failRetry || '9999') ? -1 : 1; });
+    document.getElementById('leadList').innerHTML = fails.length
+      ? '<div style="margin-bottom:8px;font-size:12px;color:#8b95a1;line-height:1.6;">실패 리드는 버리지 않고 누적으로 계속 추적합니다. 재컨택 조건이 해결되면 [재컨택 시작]을 누르세요. 매주 목요일 아침 메일로도 알려드립니다.</div>'
+        + fails.map(failCard).join('')
+      : '<div class="card empty">실패 처리된 리드가 없습니다.</div>';
+    return;
+  }
+  var order = { '협의중': 1, '데모예정': 2, '데모완료': 3, '컨택': 4, '리드확보': 5, '보류': 6, '계약': 7 };
+  open.sort(function(a, b) { return (order[a.stage] || 9) - (order[b.stage] || 9); });
+  if (!open.length) {
+    document.getElementById('leadList').innerHTML = '<div class="card empty">배정된 리드가 없습니다.</div>';
+    return;
+  }
+  // 달성 목표 기준으로 장비 / N-Care 2단 분리
+  var isEq = function(l) { return l.target === '장비 판매'; };
+  var isNc = function(l) { return /^n-care/i.test(l.target); };
+  var eq = open.filter(isEq);
+  var nc = open.filter(isNc);
+  var etc = open.filter(function(l) { return !isEq(l) && !isNc(l); });
+  var col = function(label, barColor, arr, emptyText) {
+    return '<div>'
+      + '<div class="kicker" style="margin-top:4px;"><div class="bar" style="background:' + barColor + ';"></div><div class="lbl">' + label + ' · ' + arr.length + '</div></div>'
+      + (arr.length ? arr.map(leadCard).join('') : '<div class="card empty">' + emptyText + '</div>')
+      + '</div>';
+  };
+  document.getElementById('leadList').innerHTML =
+    '<div class="lead2">'
+    + col('장비 판매', '#3182f6', eq, '장비 리드가 없습니다.')
+    + col('N-Care', '#03b26c', nc, 'N-Care 리드가 없습니다.')
+    + '</div>'
+    + (etc.length
+      ? '<div class="kicker"><div class="bar" style="background:#b0b8c1;"></div><div class="lbl">분류 미지정 · ' + etc.length + ' — 달성 목표를 정하면 자동 분류됩니다</div></div>'
+        + etc.map(leadCard).join('')
+      : '');
+}
+function failCard(l) {
+  var dd = '';
+  if (l.failRetry) {
+    var t = Math.round((new Date(l.failRetry) - new Date(DATA.today)) / 86400000);
+    dd = t <= 0
+      ? '<span class="badge" style="background:#ffeaec;color:#d0223a;">재컨택 시기 도래</span>'
+      : '<span class="badge tgt">재컨택 D-' + t + '</span>';
+  }
+  return '<div class="card lead">'
+    + '<div class="h">' + esc(l.hname) + dd + '</div>'
+    + '<div class="m">' + esc(l.contact || '-') + (l.ename ? ' · ' + esc(l.ename) : '')
+    + (l.failRetry ? ' · 목표 ' + esc(l.failRetry) : '') + '</div>'
+    + (l.failWhy ? '<div class="memo">실패 요인 · ' + esc(l.failWhy) + '</div>' : '')
+    + (l.failFix ? '<div class="memo" style="color:#1b64da;">재컨택 조건 · ' + esc(l.failFix) + '</div>' : '')
+    + '<div style="margin-top:10px;display:flex;gap:8px;">'
+    + '<button class="btn pri" onclick="retryLead(' + l.row + ')">재컨택 시작</button>'
+    + '<button class="btn ghost" onclick="openFail(' + l.row + ')">사유 수정</button>'
+    + '</div></div>';
+}
+function retryLead(row) {
+  if (!confirm('이 리드의 재컨택을 시작할까요? 단계가 \'컨택\'으로 변경됩니다.')) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { LEADSEG = 'open'; onData(d); show('lead'); toast('재컨택을 시작했습니다'); })
+    .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_리드단계변경(TOKEN, row, '컨택');
+}
+function openFail(row) {
+  FAILROW = row;
+  var l = DATA.leads.filter(function(x) { return x.row === row; })[0];
+  document.getElementById('failHosp').textContent = l ? l.hname + (l.contact ? ' · ' + l.contact : '') : '';
+  document.getElementById('failWhy').value = (l && l.failWhy) || '';
+  document.getElementById('failFix').value = (l && l.failFix) || '';
+  document.getElementById('failRetry').value = (l && l.failRetry) || '';
+  document.getElementById('failModal').style.display = 'flex';
+}
+function closeFail() { document.getElementById('failModal').style.display = 'none'; }
+function submitFail() {
+  var why = document.getElementById('failWhy').value.trim();
+  if (!why) return toast('실패 요인을 입력해 주세요', true);
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    closeFail(); LEADSEG = 'fail'; onData(d); show('lead');
+    toast('실패 처리했습니다 — 실패 탭에서 계속 추적됩니다');
+  }).withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_리드실패처리(TOKEN, FAILROW, {
+      why: why,
+      fix: document.getElementById('failFix').value.trim(),
+      retry: document.getElementById('failRetry').value,
+    });
+}
+function leadCard(l) {
+  var done = l.stage === '계약';
+  var chips = DATA.leadStages.map(function(s) {
+    var cls = 'stgchip' + (s === l.stage ? ' on' : '') + (s === '계약' ? ' deal' : '');
+    return '<div class="' + cls + '" onclick="leadStage(' + l.row + ',\'' + s + '\')">' + esc(s) + '</div>';
+  }).join('');
+  var ch = l.channel ? (l.channel === '딜러' && l.dealer ? '딜러(' + l.dealer + ')' : l.channel) : '';
+  var src = l.source ? (ch ? ch + ' · ' : '') + l.source + (l.refer ? ' (' + l.refer + ')' : '') : '';
+  return '<div class="card lead' + (done ? ' done' : '') + '">'
+    + '<div class="h">' + esc(l.hname) + (done ? '<span class="badge deal">계약</span>' : '') + '</div>'
+    + '<div class="m">' + esc(l.contact || '-') + (l.ename ? ' · ' + esc(l.ename) : '') + (src ? ' · ' + esc(src) : '') + '</div>'
+    + (function() {
+        var cats = (DATA.targetCats || []).slice();
+        if (l.target && cats.indexOf(l.target) < 0) cats.push(l.target);
+        var opts = '<option value="">목표 선택…</option>' + cats.map(function(t) {
+          return '<option value="' + esc(t) + '"' + (t === l.target ? ' selected' : '') + '>' + esc(t) + '</option>';
+        }).join('');
+        return '<div class="memo" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">목표 · '
+          + '<select style="width:auto;font-size:12px;padding:5px 8px;margin:0;" onchange="leadTarget(' + l.row + ',this.value)">' + opts + '</select>'
+          + (l.target
+            ? (l.achv === '달성' ? '<span class="badge deal">달성</span>' : '<span class="badge tgt">진행 중</span>')
+            : '<span style="font-size:11px;color:#d0223a;font-weight:700;">미지정 — 장비/N-Care 분류에 필요해요</span>')
+          + '</div>';
+      })()
+    + (l.memo ? '<div class="memo">' + esc(l.memo) + '</div>' : '')
+    + '<div class="stg">' + chips + '</div></div>';
+}
+function leadTarget(row, v) {
+  if (!v) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { onData(d); show('lead'); toast('달성 목표를 변경했습니다'); })
+    .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_리드목표변경(TOKEN, row, v);
+}
+function leadStage(row, stage) {
+  var cur = DATA.leads.filter(function(x) { return x.row === row; })[0];
+  if (cur && cur.stage === stage) return;
+  if (stage === '실패') return openFail(row);
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { onData(d); toast('단계를 \'' + stage + '\'(으)로 변경했습니다'); })
+    .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_리드단계변경(TOKEN, row, stage);
+}
+
+/* ── 영업자료 탭 (MA·C-Labs 공식 자료) ── */
+var MATCOLOR = { '마케팅': ['#1b64da', '#e8f3ff'], '임상/학술': ['#058652', '#e5f7ef'], '학회/세미나': ['#7C3AED', '#F1EBFF'], '기타': ['#6B7280', '#F3F4F6'] };
+function loadMat() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); })
+    .withFailureHandler(function(e) {
+      busy(false);
+      document.getElementById('matList').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    }).웹_영업자료목록(TOKEN);
+}
+function renderMat() {
+  var d = MATL;
+  var up = document.getElementById('matUpCard');
+  up.style.display = d.canUpload ? 'block' : 'none';
+  if (d.canUpload && !document.getElementById('mCat').innerHTML) {
+    document.getElementById('mCat').innerHTML = d.cats.map(function(c) {
+      return '<div class="chip" data-v="' + esc(c) + '" onclick="pickMatCat(this)">' + esc(c) + '</div>';
+    }).join('');
+  }
+  if (d.canUpload && d.folderUrl) {
+    document.getElementById('mBigHint').style.display = 'block';
+    document.getElementById('mFolderBtn').href = d.folderUrl;
+  }
+  var segs = ['전체'].concat(d.cats);
+  document.getElementById('matSeg').innerHTML = segs.map(function(c) {
+    var n = c === '전체' ? d.items.length : d.items.filter(function(x) { return x.cat === c; }).length;
+    return '<div class="chip' + (MATSEG === c ? ' on' : '') + '" onclick="MATSEG=\'' + esc(c) + '\';renderMat()">' + esc(c) + ' ' + n + '</div>';
+  }).join('');
+  var items = MATSEG === '전체' ? d.items : d.items.filter(function(x) { return x.cat === MATSEG; });
+  document.getElementById('matList').innerHTML = items.length
+    ? items.map(matCard).join('')
+    : '<div class="card empty">등록된 자료가 없습니다.' + (d.canUpload ? '<br><br>위 폼에서 첫 자료를 올려 보세요.' : '') + '</div>';
+}
+function matCard(m) {
+  var c = MATCOLOR[m.cat] || MATCOLOR['기타'];
+  return '<div class="card">'
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'
+    + '<div style="min-width:0;">'
+    + '<span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;color:' + c[0] + ';background:' + c[1] + ';">' + esc(m.cat) + '</span>'
+    + '<div style="margin-top:7px;font-size:15px;font-weight:700;">' + esc(m.title) + '</div>'
+    + (m.desc ? '<div style="margin-top:4px;font-size:12.5px;color:#6b7684;line-height:1.6;">' + esc(m.desc) + '</div>' : '')
+    + '<div style="margin-top:6px;font-size:11.5px;color:#8b95a1;">' + esc(m.date) + (m.uploader ? ' · ' + esc(m.uploader) : '') + '</div>'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">'
+    + '<a class="btn pri" style="text-decoration:none;text-align:center;" href="' + esc(m.url) + '" target="_blank" rel="noopener">열기</a>'
+    + ((MATL.admin || m.mine) ? '<button class="btn ghost" onclick="matDelete(' + m.row + ')">삭제</button>' : '')
+    + '</div></div></div>';
+}
+function pickMatCat(el) {
+  document.querySelectorAll('#mCat .chip').forEach(function(c) { c.classList.remove('on'); });
+  el.classList.add('on');
+}
+function submitMat() {
+  var catEl = document.querySelector('#mCat .chip.on');
+  var f = {
+    cat: catEl ? catEl.getAttribute('data-v') : '',
+    title: document.getElementById('mTitle').value.trim(),
+    desc: document.getElementById('mDesc').value.trim(),
+    link: document.getElementById('mLink').value.trim(),
+  };
+  if (!f.cat) return toast('카테고리를 선택해 주세요', true);
+  if (!f.title) return toast('자료명을 입력해 주세요', true);
+  var file = document.getElementById('mFile').files[0];
+  if (!file && !f.link) return toast('파일을 첨부하거나 링크를 입력해 주세요', true);
+  if (file && file.size > 20 * 1024 * 1024) return toast('파일은 20MB 이하만 업로드할 수 있습니다', true);
+  var send = function() {
+    busy(true);
+    document.getElementById('mSave').disabled = true;
+    gsrun().withSuccessHandler(function(d) {
+      MATL = d; busy(false);
+      document.getElementById('mSave').disabled = false;
+      document.getElementById('mTitle').value = '';
+      document.getElementById('mDesc').value = '';
+      document.getElementById('mLink').value = '';
+      document.getElementById('mFile').value = '';
+      renderMat();
+      toast('자료를 등록하고 영업사원 전체에게 메일을 보냈습니다');
+    }).withFailureHandler(function(e) {
+      busy(false);
+      document.getElementById('mSave').disabled = false;
+      toast(e.message, true);
+    }).웹_영업자료등록(TOKEN, f);
+  };
+  if (file) {
+    var rd = new FileReader();
+    rd.onload = function() {
+      f.file = { name: file.name, mime: file.type || 'application/octet-stream', b64: String(rd.result).split(',')[1] };
+      send();
+    };
+    rd.onerror = function() { toast('파일을 읽지 못했습니다', true); };
+    rd.readAsDataURL(file);
+  } else send();
+}
+function matDelete(row) {
+  if (!confirm('이 자료를 삭제할까요? 업로드된 파일도 휴지통으로 이동합니다.')) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); toast('삭제했습니다'); })
+    .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_영업자료삭제(TOKEN, row);
+}
+
+/* ── 관리자 현황 대시보드 ── */
+function loadDash() {
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    DASH = d; busy(false); renderDash();
+  }).withFailureHandler(function(e) {
+    busy(false);
+    document.getElementById('dashBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+  }).웹_대시보드(TOKEN);
+}
+function kick(label, red) {
+  return '<div class="kicker' + (red ? ' red' : '') + '"><div class="bar"></div><div class="lbl">' + esc(label) + '</div></div>';
+}
+/* 목표 카드 하나 — 실적/목표 + 진행바 + 오늘 기준 페이스 판정
+   막대 위 회색 눈금(<u>)은 '오늘까지 왔어야 할 위치'다. 막대가 눈금을 넘으면 순항. */
+/* 현황 카드를 누르면 그 숫자를 만든 병원 목록이 펼쳐진다 (피드백 3번) —
+   "숫자만 보이고 어느 병원인지 모르겠다"는 불편을 없앤다 */
+var GOALOPEN = '';
+function goalList(key) { GOALOPEN = (GOALOPEN === key ? '' : key); renderDash(); }
+var ROWOPEN = '';   // 담당자별 표에서 펼친 행 ('장비|김동진' 꼴)
+function rowList(key) { ROWOPEN = (ROWOPEN === key ? '' : key); renderDash(); }
+function goalCard(label, o, dayPassed, dayTotal, key) {
+  o = o || {};
+  var done = Number(o.done) || 0, goal = Number(o.goal) || 0;
+  var list = o.list || [];
+  var open = key && GOALOPEN === key;
+  var tail = !key ? '' :
+    '<div class="gpace" style="margin-top:6px;"><span class="lk" style="color:#1b64da;font-weight:600;cursor:pointer;">'
+    + (list.length ? (open ? '접기 ▲' : '병원 ' + list.length + '곳 보기 ▼') : '') + '</span></div>'
+    + (open ? '<div style="margin-top:8px;border-top:1px solid #f2f4f6;padding-top:8px;">'
+        + list.map(function(x) {
+            return '<div style="font-size:13px;color:#4e5968;padding:3px 0;display:flex;justify-content:space-between;gap:8px;">'
+              + '<span>' + esc(x.h)
+              + (x.r ? ' <span style="color:#8b95a1;font-size:11.5px;">' + esc(x.r) + '</span>' : '') + '</span>'
+              + (x.d ? '<span style="color:#8b95a1;font-size:11.5px;white-space:nowrap;">' + esc(x.d) + '</span>' : '')
+              + '</div>';
+          }).join('') + '</div>' : '');
+  var wrap = function(inner) {
+    return '<div class="gtile"' + (key && list.length ? ' style="cursor:pointer;" onclick="goalList(\'' + key + '\')"' : '') + '>'
+      + inner + tail + '</div>';
+  };
+  if (!goal) {
+    return wrap('<div class="gt">' + esc(label) + '</div>'
+      + '<div class="gv"><span class="a">' + done + '</span><span class="b">건</span></div>'
+      + '<div class="gpace"><span>목표 미입력</span></div>');
+  }
+  var pct = Math.round(done / goal * 100);
+  var w = Math.min(100, pct);
+  var exp = dayTotal ? goal * dayPassed / dayTotal : 0;
+  var gap = Math.round((done - exp) * 10) / 10;
+  var mark = dayTotal ? Math.min(100, Math.round(dayPassed / dayTotal * 100)) : 0;
+  var cls = pct >= 100 ? 'done' : (done >= exp ? '' : 'low');
+  var left = goal - done;
+  return wrap('<div class="gt">' + esc(label) + '</div>'
+    + '<div class="gv"><span class="a">' + done + '</span><span class="b">/ ' + goal + '</span>'
+    + '<span class="pc ' + cls + '">' + pct + '%</span></div>'
+    + '<div class="gbar"><i class="' + cls + '" style="width:' + w + '%"></i>'
+    + (pct >= 100 ? '' : '<u style="left:' + mark + '%"></u>') + '</div>'
+    + '<div class="gpace">'
+    + '<span>' + (pct >= 100 ? '목표 달성' : '남은 ' + left + '건')
+    + '</span><span>'
+    + (pct >= 100 ? '' : (gap >= 0
+        ? '오늘 기준 <b class="ok">+' + gap + '</b>'
+        : '오늘 기준 <b class="bad">' + gap + '</b>'))
+    + '</span></div>');
+}
+
+/* 라인별 담당 명단 — 서버 CONFIG(SALES_LINES) 기준. 전체는 두 라인 합집합 */
+function dashRoster(d, seg) {
+  var L = d.lines || {};
+  if (seg === '장비') return (L['장비'] || []).slice();
+  if (seg === 'N-Care') return (L['N-Care'] || []).slice();
+  var out = (L['장비'] || []).slice();
+  (L['N-Care'] || []).forEach(function(n) { if (out.indexOf(n) < 0) out.push(n); });
+  return out;
+}
+
+/* 목표 입력 상태 경고 — 현황·KPI 탭 공용. 서버 목표점검_()가 준 목록을 문장으로 편다.
+   목표를 고칠 수 있는 건 관리자뿐이라 관리자에게만 보여준다. */
+function goalCheckBanner(list) {
+  if (!list || !list.length) return '';
+  if (!(DATA && DATA.me && DATA.me.admin)) return '';
+  var h = '<div class="warnbox"><span class="wt">목표 입력을 확인해 주세요</span><ul>';
+  list.filter(function(x) { return x.type === 'missing'; }).forEach(function(x) {
+    h += '<li><b>' + esc(x.label) + '</b> — 팀 목표 ' + x.team + '만 있고 담당자별 목표가 비어 있습니다.'
+      + ' 담당자별 달성률이 「-」로 나옵니다.</li>';
+  });
+  list.filter(function(x) { return x.type === 'mismatch'; }).forEach(function(x) {
+    h += '<li><b>' + esc(x.label) + '</b> — 팀 목표 ' + x.team + ', 담당자별 합계 ' + x.sum + '.'
+      + ' 현황 탭 진척은 팀 목표를 기준으로 계산됩니다.</li>';
+  });
+  h += '</ul><div class="wf">KPI 탭 → 목표 설정에서 고칠 수 있습니다.'
+    + ' 팀 목표를 비워두면 담당자별 합계를 자동으로 씁니다.</div></div>';
+  return h;
+}
+
+/* 장비·N-Care 양쪽 퍼널에 동시에 잡힌 병원 경고.
+   기록은 '판매 카테고리'로, 리드는 '달성 목표'로 갈리는데 둘이 어긋나면 양쪽에 함께 센다.
+   어느 쪽이 맞는지는 사람이 판단할 일이라 숫자를 임의로 고치지 않고 짚어만 준다. */
+function dupBanner(list) {
+  if (!list || !list.length) return '';
+  var names = {};
+  list.forEach(function(x) { names[x.hname] = 1; });
+  var cnt = Object.keys(names).length;
+  var h = '<div class="warnbox"><span class="wt">장비·N-Care 양쪽에 잡힌 병원 ' + cnt + '곳</span><ul>';
+  list.slice(0, 12).forEach(function(x) {
+    h += '<li><b>' + esc(x.hname) + '</b>'
+      + (x.rep ? ' <span style="font-weight:400;">' + esc(x.rep) + '</span>' : '')
+      + ' — <b>' + esc(x.stage) + '</b> 단계에서 양쪽에 함께 셉니다.</li>';
+  });
+  if (list.length > 12) h += '<li>… 외 ' + (list.length - 12) + '건</li>';
+  h += '</ul><div class="wf">방문기록의 <b>판매 카테고리</b>와 리드의 <b>달성 목표</b>가 어긋나면 생깁니다.'
+    + ' 리드 탭에서 달성 목표를 맞추면 한쪽으로 정리됩니다.</div></div>';
+  return h;
+}
+
+/* 표기가 갈린 것으로 보이는 병원 쌍 경고.
+   퍼널은 병원명 완전일치로만 중복을 지워서, 한 글자만 달라도 리드·데모가 두 번 세어진다.
+   합치지는 않는다 — 진짜 같은 병원인지는 사람이 봐야 한다. */
+function simBanner(list) {
+  if (!list || !list.length) return '';
+  var h = '<div class="warnbox"><span class="wt">병원명 표기가 갈린 것으로 보입니다 ' + list.length + '쌍</span><ul>';
+  list.slice(0, 12).forEach(function(x) {
+    h += '<li><b>' + esc(x.a) + '</b>' + (x.aRep ? ' <span style="font-weight:400;">' + esc(x.aRep) + '</span>' : '')
+      + ' ↔ <b>' + esc(x.b) + '</b>' + (x.bRep ? ' <span style="font-weight:400;">' + esc(x.bRep) + '</span>' : '')
+      + '</li>';
+  });
+  if (list.length > 12) h += '<li>… 외 ' + (list.length - 12) + '쌍</li>';
+  h += '</ul><div class="wf">같은 병원이면 지금 <b>리드·데모 수가 두 번 세어지고</b> 있습니다.'
+    + ' 02_거래처관리에서 병원명을 하나로 통일해 주세요. 다른 병원이면 무시하셔도 됩니다.'
+    + ' (이달 퍼널에 뜬 병원끼리만 봅니다)</div></div>';
+  return h;
+}
+
+function renderDash() {
+  var d = DASH;
+  var seg = DASHTEAM;                 // '전체' | '장비' | 'N-Care'
+  var g = d.monthGoal || {};
+  var h = '';
+
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'
+    + '<span style="font-size:13px;color:#4e5968;">' + esc(d.monthLabel) + ' 목표 대비 진척 · '
+    + (g.dayPassed || 0) + '/' + (g.dayTotal || 0) + '일 경과</span>'
+    + '<button class="refresh" onclick="DASH=null;loadDash()">새로고침</button></div>';
+
+  h += '<div class="seg">'
+    + [['전체', '전체'], ['장비', '장비 영업'], ['N-Care', '노즐 영업']].map(function(t) {
+        return '<div class="chip' + (DASHTEAM === t[0] ? ' on' : '') + '" onclick="dashTeam(\'' + t[0] + '\')">' + t[1] + '</div>';
+      }).join('')
+    + '</div>';
+
+  // ── ① 월 전체 목표 진척 (핵심 지표) ──
+  h += kick(esc(d.monthLabel) + ' 목표');
+  var cards = '';
+  if (seg !== 'N-Care') {
+    cards += goalCard('데모처 확보', g.demo, g.dayPassed, g.dayTotal, 'demo');
+    cards += goalCard('장비 판매', g.sale, g.dayPassed, g.dayTotal, 'sale');
+  }
+  if (seg !== '장비') cards += goalCard('N-Care(노즐) 가입', g.ncare, g.dayPassed, g.dayTotal, 'ncare');
+  h += '<div class="goals">' + cards + '</div>';
+
+  var noGoal = !(g.demo && g.demo.goal) && !(g.sale && g.sale.goal) && !(g.ncare && g.ncare.goal);
+  if (noGoal) {
+    h += '<div class="gnote">이달 목표가 입력되지 않았습니다. <b>06_월간KPI</b> 시트에 담당자별 목표를 넣거나, 15행 「팀 목표(직접 입력)」에 전사 목표를 넣으면 여기에 진척이 표시됩니다.</div>';
+  } else {
+    h += '<div class="gnote">목표 출처: ' + (g.fromTeamRow ? '06_월간KPI 15행 팀 목표' : '06_월간KPI 담당자별 목표 합계') + '</div>';
+    h += goalCheckBanner(g.check);
+  }
+
+  // ── ② 담당자별 목표 대비 달성 ──
+  var mcell = function(a, t) {
+    a = Number(a) || 0; t = Number(t) || 0;
+    var pct = t ? Math.round(a / t * 100) : null;
+    return '<b>' + a + '</b> <span style="color:#8b95a1;">/ ' + (t || '-') + '</span>'
+      + (pct == null ? '' : ' <b style="font-size:11px;color:' + (pct >= 100 ? '#03b26c' : (pct >= 50 ? '#3182f6' : '#f04452')) + ';">' + pct + '%</b>');
+  };
+  var byName = {};
+  (d.month && d.month.rows || []).forEach(function(m) { byName[String(m.name).trim()] = m; });
+  var roster = dashRoster(d, seg);
+  var L = d.lines || {};
+  var lineOf = function(n) {
+    var e = (L['장비'] || []).indexOf(n) > -1, c = (L['N-Care'] || []).indexOf(n) > -1;
+    return e && c ? '겸업' : (e ? '장비' : (c ? '노즐' : ''));
+  };
+
+  // 장비와 N-Care를 표 하나에 섞으면 라인이 다른 담당자에게 '0 / -'만 줄줄이 남는다.
+  // 표를 갈라서 각 라인의 담당자만 보여준다. 칸을 누르면 그 병원 목록이 펼쳐진다
+  var missing = [];
+  var 실적표 = function(제목, 라인, 필드) {
+    var 명단 = roster.filter(function(n) {
+      if (라인 === '장비') return (L['장비'] || []).indexOf(n) > -1;
+      return (L['N-Care'] || []).indexOf(n) > -1;
+    });
+    if (!명단.length) return '';
+    var t = kick(제목);
+    t += '<div class="card"><table class="dt"><thead><tr><th>담당자</th>'
+      + (seg === '전체' ? '<th class="c">라인</th>' : '')
+      + '<th class="c">' + (라인 === '장비' ? '장비 판매' : 'N-Care 가입') + '</th></tr></thead><tbody>';
+    명단.forEach(function(n) {
+      var m = byName[n];
+      if (!m && missing.indexOf(n) < 0) missing.push(n);
+      var mm = m || {};
+      var list = (라인 === '장비' ? mm.saleList : mm.ncareList) || [];
+      var key = 라인 + '|' + n;
+      var open = ROWOPEN === key;
+      t += '<tr' + (list.length ? ' style="cursor:pointer;" onclick="rowList(\'' + esc(key) + '\')"' : '') + '>'
+        + '<td><b>' + esc(n) + '</b>' + (m ? '' : ' <span style="font-size:11px;color:#8b95a1;">미등록</span>')
+        + (list.length ? ' <span style="font-size:11px;color:#1b64da;">' + (open ? '▲' : '▼') + '</span>' : '') + '</td>'
+        + (seg === '전체' ? '<td class="c"><span style="font-size:11.5px;color:#6b7684;">' + lineOf(n) + '</span></td>' : '')
+        + '<td class="c">' + mcell(필드 === 'sale' ? mm.sale : mm.ncare, 필드 === 'sale' ? mm.tgtE : mm.tgtN) + '</td></tr>';
+      if (open) {
+        t += '<tr><td colspan="' + (seg === '전체' ? 3 : 2) + '" style="background:#f9fafb;">'
+          + list.map(function(x) { return '<div style="font-size:12.5px;color:#4e5968;padding:2px 0;">' + esc(x) + '</div>'; }).join('')
+          + '</td></tr>';
+      }
+    });
+    return t + '</tbody></table></div>';
+  };
+  if (seg !== 'N-Care') h += 실적표('담당자별 장비 판매', '장비', 'sale');
+  if (seg !== '장비') h += 실적표('담당자별 N-Care 가입', 'N-Care', 'ncare');
+  if (missing.length) {
+    h += '<div class="gnote">' + esc(missing.join(', ')) + ' — 01_담당자정보에 등록되지 않아 실적이 집계되지 않습니다.</div>';
+  }
+
+  // ── ③ 장비 판매 채널 (09_과거실적 공식 수치) ──
+  if (seg !== 'N-Care' && (d.equipCh || []).length) {
+    var ct = { d: 0, l: 0 };
+    h += kick('장비 판매 — 직판 / 딜러 (월별)');
+    h += '<div class="card"><table class="dt"><thead><tr><th>월</th><th class="c">직판</th><th class="c">딜러</th><th class="c">합계</th></tr></thead><tbody>';
+    d.equipCh.forEach(function(c) {
+      ct.d += c.direct; ct.l += c.dealer;
+      h += '<tr><td><b>' + esc(c.ym.slice(5)) + '월</b></td>'
+        + '<td class="c">' + (c.direct || '-') + '</td>'
+        + '<td class="c">' + (c.dealer || '-') + '</td>'
+        + '<td class="c"><b class="blue">' + (c.direct + c.dealer || '-') + '</b></td></tr>';
+    });
+    h += '<tr style="background:#FAFAFC;"><td><b>누적</b></td>'
+      + '<td class="c"><b>' + ct.d + '</b></td><td class="c"><b>' + ct.l + '</b></td>'
+      + '<td class="c"><b class="blue">' + (ct.d + ct.l) + '</b></td></tr>';
+    h += '</tbody></table></div>';
+  }
+
+  // ── ④ 방문 활동 — 보조 지표라 접어 둔다 ──
+  var pick = function(s, base) {
+    return seg === '장비' ? (s[base + 'E'] || 0) : seg === 'N-Care' ? (s[base + 'N'] || 0) : (s[base] || 0);
+  };
+  var stats = (d.week.stats || []).filter(function(s) {
+    return seg === '전체' || pick(s, 'plan') + pick(s, 'done') + pick(s, 'logs') > 0;
+  });
+  var tPlan = 0, tDone = 0, tStale = 0;
+  stats.forEach(function(s) { tPlan += pick(s, 'plan'); tDone += pick(s, 'done'); tStale += s.stale; });
+  var tRate = tPlan ? Math.round(tDone / tPlan * 100) : 0;
+
+  h += '<details class="sub"><summary>방문 활동 <span class="cnt">이번 주 ' + esc(d.period)
+    + ' · 계획 ' + tPlan + ' · 완료 ' + tDone + (tStale ? ' · 미기록 ' + tStale : '') + '</span></summary>';
+  h += '<div class="tiles" style="margin-top:6px;">'
+    + '<div class="tile"><div class="t">계획 방문</div><div class="n">' + tPlan + '</div></div>'
+    + '<div class="tile"><div class="t">완료</div><div class="n blue">' + tDone + '</div></div>'
+    + '<div class="tile"><div class="t">달성률</div><div class="n ' + (tRate >= 80 ? 'blue' : (tRate >= 50 ? '' : 'red')) + '">' + tRate + '%</div></div>'
+    + '<div class="tile"><div class="t">미기록</div><div class="n ' + (tStale ? 'red' : '') + '">' + tStale + '</div></div>'
+    + '</div>';
+  h += '<div class="card" style="margin-top:12px;"><table class="dt"><thead><tr><th>담당자</th><th class="c">계획</th><th class="c">완료</th><th class="c">달성률</th><th class="c">활동</th><th class="c">미기록</th></tr></thead><tbody>';
+  stats.forEach(function(s) {
+    var p = pick(s, 'plan'), dn = pick(s, 'done');
+    var r = p ? Math.round(dn / p * 100) : null;
+    h += '<tr><td><b>' + esc(s.name) + '</b> <span style="font-size:11px;color:#9A9A9A;">' + esc(s.team || '') + '</span></td>'
+      + '<td class="c">' + p + '</td><td class="c">' + dn + '</td>'
+      + '<td class="c">' + (r === null ? '-' : '<b class="' + (r >= 80 ? 'blue' : (r >= 50 ? '' : 'red')) + '">' + r + '%</b>') + '</td>'
+      + '<td class="c">' + pick(s, 'logs') + '</td>'
+      + '<td class="c">' + (s.stale ? '<b class="red">' + s.stale + '</b>' : '0') + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  if (seg !== '전체') {
+    h += '<div class="gnote">계획·기록의 판매 카테고리(장비 판매/N-Care) 기준 — 카테고리 없이 저장된 활동은 전체에서만 보입니다. 미기록은 전체 기준.</div>';
+  }
+  h += '</details>';
+
+  h += renderDashRecent(d, seg);
+
+  document.getElementById('dashBody').innerHTML = h;
+}
+
+/* 최근 활동 — 월 탭 → 주차 탭 → 일별 카드 (같은 병원·같은 날 기록은 한 카드로 묶고, 완전 중복은 한 번만) */
+function renderDashRecent(d, seg) {
+  var recent = (d.recent || []).filter(function(l) {
+    if (seg === '장비') return l.cat === '장비 판매';
+    if (seg === 'N-Care') return l.cat === 'N-Care';
+    return true;
+  });
+  if (!recent.length) return '';
+  var h = kick('최근 활동 (최근 90일)');
+
+  // 월 > 주차(월~일) > 일 그룹
+  var months = {}, mOrder = [];
+  recent.forEach(function(l) {
+    var mk = l.ymd.slice(0, 7);
+    if (!months[mk]) { months[mk] = { order: [], weeks: {}, cnt: 0 }; mOrder.push(mk); }
+    var m = months[mk]; m.cnt++;
+    var dd = new Date(l.ymd + 'T00:00:00');
+    var ws = new Date(dd); ws.setDate(dd.getDate() - (dd.getDay() + 6) % 7);
+    var we = new Date(ws); we.setDate(ws.getDate() + 6);
+    var first = new Date(dd.getFullYear(), dd.getMonth(), 1);
+    var wnum = Math.floor((dd.getDate() - 1 + (first.getDay() + 6) % 7) / 7) + 1;
+    var wk = mk + '-w' + wnum;
+    if (!m.weeks[wk]) {
+      m.weeks[wk] = {
+        num: wnum,
+        range: (ws.getMonth() + 1) + '/' + ws.getDate() + '~' + (we.getMonth() + 1) + '/' + we.getDate(),
+        order: [], days: {}, cnt: 0,
+      };
+      m.order.push(wk);
+    }
+    var w = m.weeks[wk]; w.cnt++;
+    if (!w.days[l.ymd]) { w.days[l.ymd] = { label: l.date + ' (' + l.dow + ')', items: [] }; w.order.push(l.ymd); }
+    w.days[l.ymd].items.push(l);
+  });
+
+  // 선택 상태 보정 (팀 필터 변경 등으로 사라진 키면 첫 항목으로)
+  if (mOrder.indexOf(DASHM) < 0) DASHM = mOrder.indexOf((DATA && DATA.today || '').slice(0, 7)) >= 0 ? (DATA.today || '').slice(0, 7) : mOrder[0];
+  var mSel = months[DASHM];
+  if (mSel.order.indexOf(DASHW) < 0) DASHW = mSel.order[0];
+
+  // 월 탭
+  h += '<div class="ptabs">' + mOrder.map(function(mk) {
+    return '<button class="ptab' + (mk === DASHM ? ' on' : '') + '" onclick="dashMonth(\'' + mk + '\')">'
+      + Number(mk.slice(5, 7)) + '월<span class="cnt">' + months[mk].cnt + '건</span></button>';
+  }).join('') + '</div>';
+
+  // 주차 탭
+  h += '<div class="ptabs">' + mSel.order.map(function(wk) {
+    var w = mSel.weeks[wk];
+    return '<button class="ptab sm' + (wk === DASHW ? ' on' : '') + '" onclick="dashWeek(\'' + wk + '\')">'
+      + w.num + '주차<span class="cnt">' + w.range + ' · ' + w.cnt + '건</span></button>';
+  }).join('') + '</div>';
+
+  // 일별 카드 — 병원 단위로 묶고, 같은 유형+내용 중복 기록은 한 번만
+  var wSel = mSel.weeks[DASHW];
+  wSel.order.forEach(function(dk) {
+    var day = wSel.days[dk];
+    var hosp = {}, hOrder = [];
+    day.items.forEach(function(l) {
+      var k = l.hname.replace(/\s/g, '');
+      if (!hosp[k]) { hosp[k] = { first: l, entries: [], seen: {} }; hOrder.push(k); }
+      var dup = (l.type || '') + '|' + (l.note || '').trim();
+      if (hosp[k].seen[dup]) return;
+      hosp[k].seen[dup] = 1;
+      hosp[k].entries.push(l);
+    });
+    h += '<div class="kicker" style="margin-top:16px;"><div class="bar"></div><div class="lbl">' + esc(day.label) + ' · 병원 ' + hOrder.length + '곳</div></div>';
+    h += '<div class="card"><table class="dt"><tbody>';
+    hOrder.forEach(function(k) {
+      var g = hosp[k];
+      var l0 = g.first;
+      var catTag = l0.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
+        : (l0.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
+      var meaningful = g.entries.filter(function(l) { var n = (l.note || '').trim(); return n && n !== '-'; });
+      var show = meaningful.length ? meaningful : g.entries.slice(0, 1);
+      var body = show.map(function(l, i) {
+        var head = show.length > 1 || l.type !== l0.type
+          ? '<div style="margin-top:' + (i ? 10 : 4) + 'px;font-size:11px;font-weight:700;color:#1b64da;">' + esc(l.type) + (l.stage ? ' · ' + esc(l.stage) : '') + '</div>' : '';
+        var n = (l.note || '').trim();
+        return head + (n && n !== '-' ? '<div style="margin-top:3px;font-size:12.5px;color:#4e5968;line-height:1.65;white-space:pre-wrap;">' + esc(n) + '</div>' : '');
+      }).join('');
+      var stage = g.entries.map(function(l) { return l.stage; }).filter(Boolean)[0] || '';
+      h += '<tr><td><b>' + esc(l0.hname) + '</b> ' + catTag
+        + ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l0.rep) + (show.length === 1 ? ' · ' + esc(l0.type) : ' · 기록 ' + g.entries.length + '건') + '</span>'
+        + body + '</td>'
+        + '<td class="r" style="font-size:12px;vertical-align:top;white-space:nowrap;"><b class="blue">' + esc(stage || '-') + '</b></td></tr>';
+    });
+    h += '</tbody></table></div>';
+  });
+  return h;
+}
+function dashTeam(t) { DASHTEAM = t; renderDash(); }
+/* 병원 상세 모달 — 흐름·케어 보드 병원 클릭 */
+function showHosp(hname) {
+  if (!hname) return;
+  busy(true);
+  gsrun().withSuccessHandler(function(d) {
+    busy(false);
+    var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+      + '<div style="font-size:17px;font-weight:700;">' + esc(d.hname) + '</div>'
+      + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+    if (d.acc) {
+      var tags = [];
+      if (d.acc.region) tags.push(esc(d.acc.region));
+      if (d.acc.dept) tags.push(esc(d.acc.dept));
+      if (d.acc.equip) tags.push('장비 ' + esc(d.acc.equip));
+      if (d.acc.grade) tags.push('케어 ' + esc(d.acc.grade) + '등급');
+      if (d.acc.ncare) tags.push('N-Care ' + esc(d.acc.ncare));
+      if (d.acc.carerep) tags.push('케어 담당 ' + esc(d.acc.carerep));
+      else if (d.acc.rep) tags.push('담당 ' + esc(d.acc.rep));
+      h += '<div style="margin-top:8px;font-size:12px;color:#6b7684;">' + tags.join(' · ') + '</div>';
+    }
+    if (d.lead) {
+      h += '<div style="margin-top:12px;background:#f2f4f6;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.8;">'
+        + '<b>리드</b> · ' + esc(d.lead.stage || '-') + (d.lead.rep ? ' · 담당 ' + esc(d.lead.rep) : '')
+        + (d.lead.ename ? ' · ' + esc(d.lead.ename) : '')
+        + (d.lead.target ? '<br>목표 ' + esc(d.lead.target) + (d.lead.achv === '달성' ? ' <span class="badge deal">달성</span>' : '') : '')
+        + (d.lead.demoDate ? '<br>데모일 ' + esc(d.lead.demoDate) : '')
+        + (d.lead.dealDate ? ' · 계약일 ' + esc(d.lead.dealDate) : '')
+        + (d.lead.failWhy ? '<br><span style="color:#d0223a;">실패 요인 · ' + esc(d.lead.failWhy) + '</span>' : '')
+        + (d.lead.failFix ? '<br><span style="color:#1b64da;">재컨택 조건 · ' + esc(d.lead.failFix) + '</span>' : '')
+        + '</div>';
+    }
+    if (d.logs.length) {
+      h += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#8b95a1;">최근 기록 ' + d.logs.length + '건</div>';
+      d.logs.forEach(function(l) {
+        var catTag = l.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
+          : (l.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
+        h += '<div style="margin-top:10px;padding-bottom:10px;border-bottom:1px solid #f2f4f6;">'
+          + '<div style="font-size:12px;color:#6b7684;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
+          + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
+          + (l.note ? '<div style="margin-top:4px;font-size:12.5px;color:#4e5968;line-height:1.65;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
+          + '</div>';
+      });
+    } else {
+      h += '<div style="margin-top:14px;font-size:12.5px;color:#b0b8c1;">방문 기록이 없습니다.</div>';
+    }
+    document.getElementById('hospModalBody').innerHTML = h;
+    document.getElementById('hospModal').style.display = 'flex';
+  }).withFailureHandler(function(e) { busy(false); toast(e.message, true); })
+    .웹_병원상세(TOKEN, hname);
+}
+function dashMonth(mk) { DASHM = mk; DASHW = ''; renderDash(); }
+function dashWeek(wk) { DASHW = wk; renderDash(); }
+function dashRep(n) { DASHREP = DASHREP === n ? '' : n; renderDash(); }
+
+/* (2026-07-25) N-Care 케어 보드 제거 — 현황 탭에서 혼란을 준다는 사용자 지시.
+   02_거래처관리의 케어 등급·담당 데이터는 그대로다. 되살리려면 이 커밋 이전 버전 참고. */
+
+/* 토큰·기기 ID가 같은 origin의 localStorage에 있으므로 기다릴 것이 없다 (ADR 0008).
+   예전에는 셸에서 postMessage로 받아 오느라 부팅 전에 최대 1.2초를 기다렸다. */
+boot();
+
+/* 부팅이 어떤 이유로도 화면을 못 그리면 스플래시가 영원히 남는다 — 흰 화면으로 보인다.
+   onData·showLogin 어느 쪽도 안 불린 채 이 시간이 지나면 강제로 걷고 로그인 화면을 준다. */
+setTimeout(function () {
+  var s = document.getElementById('splash');
+  if (s && !s.classList.contains('off')) showLogin('연결이 지연되고 있습니다. 다시 시도해 주세요.');
+}, API_TIMEOUT + 2000);
+
+/* GAS(doGet)로 열렸을 때는 sw.js가 없어 실패한다 — 조용히 넘긴다(롤백 경로 보호) */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(function () {});
+}
+</script>
+</body>
+</html>
