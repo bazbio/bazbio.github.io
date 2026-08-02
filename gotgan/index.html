@@ -569,11 +569,20 @@ async function boot() {
     el('nav-rev').style.display = USER.depts ? 'none' : '';
     fillDatalists();
     renderDash(); renderMonthly(); renderExpenses(); renderBudget();
+    /* 여기서 대시보드는 이미 다 그려졌다 — 오버레이를 먼저 걷는다.
+       아래 사전심사는 전체 권한 계정만 쓰는 데이터인데, await로 두면 다 만들어 놓고
+       "불러오는 중" 오버레이(fixed·inset:0)로 3.6초를 더 가린다 (2026-08-02 실측:
+       전체 권한 부팅 6.8초 중 3.6초가 이것이었다). 기다리게 하지 않고 도착하면 채운다. */
+    loading(false);
     if (!USER.depts) {
-      const ps = await gsAuth('apiGetPrescreen');
-      REVENUE = ps.revenue || []; RULES = ps.rules || [];
-      SCREENS = ps.screens || []; CHANNEL_BY_DEPT = ps.channelByDept || {};
-      renderScrChannel(); renderScrHistory(); renderRevenue();
+      gsAuth('apiGetPrescreen').then(ps => {
+        REVENUE = ps.revenue || []; RULES = ps.rules || [];
+        SCREENS = ps.screens || []; CHANNEL_BY_DEPT = ps.channelByDept || {};
+        renderScrChannel(); renderScrHistory(); renderRevenue();
+      }).catch(e => {
+        // 부팅은 이미 끝났으므로 로그인 화면으로 되돌리지 않는다. 두 탭만 빈 채로 남는다
+        toast('사전심사·매출을 불러오지 못했습니다: ' + String(e.message || e).replace('AUTH:', ''));
+      });
     }
   } catch (e) {
     if (isAuthErr(e)) { showLogin(token() ? String(e.message || e).replace(/^Error:\s*/, '').replace('AUTH:', '') : ''); return; }
