@@ -929,7 +929,22 @@ var DEV_OLD = '';
  * 매번 새 프록시를 만드는 이유: 핸들러를 한 객체에 저장해 두면 동시 호출(prefetch 등)이
  * 서로의 핸들러를 덮어써 엉뚱한 화면이 그려진다. 진짜 google.script.run도 같은 이유로
  * 체이닝마다 새 러너를 돌려준다. */
-var API_URL = 'https://script.google.com/macros/s/AKfycbyfSsrOx0Vzq1wBGwRBeznbns_wEbYA4FEaXWmNHGaIEG8HGwnrigaCz7LKYGvFHmyQqw/exec';
+/* GAS 배포 주소 — **한 파일이 두 곳에 배포된다.**
+ *
+ *   bazbio.github.io/saleson/       팀이 쓴다.        → 운영 배포
+ *   bazbio.github.io/saleson-next/  여기서 검증한다.  → 검증용 배포
+ *
+ * 그래서 주소를 경로로 가른다. 손으로 바꿔 넣으면 승격할 때마다 빠뜨릴 자리가 생기고,
+ * 그 실수는 **팀이 검증용 배포를 부르는 것**이라 조용히 위험하다 (2026-08-02에 실제로
+ * 하루 동안 그 상태였다). 파일 하나가 어디에 놓였는지 보고 스스로 정하게 둔다.
+ *
+ * `-next`가 아닌 모든 경로는 운영이다 — GAS doGet으로 열리는 롤백 경로도 여기 걸린다.
+ * ⚠ 배포 ID를 바꾸면 여기도 바꾼다. 운영 쪽을 잘못 건드리면 팀 전체가 멈춘다. */
+var API_URL = 'https://script.google.com/macros/s/'
+  + (location.pathname.indexOf('-next') >= 0
+      ? 'AKfycbx3H8S1H2X0OUkOMTFhZHIANOcpM_15vMBBX9-cs93jfHEl0aFsO77sJcC-8swAIRXPww'   // 검증용
+      : 'AKfycbyfSsrOx0Vzq1wBGwRBeznbns_wEbYA4FEaXWmNHGaIEG8HGwnrigaCz7LKYGvFHmyQqw')  // 운영
+  + '/exec';
 var API_TIMEOUT = 60000;   // 쓰기는 잠금 대기 20초가 붙을 수 있다 — 넉넉히 잡는다
 // 관문(Supabase 엣지 펑션). 지금은 부트 스냅샷 하나만 여기로 간다 — 00_설정.gs CONFIG.GATE_URL과 같다
 var GATE_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
