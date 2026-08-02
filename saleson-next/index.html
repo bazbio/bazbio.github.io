@@ -1027,9 +1027,16 @@ function 스냅샷받기_() {
   }).then(function (r) {
     if (!r || !r.payload) return;
     if (그린부트_) return;               // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
+    // 모양이 어긋난 스냅샷은 아예 안 쓴다. 2026-08-02에 관문이 이중 인코딩된 문자열을
+    // 저장해 여기가 onData(undefined)로 터졌는데, 아래 catch가 삼켜서 조용히 느려지기만 했다
+    if (!r.payload.init) throw new Error('스냅샷 모양이 아닙니다');
     그린부트_ = JSON.stringify(r.payload);
     onBoot(r.payload);
-  }).catch(function () {});              // 관문이 죽어도 앱은 GAS로 뜬다
+  }).catch(function (e) {
+    /* 관문이 죽어도 앱은 GAS로 뜬다 — 그래서 화면에는 안 띄운다. 다만 **삼키지는 않는다**:
+       조용히 넘기면 3-b가 통째로 죽어도 "그냥 좀 느리네"로만 보인다(실제로 그랬다). */
+    console.warn('부트 스냅샷을 쓰지 못했습니다:', (e && e.message) || e);
+  });
 }
 
 /* GAS 부트가 도착했다 — 이게 진실이다. 스냅샷이 그린 화면을 여기서 수렴시킨다. */
