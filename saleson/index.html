@@ -866,7 +866,7 @@ var KPIT = null;
 var MATL = null;
 var MINE = null;        // 내 입력 탭 데이터
 var MINESEG = '방문기록';
-var EDITROW = 0;        // 0이면 새 기록, 아니면 그 행을 수정 중
+var EDITKEY = '';       // 빈 값이면 새 기록, 아니면 그 열쇠(열쇠_)의 기록을 수정 중
 var METAQ = null;       // Meta DB 탭 데이터
 var METASEG = '전체';
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
@@ -946,7 +946,7 @@ var API_URL = 'https://script.google.com/macros/s/'
       : 'AKfycbyfSsrOx0Vzq1wBGwRBeznbns_wEbYA4FEaXWmNHGaIEG8HGwnrigaCz7LKYGvFHmyQqw')  // 운영
   + '/exec';
 var API_TIMEOUT = 60000;   // 쓰기는 잠금 대기 20초가 붙을 수 있다 — 넉넉히 잡는다
-// 관문(Supabase 엣지 펑션). 지금은 부트 스냅샷 하나만 여기로 간다 — 00_설정.gs CONFIG.GATE_URL과 같다
+// 관문(Supabase 엣지 펑션). 부트 스냅샷과 「내 입력」이 여기로 간다 — 00_설정.gs CONFIG.GATE_URL과 같다
 var GATE_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
 
 function gsrun() { return 러너_(null, null); }
@@ -1027,7 +1027,7 @@ function boot() {
   }).웹_부트(TOKEN);
 }
 
-/* 관문을 직접 부르는 유일한 자리다.
+/* 관문을 직접 부르는 자리 (다른 하나는 `내입력받기_`).
    `gsrun()`은 GAS 디스패처 전용 프록시라 다른 주소를 태울 수 없고, 이 호출은 GAS 호출을
    **대체**하는 게 아니라 나란히 나가는 것이라 프록시 안에 끼울 자리가 없다. */
 function 스냅샷받기_() {
@@ -2203,18 +2203,22 @@ function saveLog() {
   if (!f.note.trim()) return toast('논의 내용을 입력해 주세요', true);
   document.getElementById('fSave').disabled = true;
   busy(true);
-  if (EDITROW) {
-    var row = EDITROW;
+  if (EDITKEY) {
+    // 목록을 관문에서 받았으면 서버가 `f.no`로 행을 집는다 — 시트 행 번호는 DB가 모른다
+    var 대상 = 열쇠찾기_((MINE || {}).logs, EDITKEY) || {};
+    f.no = 대상.no || 0;
     gsrun().withSuccessHandler(function(r) {
       busy(false); document.getElementById('fSave').disabled = false;
-      EDITROW = 0; resetForm(); editMode(false); 임시저장지우기_();
+      var 고친열쇠 = EDITKEY;
+      EDITKEY = ''; resetForm(); editMode(false); 임시저장지우기_();
       DASH = null; FLOW = null; KPIT = null;
-      // 쓰기 응답이 '내 입력' 목록을 실어 온다 — 예전에는 저장 후 다시 받아 왕복이 둘이었다
-      MINE = r.mine || null;
+      // 쓰기 응답이 **갱신된 한 건**을 실어 온다 — 그 자리만 갈아끼운다. 예전에는 목록을
+      // 통째로 받았고, 그걸 만드느라 서버가 시트를 850행 다시 읽었다
+      기록갱신_(고친열쇠, r.log, r.리드바뀜);
       toast(r.msg); show('mine');
     }).withFailureHandler(function(e) {
       busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
-    }).웹_방문기록수정(TOKEN, row, f);
+    }).웹_방문기록수정(TOKEN, 대상.row || 0, f);
     return;
   }
   gsrun().withSuccessHandler(function(d) {
@@ -2521,11 +2525,36 @@ function metaPlan(row) {
    내 입력 — 내가 쓴 기록 보기·고치기 (피드백 5번) + 계약일 수정 (피드백 2번)
    "입력한 걸 확인할 방법이 없다"가 '저장이 안 된다'는 체감의 큰 몫이었다.
    ══════════════════════════════════════════════════════════════ */
+/* 열쇠 — 이 탭은 목록을 **두 곳에서** 받는다. 관문(Postgres)은 시트 `No`를 주고 GAS는 시트
+   행 번호를 준다. DB는 행 번호를 모르고 시트는 목록 순서가 다르다. 둘이 섞이면 남의 기록을
+   고친다 — 팀이 매일 누르는 자리다.
+
+   그래서 화면은 어느 쪽에서 왔든 **문자열 하나**로 쥔다(`n<No>` / `r<행>`). 목록이 통째로
+   갈려도 카드가 자기 것을 찾고, 서버로 보낼 때만 다시 갈라 놓는다 — 서버는 둘 다 받는다
+   (30_웹API.gs `행찾기_`). */
+function 열쇠_(x) { return x && x.no != null ? 'n' + x.no : 'r' + (x ? x.row : 0); }
+function 열쇠찾기_(arr, k) {
+  return (arr || []).filter(function(x) { return 열쇠_(x) === k; })[0];
+}
+
+/* 수정 저장 응답을 목록에 반영한다 — 서버가 갱신된 한 건만 보낸다.
+   **열쇠(row·no)는 안 덮는다.** 서버는 목록이 관문에서 왔는지 GAS에서 왔는지 모르므로
+   열쇠를 안 보내고, 화면이 원래 쥐고 있던 것을 그대로 둔다. 여기서 열쇠를 갈면 한 목록에
+   `n`과 `r`이 섞여 다음 수정이 남의 행을 집는다.
+
+   `리드바뀜`이면 목록을 버린다 — 단계가 `계약`이 되면 리드 칸 구성이 달라지는데, 그건
+   이 한 건으로는 알 수 없다. 다음 진입에서 새로 받는다. */
+function 기록갱신_(열쇠, log, 리드바뀜) {
+  if (리드바뀜 || !log || !MINE) { MINE = null; return; }
+  var 대상 = 열쇠찾기_(MINE.logs, 열쇠);
+  if (!대상) { MINE = null; return; }     // 목록이 그새 바뀌었다 — 새로 받는 편이 안전하다
+  Object.keys(log).forEach(function(k) { 대상[k] = log[k]; });
+}
 /* 기록 임시저장 (피드백 1번) — 저장이 실패하거나 앱이 닫혀도 쓰던 내용을 잃지 않게.
    저장 성공 시에만 지운다. 수정 모드에서는 남기지 않는다(원본이 이미 시트에 있다). */
 var 임시저장키_ = 'saleson_draft_log';
 function 임시저장_() {
-  if (EDITROW) return;
+  if (EDITKEY) return;
   try {
     var d = {
       hname: document.getElementById('fHosp').value,
@@ -2572,14 +2601,51 @@ function 임시저장복구_() {
   el.querySelector('.ddrop').onclick = function() { 임시저장지우기_(); el.style.display = 'none'; };
 }
 
+/* 관문에서 「내 입력」을 받는다 — `스냅샷받기_`와 같은 규칙(본문에 토큰, 실패는 조용히).
+   관문이 죽어도 GAS가 그리므로 화면에는 안 띄우되 삼키지도 않는다. */
+function 내입력받기_(onOk) {
+  fetch(GATE_URL + '/saleson-mine', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ 토큰: TOKEN })
+  }).then(function(res) {
+    return res.ok ? res.json() : null;
+  }).then(function(r) {
+    if (!r || !r.logs) return;
+    onOk(r);
+  }).catch(function(e) {
+    console.warn('내 입력을 관문에서 받지 못했습니다:', (e && e.message) || e);
+  });
+}
+
+/* 관문이 먼저 그리고, GAS 응답이 오면 수렴한다 — 부트(`스냅샷받기_`)와 같은 구조다.
+   이 탭은 GAS 왕복이 1.6~6초로 앱에서 제일 느렸다. 관문은 ~0.3초다.
+
+   ⚠ **관문만 쓰면 안 된다.** DB의 방문기록·리드는 새벽 4시 재대조(`표동기화_재대조`)로만
+   채워지고 쓰기 경로는 아직 DB를 안 건드린다. 그래서 오늘 쓴 기록이 관문 목록에는 없다.
+   GAS는 시트를 보므로 항상 최신이다 — 둘 다 부르고 GAS를 진실로 삼는다.
+   쓰기가 DB로 넘어가면 이 GAS 호출을 뺀다. */
 function loadMine() {
   busy(true);
+  var 관문이그림 = false;
+  내입력받기_(function(d) {
+    if (MINE) return;              // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
+    MINE = d; 관문이그림 = true; busy(false); renderMine();
+  });
   gsrun().withSuccessHandler(function(d) {
+    /* 관문이 그려 둔 화면을 만지는 중이면 갈아엎지 않는다 — 계약일을 고르던 칸이 사라진다.
+       MINE도 같이 안 바꾼다: 화면과 데이터가 어긋나면 카드가 남의 행을 집는다. */
+    if (관문이그림 && 내입력만지는중_()) { busy(false); return; }
     MINE = d; busy(false); renderMine();
   }).withFailureHandler(function(e) {
     busy(false);
+    if (관문이그림) return;         // 관문이 이미 그렸다 — 오류로 그 화면을 덮지 않는다
     document.getElementById('mineBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
   }).웹_내입력(TOKEN);
+}
+function 내입력만지는중_() {
+  var b = document.getElementById('mineBody');
+  return !!(b && document.activeElement && b.contains(document.activeElement));
 }
 function mineSeg(s) { MINESEG = s; renderMine(); }
 function renderMine() {
@@ -2626,7 +2692,7 @@ function mineLogCard(l) {
     + '</div>'
     + (l.note ? '<div style="margin-top:9px;font-size:14px;color:#4e5968;line-height:1.6;">' + esc(l.note) + '</div>' : '')
     + '<div style="margin-top:12px;text-align:right;">'
-    + '<button class="btn" onclick="editLog(' + l.row + ')">수정</button></div></div>';
+    + '<button class="btn" onclick="editLog(\'' + 열쇠_(l) + '\')">수정</button></div></div>';
 }
 function mineLeadCard(l) {
   return '<div class="card">'
@@ -2637,28 +2703,30 @@ function mineLeadCard(l) {
         ? '<div style="margin-top:5px;font-size:13px;color:#6b7684;">' + esc(l.target) + '</div>'
         : '<div style="margin-top:5px;font-size:13px;color:#d0223a;">달성 목표 미입력 — 칸 분류가 부정확할 수 있어요</div>')
     + '<label class="f">계약일</label>'
-    + '<div class="row2"><div><input type="date" id="dl' + l.row + '" value="' + esc(l.dealDate) + '"></div>'
-    + '<div><button class="btn pri" style="width:100%;padding:12px;" onclick="saveDealDate(' + l.row + ')">저장</button></div></div>'
+    + '<div class="row2"><div><input type="date" id="dl' + 열쇠_(l) + '" value="' + esc(l.dealDate) + '"></div>'
+    + '<div><button class="btn pri" style="width:100%;padding:12px;" onclick="saveDealDate(\'' + 열쇠_(l) + '\')">저장</button></div></div>'
     + (l.paid ? '<div style="margin-top:8px;font-size:12.5px;color:#058652;">입금 ' + esc(l.paid) + '</div>' : '')
     + '</div>';
 }
-function saveDealDate(row) {
-  var v = document.getElementById('dl' + row).value;
+function saveDealDate(k) {
+  var l = 열쇠찾기_((MINE || {}).leads, k);
+  if (!l) return toast('목록이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.', true);
+  var v = document.getElementById('dl' + k).value;
   busy(true);
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg); MINE = null; DASH = null; FLOW = null; loadMine();
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
-  }).웹_리드계약일수정(TOKEN, row, v);
+  }).웹_리드계약일수정(TOKEN, l.row || 0, v, l.no || 0);   // 관문 목록이면 No로 찾는다
 }
-/* 기록 수정 — 기록 폼을 그대로 쓰고 EDITROW로 갈래를 나눈다.
+/* 기록 수정 — 기록 폼을 그대로 쓰고 EDITKEY로 갈래를 나눈다.
    병원은 서버가 안 고치므로 입력을 잠근다 */
-function editLog(row) {
-  var l = (MINE.logs || []).filter(function(x) { return x.row === row; })[0];
+function editLog(k) {
+  var l = 열쇠찾기_((MINE || {}).logs, k);
   if (!l) return;
-  EDITROW = row;
+  EDITKEY = k;
   resetForm();
-  EDITROW = row;   // resetForm이 지우므로 다시 세운다
+  EDITKEY = k;   // resetForm이 지우므로 다시 세운다
   document.getElementById('fHosp').value = l.hname;
   document.getElementById('fDate').value = l.date;
   document.getElementById('fNext').value = l.next || '';
@@ -2689,7 +2757,7 @@ function editMode(on) {
   var b = document.getElementById('editBanner');
   if (b) b.style.display = on ? 'flex' : 'none';
 }
-function cancelEdit() { EDITROW = 0; resetForm(); editMode(false); show('mine'); }
+function cancelEdit() { EDITKEY = ''; resetForm(); editMode(false); show('mine'); }
 
 /* ── 내 리드 ── */
 var REP_GRADIENTS = [
