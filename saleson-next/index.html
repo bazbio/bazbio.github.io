@@ -1541,6 +1541,21 @@ function fcol(key, label, color, items, conv, sub, isFail) {
     + (items.length ? '<div class="flist">' + list + '</div>' : '')
     + '</div>';
 }
+/* 퍼널 여섯 칸의 기준 설명. 앞 세 칸이 이번 달에는 **재고**(지금 진행 중), 과거 월에는
+   **그 달 이벤트**라서 문구가 갈린다. 리드 단계에는 변경 이력이 없어 과거 재고를 재구성할
+   수 없기 때문이다(30_웹API.gs 웹_영업흐름의 `이번달`). 같은 문구로 두면 숫자를 잘못 읽는다. */
+function 퍼널기준문구_(d) {
+  if (d.stock) {
+    return '<b>리드 확보 · 데모 중 · 제안 완료는 「지금 진행 중」입니다</b> — 달이 바뀌어도 끝나지 않은 건은 그대로 넘어옵니다.'
+      + ' 리드 단계(리드확보·컨택 / 데모예정·데모완료 / 협의중)로 세고, 단계를 아직 안 고쳤어도 이달 기록이 있으면 함께 잡힙니다.<br>'
+      + '<b>계약 · 입금 · 실패는 이번 달에 일어난 것만</b> 셉니다 — 끝난 건이라 쌓이면 이달 성과를 못 읽습니다.'
+      + ' <b>보류</b>는 어느 칸에도 안 들어갑니다.<br>';
+  }
+  return '지난달을 보고 있어 <b>여섯 칸 모두 「그 달에 일어난 일」</b>입니다 (리드=신규 등록 · 데모 중=그 달 \'방문/데모\' 기록·리드 데모일'
+    + ' · 제안 완료=\'제안 완료\' 방문 · 계약/입금=해당 월 · 실패=그 달 리드 중 진행 중단).'
+    + ' 진행 중인 건을 보시려면 이번 달로 바꿔 주세요 — 지난 시점의 재고는 기록이 남아 있지 않아 되살릴 수 없습니다.<br>';
+}
+
 function flowStage(s) { FLOWSTAGE = FLOWSTAGE === s ? '' : s; renderFlow(); }
 function renderFlow() {
   var d = FLOW;
@@ -1574,11 +1589,11 @@ function renderFlow() {
   h += '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
     + (nc
       ? '노즐(N-Care) 영업 퍼널 — 장비 보유(유저) 병원 리드 + 판매 카테고리 N-Care 기록 기준<br>'
-        + '리드=유저 병원 리드 신규 등록 · 데모 중=N-Care \'방문/데모\' 기록·리드 데모일 · 제안 완료=N-Care \'제안 완료\' 방문 · 계약=N-Care 계약 기록·리드 계약일 · 실패/입금=해당 월 기준<br>'
+        + 퍼널기준문구_(d)
         + '<b>여섯 단계 모두 병원 수(곳)입니다</b> — 한 병원에 리드가 여러 건이어도 한 곳으로 셉니다.'
       : '장비 영업 퍼널 — <b>달성 목표가 N-care인 리드와 장비 보유(유저) 병원 리드는 N-Care 탭</b>으로 분류됩니다'
         + (d.excluded ? ' (이달 ' + d.excluded + '곳)' : '') + '. 분류가 틀리면 리드 탭에서 달성 목표를 바꿔 주세요.<br>'
-        + '리드=신규 등록 · <b>데모 중=그 달 \'방문/데모\' 기록 (2차·3차 데모 포함 — 첫 기록 시 리드 데모일 자동)</b> · 제안 완료=장비 \'제안 완료\' 방문 · 계약/입금=해당 월 기준 · 실패=그 달 리드 중 진행 중단<br>'
+        + 퍼널기준문구_(d)
         + '<b>여섯 단계 모두 병원 수(곳)입니다</b> — 한 병원에 리드가 여러 건이어도 한 곳으로 셉니다. 단, 같은 병원에 장비 리드와 N-Care 리드가 따로 있으면 양쪽 탭에 각각 뜹니다.<br>'
         + '데모가 끝나면 리드 탭에서 단계를 \'데모완료\'로 직접 변경해 주세요.') + '</div>';
 
@@ -2936,14 +2951,15 @@ function matDelete(row) {
 }
 
 /* ── 관리자 현황 대시보드 ── */
-function loadDash() {
+/** @param ym 'yyyy-MM'. 비우면 이번 달. 지난달이면 목표 없이 실적만 온다(웹_대시보드) */
+function loadDash(ym) {
   busy(true);
   gsrun().withSuccessHandler(function(d) {
     DASH = d; busy(false); renderDash();
   }).withFailureHandler(function(e) {
     busy(false);
     document.getElementById('dashBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
-  }).웹_대시보드(TOKEN);
+  }).웹_대시보드(TOKEN, ym || '');
 }
 function kick(label, red) {
   return '<div class="kicker' + (red ? ' red' : '') + '"><div class="bar"></div><div class="lbl">' + esc(label) + '</div></div>';
@@ -3076,9 +3092,12 @@ function renderDash() {
   var h = '';
 
   h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'
-    + '<span style="font-size:13px;color:#4e5968;">' + esc(d.monthLabel) + ' 목표 대비 진척 · '
-    + (g.dayPassed || 0) + '/' + (g.dayTotal || 0) + '일 경과</span>'
-    + '<button class="refresh" onclick="DASH=null;loadDash()">새로고침</button></div>';
+    + '<div style="display:flex;align-items:center;gap:8px;">'
+    + '<input type="month" id="dMonth" value="' + esc(d.ym || '') + '" onchange="loadDash(this.value)">'
+    + '<span style="font-size:13px;color:#4e5968;">'
+    + (d.past ? esc(d.monthLabel) + ' 실적' : esc(d.monthLabel) + ' 목표 대비 진척 · ' + (g.dayPassed || 0) + '/' + (g.dayTotal || 0) + '일 경과')
+    + '</span></div>'
+    + '<button class="refresh" onclick="DASH=null;loadDash(' + (d.past ? '\'' + esc(d.ym) + '\'' : '') + ')">새로고침</button></div>';
 
   h += '<div class="seg">'
     + [['전체', '전체'], ['장비', '장비 영업'], ['N-Care', '노즐 영업']].map(function(t) {
@@ -3086,22 +3105,29 @@ function renderDash() {
       }).join('')
     + '</div>';
 
-  // ── ① 월 전체 목표 진척 (핵심 지표) ──
-  h += kick(esc(d.monthLabel) + ' 목표');
-  var cards = '';
-  if (seg !== 'N-Care') {
-    cards += goalCard('데모처 확보', g.demo, g.dayPassed, g.dayTotal, 'demo');
-    cards += goalCard('장비 판매', g.sale, g.dayPassed, g.dayTotal, 'sale');
-  }
-  if (seg !== '장비') cards += goalCard('N-Care(노즐) 가입', g.ncare, g.dayPassed, g.dayTotal, 'ncare');
-  h += '<div class="goals">' + cards + '</div>';
-
-  var noGoal = !(g.demo && g.demo.goal) && !(g.sale && g.sale.goal) && !(g.ncare && g.ncare.goal);
-  if (noGoal) {
-    h += '<div class="gnote">이달 목표가 입력되지 않았습니다. <b>06_월간KPI</b> 시트에 담당자별 목표를 넣거나, 15행 「팀 목표(직접 입력)」에 전사 목표를 넣으면 여기에 진척이 표시됩니다.</div>';
+  /* ── ① 월 전체 목표 진척 (핵심 지표) ──
+     지난달에는 통째로 뺀다. 06_월간KPI에는 이번 달 목표만 남아 있어서(매월 1일 자동 갱신이
+     덮어쓴다) 지난달 실적을 지금 목표로 나누면 달성률이 거짓말을 한다. 서버가 목표를 아예
+     비워 보내므로 여기서 그리면 "목표 미입력"으로 읽혀 더 나쁘다. */
+  if (d.past) {
+    h += '<div class="gnote">지난달은 <b>실적만</b> 보여 줍니다 — 06_월간KPI의 목표는 매월 1일에 이번 달 것으로 갱신돼서 그때의 목표가 남아 있지 않습니다.</div>';
   } else {
-    h += '<div class="gnote">목표 출처: ' + (g.fromTeamRow ? '06_월간KPI 15행 팀 목표' : '06_월간KPI 담당자별 목표 합계') + '</div>';
-    h += goalCheckBanner(g.check);
+    h += kick(esc(d.monthLabel) + ' 목표');
+    var cards = '';
+    if (seg !== 'N-Care') {
+      cards += goalCard('데모처 확보', g.demo, g.dayPassed, g.dayTotal, 'demo');
+      cards += goalCard('장비 판매', g.sale, g.dayPassed, g.dayTotal, 'sale');
+    }
+    if (seg !== '장비') cards += goalCard('N-Care(노즐) 가입', g.ncare, g.dayPassed, g.dayTotal, 'ncare');
+    h += '<div class="goals">' + cards + '</div>';
+
+    var noGoal = !(g.demo && g.demo.goal) && !(g.sale && g.sale.goal) && !(g.ncare && g.ncare.goal);
+    if (noGoal) {
+      h += '<div class="gnote">이달 목표가 입력되지 않았습니다. <b>06_월간KPI</b> 시트에 담당자별 목표를 넣거나, 15행 「팀 목표(직접 입력)」에 전사 목표를 넣으면 여기에 진척이 표시됩니다.</div>';
+    } else {
+      h += '<div class="gnote">목표 출처: ' + (g.fromTeamRow ? '06_월간KPI 15행 팀 목표' : '06_월간KPI 담당자별 목표 합계') + '</div>';
+      h += goalCheckBanner(g.check);
+    }
   }
 
   // ── ② 담당자별 목표 대비 달성 ──
