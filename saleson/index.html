@@ -318,6 +318,10 @@
     #view-dash .wrap, #view-evt .wrap { max-width:1040px; }
     .pconly { display:inline; }
     .seg { max-width:420px; }
+    /* 칩이 많은 세그먼트(Meta DB 6개)는 420px에 안 들어간다. 폰에서는 옆으로 밀면 되지만
+       PC에서는 스크롤바를 숨겨 놔서 **잘린 것처럼 보인다** — 실제로 「제외」 탭이 통째로
+       안 보이고 「리드 전환」이 "리드 전"으로 끊겼다. 넓은 화면에서는 폭을 풀고 줄바꿈한다. */
+    .seg.scrollx { max-width:none; flex-wrap:wrap; overflow-x:visible; }
     #view-guide .wrap { max-width:1280px; }
     .guide2 { display:grid; grid-template-columns:1fr 320px; gap:24px; align-items:start; }
     .gqr { position:sticky; top:20px; }
@@ -2492,7 +2496,7 @@ function metaExclude(id) {
    내가 직접 담당할 거면 기존 [계획 등록] 경로로 넘어간다 */
 var METAOPEN = 0;   // 분류 상자가 열린 문의 행
 var METAREP = '';   // 상자에서 고른 담당자
-function metaOpen(row) { METAOPEN = METAOPEN === row ? 0 : row; METAREP = ''; METANEXT = ''; renderMeta(); }
+function metaOpen(row) { METAOPEN = METAOPEN === row ? 0 : row; METAREP = ''; METANEXT = ''; METAWHY = ''; renderMeta(); }
 function metaPickRep(el) {
   METAREP = el.getAttribute('data-v');
   document.querySelectorAll('#mxReps .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
@@ -2534,10 +2538,19 @@ function metaAssignBox(q) {
     + (남은 > 1 ? (q.tries || 0) + '회 시도 · ' + 남은 + '회 더 부재중이면 자동 제외'
                 : '<b style="color:#d0223a;">' + (q.tries || 0) + '회 시도 · 다음 부재중이면 연락 불가로 자동 제외됩니다</b>') + '</span>'
     + '</div></div>';
-  h += '<div style="margin-top:12px;border-top:1px solid #d6e6ff;padding-top:12px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;">'
-    + '<input type="text" id="mxWhy" placeholder="제외 사유 (예: 병원 아님, 관심 없음)" style="flex:1;min-width:150px;">'
+  /* 제외 사유 — 칩으로 고른다. 폰 통화 직후에 누르는 자리인데 자유 입력이라 손이 오래 걸렸다
+     (사용자 지적, 8/4). 실제로 적히는 사유는 몇 가지로 뻔하다. 「기타」만 직접 쓴다. */
+  h += '<div style="margin-top:12px;border-top:1px solid #d6e6ff;padding-top:12px;">'
+    + '<div style="font-size:12.5px;font-weight:700;color:#4e5968;">제외 — 왜 빼나요?</div>'
+    + '<div class="chips" id="mxWhySeg" style="margin-top:8px;">'
+    + ['관심 없음', '병원 아님', '연락 불가', '기타'].map(function(t) {
+        return '<div class="chip" data-v="' + t + '" onclick="metaPickWhy(this)">' + t + '</div>';
+      }).join('')
+    + '</div>'
+    + '<input type="text" id="mxWhy" placeholder="사유를 적어 주세요" style="display:none;margin-top:8px;">'
+    + '<div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;">'
     + '<button class="btn" onclick="metaExcludeBox(' + q.id + ')">제외</button>'
-    + '<button class="btn ghost" onclick="metaOpen(0)">닫기</button></div>';
+    + '<button class="btn ghost" onclick="metaOpen(0)">닫기</button></div></div>';
   return h + '</div>';
 }
 /* 리드 전환만 두 걸음이다 — 다른 문의 쓰기와 다르다.
@@ -2579,6 +2592,7 @@ function 문의찾기_(id) {
 }
 /* 재통화 시각 칩 — 사무실 통화 리듬에 맞춘 기본값. '직접 선택'만 피커를 연다 */
 var METANEXT = '';
+var METAWHY = '';   // 제외 사유 칩 — '기타'면 아래 입력칸을 쓴다
 function metaPickNext(el) {
   METANEXT = el.getAttribute('data-v');
   document.querySelectorAll('#mxNext .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
@@ -2607,10 +2621,23 @@ function metaMissed(id) {
   METAOPEN = 0; METANEXT = '';
   metaAct_(id, '부재중', '', next);
 }
+function metaPickWhy(el) {
+  METAWHY = el.getAttribute('data-v');
+  document.querySelectorAll('#mxWhySeg .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  var inp = document.getElementById('mxWhy');
+  if (inp) {
+    inp.style.display = METAWHY === '기타' ? 'block' : 'none';
+    if (METAWHY === '기타') inp.focus();
+  }
+}
 function metaExcludeBox(id) {
-  var why = (document.getElementById('mxWhy') || {}).value || '';
-  if (!why.trim()) return toast('제외 사유를 입력해 주세요', true);
-  METAOPEN = 0; metaAct_(id, '제외', why.trim());
+  // 「기타」일 때만 적은 글을 쓰고, 나머지는 칩 이름이 곧 사유다
+  var why = METAWHY === '기타'
+    ? String((document.getElementById('mxWhy') || {}).value || '').trim()
+    : METAWHY;
+  if (!why) return toast(METAWHY === '기타' ? '사유를 적어 주세요' : '제외 사유를 골라 주세요', true);
+  METAOPEN = 0; METAWHY = '';
+  metaAct_(id, '제외', why);
 }
 
 /* 문의 → 계획 등록 — 병원명·접촉자·소스를 채우고 문의 행번호를 들고 간다.
