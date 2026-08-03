@@ -2124,6 +2124,7 @@ function savePlan() {
   busy(true);
   var 승격문의 = META_PREFILL ? META_PREFILL.id : 0;   // resetPlanForm이 지우기 전에 잡아 둔다
   gsrun().withSuccessHandler(function(d) {
+    busy(false);   // ⚠ 없으면 저장 성공 시 오버레이가 안 걷힌다 (saveLog와 같은 부류)
     var keepDate = document.getElementById('pDate').value;
     onData(d); resetPlanForm(keepDate); show('plan');
     toast('계획을 저장했습니다. 이어서 등록하세요');
@@ -2234,6 +2235,11 @@ function saveLog() {
     return;
   }
   gsrun().withSuccessHandler(function(d) {
+    /* ⚠ busy(false)를 맨 앞에 둔다. 없으면 **저장이 성공했을 때** 로딩 오버레이가 안 걷힌다.
+       `#loading`은 inset:0의 불투명 전체화면이라 앱을 아예 못 쓰게 되고, 사용자는 껐다 켠 뒤
+       홈에서 방금 쓴 기록을 못 봐 「저장이 안 된다」고 느낀다 — 실제로는 저장돼 있다.
+       실패 경로에만 있어서 정반대였다. 8/3 영업팀 피드백 1위가 이것이었다. */
+    busy(false);
     onData(d); resetForm(); 임시저장지우기_(); show('home');
     toast('저장했습니다. 계획이 있으면 자동 완료됩니다');
     document.getElementById('fSave').disabled = false;
