@@ -2143,7 +2143,7 @@ function savePlan() {
     // Meta 문의에서 온 계획이면 DB의 문의도 '리드 전환'으로 올린다 (metaAssign과 같은 이유).
     // 시트는 GAS가 방금 고쳤다. 실패해도 계획 저장은 이미 끝났으므로 알리기만 한다
     if (승격문의) {
-      문의관문_('/saleson-inquiry-act', JSON.stringify({
+      관문호출_('/saleson-inquiry-act', JSON.stringify({
         토큰: TOKEN, id: 승격문의, 동작: '리드전환', hname: f.hname
       })).catch(function(e) {
         toast('계획은 저장됐지만 문의 상태를 못 바꿨습니다: ' + e.message, true);
@@ -2245,7 +2245,7 @@ function saveLog() {
     // 목록을 관문에서 받았으면 서버가 `f.no`로 행을 집는다 — 시트 행 번호는 DB가 모른다
     var 대상 = 열쇠찾기_((MINE || {}).logs, EDITKEY) || {};
     f.no = 대상.no || 0;
-    gsrun().withSuccessHandler(function(r) {
+    var 수정끝 = function(r) {
       busy(false); document.getElementById('fSave').disabled = false;
       var 고친열쇠 = EDITKEY;
       EDITKEY = ''; resetForm(); editMode(false); 임시저장지우기_();
@@ -2254,30 +2254,56 @@ function saveLog() {
       // 통째로 받았고, 그걸 만드느라 서버가 시트를 850행 다시 읽었다
       기록갱신_(고친열쇠, r.log, r.리드바뀜);
       toast(r.msg); show('mine');
-    }).withFailureHandler(function(e) {
+    };
+    var 수정실패 = function(e) {
       busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
-    }).웹_방문기록수정(TOKEN, 대상.row || 0, f);
+    };
+    /* DB가 원천이면 관문으로 간다 (0.3초). 폴백은 없다 — 실패해도 임시저장이 남으므로
+       쓴 내용은 안 사라진다. `dbSrc`는 서버가 준다(초기데이터_) — 스크립트 속성을 되돌리면
+       다음 부트부터 아래 GAS 경로로 돌아간다. */
+    if (DATA.dbSrc) {
+      관문호출_('/saleson-visit-act', JSON.stringify({
+        토큰: TOKEN, 동작: '수정', no: f.no, 기록: f,
+      })).then(수정끝).catch(수정실패);
+      return;
+    }
+    gsrun().withSuccessHandler(수정끝).withFailureHandler(수정실패)
+      .웹_방문기록수정(TOKEN, 대상.row || 0, f);
     return;
   }
-  gsrun().withSuccessHandler(function(d) {
+  var 저장끝 = function(d) {
     /* ⚠ busy(false)를 맨 앞에 둔다. 없으면 **저장이 성공했을 때** 로딩 오버레이가 안 걷힌다.
        `#loading`은 inset:0의 불투명 전체화면이라 앱을 아예 못 쓰게 되고, 사용자는 껐다 켠 뒤
        홈에서 방금 쓴 기록을 못 봐 「저장이 안 된다」고 느낀다 — 실제로는 저장돼 있다.
        실패 경로에만 있어서 정반대였다. 8/3 영업팀 피드백 1위가 이것이었다. */
     busy(false);
-    onData(d); resetForm(); 임시저장지우기_();
+    // 관문 응답에는 홈 데이터가 없다 — 저장 직후 가는 곳이 「내 입력」이라 필요가 없다.
+    // GAS 응답일 때만 홈을 갈아끼운다(초기데이터_를 통째로 싣는다)
+    if (d && d.plans) onData(d);
+    resetForm(); 임시저장지우기_();
+    DASH = null; FLOW = null; KPIT = null;
     /* 저장 뒤 **「내 입력」으로 보낸다.** 예전에는 홈으로 갔는데 홈에는 방문기록이 없어서,
        방금 쓴 것이 어디에도 안 보였다 — 그것만으로 「저장이 안 됐다」고 느낀다.
        영업팀 피드백 조사(8/3)에서 나온 세 후보 중 하나다. MINE을 비워 새로 받게 한다. */
-    /* ⚠ 관문을 건너뛴다. 관문의 방문기록은 새벽 4시 거울이라 **방금 쓴 것이 없다** —
-       그대로 두면 저장 직후 목록에 안 보여 오해가 그대로 재현된다. GAS만 본다. */
-    MINE = null; MINESEG = '방문기록'; 내입력_GAS만 = true;
+    MINE = null; MINESEG = '방문기록';
+    /* ⚠ GAS로 쓸 때만 관문을 건너뛴다. 그때는 관문의 방문기록이 새벽 4시 거울이라
+       **방금 쓴 것이 없다.** DB가 원천이면 관문에 이미 들어가 있으므로 우회가 필요 없고,
+       오히려 관문으로 받는 편이 빠르다. */
+    내입력_GAS만 = !DATA.dbSrc;
     show('mine');
-    toast('저장했습니다. 계획이 있으면 자동 완료됩니다');
+    toast((d && d.msg) || '저장했습니다. 계획이 있으면 자동 완료됩니다');
     document.getElementById('fSave').disabled = false;
-  }).withFailureHandler(function(e) {
+  };
+  var 저장실패 = function(e) {
     busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
-  }).웹_방문기록저장(TOKEN, f);
+  };
+  if (DATA.dbSrc) {
+    관문호출_('/saleson-visit-act', JSON.stringify({
+      토큰: TOKEN, 동작: '저장', 기록: f,
+    })).then(저장끝).catch(저장실패);
+    return;
+  }
+  gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
 }
 function resetForm() {
   ['fHosp', 'fNext', 'fContact', 'fNote', 'fReaction', 'fFu', 'fNozzle'].forEach(function(id) { document.getElementById(id).value = ''; });
@@ -2295,11 +2321,12 @@ function resetForm() {
    Meta DB — 광고 문의함 (ADR 0002)
    문의는 리드가 아니다. [계획 등록]을 거쳐야만 '리드 전환'이 된다.
    ══════════════════════════════════════════════════════════════ */
-/* 관문에 문의 요청을 보낸다 — 목록·쓰기가 같은 통로를 쓴다 (ADR 0004 3단계).
-   문의는 **DB가 원천**이라 GAS 폴백이 없다. 폴백을 두면 목록은 시트(row 열쇠), 쓰기는
-   DB(id 열쇠)가 되어 열쇠가 갈리고, 무엇보다 저장이 다시 GAS 왕복 1.8초가 된다.
-   관문이 죽으면 문의 탭이 멈춘다 — 「DB 단독」의 대가이고 알고 고른 것이다. */
-function 문의관문_(경로, 몸통) {
+/* 관문에 요청을 보낸다 — 목록·쓰기가 같은 통로를 쓴다 (ADR 0004 3단계).
+   원천이 DB인 도메인은 **GAS 폴백이 없다.** 폴백을 두면 목록은 시트(row 열쇠), 쓰기는
+   DB(id·No 열쇠)가 되어 열쇠가 갈리고, 무엇보다 저장이 다시 GAS 왕복 1.8초가 된다.
+   관문이 죽으면 그 탭이 멈춘다 — 「DB 단독」의 대가이고 알고 고른 것이다.
+   (2026-08-04에 방문기록도 이 통로를 쓰게 되어 이름에서 「문의」를 뺐다) */
+function 관문호출_(경로, 몸통) {
   return fetch(GATE_URL + 경로, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2315,7 +2342,7 @@ function 문의관문_(경로, 몸통) {
 function loadMeta() {
   busy(true);
   // 목록 관문만 토큰을 본문에 **날것으로** 받는다 (saleson-inquiries). 쓰기 쪽은 JSON이다
-  문의관문_('/saleson-inquiries', TOKEN).then(function(d) {
+  관문호출_('/saleson-inquiries', TOKEN).then(function(d) {
     METAQ = d; busy(false); renderMeta();
   }).catch(function(e) {
     busy(false);
@@ -2443,7 +2470,7 @@ function metaMemo(id) {
    응답에 갱신된 한 건(q)이 실려 오므로 목록을 다시 안 받는다. */
 function metaAct_(id, action, why, next, text) {
   busy(true);
-  문의관문_('/saleson-inquiry-act', JSON.stringify({
+  관문호출_('/saleson-inquiry-act', JSON.stringify({
     토큰: TOKEN, id: id, 동작: action, why: why || '', next: next || '', text: text || ''
   })).then(function(r) {
     busy(false); toast(r.msg);
@@ -2531,7 +2558,7 @@ function metaAssign(id) {
   gsrun().withSuccessHandler(function(r) {
     if (r.init) onData(r.init);   // 리드 목록·홈 KPI 갱신
     // ② 시트에 리드가 생겼다 — 이제 DB의 문의 상태를 올린다
-    문의관문_('/saleson-inquiry-act', JSON.stringify({
+    관문호출_('/saleson-inquiry-act', JSON.stringify({
       토큰: TOKEN, id: id, 동작: '리드전환', hname: hname.trim()
     })).then(function(g) {
       busy(false); toast(r.msg); METAOPEN = 0; METAREP = '';
@@ -2688,7 +2715,10 @@ function 임시저장복구_() {
 
 /* 관문에서 「내 입력」을 받는다 — `스냅샷받기_`와 같은 규칙(본문에 토큰, 실패는 조용히).
    관문이 죽어도 GAS가 그리므로 화면에는 안 띄우되 삼키지도 않는다. */
-function 내입력받기_(onOk) {
+/* onFail은 **DB가 원천일 때만** 쓴다. 그때는 GAS 폴백이 없어서, 조용히 삼키면 로딩
+   오버레이가 영영 안 걷히고 앱을 못 쓰게 된다(8/3에 저장 경로에서 겪은 그 화면이다).
+   가속으로 쓸 때는 GAS가 뒤따라오므로 예전처럼 삼킨다. */
+function 내입력받기_(onOk, onFail) {
   fetch(GATE_URL + '/saleson-mine', {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2696,10 +2726,11 @@ function 내입력받기_(onOk) {
   }).then(function(res) {
     return res.ok ? res.json() : null;
   }).then(function(r) {
-    if (!r || !r.logs) return;
+    if (!r || !r.logs) throw new Error('목록을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요.');
     onOk(r);
   }).catch(function(e) {
     console.warn('내 입력을 관문에서 받지 못했습니다:', (e && e.message) || e);
+    if (onFail) onFail(e);
   });
 }
 
@@ -2716,6 +2747,19 @@ function loadMine() {
   busy(true);
   var 관문이그림 = false;
   var GAS만 = 내입력_GAS만; 내입력_GAS만 = false;
+  /* DB가 원천이면 **관문만 본다.** 위 주석이 예고한 자리다 — 쓰기가 DB로 넘어가면
+     시트는 새벽 4시에 DB를 받아 적는 사본이라 오늘 쓴 것이 없다. 그대로 두면 GAS 응답이
+     방금 저장한 기록을 덮어 지운다. 폴백은 없다(문의 탭과 같은 대가). */
+  if (DATA.dbSrc) {
+    내입력받기_(function(d) {
+      MINE = d; busy(false); renderMine();
+    }, function(e) {
+      busy(false);
+      document.getElementById('mineBody').innerHTML =
+        '<div class="card empty">' + esc((e && e.message) || e || '목록을 받지 못했습니다') + '</div>';
+    });
+    return;
+  }
   if (!GAS만) 내입력받기_(function(d) {
     if (MINE) return;              // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
     MINE = d; 관문이그림 = true; busy(false); renderMine();
