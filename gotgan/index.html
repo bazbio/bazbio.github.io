@@ -165,44 +165,6 @@
   .guide .ex code { color: var(--primary); font-weight: 600; font-family: inherit; }
   .guide .warn-box { border-left: 3px solid var(--warn); padding-left: 14px; margin: 10px 0; }
 
-  /* ─ 사전심사 ─ */
-  .scr-card {
-    background: var(--pearl); border: none; border-radius: 18px;
-    padding: 20px; margin-top: 14px;
-    transition: box-shadow .2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .scr-card:hover { box-shadow: 0 20px 60px -15px rgba(25, 31, 40, 0.08); }
-  .scr-title { font-size: 15px; font-weight: 600; letter-spacing: -0.24px; word-break: keep-all; }
-  .scr-meta { font-size: 12px; color: var(--ink-48); letter-spacing: -0.12px; margin-top: 4px; }
-  .scr-inputs { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
-  .g-pill { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: -0.12px; padding: 4px 12px; border-radius: 9999px; white-space: nowrap; }
-  .g-ok { background: rgba(29, 138, 60, 0.1); color: var(--ok); }
-  .g-warn { background: rgba(180, 83, 9, 0.1); color: var(--warn); }
-  .g-over { background: rgba(185, 28, 28, 0.1); color: var(--over); }
-  .g-overfill { background: var(--over); color: #fff; }
-  .g-gray { background: var(--divider-soft); color: var(--ink-48); }
-  .scr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
-  .scr-stat { background: var(--canvas); border: none; border-radius: 12px; padding: 11px 14px; box-shadow: var(--card-shadow); }
-  .scr-stat .k { font-size: 11px; color: var(--ink-48); letter-spacing: -0.11px; }
-  .scr-stat .v { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; margin-top: 4px; font-variant-numeric: tabular-nums; }
-  .scr-warns { margin: 12px 0 0; padding: 0; list-style: none; }
-  .scr-warns li { font-size: 13px; letter-spacing: -0.13px; color: var(--over); padding: 5px 0; border-bottom: 1px solid var(--divider-soft); }
-  .scr-warns li:last-child { border-bottom: none; }
-  .scr-rules { margin: 12px 0 0; padding: 0; list-style: none; }
-  .scr-rules li { font-size: 12.5px; letter-spacing: -0.12px; color: var(--ink-80); padding: 5px 0; border-bottom: 1px solid var(--divider-soft); line-height: 1.55; }
-  .scr-rules li:last-child { border-bottom: none; }
-  .scr-rules .ref, .scr-warns .ref { color: var(--ink-48); font-size: 11px; }
-  .scr-checks { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
-  .scr-checks label { display: flex; align-items: center; gap: 6px; font-size: 13px; letter-spacing: -0.13px; color: var(--ink-80); cursor: pointer; }
-  .scr-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
-  .scr-actions input[type=text] { flex: 1; min-width: 180px; }
-  .scr-past { margin-top: 12px; }
-  .scr-past summary { font-size: 12.5px; color: var(--primary); cursor: pointer; letter-spacing: -0.12px; }
-  .scr-sec { font-size: 12px; font-weight: 600; color: var(--ink-48); letter-spacing: -0.12px; margin-top: 16px; }
-
-  /* ─ 매출 ─ */
-  #tab-rev input.rev-in { width: 108px; text-align: right; padding: 6px 10px; font-size: 13px; }
-
   /* ─ 로그인 ─ */
   #login { max-width: 400px; margin: 96px auto; background: var(--canvas); border: none; border-radius: 24px; padding: 40px; display: none; box-shadow: var(--card-shadow); }
   #login h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.07; margin-bottom: 10px; }
@@ -283,8 +245,6 @@
     <button data-tab="dash" class="on">대시보드</button>
     <button data-tab="mon">월별</button>
     <button data-tab="exp">지출내역</button>
-    <button data-tab="scr" id="nav-scr">사전심사</button>
-    <button data-tab="rev" id="nav-rev">매출</button>
     <button data-tab="up" id="nav-up">업로드</button>
     <button data-tab="bud">예산마스터</button>
     <button data-tab="guide">가이드</button>
@@ -327,22 +287,6 @@
       <div id="amt-preview" style="margin-top:16px"></div>
     </section>
   </div>
-  <div id="tab-scr" style="display:none">
-    <section class="panel">
-      <h2 class="section-head">사전심사 — 미결 지출결의서</h2>
-      <p class="section-sub">아마란스 전자결재 &gt; 미결문서 목록 엑셀(.xlsx)을 올리면 결재 전 건을 예산·매출 연동·규정 기준으로 판정합니다. 심사 건은 지출 실데이터와 분리 보관되며, 결재 완료분 주간 업로드 때 문서번호로 자동 대사됩니다.</p>
-      <div id="scr-channel" style="margin-bottom:16px"></div>
-      <div class="dropzone" id="dz-scr">미결문서 목록 파일을 끌어다 놓거나 클릭해서 선택</div>
-      <input type="file" id="file-scr" accept=".xlsx,.xls" style="display:none">
-      <div id="scr-cards"></div>
-    </section>
-    <section class="panel">
-      <h2 class="section-head">심사 기록</h2>
-      <p class="section-sub">저장된 판정과 결재 반영(대사) 상태입니다.</p>
-      <div class="table-wrap" id="scr-history"></div>
-    </section>
-  </div>
-  <div id="tab-rev" style="display:none"></div>
   <div id="tab-bud" style="display:none"></div>
   <div id="tab-guide" style="display:none">
     <section class="panel guide">
@@ -433,9 +377,6 @@ const CODE_MIG = {
 const normCode = c => { const u = String(c || '').trim().toUpperCase(); return CODE_MIG[u] || u; };
 let BUDGET = [], DEPTMAP = [], SETTINGS = {}, CODED_DEPTS = [];
 let EXPENSES = [], ACCT_CLASS = [], USER = { depts: null };
-// 사전심사 (전체 권한 전용): 매출계획·규정·심사기록·채널 매핑
-let REVENUE = [], RULES = [], SCREENS = [], CHANNEL_BY_DEPT = {};
-let SCR_ITEMS = []; // 업로드된 미결 건 (화면 상태)
 let dirty = {};
 const TOKEN_KEY = 'baz_budget_token';
 
@@ -443,7 +384,7 @@ const fmt = n => (Math.round(Number(n) || 0)).toLocaleString('ko-KR');
 const el = id => document.getElementById(id);
 const token = () => localStorage.getItem(TOKEN_KEY) || '';
 
-/* 서버 호출 통로 — 12개 API가 전부 여기를 지난다. 호출부는 한 줄도 안 바뀐다.
+/* 서버 호출 통로 — 8개 API가 전부 여기를 지난다. 호출부는 한 줄도 안 바뀐다.
  *
  * 화면이 GAS 밖(GitHub Pages)으로 나오면 google.script.run이 없다. 대신 Code.gs의
  * doPost 디스패처를 fetch로 부른다. GAS가 doGet으로 이 화면을 서빙하는 경로는
@@ -563,27 +504,10 @@ async function boot() {
     el('userbox').style.display = 'flex';
     el('user-email').textContent = (USER.name ? USER.name + ' · ' : '') + init.email
       + (USER.depts ? ' (' + USER.depts.join('·') + ')' : '');
-    // 부서 열람 계정은 업로드·사전심사·매출 숨김
+    // 부서 열람 계정은 업로드 숨김
     el('nav-up').style.display = USER.depts ? 'none' : '';
-    el('nav-scr').style.display = USER.depts ? 'none' : '';
-    el('nav-rev').style.display = USER.depts ? 'none' : '';
     fillDatalists();
     renderDash(); renderMonthly(); renderExpenses(); renderBudget();
-    /* 여기서 대시보드는 이미 다 그려졌다 — 오버레이를 먼저 걷는다.
-       아래 사전심사는 전체 권한 계정만 쓰는 데이터인데, await로 두면 다 만들어 놓고
-       "불러오는 중" 오버레이(fixed·inset:0)로 3.6초를 더 가린다 (2026-08-02 실측:
-       전체 권한 부팅 6.8초 중 3.6초가 이것이었다). 기다리게 하지 않고 도착하면 채운다. */
-    loading(false);
-    if (!USER.depts) {
-      gsAuth('apiGetPrescreen').then(ps => {
-        REVENUE = ps.revenue || []; RULES = ps.rules || [];
-        SCREENS = ps.screens || []; CHANNEL_BY_DEPT = ps.channelByDept || {};
-        renderScrChannel(); renderScrHistory(); renderRevenue();
-      }).catch(e => {
-        // 부팅은 이미 끝났으므로 로그인 화면으로 되돌리지 않는다. 두 탭만 빈 채로 남는다
-        toast('사전심사·매출을 불러오지 못했습니다: ' + String(e.message || e).replace('AUTH:', ''));
-      });
-    }
   } catch (e) {
     if (isAuthErr(e)) { showLogin(token() ? String(e.message || e).replace(/^Error:\s*/, '').replace('AUTH:', '') : ''); return; }
     alert('데이터 로드 실패: ' + (e.message || e));
@@ -600,7 +524,7 @@ function fillDatalists() {
 // ─── 탭 ───
 document.querySelectorAll('.sub-nav nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.sub-nav nav button').forEach(x => x.classList.toggle('on', x === b));
-  ['dash', 'mon', 'exp', 'scr', 'rev', 'up', 'bud', 'guide'].forEach(t => {
+  ['dash', 'mon', 'exp', 'up', 'bud', 'guide'].forEach(t => {
     const div = el('tab-' + t);
     const show = b.dataset.tab === t;
     div.style.display = show ? '' : 'none';
@@ -994,7 +918,6 @@ async function saveDirty() {
 // ─── 업로드 ① 전자결재 목록 ───
 setupDropzone('dz-docs', 'file-docs', handleDocsFile);
 setupDropzone('dz-amt', 'file-amt', handleAmtFile);
-setupDropzone('dz-scr', 'file-scr', handleScrFile);
 
 function setupDropzone(dzId, fileId, handler) {
   const dz = el(dzId), fi = el(fileId);
@@ -1099,367 +1022,6 @@ async function handleAmtFile(file) {
     } catch (e) {
       if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
       alert('병합 실패: ' + (e.message || e));
-    }
-    loading(false);
-  };
-}
-
-// ─── 사전심사: 판정 엔진 ───
-// 판정값 = 진도율 갭 = (건 반영 후 부서 예산 집행률, 종결+진행 기준) − (소속 채널 매출 달성률)
-// 등급: 예산초과(잔액 마이너스) > 경고(갭>+20%p) > 주의(+10~20%p) > 정상. 고정비 계정은 갭 판정 제외.
-
-function channelAgg() {
-  const agg = {};
-  REVENUE.forEach(r => {
-    const ch = String(r[1] || '').trim();
-    if (!ch) return;
-    if (!agg[ch]) agg[ch] = { plan: 0, act: 0 };
-    agg[ch].plan += Number(r[2]) || 0;
-    agg[ch].act += Number(r[3]) || 0;
-  });
-  const all = { plan: 0, act: 0 };
-  Object.values(agg).forEach(a => { all.plan += a.plan; all.act += a.act; });
-  agg['전사'] = all;
-  return agg;
-}
-
-function acctClassOf(acct) {
-  if (!acct) return '미분류';
-  const hit = ACCT_CLASS.find(r => String(r[0]).trim() === acct);
-  return hit ? (String(hit[1]).trim() || '미분류') : '미분류';
-}
-
-function matchRules(acct, amount) {
-  const auto = [], cards = [];
-  RULES.forEach(r => {
-    const kw = String(r[0] || '').trim(), min = Number(r[1]) || 0;
-    const type = String(r[2] || '').trim(), msg = String(r[3] || ''), ref = String(r[4] || '');
-    if (kw !== '*' && (!acct || acct.indexOf(kw) === -1)) return;
-    if (type === '자동') { if (min > 0 && amount >= min) auto.push({ msg, ref }); }
-    else cards.push({ msg, ref });
-  });
-  return { auto, cards };
-}
-
-function judge(code, amount) {
-  amount = Number(amount) || 0;
-  code = String(code || '').trim().toUpperCase();
-  const j = { grade: '확인필요', gcls: 'g-gray', gap: null, bud: null, warns: [], cards: [], stats: [] };
-  const b = BUDGET.find(r => String(r[0]).trim().toUpperCase() === code);
-  if (!b) {
-    j.warns = matchRules('', amount).auto;
-    j.cards = matchRules('', amount).cards;
-    j.note = code ? '예산마스터에 없는 코드입니다 — 코드를 확인하거나 예산외 여부를 판단하세요.' : '제목에 예산코드가 없습니다 — [XXX-000] 기입 규칙 위반. 코드를 지정하세요.';
-    return j;
-  }
-  const dept = String(b[1]).trim(), acct = String(b[2]).trim();
-  j.bud = b; j.dept = dept; j.acct = acct;
-  j.cls = acctClassOf(acct);
-
-  // 예산항목 소진 (종결+진행 = 확정 집행 기준)
-  let itemSpent = 0;
-  EXPENSES.forEach(r => {
-    if (String(r[11] || '').trim().toUpperCase() !== code) return;
-    if (r[8] !== '종결' && r[8] !== '진행') return;
-    itemSpent += Number(r[12]) || 0;
-  });
-  const itemBudget = Number(b[4]) || 0;
-  j.remaining = itemBudget - itemSpent - amount;
-
-  // 부서 집행률 (반영 후)
-  let dB = 0, dS = 0;
-  BUDGET.forEach(r => { if (String(r[1]).trim() === dept) dB += Number(r[4]) || 0; });
-  EXPENSES.forEach(r => {
-    if (String(r[9] || '').trim() !== dept) return;
-    if (r[8] !== '종결' && r[8] !== '진행') return;
-    dS += Number(r[12]) || 0;
-  });
-  j.execRate = dB > 0 ? (dS + amount) / dB * 100 : null;
-
-  // 채널 매출 달성률 (하반기 누적: 실적 합 ÷ 계획 합)
-  j.channel = CHANNEL_BY_DEPT[dept] || '전사';
-  const ch = channelAgg()[j.channel] || { plan: 0, act: 0 };
-  j.achRate = ch.plan > 0 ? ch.act / ch.plan * 100 : null;
-
-  const rules = matchRules(acct, amount);
-  j.warns = rules.auto; j.cards = rules.cards;
-
-  if (j.remaining < 0) { j.grade = '예산초과'; j.gcls = 'g-overfill'; return j; }
-  if (j.cls === '고정비') { j.grade = '정상'; j.gcls = 'g-ok'; j.fixed = true; return j; }
-  if (j.execRate === null || j.achRate === null) { j.grade = '확인필요'; j.gcls = 'g-gray'; return j; }
-  j.gap = j.execRate - j.achRate;
-  if (j.gap > 20) { j.grade = '경고'; j.gcls = 'g-over'; }
-  else if (j.gap > 10) { j.grade = '주의'; j.gcls = 'g-warn'; }
-  else { j.grade = '정상'; j.gcls = 'g-ok'; }
-  return j;
-}
-
-const SCR_CHECK_ITEMS = ['계정 일치', '매출 기여 근거', '금액 근거', '시기 적정', '중복 아님'];
-
-function opinionText(item, j) {
-  let t = '[곳간 사전심사] ' + j.grade;
-  if (j.bud) {
-    t += ' — ' + item.code + ' 잔액 ' + fmt(j.remaining) + '원';
-    if (j.fixed) t += ' (고정비 — 예산 통제만 적용)';
-    else if (j.gap !== null) t += ' · ' + j.dept.replace(/_/g, ' ') + ' 집행률 ' + j.execRate.toFixed(1)
-      + '% vs ' + j.channel + ' 매출 달성률 ' + j.achRate.toFixed(1) + '% (갭 ' + (j.gap >= 0 ? '+' : '') + j.gap.toFixed(1) + '%p)';
-  } else if (j.note) t += ' — ' + j.note;
-  j.warns.forEach(w => { t += ' · ' + w.msg + ' (' + w.ref + ')'; });
-  if (item.memo) t += ' · ' + item.memo;
-  return t;
-}
-
-function copyText(t) {
-  const fallback = () => {
-    const ta = document.createElement('textarea');
-    ta.value = t; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); toast('심사의견 복사됨'); }
-    catch (e) { prompt('아래 내용을 복사하세요', t); }
-    ta.remove();
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(t).then(() => toast('심사의견 복사됨')).catch(fallback);
-  } else fallback();
-}
-
-// ─── 사전심사: 화면 ───
-function renderScrChannel() {
-  const agg = channelAgg();
-  const order = ['국내', '해외', '일본', '전사'];
-  const 억 = n => (n / 1e8).toFixed(1) + '억';
-  let h = '<div class="cards" style="margin-bottom:0">';
-  order.forEach(chName => {
-    const c = agg[chName] || { plan: 0, act: 0 };
-    const rate = c.plan > 0 ? c.act / c.plan * 100 : null;
-    h += `<div class="card"><div class="label">${chName} 매출 달성률</div>
-      <div class="value">${rate === null ? '—' : rate.toFixed(1) + '%'}</div>
-      <div class="extra">실적 ${억(c.act)} / 계획 ${억(c.plan)} · 하반기 누적</div></div>`;
-  });
-  h += '</div>';
-  el('scr-channel').innerHTML = h;
-}
-
-function handleScrFile(file) {
-  readWorkbook(file).then(grid => {
-    if (!grid.length) return alert('빈 파일입니다.');
-    const header = grid[0].map(x => String(x).trim());
-    const find = kws => header.findIndex(h => kws.some(k => h.indexOf(k) > -1));
-    const cTitle = find(['제목']);
-    if (cTitle === -1) return alert('미결문서 목록 형식이 아닙니다 — "제목" 열을 찾을 수 없습니다.');
-    const cNo = header.findIndex((h, i) => i !== cTitle && h.indexOf('문서번호') > -1);
-    const cDate = find(['도착일', '기안일']);
-    const cDept = find(['기안부서', '부서']);
-    const cDrafter = find(['기안자']);
-    const cAmt = find(['금액']);
-
-    SCR_ITEMS = grid.slice(1).filter(r => String(r[cTitle] || '').trim()).map((r, i) => {
-      const title = String(r[cTitle]).trim();
-      const codeM = title.match(/\[([A-Za-z]{2,5}-(?:[A-Za-z]{2,3}-)?\d{2,4})\]/);
-      return {
-        idx: i, title,
-        docNo: cNo > -1 ? String(r[cNo] || '').trim() || '-' : '-',
-        arriveDate: cDate > -1 ? String(r[cDate] || '').slice(0, 10) : '',
-        draftDept: cDept > -1 ? String(r[cDept] || '').trim() : '',
-        drafter: cDrafter > -1 ? String(r[cDrafter] || '').trim() : '',
-        code: codeM ? normCode(codeM[1]) : '',
-        amount: cAmt > -1 ? (Number(String(r[cAmt]).replace(/[,원\s]/g, '')) || '') : '',
-        checks: {}, memo: '', savedId: null,
-      };
-    });
-    if (!SCR_ITEMS.length) return alert('데이터 행이 없습니다.');
-    if (cAmt === -1) toast('금액 열이 없어 수기 입력이 필요합니다');
-    renderScrCards();
-  }).catch(e => alert('엑셀 파싱 실패: ' + e.message));
-}
-
-function renderScrCards() {
-  let h = `<div class="alert info" style="margin:16px 0 0">${SCR_ITEMS.length}건 판정 — 예산코드·금액을 확인한 뒤, 기안 원문(증빙·사유)은 아마란스에서 열어 체크리스트로 확인하세요.</div>`;
-  SCR_ITEMS.forEach(it => {
-    h += `<div class="scr-card" data-i="${it.idx}">
-      <div class="scr-title">${it.title}</div>
-      <div class="scr-meta">${[it.arriveDate, it.draftDept, it.drafter, it.docNo !== '-' ? it.docNo : ''].filter(Boolean).join(' · ') || '메타 정보 없음'}</div>
-      <div class="scr-inputs">
-        <label class="muted">예산코드 <input class="code-in" data-sf="code" list="dl-codes" value="${it.code}"></label>
-        <label class="muted">금액 <input class="amt" data-sf="amount" type="number" value="${it.amount}"></label>
-      </div>
-      <div id="scr-j-${it.idx}"></div>
-      <div class="scr-sec">정성 체크리스트 — 기안 열어 확인</div>
-      <div class="scr-checks">${SCR_CHECK_ITEMS.map(c => `<label><input type="checkbox" data-sc="${c}"> ${c}</label>`).join('')}</div>
-      <div class="scr-actions">
-        <input type="text" data-sf="memo" placeholder="심사 메모 (의견에 덧붙일 한 줄)">
-        <button class="btn gray" data-copy="${it.idx}">의견 복사</button>
-        <button class="btn" data-save="${it.idx}">심사 저장</button>
-      </div>
-    </div>`;
-  });
-  el('scr-cards').innerHTML = h;
-
-  SCR_ITEMS.forEach(it => drawScrJudge(it.idx));
-  el('scr-cards').querySelectorAll('[data-sf]').forEach(inp => inp.oninput = e => {
-    const card = e.target.closest('.scr-card'), it = SCR_ITEMS[+card.dataset.i];
-    it[e.target.dataset.sf] = e.target.value;
-    if (e.target.dataset.sf !== 'memo') drawScrJudge(it.idx);
-  });
-  el('scr-cards').querySelectorAll('[data-sc]').forEach(cb => cb.onchange = e => {
-    const it = SCR_ITEMS[+e.target.closest('.scr-card').dataset.i];
-    it.checks[e.target.dataset.sc] = e.target.checked;
-  });
-  el('scr-cards').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
-    const it = SCR_ITEMS[+b.dataset.copy];
-    copyText(opinionText(it, judge(it.code, it.amount)));
-  });
-  el('scr-cards').querySelectorAll('[data-save]').forEach(b => b.onclick = () => saveScreening(+b.dataset.save, b));
-}
-
-function drawScrJudge(i) {
-  const it = SCR_ITEMS[i], j = judge(it.code, it.amount);
-  const box = el('scr-j-' + i);
-  if (!box) return;
-  let h = `<div class="scr-stats">`;
-  h += `<div class="scr-stat"><div class="k">판정</div><div class="v"><span class="g-pill ${j.gcls}">${j.grade}</span></div></div>`;
-  if (j.bud) {
-    h += `<div class="scr-stat"><div class="k">${it.code} · ${j.acct}${j.cls === '고정비' ? ' (고정비)' : ''}</div><div class="v" style="color:${j.remaining < 0 ? 'var(--over)' : 'var(--ink)'}">잔액 ${fmt(j.remaining)}원</div></div>`;
-    h += `<div class="scr-stat"><div class="k">${j.dept.replace(/_/g, ' ')} 집행률 (반영 후)</div><div class="v">${j.execRate === null ? '—' : j.execRate.toFixed(1) + '%'}</div></div>`;
-    if (!j.fixed) {
-      h += `<div class="scr-stat"><div class="k">${j.channel} 매출 달성률</div><div class="v">${j.achRate === null ? '— (실적 미입력)' : j.achRate.toFixed(1) + '%'}</div></div>`;
-      h += `<div class="scr-stat"><div class="k">진도율 갭</div><div class="v">${j.gap === null ? '—' : (j.gap >= 0 ? '+' : '') + j.gap.toFixed(1) + '%p'}</div></div>`;
-    }
-  }
-  h += `</div>`;
-  if (j.note) h += `<div class="alert warn" style="margin:12px 0 0">${j.note}</div>`;
-  if (j.warns.length) h += `<ul class="scr-warns">${j.warns.map(w => `<li>⚠ ${w.msg} <span class="ref">${w.ref}</span></li>`).join('')}</ul>`;
-  if (j.cards.length) {
-    h += `<div class="scr-sec">규정 카드 — 확인 항목</div>
-      <ul class="scr-rules">${j.cards.map(c => `<li>${c.msg} <span class="ref">${c.ref}</span></li>`).join('')}</ul>`;
-  }
-  // 같은 예산코드 과거 지출 (중복·쪼개기 탐지)
-  const code = String(it.code || '').trim().toUpperCase();
-  if (code) {
-    const past = EXPENSES.filter(r => String(r[11] || '').trim().toUpperCase() === code)
-      .sort((a, b) => String(b[4]).localeCompare(String(a[4]))).slice(0, 5);
-    if (past.length) {
-      h += `<details class="scr-past"><summary>같은 코드 최근 지출 ${past.length}건</summary>
-        <div class="table-wrap"><table>${past.map(r =>
-          `<tr><td class="muted">${String(r[4]).slice(0, 10)}</td><td class="title-cell">${r[3]}</td>
-           <td><span class="badge ${r[8] === '종결' ? 'b-ok' : 'b-gray'}">${r[8]}</span></td>
-           <td class="num">${r[12] === '' ? '—' : fmt(r[12]) + '원'}</td></tr>`).join('')}</table></div></details>`;
-    }
-  }
-  box.innerHTML = h;
-}
-
-async function saveScreening(i, btn) {
-  const it = SCR_ITEMS[i], j = judge(it.code, it.amount);
-  btn.disabled = true;
-  try {
-    const r = await gsAuth('apiSaveScreenings', [{
-      id: it.savedId, docNo: it.docNo, title: it.title, arriveDate: it.arriveDate,
-      draftDept: it.draftDept, drafter: it.drafter,
-      budgetDept: j.dept || '', acct: j.acct || '', code: it.code, amount: it.amount,
-      grade: j.grade, gap: j.gap === null ? '' : Number(j.gap.toFixed(1)),
-      autoWarn: j.warns.map(w => w.msg).join(' / '),
-      checks: SCR_CHECK_ITEMS.map(c => c + ':' + (it.checks[c] ? 'Y' : 'N')).join(', '),
-      memo: it.memo,
-    }]);
-    it.savedId = r.ids[0];
-    const ps = await gsAuth('apiGetPrescreen');
-    SCREENS = ps.screens || [];
-    renderScrHistory();
-    toast('심사 저장 완료');
-  } catch (e) {
-    if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
-    alert('저장 실패: ' + (e.message || e));
-  }
-  btn.disabled = false;
-}
-
-function renderScrHistory() {
-  if (!SCREENS.length) { el('scr-history').innerHTML = '<p class="muted">아직 심사 기록이 없습니다. 미결문서 목록을 올려 첫 심사를 시작하세요.</p>'; return; }
-  const gpill = g => {
-    const cls = g === '예산초과' ? 'g-overfill' : g === '경고' ? 'g-over' : g === '주의' ? 'g-warn' : g === '정상' ? 'g-ok' : 'g-gray';
-    return `<span class="g-pill ${cls}">${g}</span>`;
-  };
-  const rows = [...SCREENS].sort((a, b) => String(b[15]).localeCompare(String(a[15])));
-  let h = `<table><tr><th>심사일시</th><th>제목</th><th>예산부서</th><th>코드</th><th class="num">금액</th><th>등급</th><th class="num">갭</th><th>대사</th><th></th></tr>`;
-  rows.forEach(r => {
-    h += `<tr><td class="muted">${r[15]}</td>
-      <td class="title-cell" title="${String(r[2]).replace(/"/g, '&quot;')}">${r[2]}</td>
-      <td class="muted">${String(r[6]).replace(/_/g, ' ')}</td><td>${r[8]}</td>
-      <td class="num">${r[9] === '' ? '—' : fmt(r[9])}</td>
-      <td>${gpill(String(r[10]))}</td>
-      <td class="num">${r[11] === '' ? '—' : (Number(r[11]) >= 0 ? '+' : '') + r[11] + '%p'}</td>
-      <td>${r[17] ? `<span class="badge b-ok">${r[17]}</span>` : '<span class="badge b-gray">대기</span>'}</td>
-      <td><button class="mini" data-sdel="${r[0]}">삭제</button></td></tr>`;
-  });
-  h += '</table>';
-  el('scr-history').innerHTML = h;
-  el('scr-history').querySelectorAll('[data-sdel]').forEach(b => b.onclick = async () => {
-    if (!confirm('이 심사 기록을 삭제할까요?')) return;
-    try {
-      await gsAuth('apiDeleteScreening', b.dataset.sdel);
-      SCREENS = SCREENS.filter(r => r[0] !== b.dataset.sdel);
-      renderScrHistory(); toast('삭제됨');
-    } catch (e) { if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.'); alert(e.message || e); }
-  });
-}
-
-// ─── 매출 (계획·실적 입력) ───
-function renderRevenue() {
-  const months = monthList();
-  const channels = ['국내', '해외', '일본'];
-  const get = (mm, ch, k) => {
-    const hit = REVENUE.find(r => String(r[0]).slice(0, 7) === mm && String(r[1]).trim() === ch);
-    return hit ? hit[k === 'plan' ? 2 : 3] : '';
-  };
-  const agg = channelAgg();
-  const 억 = n => (n / 1e8).toFixed(1) + '억';
-  let h = `<div class="cards">`;
-  channels.concat(['전사']).forEach(chName => {
-    const c = agg[chName] || { plan: 0, act: 0 };
-    const rate = c.plan > 0 ? c.act / c.plan * 100 : null;
-    h += `<div class="card"><div class="label">${chName} 달성률</div>
-      <div class="value">${rate === null ? '—' : rate.toFixed(1) + '%'}</div>
-      <div class="extra">실적 ${억(c.act)} / 계획 ${억(c.plan)}</div></div>`;
-  });
-  h += `</div><section class="panel"><h2 class="section-head">채널별 매출 계획·실적</h2>
-    <p class="section-sub">계획 시드는 사업계획 Base(70%) 분기 계획의 월할입니다. 계절성 반영 등 수정 후 저장하세요. 실적은 재경 마감 후 월 1회 입력 — 사전심사의 매출 달성률이 이 표에서 계산됩니다.</p>
-    <div class="table-wrap"><table>
-    <tr><th>채널 / 구분</th>${months.map(mm => `<th class="num">${Number(mm.slice(5))}월</th>`).join('')}<th class="num">합계</th></tr>`;
-  channels.forEach(chName => {
-    ['plan', 'act'].forEach(kind => {
-      let sum = 0;
-      const cells = months.map(mm => {
-        const v = get(mm, chName, kind);
-        sum += Number(v) || 0;
-        return `<td class="num"><input class="rev-in" type="number" data-m="${mm}" data-c="${chName}" data-k="${kind}" value="${v}"></td>`;
-      }).join('');
-      h += `<tr><td style="${kind === 'plan' ? 'font-weight:600' : 'padding-left:28px;color:var(--ink-80)'}">${kind === 'plan' ? chName + ' · 계획' : '실적'}</td>${cells}<td class="num">${fmt(sum)}</td></tr>`;
-    });
-  });
-  h += `</table></div>
-    <div class="filters" style="margin:20px 0 0"><button class="btn" id="btn-rev-save">매출 저장</button>
-    <span class="muted">저장하면 사전심사 판정에 바로 반영됩니다.</span></div></section>`;
-  el('tab-rev').innerHTML = h;
-  el('btn-rev-save').onclick = async () => {
-    const rows = [];
-    const inputs = el('tab-rev').querySelectorAll('input.rev-in');
-    const byKey = {};
-    inputs.forEach(inp => {
-      const key = inp.dataset.m + '|' + inp.dataset.c;
-      byKey[key] = byKey[key] || { m: inp.dataset.m, c: inp.dataset.c, plan: '', act: '' };
-      byKey[key][inp.dataset.k === 'plan' ? 'plan' : 'act'] = inp.value;
-    });
-    Object.values(byKey).forEach(v => rows.push([v.m, v.c, v.plan, v.act]));
-    loading(true);
-    try {
-      await gsAuth('apiSaveRevenue', rows);
-      REVENUE = rows.map(r => [r[0], r[1], r[2] === '' ? '' : Number(r[2]), r[3] === '' ? '' : Number(r[3])]);
-      toast('매출 저장 완료');
-      renderRevenue(); renderScrChannel();
-      SCR_ITEMS.forEach(it => drawScrJudge(it.idx));
-    } catch (e) {
-      if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
-      alert('저장 실패: ' + (e.message || e));
     }
     loading(false);
   };
