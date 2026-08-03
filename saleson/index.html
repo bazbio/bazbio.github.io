@@ -485,11 +485,11 @@
     <div class="chips" id="pCat"></div>
     <label class="f">방문 예정일</label>
     <input type="date" id="pDate">
-    <label class="f">활동 유형</label>
-    <div class="chips" id="pType"></div>
-    <input type="text" id="pTypeEtc" style="display:none;" placeholder="활동 유형 직접 입력 (예: 온라인 미팅)" autocomplete="off">
     <label class="f">방문 목적 *</label>
-    <input type="text" id="pPurpose" placeholder="예: 장비 데모 진행">
+    <div class="chips" id="pType"></div>
+    <input type="text" id="pTypeEtc" style="display:none;" placeholder="방문 목적 직접 입력 (예: 온라인 미팅)" autocomplete="off">
+    <label class="f">상세 내용</label>
+    <input type="text" id="pPurpose" placeholder="예: 간호팀 젯팅 교육 및 자료 전달">
     <label class="f">접촉 예정자</label>
     <input type="text" id="pContact" placeholder="예: 원장 최OO">
     <label class="f">준비 사항</label>
@@ -2118,8 +2118,7 @@ function savePlan() {
   if (!f.hname) return toast('병원명을 입력해 주세요', true);
   if (!f.cat) return toast('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', true);
   if (!f.date) return toast('방문 예정일을 선택해 주세요', true);
-  if (!f.type) return toast(selPType === '__etc' ? '활동 유형을 직접 입력해 주세요' : '활동 유형을 선택해 주세요', true);
-  if (!f.purpose.trim()) return toast('방문 목적을 입력해 주세요', true);
+  if (!f.type) return toast(selPType === '__etc' ? '방문 목적을 직접 입력해 주세요' : '방문 목적을 선택해 주세요', true);
   if (document.getElementById('pLeadSec').style.display !== 'none') {
     if (!selPCh) return toast('판매 구분(직판/딜러)을 선택해 주세요', true);
     if (selPCh === '딜러' && !document.getElementById('pDealer').value.trim()) return toast('딜러명을 입력해 주세요', true);
