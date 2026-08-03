@@ -2823,8 +2823,34 @@ function mineLogCard(l) {
     + (MINE.admin && l.rep ? '<span class="tag">' + esc(l.rep) + '</span>' : '')
     + '</div>'
     + (l.note ? '<div style="margin-top:9px;font-size:14px;color:#4e5968;line-height:1.6;">' + esc(l.note) + '</div>' : '')
-    + '<div style="margin-top:12px;text-align:right;">'
+    + '<div style="margin-top:12px;text-align:right;display:flex;gap:7px;justify-content:flex-end;">'
+    /* 삭제는 **DB가 원천일 때만** 보인다. 시트가 원천이면 지울 곳이 관문이 아니라 시트라
+       버튼이 아무 일도 못 한다 — 되는 것처럼 보이는 버튼이 제일 나쁘다. */
+    + (DATA.dbSrc ? '<button class="btn ghost" onclick="deleteLog(\'' + 열쇠_(l) + '\')">삭제</button>' : '')
     + '<button class="btn" onclick="editLog(\'' + 열쇠_(l) + '\')">수정</button></div></div>';
+}
+
+/* 방문기록 지우기 — 행을 진짜로 지우지 않고 숨긴다(마이그레이션 0009).
+   목록·집계·시트에서 사라지고, 잘못 눌러도 DB에 남아 있어 되살릴 수 있다. */
+function deleteLog(열쇠) {
+  var 대상 = 열쇠찾기_((MINE || {}).logs, 열쇠) || {};
+  if (!대상.no) return toast('이 기록은 새로고침 뒤에 지울 수 있어요', true);
+  if (!confirm('이 방문기록을 지울까요?\n\n'
+    + (대상.hname || '') + ' · ' + (대상.date || '') + '\n'
+    + (대상.note || '').slice(0, 40) + '\n\n목록과 집계에서 사라집니다.')) return;
+  busy(true);
+  관문호출_('/saleson-visit-act', JSON.stringify({
+    토큰: TOKEN, 동작: '삭제', no: 대상.no,
+  })).then(function(r) {
+    busy(false);
+    // 목록에서 그 카드만 걷어낸다 — 목록을 다시 부르면 왕복이 하나 는다
+    MINE.logs = (MINE.logs || []).filter(function(x) { return 열쇠_(x) !== 열쇠; });
+    DASH = null; FLOW = null; KPIT = null;
+    renderMine();
+    toast(r.msg || '지웠습니다.');
+  }).catch(function(e) {
+    busy(false); toast(e.message, true);
+  });
 }
 function mineLeadCard(l) {
   return '<div class="card">'
