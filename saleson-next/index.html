@@ -2098,7 +2098,9 @@ function savePlan() {
     purpose: document.getElementById('pPurpose').value,
     contact: document.getElementById('pContact').value,
     prep: document.getElementById('pPrep').value,
-    metaRow: META_PREFILL ? META_PREFILL.row : '',   // Meta 문의에서 왔으면 저장 시 승격된다
+    // Meta 문의에서 왔으면 저장 시 시트의 문의가 '리드 전환'으로 승격된다.
+    // DB 쪽은 저장이 끝난 뒤 화면이 관문에 따로 올린다 (metaAssign과 같은 이유)
+    metaExtId: META_PREFILL ? META_PREFILL.extId : '',
   };
   f.cat = selPCat;
   if (!f.hname) return toast('병원명을 입력해 주세요', true);
@@ -2120,11 +2122,21 @@ function savePlan() {
   }
   document.getElementById('pSave').disabled = true;
   busy(true);
+  var 승격문의 = META_PREFILL ? META_PREFILL.id : 0;   // resetPlanForm이 지우기 전에 잡아 둔다
   gsrun().withSuccessHandler(function(d) {
     var keepDate = document.getElementById('pDate').value;
     onData(d); resetPlanForm(keepDate); show('plan');
     toast('계획을 저장했습니다. 이어서 등록하세요');
     document.getElementById('pSave').disabled = false;
+    // Meta 문의에서 온 계획이면 DB의 문의도 '리드 전환'으로 올린다 (metaAssign과 같은 이유).
+    // 시트는 GAS가 방금 고쳤다. 실패해도 계획 저장은 이미 끝났으므로 알리기만 한다
+    if (승격문의) {
+      문의관문_('/saleson-inquiry-act', JSON.stringify({
+        토큰: TOKEN, id: 승격문의, 동작: '리드전환', hname: f.hname
+      })).catch(function(e) {
+        toast('계획은 저장됐지만 문의 상태를 못 바꿨습니다: ' + e.message, true);
+      });
+    }
   }).withFailureHandler(function(e) {
     busy(false); document.getElementById('pSave').disabled = false; toast(e.message, true);
   }).웹_계획저장(TOKEN, f);
@@ -2243,14 +2255,32 @@ function resetForm() {
    Meta DB — 광고 문의함 (ADR 0002)
    문의는 리드가 아니다. [계획 등록]을 거쳐야만 '리드 전환'이 된다.
    ══════════════════════════════════════════════════════════════ */
+/* 관문에 문의 요청을 보낸다 — 목록·쓰기가 같은 통로를 쓴다 (ADR 0004 3단계).
+   문의는 **DB가 원천**이라 GAS 폴백이 없다. 폴백을 두면 목록은 시트(row 열쇠), 쓰기는
+   DB(id 열쇠)가 되어 열쇠가 갈리고, 무엇보다 저장이 다시 GAS 왕복 1.8초가 된다.
+   관문이 죽으면 문의 탭이 멈춘다 — 「DB 단독」의 대가이고 알고 고른 것이다. */
+function 문의관문_(경로, 몸통) {
+  return fetch(GATE_URL + 경로, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: 몸통
+  }).then(function(res) {
+    return res.json().catch(function() { return null; }).then(function(j) {
+      if (!res.ok) throw new Error((j && j.error) || ('문의 서버 오류 (' + res.status + ')'));
+      return j;
+    });
+  });
+}
+
 function loadMeta() {
   busy(true);
-  gsrun().withSuccessHandler(function(d) {
+  // 목록 관문만 토큰을 본문에 **날것으로** 받는다 (saleson-inquiries). 쓰기 쪽은 JSON이다
+  문의관문_('/saleson-inquiries', TOKEN).then(function(d) {
     METAQ = d; busy(false); renderMeta();
-  }).withFailureHandler(function(e) {
+  }).catch(function(e) {
     busy(false);
     document.getElementById('metaBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
-  }).웹_메타문의(TOKEN);
+  });
 }
 
 function 경과문구_(ms) {
@@ -2267,7 +2297,7 @@ function metaSeg(s) { METASEG = s; renderMeta(); }
 function 문의갱신_(q) {
   if (!q || !METAQ || !METAQ.inquiries) return false;
   for (var i = 0; i < METAQ.inquiries.length; i++) {
-    if (METAQ.inquiries[i].row !== q.row) continue;
+    if (METAQ.inquiries[i].id !== q.id) continue;
     // 방문 지표(visits·firstDays)는 목록 조회에서만 붙는다 — 있던 값을 잃지 않게 얹는다
     var 이전 = METAQ.inquiries[i];
     if (이전.visits !== undefined && q.visits === undefined) {
@@ -2341,56 +2371,54 @@ function metaCard(q) {
       + 'font-size:12.5px;color:#4e5968;line-height:1.7;white-space:pre-wrap;">' + esc(q.memo) + '</div>';
   }
   // 통화 직후 바로 분류 — 폰에서 쓰는 흐름이라 한 화면에서 끝나게 한다
-  if (METAOPEN === q.row && q.status !== '리드 전환') {
+  if (METAOPEN === q.id && q.status !== '리드 전환') {
     h += metaAssignBox(q);
   }
   var btn = [];
   if (q.status === '신규') {
-    btn.push('<button class="btn pri" onclick="metaTake(' + q.row + ')">통화 잡기</button>');
-    btn.push('<button class="btn" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
+    btn.push('<button class="btn pri" onclick="metaTake(' + q.id + ')">통화 잡기</button>');
+    btn.push('<button class="btn" onclick="metaOpen(' + q.id + ')">통화 완료 · 분류</button>');
   } else if (q.status === '통화중' && (mine || me.admin)) {
-    btn.push('<button class="btn pri" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
-    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+    btn.push('<button class="btn pri" onclick="metaOpen(' + q.id + ')">통화 완료 · 분류</button>');
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.id + ')">되돌리기</button>');
   } else if (q.status === '재통화 대기' && (mine || me.admin)) {
     // 재통화 대기는 "다시 걸 차례"다 — 분류 상자가 첫 버튼이어야 통화 직후 바로 끝난다
-    btn.push('<button class="btn pri" onclick="metaOpen(' + q.row + ')">통화 완료 · 분류</button>');
-    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+    btn.push('<button class="btn pri" onclick="metaOpen(' + q.id + ')">통화 완료 · 분류</button>');
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.id + ')">되돌리기</button>');
   } else if (q.status === '제외' && (mine || me.admin)) {
-    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.row + ')">되돌리기</button>');
+    btn.push('<button class="btn ghost" onclick="metaUndo(' + q.id + ')">되돌리기</button>');
   }
   // 통화 메모는 상태와 무관 — 부재중·재통화 예정 같은 시도 이력을 남긴다
-  btn.push('<button class="btn ghost" onclick="metaMemo(' + q.row + ')">메모</button>');
+  btn.push('<button class="btn ghost" onclick="metaMemo(' + q.id + ')">메모</button>');
   if (btn.length) h += '<div style="margin-top:12px;display:flex;gap:7px;flex-wrap:wrap;">' + btn.join('') + '</div>';
   return h + '</div>';
 }
-function metaMemo(row) {
+function metaMemo(id) {
   var t = prompt('통화 메모 (예: 부재중, 내일 오전 재통화)');
   if (t == null) return;
   if (!t.trim()) return toast('메모 내용을 입력해 주세요', true);
+  metaAct_(id, '메모', '', '', t.trim());
+}
+/* 문의 쓰기 — 관문으로 간다. GAS 왕복 1.8초가 통째로 빠지는 자리다.
+   응답에 갱신된 한 건(q)이 실려 오므로 목록을 다시 안 받는다. */
+function metaAct_(id, action, why, next, text) {
   busy(true);
-  gsrun().withSuccessHandler(function(r) {
+  문의관문_('/saleson-inquiry-act', JSON.stringify({
+    토큰: TOKEN, id: id, 동작: action, why: why || '', next: next || '', text: text || ''
+  })).then(function(r) {
     busy(false); toast(r.msg);
     if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
-  }).withFailureHandler(function(e) {
-    busy(false); toast(e.message, true);
-  }).웹_메타메모(TOKEN, row, t.trim());
-}
-function metaAct_(row, action, why, okMsg) {
-  busy(true);
-  gsrun().withSuccessHandler(function(r) {
-    busy(false); toast(r.msg || okMsg);
-    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
-  }).withFailureHandler(function(e) {
+  }).catch(function(e) {
     busy(false); toast(e.message, true); METAQ = null; loadMeta();   // 남이 먼저 잡았을 수 있다 — 최신으로
-  }).웹_메타상태변경(TOKEN, row, action, why || '');
+  });
 }
-function metaTake(row) { metaAct_(row, '통화중'); }
-function metaUndo(row) { metaAct_(row, '취소'); }
-function metaExclude(row) {
+function metaTake(id) { metaAct_(id, '통화중'); }
+function metaUndo(id) { metaAct_(id, '취소'); }
+function metaExclude(id) {
   var why = prompt('제외 사유를 입력해 주세요 (예: 병원 아님, 연락 불가, 스팸)');
   if (why == null) return;
   if (!why.trim()) return toast('사유가 있어야 제외할 수 있습니다', true);
-  metaAct_(row, '제외', why.trim());
+  metaAct_(id, '제외', why.trim());
 }
 /* 통화 완료 · 분류 상자 — 폰 통화 직후 한 화면에서 끝낸다 (1차 통화자 워크플로).
    리드 전환이면 담당자를 골라 배정(웹_메타리드전환 → 배정 메일), 아니면 제외.
@@ -2417,8 +2445,8 @@ function metaAssignBox(q) {
     + '<select id="mxCat"><option value="">나중에 정함</option>'
     + cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('') + '</select>';
   h += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;">'
-    + '<button class="btn pri" onclick="metaAssign(' + q.row + ')">리드 전환 — 배정 + 메일</button>'
-    + '<button class="btn" onclick="metaPlan(' + q.row + ')">내가 직접 (계획 등록)</button>'
+    + '<button class="btn pri" onclick="metaAssign(' + q.id + ')">리드 전환 — 배정 + 메일</button>'
+    + '<button class="btn" onclick="metaPlan(' + q.id + ')">내가 직접 (계획 등록)</button>'
     + '</div>';
   // 부재중 — 통화가 안 됐을 때. 다음 시각을 반드시 쥐고 나가야 아침 메일이 다시 깨워 준다.
   // 폰 통화 직후에 누르는 자리라 날짜 피커 대신 칩으로 고른다
@@ -2434,32 +2462,53 @@ function metaAssignBox(q) {
     + '</div>'
     + '<input type="datetime-local" id="mxNextAt" style="display:none;margin-top:8px;">'
     + '<div style="margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
-    + '<button class="btn" onclick="metaMissed(' + q.row + ')">부재중으로 넘기기</button>'
+    + '<button class="btn" onclick="metaMissed(' + q.id + ')">부재중으로 넘기기</button>'
     + '<span style="font-size:11.5px;color:#8b95a1;">'
     + (남은 > 1 ? (q.tries || 0) + '회 시도 · ' + 남은 + '회 더 부재중이면 자동 제외'
                 : '<b style="color:#d0223a;">' + (q.tries || 0) + '회 시도 · 다음 부재중이면 연락 불가로 자동 제외됩니다</b>') + '</span>'
     + '</div></div>';
   h += '<div style="margin-top:12px;border-top:1px solid #d6e6ff;padding-top:12px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;">'
     + '<input type="text" id="mxWhy" placeholder="제외 사유 (예: 병원 아님, 관심 없음)" style="flex:1;min-width:150px;">'
-    + '<button class="btn" onclick="metaExcludeBox(' + q.row + ')">제외</button>'
+    + '<button class="btn" onclick="metaExcludeBox(' + q.id + ')">제외</button>'
     + '<button class="btn ghost" onclick="metaOpen(0)">닫기</button></div>';
   return h + '</div>';
 }
-function metaAssign(row) {
+/* 리드 전환만 두 걸음이다 — 다른 문의 쓰기와 다르다.
+   리드 행을 만드는 것은 08_리드관리(시트)에 쓰는 일이라 GAS가 해야 한다. `leads`가 아직
+   시트의 거울이라 관문이 만들면 새벽 4시 재대조가 그 리드를 지운다.
+   그래서 ① GAS가 리드를 만들고 배정 메일을 보내고 ② 화면이 관문에 상태를 올린다.
+   ②를 GAS에 맡길 수 없는 이유: 재대조는 DB가 손 안 댄 행(신규·시도0)에만 시트 값을
+   채우므로, 앱이 한 번 만진 문의는 시트에서 DB로 영영 못 넘어온다.
+   드물게 쓰는 경로라 왕복 둘을 감수한다(부재중과 달리 하루 몇 건이다). */
+function metaAssign(id) {
+  var q = 문의찾기_(id);
+  if (!q) return toast('목록이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.', true);
   var hname = (document.getElementById('mxHosp') || {}).value || '';
   if (!hname.trim()) return toast('병원명을 입력해 주세요', true);
   if (!METAREP) return toast('리드 담당자를 선택해 주세요', true);
   var cat = (document.getElementById('mxCat') || {}).value || '';
   busy(true);
   gsrun().withSuccessHandler(function(r) {
-    busy(false); toast(r.msg); METAOPEN = 0; METAREP = '';
-    // 예전에는 여기서 문의 목록과 초기데이터를 각각 다시 받아 왕복이 셋이었다(5.5초).
-    // 이제 쓰기 응답이 둘 다 실어 온다 — 서버가 못 실어 보냈으면 예전 경로로 돌아간다.
     if (r.init) onData(r.init);   // 리드 목록·홈 KPI 갱신
-    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
+    // ② 시트에 리드가 생겼다 — 이제 DB의 문의 상태를 올린다
+    문의관문_('/saleson-inquiry-act', JSON.stringify({
+      토큰: TOKEN, id: id, 동작: '리드전환', hname: hname.trim()
+    })).then(function(g) {
+      busy(false); toast(r.msg); METAOPEN = 0; METAREP = '';
+      if (!문의갱신_(g.q)) { METAQ = null; loadMeta(); }
+    }).catch(function(e) {
+      /* 리드는 만들어졌는데 상태만 못 올렸다. 목록을 다시 받아 진짜 상태를 보여 준다 —
+         조용히 넘기면 같은 문의를 또 전환해 리드가 둘이 된다 */
+      busy(false); METAOPEN = 0; METAREP = '';
+      toast('리드는 만들어졌지만 문의 상태를 못 바꿨습니다: ' + e.message, true);
+      METAQ = null; loadMeta();
+    });
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
-  }).웹_메타리드전환(TOKEN, row, hname.trim(), METAREP, cat);
+  }).웹_메타리드전환(TOKEN, 0, hname.trim(), METAREP, cat, q.extId);
+}
+function 문의찾기_(id) {
+  return ((METAQ && METAQ.inquiries) || []).filter(function(x) { return x.id === id; })[0];
 }
 /* 재통화 시각 칩 — 사무실 통화 리듬에 맞춘 기본값. '직접 선택'만 피커를 연다 */
 var METANEXT = '';
@@ -2482,33 +2531,29 @@ function 다음시각_(kind) {
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
     + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
-function metaMissed(row) {
+function metaMissed(id) {
   if (!METANEXT) return toast('다시 걸 시각을 골라 주세요', true);
   var next = METANEXT === 'pick'
     ? String((document.getElementById('mxNextAt') || {}).value || '').replace('T', ' ')
     : 다음시각_(METANEXT);
   if (!next) return toast('다시 걸 시각을 골라 주세요', true);
-  busy(true);
-  gsrun().withSuccessHandler(function(r) {
-    busy(false); toast(r.msg); METAOPEN = 0; METANEXT = '';
-    if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
-  }).withFailureHandler(function(e) {
-    busy(false); toast(e.message, true);
-  }).웹_메타상태변경(TOKEN, row, '부재중', '', next);
+  METAOPEN = 0; METANEXT = '';
+  metaAct_(id, '부재중', '', next);
 }
-function metaExcludeBox(row) {
+function metaExcludeBox(id) {
   var why = (document.getElementById('mxWhy') || {}).value || '';
   if (!why.trim()) return toast('제외 사유를 입력해 주세요', true);
-  METAOPEN = 0; metaAct_(row, '제외', why.trim());
+  METAOPEN = 0; metaAct_(id, '제외', why.trim());
 }
 
 /* 문의 → 계획 등록 — 병원명·접촉자·소스를 채우고 문의 행번호를 들고 간다.
    병원명은 고칠 수 있다(광고 폼의 업체명이 실제 병원명과 다를 수 있다). 저장 시 서버가
    문의를 '리드 전환'으로 승격하고 리드행·확정 병원명을 문의에 적는다 */
-function metaPlan(row) {
-  var q = ((METAQ && METAQ.inquiries) || []).filter(function(x) { return x.row === row; })[0];
+function metaPlan(id) {
+  var q = 문의찾기_(id);
   if (!q) return;
-  META_PREFILL = { row: row };
+  // 시트 행 번호가 아니라 문의ID를 들고 간다 — 관문 목록은 시트 행을 모른다
+  META_PREFILL = { id: id, extId: q.extId };
   show('plan');
   document.getElementById('pHosp').value = q.hname2 || q.company || '';
   document.getElementById('pContact').value = q.name + (q.title ? ' (' + q.title + ')' : '');
