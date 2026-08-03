@@ -521,6 +521,7 @@
     <div class="chips" id="fCat"></div>
     <label class="f">활동 유형</label>
     <div class="chips" id="fType"></div>
+    <input type="text" id="fTypeEtc" style="display:none;margin-top:8px;" placeholder="활동 유형 직접 입력 (예: 정기 결제, 실장님 미팅)" autocomplete="off">
     <label class="f">판매 단계</label>
     <select id="fStage"><option value="">선택 안 함</option></select>
     <label class="f">데모 노즐 사용량 (개)</label>
@@ -1900,10 +1901,15 @@ function renderForm() {
     var el = document.getElementById(id);
     if (el && !el.dataset.draft) { el.dataset.draft = '1'; el.addEventListener('input', 임시저장_); }
   });
+  /* 기록 폼에도 「기타 (직접 입력)」을 연다 (2026-08-03).
+     계획에는 있고 기록에는 없었다. 그래서 계획에서 자유 입력한 유형(유비야 '결제'·'정기미팅',
+     김민주 '미팅' 등 실제 23건)으로 [기록 쓰기]를 누르면 **어느 칩과도 안 맞아 유형이 빈 채**로
+     남고, 저장하면 「활동 유형을 선택해 주세요」에서 막혔다. 두 사람이 계획은 26·33건인데
+     기록은 9·8건뿐인 이유다 — 「저장이 안 된다」의 실체다. */
   var tw = document.getElementById('fType');
   tw.innerHTML = DATA.types.map(function(t) {
     return '<div class="chip" data-v="' + esc(t) + '" onclick="pickType(this)">' + esc(t) + '</div>';
-  }).join('');
+  }).join('') + '<div class="chip" data-v="__etc" onclick="pickType(this)">기타 (직접 입력)</div>';
   var st = document.getElementById('fStage');
   st.innerHTML = '<option value="">선택 안 함</option>';
   DATA.stages.forEach(function(s) {
@@ -2164,6 +2170,11 @@ function resetPlanForm(keepDate) {
 function pickType(el) {
   selType = el.getAttribute('data-v');
   document.querySelectorAll('#fType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  var etc = document.getElementById('fTypeEtc');
+  if (etc) {
+    etc.style.display = selType === '__etc' ? 'block' : 'none';
+    if (selType === '__etc') etc.focus();
+  }
 }
 /* 계획 카드 [기록 쓰기] → 기록 폼 채우기.
    예전엔 병원명과 활동 유형만 채웠다. 그래서 두 가지가 "저장이 안 된다"로 나타났다:
@@ -2177,9 +2188,18 @@ function prefill(row) {
   if (p) {
     PREFILL = { hname: p.hname, hcode: p.hcode || '' };
     document.getElementById('fHosp').value = p.hname;
+    var 맞은칩 = null;
     document.querySelectorAll('#fType .chip').forEach(function(c) {
-      if (c.getAttribute('data-v') === p.type) pickType(c);
+      if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
     });
+    if (맞은칩) { pickType(맞은칩); }
+    else if (p.type) {
+      /* 계획에서 자유 입력한 유형이다(유비야 '결제', 김민주 '미팅' 등 실제 23건).
+         예전에는 아무 칩도 안 맞아 **유형이 빈 채로** 남았고, 저장하면
+         「활동 유형을 선택해 주세요」에서 막혔다 — 데이터가 날아간 자리다. */
+      var 기타칩 = document.querySelector('#fType .chip[data-v="__etc"]');
+      if (기타칩) { pickType(기타칩); document.getElementById('fTypeEtc').value = p.type; }
+    }
     if (p.cat) {
       document.querySelectorAll('#fCat .chip').forEach(function(c) {
         if (c.getAttribute('data-v') === p.cat) pickFCat(c);
@@ -2205,7 +2225,7 @@ function saveLog() {
     hname: name, hcode: code,
     date: document.getElementById('fDate').value,
     next: document.getElementById('fNext').value,
-    type: selType,
+    type: selType === '__etc' ? document.getElementById('fTypeEtc').value.trim() : selType,
     cat: selFCat,
     stage: document.getElementById('fStage').value,
     contact: document.getElementById('fContact').value,
@@ -2264,6 +2284,8 @@ function resetForm() {
   ['fHosp', 'fNext', 'fContact', 'fNote', 'fReaction', 'fFu', 'fNozzle'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('fDate').value = DATA.today;
   document.getElementById('fStage').value = '';
+  document.getElementById('fTypeEtc').value = '';
+  document.getElementById('fTypeEtc').style.display = 'none';
   selType = ''; selFCat = ''; PREFILL = null;
   selMats = []; matVals = {};
   document.getElementById('fMatDetails').innerHTML = '';
