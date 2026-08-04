@@ -2228,26 +2228,32 @@ var PREFILL = null;   // 계획에서 넘어온 병원코드 — 거래처 목�
 function prefill(row) {
   var p = DATA.plans.filter(function(x) { return x.row === row; })[0];
   PREFILL = null;
-  if (p) {
-    PREFILL = { hname: p.hname, hcode: p.hcode || '' };
-    document.getElementById('fHosp').value = p.hname;
-    var 맞은칩 = null;
-    document.querySelectorAll('#fType .chip').forEach(function(c) {
-      if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
+  /* 못 찾으면 **아무 말도 안 하고** 빈 폼으로 넘어가던 자리다. 화면이 쥔 계획 목록이 낡으면
+     (다른 사람이 계획을 지웠거나, 그 사이 시트가 다시 쓰였거나) 병원명·유형이 안 채워지는데,
+     사용자에게는 「눌렀는데 아무것도 안 뜬다」로 보인다. 8/4에 계획이 지워지고 있을 때
+     이 침묵이 「입력이 안 된다」는 오해를 키웠다. 말해 주고 새로 받게 한다. */
+  if (!p) {
+    toast('그 계획을 찾지 못했습니다. 새로고침 뒤 다시 눌러 주세요', true);
+    return;
+  }
+  PREFILL = { hname: p.hname, hcode: p.hcode || '' };
+  document.getElementById('fHosp').value = p.hname;
+  var 맞은칩 = null;
+  document.querySelectorAll('#fType .chip').forEach(function(c) {
+    if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
+  });
+  if (맞은칩) { pickType(맞은칩); }
+  else if (p.type) {
+    /* 계획에서 자유 입력한 유형이다(유비야 '결제', 김민주 '미팅' 등 실제 23건).
+       예전에는 아무 칩도 안 맞아 **유형이 빈 채로** 남았고, 저장하면
+       「활동 유형을 선택해 주세요」에서 막혔다 — 데이터가 날아간 자리다. */
+    var 기타칩 = document.querySelector('#fType .chip[data-v="__etc"]');
+    if (기타칩) { pickType(기타칩); document.getElementById('fTypeEtc').value = p.type; }
+  }
+  if (p.cat) {
+    document.querySelectorAll('#fCat .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === p.cat) pickFCat(c);
     });
-    if (맞은칩) { pickType(맞은칩); }
-    else if (p.type) {
-      /* 계획에서 자유 입력한 유형이다(유비야 '결제', 김민주 '미팅' 등 실제 23건).
-         예전에는 아무 칩도 안 맞아 **유형이 빈 채로** 남았고, 저장하면
-         「활동 유형을 선택해 주세요」에서 막혔다 — 데이터가 날아간 자리다. */
-      var 기타칩 = document.querySelector('#fType .chip[data-v="__etc"]');
-      if (기타칩) { pickType(기타칩); document.getElementById('fTypeEtc').value = p.type; }
-    }
-    if (p.cat) {
-      document.querySelectorAll('#fCat .chip').forEach(function(c) {
-        if (c.getAttribute('data-v') === p.cat) pickFCat(c);
-      });
-    }
   }
   show('log');
 }
