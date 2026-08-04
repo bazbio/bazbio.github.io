@@ -476,7 +476,7 @@
     <button class="save" id="eSave" onclick="saveEvt()">행사 등록</button>
   </div>
   <div class="card">
-    <label class="f">병원 검색</label>
+    <label class="f">병원 검색 *</label>
     <input type="text" id="pHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkNewHosp()">
     <div id="pLeadSec" style="display:none;border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">
       <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">처음 보는 병원이네요 — 거래처와 리드로 함께 등록합니다</div>
@@ -533,7 +533,7 @@
     <button class="btn" onclick="cancelEdit()">취소</button>
   </div>
   <div class="card">
-    <label class="f">병원 검색</label>
+    <label class="f">병원 검색 *</label>
     <input type="text" id="fHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off">
     <datalist id="hospList"></datalist>
     <div class="row2">
@@ -542,7 +542,7 @@
     </div>
     <label class="f">판매 카테고리 *</label>
     <div class="chips" id="fCat"></div>
-    <label class="f">활동 유형</label>
+    <label class="f">활동 유형 *</label>
     <div class="chips" id="fType"></div>
     <input type="text" id="fTypeEtc" style="display:none;margin-top:8px;" placeholder="활동 유형 직접 입력 (예: 정기 결제, 실장님 미팅)" autocomplete="off">
     <label class="f">판매 단계</label>
@@ -849,7 +849,7 @@
   </div>
 </div>
 
-<div id="loading"><div class="spin"></div><div style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
+<div id="loading"><div class="spin"></div><div id="loadMsg" style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
 <div id="gate">
   <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
   <div style="margin-top:10px;font-size:12px;font-weight:600;color:#B9B9C0;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
@@ -1267,12 +1267,21 @@ function openEvtReg() {
   show('plan');
   document.getElementById('evtRegCard').style.display = 'block';
 }
+var 토스트타이머_ = 0;
 function toast(msg, err) {
   var t = document.getElementById('toast');
   t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block';
-  setTimeout(function() { t.style.display = 'none'; }, 2600);
+  t.onclick = function() { t.style.display = 'none'; };   // 탭하면 닫힌다
+  clearTimeout(토스트타이머_);
+  /* 오류는 길고 「무엇을 하면 되는지」가 들어 있다 — 2.6초로는 읽을 수 없고, 놓치면
+     「빨간 게 뜨고 사라졌다」만 남는다 (8/5 감사). 오류는 8초 + 탭 닫기. */
+  토스트타이머_ = setTimeout(function() { t.style.display = 'none'; }, err ? 8000 : 2600);
 }
-function busy(on) { document.getElementById('loading').style.display = on ? 'flex' : 'none'; }
+function busy(on, msg) {
+  document.getElementById('loading').style.display = on ? 'flex' : 'none';
+  // 저장하는 동안 「불러오는 중」이라고 말하면 저장이 진행 중이라는 신호가 없다 (8/5 감사)
+  document.getElementById('loadMsg').textContent = (on && msg) || '불러오는 중…';
+}
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
 
 /* ── 홈 ── */
@@ -1932,7 +1941,7 @@ function planCard(p) {
 }
 function planStatus(row, status) {
   if (!confirm('이 계획을 \'' + status + '\' 처리할까요?')) return;
-  busy(true);
+  busy(true, '변경 중…');
   gsrun().withSuccessHandler(function(d) { onData(d); toast(status + ' 처리했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_계획상태변경(TOKEN, row, status);
@@ -2192,7 +2201,7 @@ function savePlan() {
     };
   }
   document.getElementById('pSave').disabled = true;
-  busy(true);
+  busy(true, '저장 중…');
   var 승격문의 = META_PREFILL ? META_PREFILL.id : 0;   // resetPlanForm이 지우기 전에 잡아 둔다
   gsrun().withSuccessHandler(function(d) {
     busy(false);   // ⚠ 없으면 저장 성공 시 오버레이가 안 걷힌다 (saveLog와 같은 부류)
@@ -2306,7 +2315,7 @@ function saveLog() {
   if (!f.type) return toast('활동 유형을 선택해 주세요', true);
   if (!f.note.trim()) return toast('논의 내용을 입력해 주세요', true);
   document.getElementById('fSave').disabled = true;
-  busy(true);
+  busy(true, '저장 중…');
   if (EDITKEY) {
     // 목록을 관문에서 받았으면 서버가 `f.no`로 행을 집는다 — 시트 행 번호는 DB가 모른다
     var 대상 = 열쇠찾기_((MINE || {}).logs, EDITKEY) || {};
@@ -2612,7 +2621,7 @@ function metaMemo(id) {
 /* 문의 쓰기 — 관문으로 간다. GAS 왕복 1.8초가 통째로 빠지는 자리다.
    응답에 갱신된 한 건(q)이 실려 오므로 목록을 다시 안 받는다. */
 function metaAct_(id, action, why, next, text) {
-  busy(true);
+  busy(true, '처리 중…');
   관문호출_('/saleson-inquiry-act', JSON.stringify({
     토큰: TOKEN, id: id, 동작: action, why: why || '', next: next || '', text: text || ''
   })).then(function(r) {
@@ -3004,7 +3013,7 @@ function deleteLog(열쇠) {
   if (!confirm('이 방문기록을 지울까요?\n\n'
     + (대상.hname || '') + ' · ' + (대상.date || '') + '\n'
     + (대상.note || '').slice(0, 40) + '\n\n목록과 집계에서 사라집니다.')) return;
-  busy(true);
+  busy(true, '저장 중…');
   관문호출_('/saleson-visit-act', JSON.stringify({
     토큰: TOKEN, 동작: '삭제', no: 대상.no,
   })).then(화면갱신감싸기_(function(r) {
@@ -3036,7 +3045,7 @@ function saveDealDate(k) {
   var l = 열쇠찾기_((MINE || {}).leads, k);
   if (!l) return toast('목록이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.', true);
   var v = document.getElementById('dl' + k).value;
-  busy(true);
+  busy(true, '지우는 중…');
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
     /* 시트에 쓴 값이라 관문 거울에는 아직 없다 — 목록을 다시 받으면 방금 넣은 계약일이
@@ -3213,7 +3222,7 @@ function closeFail() { document.getElementById('failModal').style.display = 'non
 function submitFail() {
   var why = document.getElementById('failWhy').value.trim();
   if (!why) return toast('실패 요인을 입력해 주세요', true);
-  busy(true);
+  busy(true, '저장 중…');
   gsrun().withSuccessHandler(function(d) {
     closeFail(); LEADSEG = 'fail'; onData(d); show('lead');
     toast('실패 처리했습니다 — 실패 탭에서 계속 추적됩니다');
@@ -3391,7 +3400,7 @@ function submitMat() {
 }
 function matDelete(row) {
   if (!confirm('이 자료를 삭제할까요? 업로드된 파일도 휴지통으로 이동합니다.')) return;
-  busy(true);
+  busy(true, '지우는 중…');
   gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); toast('삭제했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_영업자료삭제(TOKEN, row);
