@@ -169,11 +169,11 @@
   .nav button.on { color:#1b64da; font-weight:700; }
 
   /* 오버레이 */
-  #loading, #gate { position:fixed; inset:0; background:#f9fafb; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; }
+  #loading, #gate { position:fixed; inset:0; background:#f9fafb; z-index:70; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; }
   #gate { display:none; }
   .spin { width:32px; height:32px; border:3px solid #e5e8eb; border-top-color:#3182f6; border-radius:50%; animation:sp 0.8s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
-  #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:60; display:none; max-width:88%; }
+  #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:80; display:none; max-width:88%; }
   #toast.err { background:#f04452; }
   .pconly { display:none; }
   .seg { display:flex; gap:8px; margin-bottom:12px; }
@@ -1027,7 +1027,21 @@ function 호출_(fn, args, ok, fail) {
     if (ok) ok(r.data);
   }).catch(function (e) {
     clearTimeout(타이머);
-    실패((e && e.message) || '서버에 연결하지 못했습니다.');
+    if (끝난) {
+      /* ok() 안에서 던진 것이다 — 서버는 이미 처리했다. 침묵하면 버튼이 죽은 화면만 남는다
+         (8/5 감사 S2). 실패로 둔갑시키지도 않는다 — 화면갱신감싸기_와 같은 문구 규칙. */
+      console.error('[성공 처리 중 오류]', fn, e);
+      busy(false);
+      toast(쓰기 ? '처리는 됐습니다. 화면 갱신에서 문제가 생겼으니 새로고침해 주세요' : '화면을 그리다 문제가 생겼습니다. 새로고침해 주세요', true);
+      return;
+    }
+    /* 네트워크가 끊기면 e.message는 항상 영어 원문("Failed to fetch"·"Load failed")이라
+       그대로 보여 줄 수 없다 — 병원 지하에서 저장을 누른 사람이 보던 화면이 그것이었다. */
+    console.warn('[호출 실패]', fn, e);
+    실패(e instanceof TypeError
+      ? (쓰기 ? '저장되지 않았습니다. 네트워크를 확인하고 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.'
+              : '연결이 끊겼습니다. 네트워크를 확인해 주세요.')
+      : ((e && e.message) || '서버에 연결하지 못했습니다.'));
   });
 }
 
@@ -1076,7 +1090,9 @@ function 스냅샷받기_() {
     // 저장해 여기가 onData(undefined)로 터졌는데, 아래 catch가 삼켜서 조용히 느려지기만 했다
     if (!r.payload.init) throw new Error('스냅샷 모양이 아닙니다');
     그린부트_ = JSON.stringify(r.payload);
-    onBoot(r.payload);
+    /* 그리다 실패하면 그린부트_를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 부트가
+       「같은 값」이라며 조기 반환해 아무도 안 그리고, 62초 뒤 워치독이 로그인으로 내쫓는다. */
+    try { onBoot(r.payload); } catch (e) { 그린부트_ = ''; throw e; }
   }).catch(function (e) {
     /* 관문이 죽어도 앱은 GAS로 뜬다 — 그래서 화면에는 안 띄운다. 다만 **삼키지는 않는다**:
        조용히 넘기면 3-b가 통째로 죽어도 "그냥 좀 느리네"로만 보인다(실제로 그랬다). */
@@ -2300,6 +2316,7 @@ function saveLog() {
       var 고친열쇠 = EDITKEY;
       EDITKEY = ''; resetForm(); editMode(false); 임시저장지우기_();
       DASH = null; FLOW = null; KPIT = null;
+      내입력_GAS만 = !DATA.dbSrc;   // 저장끝과 같은 이유 — GAS로 썼으면 관문 거울에 아직 없다
       // 쓰기 응답이 **갱신된 한 건**을 실어 온다 — 그 자리만 갈아끼운다. 예전에는 목록을
       // 통째로 받았고, 그걸 만드느라 서버가 시트를 850행 다시 읽었다
       기록갱신_(고친열쇠, r.log, r.리드바뀜);
@@ -2314,7 +2331,14 @@ function saveLog() {
     if (DATA.dbSrc) {
       관문호출_('/saleson-visit-act', JSON.stringify({
         토큰: TOKEN, 동작: '수정', no: f.no, 기록: f,
-      })).then(화면갱신감싸기_(수정끝), 수정실패);
+      })).then(화면갱신감싸기_(function(r) {
+        수정끝(r);
+        /* 저장 경로와 같은 두 걸음째 (8/5 감사에서 발견). 관문이 DB에서 한 계획 완료·리드
+           승격을 시트에도 해야 한다 — 안 하면 10분 폴링(시트→DB)이 그 결과를 **매번** 되돌린다. */
+        gsrun().withSuccessHandler(function() {})
+          .withFailureHandler(function(e) { console.warn('[기록 후처리]', e && e.message); })
+          .웹_기록후처리(TOKEN, f);
+      }), 수정실패);
       return;
     }
     gsrun().withSuccessHandler(수정끝).withFailureHandler(수정실패)
@@ -2330,6 +2354,20 @@ function saveLog() {
     // 관문 응답에는 홈 데이터가 없다 — 저장 직후 가는 곳이 「내 입력」이라 필요가 없다.
     // GAS 응답일 때만 홈을 갈아끼운다(초기데이터_를 통째로 싣는다)
     if (d && d.plans) onData(d);
+    /* 관문 응답이 「계획 완료」라고 하면 홈의 그 카드를 손으로 걷어낸다 (8/5 감사 S1).
+       안 걷으면 홈에 미완료로 남아 앱을 껐다 켤 때까지 「저장이 안 됐다」로 보인다.
+       짝짓기는 서버(곁가지_)와 같다 — 같은 병원(공백 뺀 이름), 예정일 ±3일, 가장 가까운 한 건. */
+    if (d && d.계획완료 && !d.plans && DATA && DATA.plans) {
+      var 킨 = String(f.hname || '').replace(/\s/g, '');
+      var 쓴날 = new Date(f.date);
+      var 잡은 = -1, 최소 = 4;
+      DATA.plans.forEach(function(p, i) {
+        if (String(p.hname || '').replace(/\s/g, '') !== 킨) return;
+        var 차 = Math.abs(Math.round((new Date(p.date) - 쓴날) / 86400000));
+        if (차 <= 3 && 차 < 최소) { 최소 = 차; 잡은 = i; }
+      });
+      if (잡은 >= 0) DATA.plans.splice(잡은, 1);
+    }
     resetForm(); 임시저장지우기_();
     DASH = null; FLOW = null; KPIT = null;
     /* 저장 뒤 **「내 입력」으로 보낸다.** 예전에는 홈으로 갔는데 홈에는 방문기록이 없어서,
@@ -2407,15 +2445,40 @@ function 화면갱신감싸기_(성공핸들러) {
 }
 
 function 관문호출_(경로, 몸통) {
+  /* 타임아웃이 없으면 관문이 응답을 안 줄 때 로딩 오버레이가 영영 안 걷힌다 — 껐다 켜고,
+     방금 쓴 게 안 보이고, 「사라졌다」가 된다 (8/5 감사). `호출_`과 같은 60초. */
+  var 제어 = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var 타이머 = 제어 ? setTimeout(function() { 제어.abort(); }, API_TIMEOUT) : 0;
+  var 읽기 = 경로 === '/saleson-inquiries';
   return fetch(GATE_URL + 경로, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: 몸통
+    body: 몸통,
+    signal: 제어 && 제어.signal
   }).then(function(res) {
+    clearTimeout(타이머);
     return res.json().catch(function() { return null; }).then(function(j) {
-      if (!res.ok) throw new Error((j && j.error) || ('문의 서버 오류 (' + res.status + ')'));
+      if (res.status === 401) {
+        // 토큰이 죽었다 — 재시도해 봐야 같다. 설명과 함께 로그인으로 보낸다
+        showLogin('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+        throw new Error('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      }
+      if (!res.ok) {
+        console.warn('[관문]', 경로, res.status, j);   // 상태 코드는 사람에게 안 보인다
+        throw new Error((j && j.error)
+          || '지금 서버가 응답하지 못했습니다. 잠시 뒤 다시 눌러 주세요.' + (읽기 ? '' : ' 쓰신 내용은 남아 있습니다.'));
+      }
       return j;
     });
+  }, function(e) {
+    clearTimeout(타이머);
+    console.warn('[관문]', 경로, e);
+    if (e && e.name === 'AbortError') {
+      throw new Error(읽기 ? '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.'
+        : '응답이 늦습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인해 주세요 — 없으면 다시 눌러 주세요.');
+    }
+    throw new Error(읽기 ? '연결이 끊겼습니다. 네트워크를 확인해 주세요.'
+      : '저장되지 않았습니다. 네트워크를 확인하고 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.');
   });
 }
 
@@ -2975,7 +3038,12 @@ function saveDealDate(k) {
   var v = document.getElementById('dl' + k).value;
   busy(true);
   gsrun().withSuccessHandler(function(r) {
-    busy(false); toast(r.msg); MINE = null; DASH = null; FLOW = null; loadMine();
+    busy(false); toast(r.msg);
+    /* 시트에 쓴 값이라 관문 거울에는 아직 없다 — 목록을 다시 받으면 방금 넣은 계약일이
+       옛값으로 되돌아 보인다 (8/5 감사 S4). 손에 든 목록만 고치고 다시 안 받는다. */
+    l.dealDate = v;
+    DASH = null; FLOW = null;
+    renderMine();
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
   }).웹_리드계약일수정(TOKEN, l.row || 0, v, l.no || 0);   // 관문 목록이면 No로 찾는다
