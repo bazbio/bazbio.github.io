@@ -834,6 +834,15 @@ function renderExpenses() {
   drawExpTable();
 }
 
+// 지출일자는 확정일이다. 아직 안 나갔으면 예정일이 '(예정)'을 달고 온다 — 확정된 값과 섞이면 안 된다.
+function payCell(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  return s.indexOf('(예정)') > -1
+    ? `${s.replace('(예정)', '')}<span class="badge b-gray" style="margin-left:4px">예정</span>`
+    : s;
+}
+
 function drawExpTable() {
   const fd = el('f-dept').value, fs = el('f-status').value, todo = el('f-todo').checked, q = el('f-q').value.trim();
   const rows = EXPENSES.filter(r => {
@@ -850,13 +859,14 @@ function drawExpTable() {
   }).sort((a, b) => String(b[4]).localeCompare(String(a[4])));
 
   const depts = expenseDepts();
-  let h = `<table><tr><th>기안일</th><th>제목</th><th>기안부서</th><th>기안자</th><th>상태</th>
+  let h = `<table><tr><th>기안일</th><th>지출일자</th><th>제목</th><th>기안부서</th><th>기안자</th><th>상태</th>
     <th>예산부서</th><th>계정</th><th>예산코드</th><th class="num">금액</th><th></th></tr>`;
   rows.slice(0, 500).forEach(r => {
     const id = r[0];
     const stBadge = r[8] === '종결' ? 'b-ok' : r[8] === '진행' ? 'b-warn' : 'b-gray';
     h += `<tr data-id="${id}">
       <td class="muted">${String(r[4]).slice(0, 10)}</td>
+      <td class="muted">${payCell(r[16])}</td>
       <td class="title-cell" title="${String(r[3]).replace(/"/g, '&quot;')}">${r[3]}</td>
       <td class="muted">${r[6]}</td><td>${r[7]}</td><td><span class="badge ${stBadge}">${r[8]}</span></td>
       <td><select data-f="budgetDept" ${deptOfCode(r[11]) ? `disabled title="${DEPT_LOCK_HINT}"` : ''}>${depts.map(d => `<option ${d === r[9] ? 'selected' : ''}>${d}</option>`).join('')}</select></td>
@@ -1002,16 +1012,25 @@ async function handleAmtFile(file) {
       <label class="muted">문서번호 열 <select id="m-doc">${opts(guess(['문서번호', '결의번호', '전표번호']))}</select></label>
       <label class="muted">금액 열 <select id="m-amt">${opts(guess(['금액', '차변', '합계', '공급가액']))}</select></label>
       <label class="muted">계정 열(선택) <select id="m-acct"><option value="-1">없음</option>${opts(guess(['계정', '자금과목', '과목']))}</select></label>
+      <label class="muted">지출 확정일 열(선택) <select id="m-paid"><option value="-1">없음</option>${opts(guess(['확정일', '지급일', '지출일']))}</select></label>
+      <label class="muted">지출 예정일 열(선택) <select id="m-due"><option value="-1">없음</option>${opts(guess(['예정일']))}</select></label>
       <button class="btn" id="btn-merge">병합 실행</button>
     </div><p class="muted">미리보기: ${grid.slice(1, 4).map(r => r.slice(0, 5).join(' | ')).join('<br>')}
-    <br>계정 열을 지정하면 "(판)지급임차료(차량)" 같은 자금과목은 "지급임차료(판)" 형식으로 자동 변환됩니다.</p>`;
+    <br>계정 열을 지정하면 "(판)지급임차료(차량)" 같은 자금과목은 "지급임차료(판)" 형식으로 자동 변환됩니다.
+    <br>지출일자는 확정일을 쓰고, 비어 있으면 예정일을 "(예정)"으로 표시합니다. 다음 업로드에서 확정일이 들어오면 저절로 확정으로 바뀝니다.</p>`;
   el('btn-merge').onclick = async () => {
     const ci = +el('m-doc').value, ca = +el('m-amt').value, cc = +el('m-acct').value;
-    const rows = grid.slice(1).filter(r => r[ci]).map(r => ({
-      docNo: String(r[ci]).trim(),
-      amount: Number(String(r[ca]).replace(/[,원\s]/g, '')) || 0,
-      acct: cc > -1 ? normAcct(r[cc]) : '',
-    }));
+    const cp = +el('m-paid').value, cd = +el('m-due').value;
+    const 날짜 = s => String(s || '').trim().slice(0, 10);
+    const rows = grid.slice(1).filter(r => r[ci]).map(r => {
+      const paid = cp > -1 ? 날짜(r[cp]) : '', due = cd > -1 ? 날짜(r[cd]) : '';
+      return {
+        docNo: String(r[ci]).trim(),
+        amount: Number(String(r[ca]).replace(/[,원\s]/g, '')) || 0,
+        acct: cc > -1 ? normAcct(r[cc]) : '',
+        payDate: paid || (due ? due + '(예정)' : ''),
+      };
+    });
     loading(true);
     try {
       const r = await gsAuth('apiMergeAmounts', rows);
@@ -1032,21 +1051,28 @@ function renderBudget() {
   const depts = [...new Set(BUDGET.map(r => r[1]))];
   let html = `<section class="panel"><h2 class="section-head">예산마스터</h2>
     <p class="section-sub">${BUDGET.length}개 항목 · 수정은 구글시트에서</p>
-    <div class="filters"><select id="b-dept"><option value="">부서 전체</option>${depts.map(d => `<option>${d}</option>`).join('')}</select></div>
+    <div class="filters"><select id="b-dept"><option value="">부서 전체</option>${depts.map(d => `<option>${d}</option>`).join('')}</select>
+      <input id="b-q" placeholder="코드·계정·내역 검색" style="min-width:220px"></div>
     <div class="table-wrap" id="bud-table"></div></section>`;
   el('tab-bud').innerHTML = html;
   el('b-dept').onchange = draw;
+  el('b-q').oninput = draw;
   draw();
   function draw() {
-    const fd = el('b-dept').value;
-    const rows = BUDGET.filter(r => !fd || r[1] === fd);
+    const fd = el('b-dept').value, q = el('b-q').value.trim().toUpperCase();
+    const rows = BUDGET.filter(r => {
+      if (fd && r[1] !== fd) return false;
+      // 코드로 찾는 사람과 "케이스 제작비"로 찾는 사람이 둘 다 있다 — 한 칸으로 받는다
+      if (q && [r[0], r[2], r[3]].join(' ').toUpperCase().indexOf(q) === -1) return false;
+      return true;
+    });
     let h = `<table><tr><th>코드</th><th>부서</th><th>계정</th><th>내역</th><th class="num">예산금액</th></tr>`;
     let sum = 0;
     rows.forEach(r => {
       sum += Number(r[4] || 0);
       h += `<tr><td style="font-weight:600">${r[0]}</td><td>${r[1]}</td><td class="muted">${r[2]}</td><td class="title-cell" title="${r[3]}">${r[3]}</td><td class="num">${fmt(r[4])}</td></tr>`;
     });
-    h += `<tr class="dept-row"><td colspan="4">합계</td><td class="num">${fmt(sum)}</td></tr></table>`;
+    h += `<tr class="dept-row"><td colspan="4">${rows.length}건 합계</td><td class="num">${fmt(sum)}</td></tr></table>`;
     el('bud-table').innerHTML = h;
   }
 }
