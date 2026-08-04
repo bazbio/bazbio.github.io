@@ -2327,7 +2327,15 @@ function saveLog() {
   if (DATA.dbSrc) {
     관문호출_('/saleson-visit-act', JSON.stringify({
       토큰: TOKEN, 동작: '저장', 기록: f,
-    })).then(화면갱신감싸기_(저장끝), 저장실패);
+    })).then(화면갱신감싸기_(function(d) {
+      저장끝(d);
+      /* 계획 완료·리드 승격은 **시트에도** 해야 한다 — `plans`·`leads`는 아직 시트가
+         원천이라(GAS 쓰기가 남아 있다) 관문이 DB에만 한 일은 거울이 되돌린다.
+         두 걸음째는 뒤에서 조용히 돈다. 실패해도 저장은 이미 끝났으므로 화면을 안 건드린다. */
+      gsrun().withSuccessHandler(function() {})
+        .withFailureHandler(function(e) { console.warn('[기록 후처리]', e && e.message); })
+        .웹_기록후처리(TOKEN, f);
+    }), 저장실패);
     return;
   }
   gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
