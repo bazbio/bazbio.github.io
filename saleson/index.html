@@ -1809,7 +1809,7 @@ function renderEvt() {
          관리자만 보인다 — 서버(`웹_행사수정`)도 관리자만 받는다. */
       + (DATA && DATA.me.viewer ? '' : '<div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;">'
       + '<button class="btn" style="font-size:12.5px;padding:7px 13px;" onclick="evtRegOpen(\'' + esc(ev.code) + '\')">＋ 참석자 등록 (내 모객)</button>'
-      + (DATA.me.admin ? '<button class="btn ghost" style="font-size:12.5px;padding:7px 13px;" onclick="evtEditOpen(\'' + esc(ev.code) + '\')">행사 수정</button>' : '')
+      + '<button class="btn ghost" style="font-size:12.5px;padding:7px 13px;" onclick="evtEditOpen(\'' + esc(ev.code) + '\')">행사 수정</button>'
       + '</div>');
     if (EVTREG === ev.code) {
       h += '<div style="border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">'
@@ -1956,7 +1956,8 @@ function renderForm() {
   document.getElementById('eType').innerHTML = (DATA.evtTypes || []).map(function(t) {
     return '<div class="chip" data-v="' + esc(t) + '" onclick="pickEType(this)">' + esc(t) + '</div>';
   }).join('');
-  document.getElementById('eEditWrap').style.display = DATA.me.admin ? 'block' : 'none';
+  // 수정은 담당자도 한다 (2026-08-04). 조회 전용만 막는다 — 서버도 같은 기준이다
+  document.getElementById('eEditWrap').style.display = DATA.me.viewer ? 'none' : 'block';
   var ee = document.getElementById('eEdit');
   ee.innerHTML = '<option value="">— 새 행사 등록 —</option>';
   (DATA.evtList || []).forEach(function(ev) {
@@ -2282,7 +2283,7 @@ function saveLog() {
     if (DATA.dbSrc) {
       관문호출_('/saleson-visit-act', JSON.stringify({
         토큰: TOKEN, 동작: '수정', no: f.no, 기록: f,
-      })).then(수정끝).catch(수정실패);
+      })).then(화면갱신감싸기_(수정끝), 수정실패);
       return;
     }
     gsrun().withSuccessHandler(수정끝).withFailureHandler(수정실패)
@@ -2318,7 +2319,7 @@ function saveLog() {
   if (DATA.dbSrc) {
     관문호출_('/saleson-visit-act', JSON.stringify({
       토큰: TOKEN, 동작: '저장', 기록: f,
-    })).then(저장끝).catch(저장실패);
+    })).then(화면갱신감싸기_(저장끝), 저장실패);
     return;
   }
   gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
@@ -2344,6 +2345,28 @@ function resetForm() {
    DB(id·No 열쇠)가 되어 열쇠가 갈리고, 무엇보다 저장이 다시 GAS 왕복 1.8초가 된다.
    관문이 죽으면 그 탭이 멈춘다 — 「DB 단독」의 대가이고 알고 고른 것이다.
    (2026-08-04에 방문기록도 이 통로를 쓰게 되어 이름에서 「문의」를 뺐다) */
+/* 🔴 **성공 처리 중의 오류를 「저장 실패」로 둔갑시키지 않는다** (2026-08-04 피드백).
+   `.then(성공).catch(실패)`로 이으면 성공 핸들러 안에서 난 오류를 그 catch가 잡는다.
+   그 시점에는 이미 `resetForm()`과 `임시저장지우기_()`가 지난 뒤라 —
+   **저장은 됐는데 화면은 실패라고 말하고 쓴 내용은 사라진** 상태가 된다.
+   「계획에서 기록을 쓰고 등록하면 저장이 안 되고 내용이 사라진다」가 이 모양이다.
+
+   그래서 `.then(성공, 실패)` 두 인자 꼴로 갈라 붙이고, 성공 핸들러는 여기서 한 번 더 감싼다.
+   서버가 받았다는 사실이 화면 사정으로 뒤집히면 안 된다. */
+function 화면갱신감싸기_(성공핸들러) {
+  return function(d) {
+    try {
+      성공핸들러(d);
+    } catch (e) {
+      console.error('[저장 후 화면 갱신 실패]', e);
+      busy(false);
+      var b = document.getElementById('fSave');
+      if (b) b.disabled = false;
+      toast('저장은 됐습니다. 화면 갱신에서 문제가 생겼으니 「내 입력」에서 확인해 주세요', true);
+    }
+  };
+}
+
 function 관문호출_(경로, 몸통) {
   return fetch(GATE_URL + 경로, {
     method: 'POST',
@@ -2882,14 +2905,14 @@ function deleteLog(열쇠) {
   busy(true);
   관문호출_('/saleson-visit-act', JSON.stringify({
     토큰: TOKEN, 동작: '삭제', no: 대상.no,
-  })).then(function(r) {
+  })).then(화면갱신감싸기_(function(r) {
     busy(false);
     // 목록에서 그 카드만 걷어낸다 — 목록을 다시 부르면 왕복이 하나 는다
     MINE.logs = (MINE.logs || []).filter(function(x) { return 열쇠_(x) !== 열쇠; });
     DASH = null; FLOW = null; KPIT = null;
     renderMine();
     toast(r.msg || '지웠습니다.');
-  }).catch(function(e) {
+  }), function(e) {
     busy(false); toast(e.message, true);
   });
 }
