@@ -3174,8 +3174,36 @@ function leadCard(l) {
             : '<span style="font-size:11px;color:#d0223a;font-weight:700;">미지정 — 장비/N-Care 분류에 필요해요</span>')
           + '</div>';
       })()
+    /* 행사 붙이기 — 목표와 같은 자리·같은 방식이다 (2026-08-04 요청).
+       여태 행사코드는 **학회/세미나 탭의 [수정]에서만** 고칠 수 있었는데, 행사코드가 없는
+       리드는 그 탭의 어느 행사에도 안 걸려 **화면에 아예 안 나온다.** 고칠 방법이 없었다.
+       리드 탭에는 모든 리드가 나오므로 여기에 둔다. */
+    + (function() {
+        var opts = '<option value="">행사 없음 (직판·문의·소개)</option>'
+          + (DATA.evtList || []).map(function(e) {
+              return '<option value="' + esc(e.code) + '"' + (e.code === l.ecode ? ' selected' : '') + '>'
+                + esc(e.name) + '</option>';
+            }).join('');
+        return '<div class="memo" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">행사 · '
+          + '<select style="width:auto;max-width:100%;font-size:12px;padding:5px 8px;margin:0;" onchange="leadEvent(' + l.row + ',this.value)">' + opts + '</select>'
+          + (l.ecode ? '' : '<span style="font-size:11px;color:#8b95a1;">행사에서 만난 리드면 골라 주세요 — 행사 성과에 잡힙니다</span>')
+          + '</div>';
+      })()
     + (l.memo ? '<div class="memo">' + esc(l.memo) + '</div>' : '')
     + '<div class="stg">' + chips + '</div></div>';
+}
+
+/** 리드에 행사를 붙이거나 뗀다. 행사명은 서버가 07_학회행사에서 찾아 함께 적는다 */
+function leadEvent(row, code) {
+  busy(true);
+  gsrun().withSuccessHandler(function(r) {
+    // 행사 성과·흐름은 이 값으로 묶이므로 캐시를 버려 다음 진입에서 다시 받게 한다
+    EVT = null; FLOW = null; DASH = null;
+    onData(r.init); show('lead'); toast(r.msg);
+  }).withFailureHandler(function(e) {
+    // 실패하면 고른 값이 화면에만 남는다 — 다시 그려 서버 값으로 되돌린다
+    busy(false); toast(e.message, true); show('lead');
+  }).웹_리드행사변경(TOKEN, row, code);
 }
 function leadTarget(row, v) {
   if (!v) return;
