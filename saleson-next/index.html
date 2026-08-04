@@ -466,7 +466,13 @@
     <label class="f">병원 검색</label>
     <input type="text" id="pHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkNewHosp()">
     <div id="pLeadSec" style="display:none;border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">
-      <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">처음 보는 병원이네요 — 리드로 함께 등록합니다</div>
+      <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">처음 보는 병원이네요 — 거래처와 리드로 함께 등록합니다</div>
+      <!-- 거래처(02_거래처관리)에도 이 병원을 만든다. 지역·과는 나중에 관리자가 채워도 되지만
+           여기서 받으면 담당자가 아는 그 자리에서 채워진다 (2026-08-04 요청). -->
+      <div class="row2">
+        <div><label class="f">지역</label><input type="text" id="pAccReg" placeholder="예: 서울 강남" autocomplete="off"></div>
+        <div><label class="f">과 (전문과목)</label><input type="text" id="pAccDept" placeholder="예: 피부과" autocomplete="off"></div>
+      </div>
       <label class="f">판매 구분 *</label>
       <div class="chips" id="pCh"></div>
       <div id="pDealerWrap" style="display:none;">
@@ -2129,6 +2135,8 @@ function savePlan() {
     purpose: document.getElementById('pPurpose').value,
     contact: document.getElementById('pContact').value,
     prep: document.getElementById('pPrep').value,
+    // 거래처에 없는 병원이면 서버가 02_거래처관리에 만들면서 이 값을 넣는다
+    acc: { reg: document.getElementById('pAccReg').value, dept: document.getElementById('pAccDept').value },
     // Meta 문의에서 왔으면 저장 시 시트의 문의가 '리드 전환'으로 승격된다.
     // DB 쪽은 저장이 끝난 뒤 화면이 관문에 따로 올린다 (metaAssign과 같은 이유)
     metaExtId: META_PREFILL ? META_PREFILL.extId : '',
@@ -2173,7 +2181,7 @@ function savePlan() {
   }).웹_계획저장(TOKEN, f);
 }
 function resetPlanForm(keepDate) {
-  ['pHosp', 'pPurpose', 'pContact', 'pPrep', 'pRefer', 'pDealer'].forEach(function(id) { document.getElementById(id).value = ''; });
+  ['pHosp', 'pPurpose', 'pContact', 'pPrep', 'pRefer', 'pDealer', 'pAccReg', 'pAccDept'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('pDealerWrap').style.display = 'none';
   document.getElementById('pDate').value = keepDate || DATA.today;
   document.getElementById('pEvt').value = '';
