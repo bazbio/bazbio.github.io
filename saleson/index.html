@@ -1804,8 +1804,12 @@ function renderEvt() {
             + ev.visited + '</b>/' + ev.cnt + (vr === null ? '' : ' (' + vr + '%)') + '</span>';
         })()
       + '</div>'
-      + (DATA && DATA.me.viewer ? '' : '<div style="margin-top:10px;">'
+      /* 수정은 여태 「＋ 행사 등록」 폼 안의 드롭다운에만 있었다 — 기능은 있는데 닿을 수가
+         없어서 「수정 기능이 없다」는 피드백이 나왔다(8/4). 카드에서 바로 열어 준다.
+         관리자만 보인다 — 서버(`웹_행사수정`)도 관리자만 받는다. */
+      + (DATA && DATA.me.viewer ? '' : '<div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;">'
       + '<button class="btn" style="font-size:12.5px;padding:7px 13px;" onclick="evtRegOpen(\'' + esc(ev.code) + '\')">＋ 참석자 등록 (내 모객)</button>'
+      + (DATA.me.admin ? '<button class="btn ghost" style="font-size:12.5px;padding:7px 13px;" onclick="evtEditOpen(\'' + esc(ev.code) + '\')">행사 수정</button>' : '')
       + '</div>');
     if (EVTREG === ev.code) {
       h += '<div style="border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">'
@@ -1978,6 +1982,16 @@ function fillEvtForm() {
 function toggleEvtReg() {
   var c = document.getElementById('evtRegCard');
   c.style.display = c.style.display === 'none' ? 'block' : 'none';
+}
+/* 행사 카드의 [행사 수정] — 등록 폼을 열고 그 행사를 골라 채운다.
+   폼 자체는 원래 있었다(`eEdit` 드롭다운). 카드에서 거기까지 가는 길이 없었을 뿐이다. */
+function evtEditOpen(code) {
+  var c = document.getElementById('evtRegCard');
+  c.style.display = 'block';
+  var ee = document.getElementById('eEdit');
+  ee.value = code;
+  fillEvtForm();
+  c.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function pickEType(el) {
   selEType = el.getAttribute('data-v');
