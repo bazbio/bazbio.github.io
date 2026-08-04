@@ -1981,6 +1981,14 @@ function planCard(p) {
 function planStatus(row, status) {
   if (!confirm('이 계획을 \'' + status + '\' 처리할까요?')) return;
   busy(true, '변경 중…');
+  /* 원천이 DB고 열쇠(no)가 있으면 관문 직접 — GAS 중계(1.8초)를 건너뛴다 (8/6) */
+  var 대상 = DATA.plans.filter(function(x) { return x.k === row; })[0];
+  if (DATA.dbSrc && 대상 && 대상.no) {
+    관문호출_('/saleson-plan-act', JSON.stringify({ 토큰: TOKEN, 동작: '상태변경', no: 대상.no, status: status }))
+      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); DASH = null; FLOW = null; 홈받기_(); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(d) { onData(d); toast(status + ' 처리했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_계획상태변경(TOKEN, 키_(row).row, status, 키_(row).no);
@@ -3085,6 +3093,12 @@ function saveDealDate(k) {
   if (!l) return toast('목록이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.', true);
   var v = document.getElementById('dl' + k).value;
   busy(true, '지우는 중…');
+  if (DATA.dbSrc && l.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '계약일', no: l.no, ymd: v }))
+      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); l.dealDate = v; DASH = null; FLOW = null; renderMine(); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
     /* 시트에 쓴 값이라 관문 거울에는 아직 없다 — 목록을 다시 받으면 방금 넣은 계약일이
@@ -3244,6 +3258,13 @@ function failCard(l) {
 function retryLead(row) {
   if (!confirm('이 리드의 재컨택을 시작할까요? 단계가 \'컨택\'으로 변경됩니다.')) return;
   busy(true);
+  var 대상 = DATA.leads.filter(function(x) { return x.k === row; })[0];
+  if (DATA.dbSrc && 대상 && 대상.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '단계변경', no: 대상.no, stage: '컨택' }))
+      .then(화면갱신감싸기_(function(r) { LEADSEG = 'open'; busy(false); toast('재컨택을 시작했습니다'); 홈받기_(); show('lead'); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(d) { LEADSEG = 'open'; onData(d); show('lead'); toast('재컨택을 시작했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_리드단계변경(TOKEN, 키_(row).row, '컨택', 키_(row).no);
@@ -3262,6 +3283,14 @@ function submitFail() {
   var why = document.getElementById('failWhy').value.trim();
   if (!why) return toast('실패 요인을 입력해 주세요', true);
   busy(true, '저장 중…');
+  var 대상 = DATA.leads.filter(function(x) { return x.k === FAILROW; })[0];
+  if (DATA.dbSrc && 대상 && 대상.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '실패', no: 대상.no, f: {
+      why: why, fix: document.getElementById('failFix').value.trim(), retry: document.getElementById('failRetry').value } }))
+      .then(화면갱신감싸기_(function(r) { closeFail(); LEADSEG = 'fail'; busy(false); toast('실패 처리했습니다 — 실패 탭에서 계속 추적됩니다'); 홈받기_(); show('lead'); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(d) {
     closeFail(); LEADSEG = 'fail'; onData(d); show('lead');
     toast('실패 처리했습니다 — 실패 탭에서 계속 추적됩니다');
@@ -3318,6 +3347,13 @@ function leadCard(l) {
 /** 리드에 행사를 붙이거나 뗀다. 행사명은 서버가 07_학회행사에서 찾아 함께 적는다 */
 function leadEvent(row, code) {
   busy(true);
+  var 대상 = DATA.leads.filter(function(x) { return x.k === row; })[0];
+  if (DATA.dbSrc && 대상 && 대상.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '행사변경', no: 대상.no, code: code }))
+      .then(화면갱신감싸기_(function(r) { EVT = null; FLOW = null; DASH = null; busy(false); toast(r.msg); 홈받기_(); show('lead'); }),
+      function(e) { busy(false); toast(e.message, true); show('lead'); });
+    return;
+  }
   gsrun().withSuccessHandler(function(r) {
     // 행사 성과·흐름은 이 값으로 묶이므로 캐시를 버려 다음 진입에서 다시 받게 한다
     EVT = null; FLOW = null; DASH = null;
@@ -3330,6 +3366,13 @@ function leadEvent(row, code) {
 function leadTarget(row, v) {
   if (!v) return;
   busy(true);
+  var 대상 = DATA.leads.filter(function(x) { return x.k === row; })[0];
+  if (DATA.dbSrc && 대상 && 대상.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '목표', no: 대상.no, target: v }))
+      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); 홈받기_(); show('lead'); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(d) { onData(d); show('lead'); toast('달성 목표를 변경했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_리드목표변경(TOKEN, 키_(row).row, v, 키_(row).no);
@@ -3339,6 +3382,12 @@ function leadStage(row, stage) {
   if (cur && cur.stage === stage) return;
   if (stage === '실패') return openFail(row);
   busy(true);
+  if (DATA.dbSrc && cur && cur.no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '단계변경', no: cur.no, stage: stage }))
+      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); DASH = null; FLOW = null; 홈받기_(); }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(d) { onData(d); toast('단계를 \'' + stage + '\'(으)로 변경했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_리드단계변경(TOKEN, 키_(row).row, stage, 키_(row).no);
