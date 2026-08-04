@@ -1347,7 +1347,15 @@ function renderHome() {
   }
   if (team && DATA.team.week) {
     document.getElementById('planTitle').textContent = '팀원별 이번 주 계획 · 방문 (' + DATA.team.week.period + ')';
-    document.getElementById('planList').innerHTML = renderTeamWeek(DATA.team.week);
+    /* 관리자도 자기 계획은 있다 (8/6 피드백). 팀 요약만 보여주면 본인 계획의 [기록 쓰기]에
+       닿을 길이 없다 — 내 계획 카드를 팀 현황 **위에** 먼저 그린다. */
+    document.getElementById('planList').innerHTML =
+      (week.length
+        ? '<div class="kicker"><div class="bar"></div><div class="lbl">내 이번 주 계획</div></div>'
+          + week.map(planCard).join('')
+          + '<div class="kicker" style="margin-top:18px;"><div class="bar"></div><div class="lbl">팀원별 현황</div></div>'
+        : '')
+      + renderTeamWeek(DATA.team.week);
   } else {
     document.getElementById('planTitle').textContent = '이번 주 방문 계획';
     document.getElementById('planList').innerHTML = week.length
