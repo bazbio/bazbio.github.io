@@ -19,7 +19,11 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html { font-size:16px; }
-  body { font-family:'Pretendard Variable','Pretendard','Malgun Gothic',sans-serif; background:#f9fafb; color:#191f28; letter-spacing:-.01em; word-break:keep-all; font-weight:400; padding-bottom:84px; }
+  /* ⚠ `overflow-x:hidden`이 있어야 한다. 화면 전환 애니메이션(`viewin`)이 `translateX(14px)`에서
+     시작하는데, 그 0.24초 동안 문서가 14px 넓어져 **폰에서 좌우로 흔들린다**(실측 375 → 389).
+     하단 내비게이션은 `left:0;right:0`이라 그 넓어진 폭을 따라가 같이 밀린다.
+     안쪽의 가로 스크롤 상자(표·세그먼트)는 자기 `overflow-x:auto`라 영향받지 않는다. */
+  body { font-family:'Pretendard Variable','Pretendard','Malgun Gothic',sans-serif; background:#f9fafb; color:#191f28; letter-spacing:-.01em; word-break:keep-all; font-weight:400; padding-bottom:84px; overflow-x:hidden; }
   b, strong { font-weight:700; }
 
   /* 모션 시그니처 — 인터랙션 공통 스프링 커브. linear/ease-in-out 금지 */
@@ -106,7 +110,13 @@
   .tag-green { color:#058652; background:#e5f7ef; }
   .tag-grey { color:#6b7684; background:#f2f4f6; }
   .badge.tgt { background:#fff4e0; color:#a35c11; }
-  .row2 { display:flex; gap:10px; } .row2 > div { flex:1; }
+  /* 폰에서 날짜 입력 두 개가 나란히 서면 최소 폭이 화면을 넘어 **문서 전체가 옆으로 밀린다**
+     (2026-08-04 실측: 375px 화면에서 344px 필요 → 문서 스크롤 389px).
+     `flex:1`만으로는 안 줄어든다 — 입력 요소의 기본 최소 폭이 버틴다. min-width:0으로 풀고,
+     그래도 좁으면 줄을 바꾼다. */
+  .row2 { display:flex; gap:10px; flex-wrap:wrap; }
+  .row2 > div { flex:1 1 140px; min-width:0; }
+  .row2 input, .row2 select { max-width:100%; }
   .save { width:100%; margin-top:22px; font-size:16px; font-weight:700; padding:15px; background:#3182f6; color:#fff; border:none; border-radius:12px; cursor:pointer; }
   .save:active { transform:scale(.985); opacity:.92; }
   .save:disabled { background:#8b95a1; }
@@ -174,7 +184,10 @@
   .seg.scrollx::-webkit-scrollbar { display:none; }
   .seg.scrollx .chip { flex:0 0 auto; white-space:nowrap; }
   .view { display:none; } .view.on { display:block; animation:viewin .24s cubic-bezier(0.16,1,0.3,1); }
-  @keyframes viewin { from { opacity:.35; transform:translateX(14px); } to { opacity:1; transform:none; } }
+  /* ⚠ **왼쪽에서 들어온다.** 오른쪽(+14px)으로 시작하면 그 0.24초 동안 문서가 14px 넓어지고,
+     `left:0;right:0`인 하단 내비게이션이 그 폭을 따라가 **폰에서 눈에 띄게 밀린다**
+     (실측 375 → 389). LTR 문서에서 왼쪽 넘침은 스크롤 영역을 안 만든다. 움직임은 그대로다. */
+  @keyframes viewin { from { opacity:.35; transform:translateX(-14px); } to { opacity:1; transform:none; } }
 
   /* 숫자 자릿수 정렬 — 지표·표 공통 */
   .tile .n, .gtile .gv .a, .gtile .gv .pc, .gpace, .krow .kv, .krow .kt .pct, .fcol .fnum, .dt td, .ptab .cnt { font-variant-numeric:tabular-nums; }
@@ -1836,7 +1849,11 @@ function renderEvt() {
     }
     if (ev.leads.length) {
       var admin = DATA && DATA.me.admin;
-      h += '<table class="dt" style="margin-top:12px;"><thead><tr><th>병원 · 참석자</th><th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
+      /* ⚠ 7열짜리 표라 폰에서 화면을 넘는다 — 실측 375px 화면에 497px가 필요했다.
+         컨테이너 없이 두면 **문서 전체가 옆으로 밀려** PC와 다른 화면이 된다.
+         KPI 표(1500행 근처)가 쓰는 것과 같은 방식으로 이 표만 옆으로 밀리게 감싼다. */
+      h += '<div style="margin-top:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+        + '<table class="dt" style="min-width:520px;"><thead><tr><th>병원 · 참석자</th><th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
         + (admin ? '<th></th>' : '') + '</tr></thead><tbody>';
       ev.leads.forEach(function(l) {
         if (admin && EVTEDIT === l.row) {
@@ -1875,7 +1892,7 @@ function renderEvt() {
           + (admin ? '<td class="c"><button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="EVTEDIT=' + l.row + ';renderEvt()">수정</button></td>' : '')
           + '</tr>';
       });
-      h += '</tbody></table>';
+      h += '</tbody></table></div>';   // 위에서 연 가로 스크롤 컨테이너를 닫는다
     } else {
       h += '<div style="margin-top:12px;font-size:13px;color:#8b95a1;">등록된 참석자(리드)가 없습니다.</div>';
     }
