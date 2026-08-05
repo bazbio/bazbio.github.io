@@ -850,6 +850,7 @@
 </div>
 
 <div id="loading"><div class="spin"></div><div id="loadMsg" style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
+<div id="ptr" style="display:none;position:fixed;top:0;left:50%;transform:translate(-50%,-54px);z-index:90;background:#fff;border:1px solid #e5e8eb;border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:600;color:#4e5968;box-shadow:0 4px 14px rgba(0,0,0,.08);white-space:nowrap;">아래로 당겨서 새로고침</div>
 <div id="gate">
   <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
   <div style="margin-top:10px;font-size:12px;font-weight:600;color:#B9B9C0;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
@@ -1060,6 +1061,43 @@ var 조작함_ = false;    // 사용자가 화면을 건드렸는가 — 건드�
 /* 캡처 단계에서 잡는다 — 어느 핸들러가 먼저 돌든 조작 사실은 놓치지 않는다 */
 document.addEventListener('click', function () { 조작함_ = true; }, true);
 document.addEventListener('input', function () { 조작함_ = true; }, true);
+
+/* 당겨서 새로고침 (8/6 요청) — 맨 위에서 140px 이상 당겼다 놓으면 다시 부팅한다.
+   부트가 스냅샷으로 0.3초대라 전체 새로고침이 가장 정직하다 — 탭별 부분 갱신은
+   빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
+var 당김시작_ = 0, 당김중_ = false;
+function 모달열림_() {
+  return ['hospModal', 'failModal'].some(function(id) {
+    var m = document.getElementById(id);
+    return m && m.style.display && m.style.display !== 'none';
+  });
+}
+document.addEventListener('touchstart', function(e) {
+  당김중_ = window.scrollY <= 0 && !모달열림_();
+  당김시작_ = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchmove', function(e) {
+  if (!당김중_) return;
+  var el = document.getElementById('ptr');
+  var d = e.touches[0].clientY - 당김시작_;
+  if (d > 12 && window.scrollY <= 0) {
+    el.style.display = 'block';
+    el.style.transform = 'translate(-50%,' + (Math.min(d / 2, 70) - 54) + 'px)';
+    el.textContent = d >= 140 ? '놓으면 새로고침' : '아래로 당겨서 새로고침';
+  } else {
+    el.style.display = 'none';
+  }
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  var el = document.getElementById('ptr');
+  if (당김중_ && window.scrollY <= 0 && e.changedTouches[0].clientY - 당김시작_ >= 140) {
+    el.textContent = '새로고침 중…';
+    window.location.reload();
+  } else {
+    el.style.display = 'none';
+  }
+  당김중_ = false;
+}, { passive: true });
 
 function boot() {
   if (!TOKEN) { showLogin(''); return; }
