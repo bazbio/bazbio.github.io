@@ -1885,12 +1885,22 @@ function evtEditSave(row) {
 }
 function loadEvt() {
   busy(true);
-  gsrun().withSuccessHandler(function(d) {
+  var 끝 = function(d) {
+    // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙)
+    (d.events || []).forEach(function(ev) {
+      (ev.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+    });
     EVT = d; busy(false); renderEvt();
-  }).withFailureHandler(function(e) {
+  };
+  var 실패 = function(e) {
     busy(false);
     document.getElementById('evtBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
-  }).웹_행사현황(TOKEN);
+  };
+  if (DATA.dbSrc) {
+    관문호출_('/saleson-evt', JSON.stringify({ 토큰: TOKEN })).then(화면갱신감싸기_(끝), 실패);
+    return;
+  }
+  gsrun().withSuccessHandler(끝).withFailureHandler(실패).웹_행사현황(TOKEN);
 }
 function evtGrp(g, el) {
   EVTGRP = g; EVTREG = null; EVTEDIT = null;
@@ -1968,7 +1978,7 @@ function renderEvt() {
         + '<table class="dt" style="min-width:520px;"><thead><tr><th>병원 · 참석자</th><th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
         + (admin ? '<th></th>' : '') + '</tr></thead><tbody>';
       ev.leads.forEach(function(l) {
-        if (admin && EVTEDIT === l.row) {
+        if (admin && EVTEDIT === l.k) {
           var opts = '<option value="">— 미배정 —</option>' + (EVT.reps || []).map(function(n) {
             return '<option value="' + esc(n) + '"' + (n === l.rep ? ' selected' : '') + '>' + esc(n) + '</option>';
           }).join('');
@@ -1987,7 +1997,7 @@ function renderEvt() {
             + '</div>'
             + '<div style="display:flex;gap:8px;justify-content:flex-end;margin:10px 0 6px;">'
             + '<button class="btn ghost" onclick="EVTEDIT=null;renderEvt()">취소</button>'
-            + '<button class="btn pri" onclick="evtEditSave(' + l.row + ')">저장</button>'
+            + '<button class="btn pri" onclick="evtEditSave(' + l.k + ')">저장</button>'
             + '</div></td></tr>';
           return;
         }
@@ -2001,7 +2011,7 @@ function renderEvt() {
             ? (l.visits > 0 ? l.visits + '회' : '-')
             : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>')) + '</td>'
           + '<td class="c">' + (l.target ? (done ? '<span class="badge deal" style="margin-left:0;">달성</span>' : '<span class="badge tgt" style="margin-left:0;">진행 중</span>') : '-') + '</td>'
-          + (admin ? '<td class="c"><button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="EVTEDIT=' + l.row + ';renderEvt()">수정</button></td>' : '')
+          + (admin ? '<td class="c"><button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="EVTEDIT=' + l.k + ';renderEvt()">수정</button></td>' : '')
           + '</tr>';
       });
       h += '</tbody></table></div>';   // 위에서 연 가로 스크롤 컨테이너를 닫는다
