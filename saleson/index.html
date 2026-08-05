@@ -1062,6 +1062,31 @@ var 조작함_ = false;    // 사용자가 화면을 건드렸는가 — 건드�
 document.addEventListener('click', function () { 조작함_ = true; }, true);
 document.addEventListener('input', function () { 조작함_ = true; }, true);
 
+/* 새 버전 알림 (8/8) — PWA가 며칠씩 안 새로고침돼 옛 화면이 도는 것이 웹·모바일 수치
+   불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
+   화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
+   쓰던 입력이 날아간다. */
+var 빌드버전_ = '202608052220';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+function 버전확인_() {
+  if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
+  fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { return r.ok ? r.text() : ''; })
+    .then(function(v) {
+      if (!v || String(v).trim() === 빌드버전_) return;
+      var el = document.getElementById('ptr');
+      el.textContent = '새 버전이 있습니다 — 탭하면 새로고침';
+      el.style.display = 'block';
+      el.style.transform = 'translate(-50%, 10px)';
+      el.onclick = function() {
+        try { sessionStorage.setItem('bcrm_당김새로고침', '1'); } catch (e) {}
+        window.location.reload();
+      };
+    })
+    .catch(function() {});   // 버전 확인 실패는 조용히 — 다음 복귀 때 다시 본다
+}
+document.addEventListener('visibilitychange', function() { if (!document.hidden) 버전확인_(); });
+setTimeout(버전확인_, 8000);
+
 /* 당김 새로고침으로 다시 열린 것이면 스플래시를 안 튼다 (8/6 요청) — 손에 쥔 앱을
    다시 여는 것이지 첫 인사가 아니다. 로고 애니메이션 1.8초가 새로고침마다 나오면 느려 보인다. */
 try {
