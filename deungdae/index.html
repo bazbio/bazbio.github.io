@@ -7,16 +7,16 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* ===== 토큰 — 나침반 웹앱.html에서 그대로 잇는다 (같은 플랫폼) ===== */
+/* ===== 토큰 — Toss 톤 (결정_매출탭_260806 ⑥: 등대 전체 통일) ===== */
 :root{
-  --bg:#F5F6F8; --surface:#FFFFFF;
-  --ink:#1B2A41; --ink-2:#5B6774; --ink-3:#8A94A0;
-  --navy:#16345C; --green:#1E8E5A;
-  --sig-green:#1E8E5A; --sig-amber:#C77D0A; --sig-red:#C0392B;
-  --sig-green-bg:#E8F4EE; --sig-amber-bg:#FBF1E1; --sig-red-bg:#F9EAE7;
-  --hairline:#E6E9EE;
-  --r-sm:8px; --r-md:14px; --r-pill:999px;
-  --shadow:0 20px 60px -15px rgba(27,42,65,.06);
+  --bg:#F9FAFB; --surface:#FFFFFF;
+  --ink:#191F28; --ink-2:#4E5968; --ink-3:#8B95A1;
+  --blue:#3182F6; --blue-bg:#EBF3FE;
+  --sig-green:#008A50; --sig-amber:#C77D0A; --sig-red:#E0333C;
+  --sig-green-bg:#E6F5EE; --sig-amber-bg:#FBF1E1; --sig-red-bg:#FCEBEC;
+  --hairline:#F2F4F6; --line:#E5E8EB;
+  --r-sm:10px; --r-md:16px; --r-pill:999px;
+  --shadow:0 20px 60px -15px rgba(25,31,40,.06);
   --ease:cubic-bezier(0.16,1,0.3,1);
 }
 *{box-sizing:border-box}
@@ -32,25 +32,43 @@ body{
 
 /* ===== 껍데기 ===== */
 .wrap{max-width:1280px;margin:0 auto;padding:16px}
-header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 header.top h1{font-size:19px;font-weight:700;margin:0;letter-spacing:-0.02em}
 header.top .sub{color:var(--ink-3);font-size:12.5px}
 header.top .spacer{flex:1}
 
-.seg{display:inline-flex;background:#EDEFF3;border-radius:var(--r-pill);padding:3px;gap:2px}
+/* 탭 — 밑줄형 */
+.tabs{display:flex;gap:2px;margin-left:6px}
+.tabs button{
+  position:relative;border:0;background:none;font:inherit;
+  font-size:15px;font-weight:600;color:var(--ink-3);
+  padding:8px 12px;min-height:44px;cursor:pointer;border-radius:var(--r-sm);
+  transition:color .2s var(--ease);
+}
+.tabs button:hover{color:var(--ink-2)}
+.tabs button[aria-selected="true"]{color:var(--ink)}
+.tabs button[aria-selected="true"]::after{
+  content:'';position:absolute;left:12px;right:12px;bottom:4px;height:2px;
+  border-radius:2px;background:var(--blue);
+}
+.tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+.seg{display:inline-flex;background:var(--hairline);border-radius:var(--r-pill);padding:3px;gap:2px}
 .seg button{
   border:0;background:transparent;color:var(--ink-2);
   font:inherit;font-size:13px;font-weight:600;
   padding:6px 14px;border-radius:var(--r-pill);cursor:pointer;
   min-height:34px;transition:background .2s var(--ease),color .2s var(--ease),transform .2s var(--ease);
 }
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--navy);box-shadow:0 1px 3px rgba(27,42,65,.10)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--blue);box-shadow:0 1px 3px rgba(25,31,40,.10)}
 .seg button:active{transform:scale(.98)}
-.seg button:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.seg button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 
 .card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);padding:14px}
 
-/* ===== 손익표 ===== */
+/* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.pl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
 table.pl th,table.pl td{padding:7px 10px;white-space:nowrap;border-bottom:1px solid var(--hairline)}
@@ -64,16 +82,18 @@ table.pl td:first-child,table.pl th:first-child{
   min-width:150px;box-shadow:1px 0 0 var(--hairline);
 }
 table.pl td{text-align:right}
-table.pl tbody tr:hover td{background:#FAFBFC}
-table.pl tbody tr:hover td:first-child{background:#FAFBFC}
+table.pl tbody tr:hover td{background:var(--bg)}
+table.pl tbody tr:hover td:first-child{background:var(--bg)}
 
 .r-total>td{font-weight:700;background:#F7F9FB}
 .r-total>td:first-child{background:#F7F9FB}
-.r-op>td{font-weight:700;border-top:2px solid var(--navy);background:#F2F5F9}
-.r-op>td:first-child{background:#F2F5F9}
+.r-op>td{font-weight:700;border-top:2px solid var(--ink);background:#F7F9FB}
+.r-op>td:first-child{background:#F7F9FB}
 .r-child>td:first-child{padding-left:26px;color:var(--ink-2)}
 .r-leaf>td{color:var(--ink-2);font-size:12.5px}
 .r-leaf>td:first-child{padding-left:40px}
+.r-leaf2>td{color:var(--ink-2);font-size:12.5px}
+.r-leaf2>td:first-child{padding-left:54px}
 
 /* 펼침 단추 — 행 제목 자리를 통째로 쓴다 */
 .toggle{
@@ -81,7 +101,7 @@ table.pl tbody tr:hover td:first-child{background:#FAFBFC}
   background:none;border:0;font:inherit;color:inherit;cursor:pointer;
   padding:4px 2px;min-height:32px;border-radius:var(--r-sm);
 }
-.toggle:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+.toggle:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .toggle .chev{
   width:14px;height:14px;flex:none;color:var(--ink-3);
   transition:transform .2s var(--ease);
@@ -106,19 +126,19 @@ label.f{display:block;margin-bottom:12px}
 label.f span{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:6px}
 input[type=password]{
   width:100%;padding:11px 12px;font:inherit;
-  border:1px solid var(--hairline);border-radius:var(--r-sm);
+  border:1px solid var(--line);border-radius:var(--r-sm);
   background:var(--surface);color:var(--ink);min-height:44px;
 }
-input[type=password]:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:transparent}
+input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:transparent}
 .btn{
   width:100%;padding:11px 16px;min-height:44px;
-  border:0;border-radius:var(--r-sm);background:var(--navy);color:#fff;
+  border:0;border-radius:var(--r-sm);background:var(--blue);color:#fff;
   font:inherit;font-weight:600;cursor:pointer;
   transition:transform .2s var(--ease),opacity .2s var(--ease);
 }
 .btn:hover{transform:scale(1.02)} .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.5;cursor:default;transform:none}
-.btn:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .msg{margin-top:10px;font-size:12.5px;min-height:18px}
 .msg.err{color:var(--sig-red)}
 
@@ -126,7 +146,7 @@ input[type=password]:focus{outline:2px solid var(--navy);outline-offset:-1px;bor
 
 .spinner{
   width:22px;height:22px;margin:0 auto 10px;
-  border:2px solid var(--hairline);border-top-color:var(--navy);border-radius:50%;
+  border:2px solid var(--hairline);border-top-color:var(--blue);border-radius:50%;
   animation:spin .8s linear infinite;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -177,32 +197,58 @@ input[type=password]:focus{outline:2px solid var(--navy);outline-offset:-1px;bor
   <main id="app" hidden>
     <header class="top">
       <h1>등대</h1>
-      <span class="sub" id="asof"></span>
+      <nav class="tabs" role="tablist" aria-label="화면">
+        <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
+        <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
+      </nav>
       <span class="spacer"></span>
-      <div class="seg" role="group" aria-label="집계 범위">
-        <button type="button" id="btnHQ" aria-pressed="true">본사 별도</button>
-        <button type="button" id="btnCOMB" aria-pressed="false">합산</button>
-      </div>
+      <span class="sub" id="asof"></span>
     </header>
 
-    <div class="card">
-      <div class="scroll">
-        <table class="pl" id="pl">
-          <thead><tr id="plHead"></tr></thead>
-          <tbody id="plBody"></tbody>
-        </table>
+    <!-- 손익 탭 -->
+    <section id="tab-pl">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="집계 범위">
+          <button type="button" id="btnHQ" aria-pressed="true">본사 별도</button>
+          <button type="button" id="btnCOMB" aria-pressed="false">합산</button>
+        </div>
       </div>
-      <p class="note" id="footnote"></p>
-    </div>
+      <div class="card">
+        <div class="scroll">
+          <table class="pl" id="pl">
+            <thead><tr id="plHead"></tr></thead>
+            <tbody id="plBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="footnote"></p>
+      </div>
+    </section>
+
+    <!-- 매출 탭 -->
+    <section id="tab-sales" hidden>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="연도" id="segYear"></div>
+        <div class="seg" role="group" aria-label="값" id="segMode"></div>
+      </div>
+      <div class="card">
+        <div class="scroll">
+          <table class="pl" id="sales">
+            <thead><tr id="salesHead"></tr></thead>
+            <tbody id="salesBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="salesNote"></p>
+      </div>
+    </section>
   </main>
 </div>
 
 <script>
 /* =========================================================================
-   등대 손익표 — 화면은 Pages, 데이터는 엣지 (ADR 0014)
+   등대 — 화면은 Pages, 데이터는 엣지 (ADR 0014)
    숫자 규약은 CONTEXT.md 「재무 기준」을 따른다:
-     · 보이는 값은 전부 **조정 후(=확정 실적)**
-     · 매출·국가별·제품별은 매출건 **전 건**(무상·취소 포함)
+     · 손익·매출의 금액은 전부 **무상·취소 포함 전 건** — 그래야 재무제표와 닫힌다
+     · 매출 탭 수량은 **매출인가만**(무상·취소 제외, 반품 음수 포함)
    ========================================================================= */
 var 주소 = 'https://orttfugxziltenujdlme.supabase.co/functions/v1/deungdae-read';
 var 토큰키 = 'deungdae_token';
@@ -210,7 +256,11 @@ var 연도 = 2026;
 
 var DB = null;
 var 범위 = 'HQ';                 // HQ | COMBINED
-var 펼침 = {};                   // 행 키 -> bool
+var 펼침 = {};                   // 손익 행 키 -> bool
+
+var 매출연도 = 2026;
+var 매출모드 = '금액';           // 금액 | 장비 | 노즐
+var 매출펼침 = {};
 
 var $ = function (id) { return document.getElementById(id); };
 var 면 = function (id) {
@@ -251,12 +301,26 @@ function 불러오기() {
   if (!t) { 면('login'); return; }
   면('loading');
   부르기({ 토큰: t, 연도: 연도 })
-    .then(function (d) { DB = d; 그리기(); 면('app'); })
+    .then(function (d) { DB = d; 현재탭그리기(); 면('app'); })
     .catch(function (err) {
       if (err.코드 === 401) { 토큰쓰기(null); 면('login'); return; }   // 만료·무효 → 다시 로그인
       $('errorMsg').textContent = err.message; 면('error');
     });
 }
+
+/* ===== 탭 ===== */
+var 탭 = 'pl';
+function 현재탭그리기() { if (탭 === 'pl') 그리기(); else 매출그리기(); }
+function 탭설정(t) {
+  탭 = t;
+  $('tabBtnPL').setAttribute('aria-selected', t === 'pl' ? 'true' : 'false');
+  $('tabBtnSales').setAttribute('aria-selected', t === 'sales' ? 'true' : 'false');
+  $('tab-pl').hidden = (t !== 'pl');
+  $('tab-sales').hidden = (t !== 'sales');
+  if (DB) 현재탭그리기();
+}
+$('tabBtnPL').addEventListener('click', function () { 탭설정('pl'); });
+$('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
 
 /* ===== 집계 ===== */
 var 백만 = function (v) {
@@ -376,7 +440,7 @@ function 조정월() {
   return s;
 }
 
-/* ===== 그리기 ===== */
+/* ===== 손익 그리기 ===== */
 function 그리기() {
   var 끝 = 마감월(), 달 = [], m;
   for (m = 1; m <= 끝; m++) 달.push(m);
@@ -435,7 +499,7 @@ function 그리기() {
   }).join('');
 
   $('plBody').innerHTML = html;
-  Array.prototype.forEach.call(document.querySelectorAll('.toggle'), function (b) {
+  Array.prototype.forEach.call($('plBody').querySelectorAll('.toggle'), function (b) {
     b.addEventListener('click', function () { 펼침[b.dataset['키']] = !펼침[b.dataset['키']]; 그리기(); });
   });
 
@@ -456,6 +520,183 @@ function 범위설정(v) {
 $('btnHQ').addEventListener('click', function () { 범위설정('HQ'); });
 $('btnCOMB').addEventListener('click', function () { 범위설정('COMBINED'); });
 
+/* =========================================================================
+   매출 탭 (결정_매출탭_260806)
+   행: 매출액 계 → 한국·일본·해외. 해외를 펼치면 국가별, 각 행을 펼치면 장비/노즐/기타.
+   값: 금액(전 건) | 장비 대수 | 노즐 수량 (수량은 매출인가만 — 무상·취소 제외).
+   ========================================================================= */
+var 수 = function (v) {
+  if (v == null || !v) return '—';
+  var n = Math.round(v);
+  return (n < 0 ? '△' : '') + Math.abs(n).toLocaleString('ko-KR');
+};
+
+/** 매출탭 응답을 [사업부][국가][제품][월] = {금액, 수량} 으로 접는다 */
+function 매출맵(y) {
+  var t = { 맵: {}, 달: [] };
+  var 끝 = 0;
+  (DB['매출탭'] || []).forEach(function (r) {
+    if (+r['회계연도'] !== y) return;
+    var m = +r['월'];
+    if (m > 끝) 끝 = m;
+    var 국맵 = (t.맵[r['사업부']] = t.맵[r['사업부']] || {});
+    var 제맵 = (국맵[r['국가']] = 국맵[r['국가']] || {});
+    var 달맵 = (제맵[r['제품']] = 제맵[r['제품']] || {});
+    // 같은 (월,국가,제품) 키가 두 행일 수 있어 더한다 (예: 사업부는 같고 원천이 다른 보정)
+    var c = (달맵[m] = 달맵[m] || { 금액: 0, 수량: 0 });
+    c.금액 += Number(r['금액']) || 0;
+    c.수량 += Number(r['수량']) || 0;
+  });
+  for (var m = 1; m <= 끝; m++) t.달.push(m);
+  return t;
+}
+
+function 매출행들(t) {
+  var 맵 = t.맵;
+  var 제품순 = ['장비', '노즐', '기타'];
+
+  /** (사업부들 × 국가들 × 제품?) 범위의 월별 값 함수. 데이터가 없으면 null */
+  var 값f = function (사업부들, 국가들, 제품) {
+    return function (m) {
+      var s = 0, 있음 = false;
+      사업부들.forEach(function (사) {
+        var 국맵 = 맵[사] || {};
+        (국가들 || Object.keys(국맵)).forEach(function (국) {
+          var 제맵 = 국맵[국] || {};
+          (제품 ? [제품] : Object.keys(제맵)).forEach(function (제) {
+            if (매출모드 === '장비' && 제 !== '장비') return;
+            if (매출모드 === '노즐' && 제 !== '노즐') return;
+            var c = 제맵[제] && 제맵[제][m];
+            if (!c) return;
+            s += (매출모드 === '금액' ? c.금액 : c.수량);
+            있음 = true;
+          });
+        });
+      });
+      return 있음 ? s : null;
+    };
+  };
+
+  var out = [];
+  out.push({ 키: '전체', 이름: '매출액 계', 급: 'total', 값: 값f(['국내', '일본', '해외'], null) });
+
+  // 한국·일본 — 금액 모드에서만 제품 3행으로 펼친다 (수량 모드는 단일 제품이라 펼칠 게 없다)
+  [['한국', '국내'], ['일본', '일본']].forEach(function (p) {
+    var 이름 = p[0], 사 = p[1];
+    out.push({ 키: 'b:' + 사, 이름: 이름, 급: 'child', 비중: true, 접기: 매출모드 === '금액', 값: 값f([사], null) });
+    if (매출모드 === '금액') 제품순.forEach(function (제) {
+      out.push({ 키: 'b:' + 사 + '/' + 제, 이름: 제, 급: 'leaf', 부모: 'b:' + 사, 값: 값f([사], null, 제) });
+    });
+  });
+
+  // 해외 — 펼치면 국가별, 국가를 다시 펼치면 제품 3행
+  out.push({ 키: 'b:해외', 이름: '해외', 급: 'child', 비중: true, 접기: true, 값: 값f(['해외'], null) });
+  var 금액합 = {}, 수량합 = {};
+  var 해외국 = Object.keys(맵['해외'] || {});
+  해외국.forEach(function (국) {
+    var 돈 = 0, 개 = 0;
+    t.달.forEach(function (m) {
+      var 제맵 = 맵['해외'][국];
+      Object.keys(제맵).forEach(function (제) {
+        var c = 제맵[제][m];
+        if (c) { 돈 += Math.abs(c.금액); 개 += Math.abs(c.수량); }
+      });
+    });
+    금액합[국] = 돈; 수량합[국] = 개;
+  });
+  해외국 = 해외국.filter(function (국) { return 금액합[국] > 0 || 수량합[국] > 0; })   // 전량 무상 0원 국가는 숨긴다
+    .sort(function (a, b) {
+      if (a === '미상') return 1;                    // 미상은 맨 뒤
+      if (b === '미상') return -1;
+      return 금액합[b] - 금액합[a];                   // 연간 금액 큰 순 — 모드와 무관하게 순서를 고정한다
+    });
+  해외국.forEach(function (국) {
+    out.push({ 키: 'c:' + 국, 이름: 국, 급: 'leaf', 부모: 'b:해외', 접기: 매출모드 === '금액', 값: 값f(['해외'], [국]) });
+    if (매출모드 === '금액') 제품순.forEach(function (제) {
+      out.push({ 키: 'c:' + 국 + '/' + 제, 이름: 제, 급: 'leaf2', 부모: 'c:' + 국, 값: 값f(['해외'], [국], 제) });
+    });
+  });
+  return out;
+}
+
+function 매출그리기() {
+  var t = 매출맵(매출연도);
+  var 행 = 매출행들(t);
+  var 달 = t.달;
+  var 부분 = 달.length < 12;
+
+  $('salesHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">' + (부분 ? '누계' : '연간') + '</th>'])
+    .join('');
+
+  var 색인 = {};
+  행.forEach(function (r) { 색인[r.키] = r; });
+  var 보임 = {};
+  행.forEach(function (r) {
+    보임[r.키] = !r.부모 ? true : (보임[r.부모] && (!색인[r.부모].접기 || 매출펼침[r.부모]));
+  });
+
+  var 전체누계 = 달.reduce(function (s, m) { return s + (행[0].값(m) || 0); }, 0);
+  var 형식 = 매출모드 === '금액' ? 백만 : 수;
+
+  var html = 행.filter(function (r) { return 보임[r.키]; }).map(function (r) {
+    var 값들 = 달.map(function (m) { return r.값(m); });
+    var 누계 = null;
+    값들.forEach(function (v) { if (v != null) 누계 = (누계 || 0) + v; });
+
+    var 제목 = r.이름;
+    if (r.접기) {
+      제목 = '<button class="toggle" type="button" data-키="' + r.키 + '" aria-expanded="' + (매출펼침[r.키] ? 'true' : 'false') + '">'
+        + '<svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + '<span>' + r.이름 + '</span></button>';
+    }
+
+    var 칸 = 값들.map(function (v) {
+      return '<td class="num' + (v != null && v < 0 ? ' neg' : '') + '">' + 형식(v) + '</td>';
+    }).join('');
+
+    var 비중 = (매출모드 === '금액' && r.비중 && 전체누계 && 누계 != null)
+      ? '<span class="share">(' + (누계 / 전체누계 * 100).toFixed(1) + '%)</span>' : '';
+
+    return '<tr class="r-' + r.급 + '">'
+      + '<td>' + 제목 + '</td>' + 칸
+      + '<td class="num' + (누계 != null && 누계 < 0 ? ' neg' : '') + '">' + 형식(누계) + 비중 + '</td>'
+      + '</tr>';
+  }).join('');
+
+  $('salesBody').innerHTML = html;
+  Array.prototype.forEach.call($('salesBody').querySelectorAll('.toggle'), function (b) {
+    b.addEventListener('click', function () { 매출펼침[b.dataset['키']] = !매출펼침[b.dataset['키']]; 매출그리기(); });
+  });
+
+  // 토글들 — 상태에서 다시 그린다
+  $('segYear').innerHTML = [2025, 2026].map(function (y) {
+    return '<button type="button" data-y="' + y + '" aria-pressed="' + (매출연도 === y ? 'true' : 'false') + '">' + y + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('segYear').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { 매출연도 = +b.dataset.y; 매출그리기(); });
+  });
+  $('segMode').innerHTML = [['금액', '금액'], ['장비', '장비 대수'], ['노즐', '노즐 수량']].map(function (p) {
+    return '<button type="button" data-m="' + p[0] + '" aria-pressed="' + (매출모드 === p[0] ? 'true' : 'false') + '">' + p[1] + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('segMode').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { 매출모드 = b.dataset.m; 매출그리기(); });
+  });
+
+  var 단위 = 매출모드 === '금액' ? '단위 백만원' : (매출모드 === '장비' ? '단위 대' : '단위 개');
+  $('asof').textContent = 매출연도 + '년 · ' + 달.length + '개월 · ' + 단위;
+
+  $('salesNote').innerHTML = (매출모드 === '금액'
+    ? '금액은 <strong>무상·취소 포함 전 건</strong>입니다 — 25년 연간은 FY2025 분개장(재무제표), '
+      + '26년 상반기는 별도·연결정산표와 원 단위로 맞습니다. '
+      + '25년 9~12월에는 회계 인식 차이 보정 2건이 금액에만 들어 있습니다 '
+      + '(제이메디칼 cut-off +134.2 · 아도바이오 로열티 △21.5 — 수량 미반영). '
+    : '수량은 <strong>무상·취소 제외 순판매</strong>입니다(반품 음수 포함). 기타 제품군은 수량을 세지 않습니다. ')
+    + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.';
+}
+
+탭설정('pl');
 불러오기();
 </script>
 </body>
