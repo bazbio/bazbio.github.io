@@ -1222,6 +1222,8 @@ function onData(d) {
   document.getElementById('heroMeta').textContent = (d.me.team ? d.me.team + ' · ' : '') + d.today;
   // 조회 전용 계정: 입력 탭(홈·계획·기록·리드) 숨기고 현황부터
   var vw = !!d.me.viewer;
+  // C-Labs 조회 계정(8/6) — Meta DB·자료·학회/세미나만 연다. 영업 지표(현황·흐름·KPI)는 숨긴다
+  var cl = vw && String(d.me.team || '').trim() === 'C-Labs';
   // 조회 전용은 입력을 못 하니 '내 입력'도 볼 게 없다 — 함께 숨긴다.
   // Meta DB는 개인 연락처(휴대폰)가 있어 조회 전용 계정에게도 숨긴다
   ['home', 'plan', 'log', 'lead', 'mine', 'meta'].forEach(function(k) {
@@ -1229,13 +1231,20 @@ function onData(d) {
     if (nb) nb.style.display = vw ? 'none' : '';
   });
   // 더보기 메뉴·홈 바로 가기에서도 입력 화면을 지운다 — 탭만 숨기면 우회 진입이 된다
-  ['more-plan', 'more-log', 'more-mine', 'more-meta', 'quick-plan', 'quick-log'].forEach(function(id) {
+  ['more-plan', 'more-log', 'more-mine', 'quick-plan', 'quick-log'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = vw ? 'none' : '';
   });
+  // Meta DB는 개인 연락처가 있어 조회 전용에게 숨기지만, C-Labs는 그 확인이 업무라 연다
+  var mm = document.getElementById('more-meta');
+  if (mm) mm.style.display = (vw && !cl) ? 'none' : '';
+  ['nav-dash', 'nav-flow', 'more-kpi'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && cl) el.style.display = 'none';
+  });
   renderHome(); renderForm(); renderLeads(); 임시저장복구_();
   if (DATA.dbSrc) 홈받기_();   // 관문 읽기가 도착하면 홈·리드가 그걸로 다시 그려진다
-  if (vw) show('dash');
+  if (vw) show(cl ? 'meta' : 'dash');
   setTimeout(prefetch, 1200);
 }
 function doLogout() {
@@ -2699,7 +2708,9 @@ function metaCard(q) {
     h += metaAssignBox(q);
   }
   var btn = [];
-  if (q.status === '신규') {
+  if (DATA.me && DATA.me.viewer) {
+    // 조회 전용(C-Labs 포함)은 보기만 — 조작 버튼을 만들지 않는다 (8/6)
+  } else if (q.status === '신규') {
     btn.push('<button class="btn pri" onclick="metaTake(' + q.id + ')">통화 잡기</button>');
     btn.push('<button class="btn" onclick="metaOpen(' + q.id + ')">통화 완료 · 분류</button>');
   } else if (q.status === '통화중' && (mine || me.admin)) {
