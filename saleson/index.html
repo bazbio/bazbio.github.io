@@ -1062,6 +1062,15 @@ var 조작함_ = false;    // 사용자가 화면을 건드렸는가 — 건드�
 document.addEventListener('click', function () { 조작함_ = true; }, true);
 document.addEventListener('input', function () { 조작함_ = true; }, true);
 
+/* 당김 새로고침으로 다시 열린 것이면 스플래시를 안 튼다 (8/6 요청) — 손에 쥔 앱을
+   다시 여는 것이지 첫 인사가 아니다. 로고 애니메이션 1.8초가 새로고침마다 나오면 느려 보인다. */
+try {
+  if (sessionStorage.getItem('bcrm_당김새로고침')) {
+    sessionStorage.removeItem('bcrm_당김새로고침');
+    document.getElementById('splash').style.display = 'none';
+  }
+} catch (e) {}
+
 /* 당겨서 새로고침 (8/6 요청) — 맨 위에서 140px 이상 당겼다 놓으면 다시 부팅한다.
    부트가 스냅샷으로 0.3초대라 전체 새로고침이 가장 정직하다 — 탭별 부분 갱신은
    빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
@@ -1092,6 +1101,7 @@ document.addEventListener('touchend', function(e) {
   var el = document.getElementById('ptr');
   if (당김중_ && window.scrollY <= 0 && e.changedTouches[0].clientY - 당김시작_ >= 140) {
     el.textContent = '새로고침 중…';
+    try { sessionStorage.setItem('bcrm_당김새로고침', '1'); } catch (err) {}   // 스플래시 생략 표식
     window.location.reload();
   } else {
     el.style.display = 'none';
