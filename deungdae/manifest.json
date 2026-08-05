@@ -1,0 +1,25 @@
+{
+  "name": "등대",
+  "short_name": "등대",
+  "description": "BAZ BIOMEDIC 경영 현황 (월별 손익 · 매출)",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9FAFB",
+  "theme_color": "#0E7490",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

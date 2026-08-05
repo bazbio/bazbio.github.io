@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>등대 — 경영 현황</title>
+<meta name="theme-color" content="#0E7490">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -671,7 +675,7 @@ function 매출그리기() {
   });
 
   // 토글들 — 상태에서 다시 그린다
-  $('segYear').innerHTML = [2025, 2026].map(function (y) {
+  $('segYear').innerHTML = [2024, 2025, 2026].map(function (y) {
     return '<button type="button" data-y="' + y + '" aria-pressed="' + (매출연도 === y ? 'true' : 'false') + '">' + y + '</button>';
   }).join('');
   Array.prototype.forEach.call($('segYear').querySelectorAll('button'), function (b) {
@@ -688,16 +692,18 @@ function 매출그리기() {
   $('asof').textContent = 매출연도 + '년 · ' + 달.length + '개월 · ' + 단위;
 
   $('salesNote').innerHTML = (매출모드 === '금액'
-    ? '금액은 <strong>무상·취소 포함 전 건</strong>입니다 — 25년 연간은 FY2025 분개장(재무제표), '
+    ? '금액은 <strong>무상·취소 포함 전 건</strong>입니다 — 24년은 FY24 결산명세서, 25년은 FY2025 분개장, '
       + '26년 상반기는 별도·연결정산표와 원 단위로 맞습니다. '
       + '25년 9~12월에는 회계 인식 차이 보정 2건이 금액에만 들어 있습니다 '
       + '(제이메디칼 cut-off +134.2 · 아도바이오 로열티 △21.5 — 수량 미반영). '
-    : '수량은 <strong>무상·취소 제외 순판매</strong>입니다(반품 음수 포함). 기타 제품군은 수량을 세지 않습니다. ')
+    : '수량은 <strong>무상·취소 제외 순판매</strong>입니다(반품 음수 포함). 기타 제품군은 수량을 세지 않습니다. '
+      + '24년 원천엔 무상 행 자체가 없습니다(유상 판매 리스트). ')
     + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.';
 }
 
 탭설정('pl');
 불러오기();
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
 </script>
 </body>
 </html>
