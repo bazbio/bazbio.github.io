@@ -286,6 +286,15 @@
       <input type="file" id="file-amt" accept=".xlsx,.xls" style="display:none">
       <div id="amt-preview" style="margin-top:16px"></div>
     </section>
+    <section class="panel">
+      <h2 class="section-head">결재함 사전 확인</h2>
+      <p class="section-sub">결재 대기 문서 목록(.xlsx)을 올리면 제목의 예산코드로 예산 초과 여부를 미리 봅니다.
+        잔액 = 예산 − 종결 집행 − 결재 진행중 − 이 목록의 앞 순서 건. 금액 열이 없으면 결의서에서 본 금액을 직접 입력하세요.
+        <b>여기서는 아무것도 저장되지 않습니다.</b></p>
+      <div class="dropzone" id="dz-pre">파일을 끌어다 놓거나 클릭해서 선택</div>
+      <input type="file" id="file-pre" accept=".xlsx,.xls" style="display:none">
+      <div id="pre-preview" style="margin-top:16px"></div>
+    </section>
   </div>
   <div id="tab-bud" style="display:none"></div>
   <div id="tab-guide" style="display:none">
@@ -940,6 +949,7 @@ async function saveDirty() {
 // ─── 업로드 ① 전자결재 목록 ───
 setupDropzone('dz-docs', 'file-docs', handleDocsFile);
 setupDropzone('dz-amt', 'file-amt', handleAmtFile);
+setupDropzone('dz-pre', 'file-pre', handlePreFile);
 
 function setupDropzone(dzId, fileId, handler) {
   const dz = el(dzId), fi = el(fileId);
@@ -1060,6 +1070,102 @@ async function handleAmtFile(file) {
     }
     loading(false);
   };
+}
+
+// ─── 업로드 ③ 결재함 사전 확인 (2026-08-06) ───
+// 판정 결과는 아무것도 저장하지 않는다 — 사전심사(@30 제거)가 죽은 이유가 저장·관리
+// 부담이었다. 설정 시트에 실행 횟수 1칸만 는다(정착 기준 측정).
+
+// 서버 제목코드_와 같은 정규식 — 바꾸면 양쪽을 함께 바꾼다
+function titleCode(t) {
+  const m = String(t || '').match(/\[\s*[A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?-\d{3}\s*\]/g);
+  if (!m) return '';
+  return normCode(m[m.length - 1].replace(/[\[\]\s]/g, ''));
+}
+
+/* 판정 계산 — items는 결재함 목록 순서. 같은 코드가 여러 건이면 앞 건부터 누적해
+   뒤 건에서 초과가 잡힌다(결재는 순서대로 나가므로 이게 결재자 관점의 잔액이다). */
+function 사전확인계산(items) {
+  const A = aggregate();
+  const 누적 = {};
+  return items.map(it => {
+    const code = titleCode(it.title);
+    const amt = Number(it.amount) || 0;
+    if (!code) return Object.assign({}, it, { code: '', verdict: 'nocode' });
+    const b = A.budCode[code];
+    if (!b) return Object.assign({}, it, { code: code, verdict: 'badcode' });
+    누적[code] = (누적[code] || 0) + amt;
+    const 기집행 = b.spent + b.pending;
+    const remain = b.budget - 기집행 - 누적[code];
+    const verdict = amt <= 0 ? 'noamt'
+      : remain < 0 ? 'over'
+      : (기집행 + 누적[code]) / b.budget >= A.warnTh ? 'warn' : 'ok';
+    return Object.assign({}, it, { code: code, desc: b.desc, budget: b.budget, 기집행: 기집행, 누적: 누적[code], remain: remain, verdict: verdict });
+  });
+}
+
+let PRE_ITEMS = [];
+async function handlePreFile(file) {
+  let grid;
+  try { grid = await readWorkbook(file); } catch (e) { return alert('엑셀 파싱 실패: ' + e.message); }
+  if (grid.length < 2) return alert('데이터가 없습니다.');
+  const header = grid[0].map(h => String(h).trim());
+  const col = name => header.indexOf(name);
+  if (col('제목') === -1) return alert('전자결재 목록 형식이 아닙니다 — 제목 열이 없습니다.');
+  const ai = header.findIndex(h => h === '금액' || h === '기안금액');
+
+  const all = grid.slice(1).filter(r => r[col('제목')]);
+  const rows = col('문서양식') > -1 ? all.filter(r => String(r[col('문서양식')]).indexOf('지출결의') > -1) : all;
+  PRE_ITEMS = rows.map(r => ({
+    title: r[col('제목')],
+    dept: col('기안부서') > -1 ? r[col('기안부서')] : '',
+    drafter: col('기안자') > -1 ? r[col('기안자')] : '',
+    amount: ai > -1 ? Number(String(r[ai]).replace(/[,원\s]/g, '')) || '' : '',
+  }));
+  if (!PRE_ITEMS.length) return alert('지출결의 계열 문서가 없습니다.');
+
+  const 제외 = all.length - rows.length;
+  el('pre-preview').innerHTML = `<div class="alert info">지출결의 계열 ${PRE_ITEMS.length}건${제외 ? ' (그 외 양식 ' + 제외 + '건 제외)' : ''}${ai > -1 ? ' · 금액 열 자동 인식' : ' · 금액 열이 없어 직접 입력'}</div><div class="table-wrap" id="pre-table"></div>`;
+  drawPreTable();
+  gsAuth('apiPrecheckCount').catch(() => {}); // 실행 흔적 1칸 — 실패해도 화면은 그대로 간다
+}
+
+/* 표는 한 번만 그리고, 금액을 칠 때는 잔액·판정 칸만 갈아끼운다 —
+   입력 중에 표를 다시 그리면 커서가 날아간다. */
+function drawPreTable() {
+  const 결과 = 사전확인계산(PRE_ITEMS);
+  let h = `<table><tr><th>제목</th><th>기안자</th><th>코드</th><th class="num">금액</th><th class="num">반영 후 잔액</th><th>판정</th></tr>`;
+  결과.forEach((r, i) => {
+    h += `<tr>
+      <td class="title-cell" title="${String(r.title).replace(/"/g, '&quot;')}">${r.title}</td>
+      <td class="muted">${r.drafter || ''}</td>
+      <td${r.desc ? ` title="${String(r.desc).replace(/"/g, '&quot;')}"` : ''} style="font-weight:600">${r.code || '—'}</td>
+      <td class="num"><input class="amt" data-pre="${i}" type="number" value="${r.amount === '' ? '' : r.amount}" placeholder="결의서 금액"></td>
+      <td class="num" id="pre-remain-${i}"></td>
+      <td id="pre-verdict-${i}"></td></tr>`;
+  });
+  h += '</table>';
+  el('pre-table').innerHTML = h;
+  판정칸갱신(결과);
+  el('pre-table').querySelectorAll('[data-pre]').forEach(inp => inp.oninput = e => {
+    PRE_ITEMS[Number(e.target.dataset.pre)].amount = e.target.value;
+    판정칸갱신(사전확인계산(PRE_ITEMS));
+  });
+}
+
+function 판정칸갱신(결과) {
+  const 배지 = {
+    over: '<span class="badge b-over">초과</span>', warn: '<span class="badge b-warn">주의</span>',
+    ok: '<span class="badge b-ok">여유</span>', noamt: '<span class="badge b-gray">금액 입력</span>',
+    nocode: '<span class="badge b-gray">코드 없음</span>', badcode: '<span class="badge b-warn">미등록 코드</span>',
+  };
+  결과.forEach((r, i) => {
+    el('pre-remain-' + i).innerHTML = r.verdict === 'nocode' ? '<span class="muted">제목에 [코드]가 없어 판정 불가</span>'
+      : r.verdict === 'badcode' ? '<span class="muted">예산마스터에 없는 코드</span>'
+      : r.verdict === 'noamt' ? `<span class="muted">현재 잔액 ${fmt(r.budget - r.기집행)}원</span>`
+      : `${fmt(r.remain)}원`;
+    el('pre-verdict-' + i).innerHTML = 배지[r.verdict];
+  });
 }
 
 // ─── 예산마스터 ───
