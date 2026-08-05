@@ -3579,12 +3579,17 @@ function matDelete(row) {
 /** @param ym 'yyyy-MM'. 비우면 이번 달. 지난달이면 목표 없이 실적만 온다(웹_대시보드) */
 function loadDash(ym) {
   busy(true);
-  gsrun().withSuccessHandler(function(d) {
-    DASH = d; busy(false); renderDash();
-  }).withFailureHandler(function(e) {
+  var 끝 = function(d) { DASH = d; busy(false); renderDash(); };
+  var 실패 = function(e) {
     busy(false);
     document.getElementById('dashBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
-  }).웹_대시보드(TOKEN, ym || '');
+  };
+  // 집계는 관문(0.3초대) — GAS와 값 대조 테스트(dashread)로 묶여 숫자가 갈릴 수 없다
+  if (DATA.dbSrc) {
+    관문호출_('/saleson-dash', JSON.stringify({ 토큰: TOKEN, ym: ym || '' })).then(화면갱신감싸기_(끝), 실패);
+    return;
+  }
+  gsrun().withSuccessHandler(끝).withFailureHandler(실패).웹_대시보드(TOKEN, ym || '');
 }
 function kick(label, red) {
   return '<div class="kicker' + (red ? ' red' : '') + '"><div class="bar"></div><div class="lbl">' + esc(label) + '</div></div>';
