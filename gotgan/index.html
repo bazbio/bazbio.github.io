@@ -543,12 +543,21 @@ function aggregate() {
     budCode[r[0]] = { dept: r[1], acct: r[2], desc: r[3], budget: b, spent: 0, pending: 0, cnt: 0 };
   });
   const spentDA = {}, pendDA = {};
-  let noAmt = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
+  let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
   let totSpent = 0, totPend = 0;
+  // 금액이 빈 것은 대부분 "아직 지급 전"이라 정상이다. 사람이 봐야 하는 것은
+  // 종결된 지 2주가 지나도록 자금 자료에 안 나타난 건뿐이다 — 그것만 경고로 올린다.
+  const STALE_MS = 14 * 86400000, 오늘 = Date.now();
   EXPENSES.forEach(r => {
     const st = r[8], dept = r[9], acct = r[10], code = normCode(r[11]), amt = Number(r[12]) || 0;
     if (st !== '종결' && st !== '진행') return;
-    if (r[12] === '' || r[12] === null || r[12] === undefined) noAmt++;
+    if (r[12] === '' || r[12] === null || r[12] === undefined) {
+      if (st === '진행') noAmtDraft++;
+      else {
+        const 기준일 = Date.parse(String(r[5] || r[4]).slice(0, 10)); // 종결일, 없으면 기안일
+        if (기준일 && 오늘 - 기준일 > STALE_MS) noAmtStale++; else noAmtWait++;
+      }
+    }
     if (!acct && amt > 0) noAcct++;
     if (dept === '미분류') unmappedDept++;
     // 계정 규칙(서버 acctRules_)은 이 두 계정을 경영관리부문으로 통일한다 — 코드가 이기므로 어긋나면 코드가 틀린 것
@@ -566,7 +575,7 @@ function aggregate() {
     }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
-  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, noAmt, noAcct, unmappedDept, badCode, ruleConflict, warnTh };
+  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh };
 }
 
 function rateBadge(rate, warnTh) {
@@ -591,12 +600,15 @@ function renderDash() {
   </div>`;
 
   const issues = [];
-  if (A.noAmt) issues.push(`금액 미입력 ${A.noAmt}건`);
+  if (A.noAmtStale) issues.push(`금액 미입력 ${A.noAmtStale}건 (종결 2주 경과 — 자금 자료에 안 나타난 건)`);
   if (A.noAcct) issues.push(`계정 미지정 ${A.noAcct}건`);
   if (A.unmappedDept) issues.push(`부서 미분류 ${A.unmappedDept}건`);
   if (A.badCode) issues.push(`존재하지 않는 예산코드 ${A.badCode}건`);
   if (A.ruleConflict) issues.push(`계정 규칙과 어긋난 코드 ${A.ruleConflict}건`);
   if (issues.length) html += `<div class="alert warn">처리 필요 — ${issues.join(' · ')} · [지출내역] 탭에서 입력하세요.</div>`;
+  // 지급 전 대기는 정상이다 — 경고와 섞으면 "처리 필요"가 부풀어 진짜 문제가 묻힌다
+  const waiting = A.noAmtWait + A.noAmtDraft;
+  if (waiting) html += `<div class="alert info">지급 대기 ${waiting}건 — 결재 진행 중 ${A.noAmtDraft}건 · 지급 전 ${A.noAmtWait}건. 자금 지급 자료를 올리면 자동으로 채워집니다.</div>`;
 
   // 부서 카드 그리드 — 클릭하면 아래에 세부(계정별 + 항목별) 펼침
   const deptOrder = [...new Set(BUDGET.map(r => r[1]))];
