@@ -69,6 +69,17 @@ header.top .spacer{flex:1}
 .seg button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.controls .cspacer{flex:1}
+.ghost{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  font:inherit;font-size:13px;font-weight:600;
+  padding:6px 14px;min-height:34px;border-radius:var(--r-pill);cursor:pointer;
+  transition:color .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease);
+}
+.ghost:hover{color:var(--blue);border-color:var(--blue)}
+.ghost:active{transform:scale(.98)}
+.ghost:disabled{opacity:.5;cursor:default}
+.ghost:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);padding:14px}
 
@@ -216,6 +227,8 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
           <button type="button" id="btnHQ" aria-pressed="true">본사 별도</button>
           <button type="button" id="btnCOMB" aria-pressed="false">합산</button>
         </div>
+        <span class="cspacer"></span>
+        <button type="button" class="ghost" id="xlsPL">엑셀</button>
       </div>
       <div class="card">
         <div class="scroll">
@@ -233,6 +246,8 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       <div class="controls">
         <div class="seg" role="group" aria-label="연도" id="segYear"></div>
         <div class="seg" role="group" aria-label="값" id="segMode"></div>
+        <span class="cspacer"></span>
+        <button type="button" class="ghost" id="xlsSales">엑셀</button>
       </div>
       <div class="card">
         <div class="scroll">
@@ -700,6 +715,119 @@ function 매출그리기() {
       + '24년 원천엔 무상 행 자체가 없습니다(유상 판매 리스트). ')
     + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.';
 }
+
+/* =========================================================================
+   엑셀 내보내기 — 현재 탭을 전체 펼침으로 내린다. Toss 스타일 서식
+   (Pretendard · 흰 배경 · 하단 헤어라인만). ExcelJS는 단추를 눌렀을 때 처음 받는다.
+   ========================================================================= */
+var 엑셀로딩 = null;
+function 엑셀SDK() {
+  if (window.ExcelJS) return Promise.resolve();
+  if (!엑셀로딩) 엑셀로딩 = new Promise(function (되, 안) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = 되;
+    s.onerror = function () { 엑셀로딩 = null; 안(new Error('엑셀 모듈을 못 불러왔습니다')); };
+    document.head.appendChild(s);
+  });
+  return 엑셀로딩;
+}
+
+var 서식 = {
+  글꼴: { name: 'Pretendard', size: 11, color: { argb: 'FF191F28' } },
+  머리글꼴: { name: 'Pretendard', size: 10, bold: true, color: { argb: 'FF8B95A1' } },
+  밑선: { bottom: { style: 'thin', color: { argb: 'FFE5E8EB' } } },
+  굵은밑선: { bottom: { style: 'medium', color: { argb: 'FF191F28' } } },
+};
+
+/** 시트 하나 — 머리 [문자열...], 줄 [{이름, 급, 값들:[], 형:'금액'|'수'|'율'}] */
+function 시트쓰기(wb, 이름, 머리, 줄들) {
+  var ws = wb.addWorksheet(이름, { views: [{ state: 'frozen', xSplit: 1, ySplit: 1 }] });
+  ws.columns = [{ width: 24 }].concat(머리.slice(1).map(function () { return { width: 10 }; }));
+  var h = ws.addRow(머리);
+  h.eachCell(function (c, i) {
+    c.font = 서식.머리글꼴; c.border = 서식.밑선;
+    c.alignment = { horizontal: i === 1 ? 'left' : 'right' };
+  });
+  줄들.forEach(function (r) {
+    var row = ws.addRow([r.이름].concat(r.값들));
+    row.eachCell({ includeEmpty: true }, function (c, i) {
+      c.font = Object.assign({}, 서식.글꼴, (r.급 === 'total' || r.급 === 'op') ? { bold: true } : {},
+        (r.급 === 'leaf' || r.급 === 'leaf2') ? { color: { argb: 'FF4E5968' }, size: 10 } : {});
+      c.border = r.급 === 'op' ? 서식.굵은밑선 : 서식.밑선;
+      if (i === 1) {
+        c.alignment = { horizontal: 'left', indent: r.급 === 'child' ? 1 : r.급 === 'leaf' ? 2 : r.급 === 'leaf2' ? 3 : 0 };
+      } else {
+        c.alignment = { horizontal: 'right' };
+        c.numFmt = r.형 === '수' ? '#,##0;[Red]△#,##0' : r.형 === '율' ? '0.0"%"' : '#,##0.0;[Red]△#,##0.0';
+      }
+    });
+  });
+  return ws;
+}
+
+function 내려받기(wb, 파일명) {
+  return wb.xlsx.writeBuffer().then(function (buf) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = 파일명;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  });
+}
+
+function 손익엑셀() {
+  var 끝 = 마감월(), 달 = [];
+  for (var m = 1; m <= 끝; m++) 달.push(m);
+  var 줄들 = 행들().map(function (r) {
+    var 값들 = 달.map(function (m) { return r.값(m); });
+    var 누계 = 값들.reduce(function (a, b) { return a + b; }, 0);
+    var 연목 = null, 달성 = null;
+    if (r.목표) {
+      연목 = 0;
+      for (var k = 1; k <= 12; k++) 연목 += (r.목표[k] != null) ? r.목표[k] : (k <= 끝 ? r.값(k) : 0);
+      달성 = 연목 ? (누계 / 연목 * 100) : null;
+    }
+    return { 이름: r.이름, 급: r.급, 형: '금액', 값들: 값들.concat([누계, 연목, 달성]) };
+  });
+  var wb = new ExcelJS.Workbook();
+  var 머리 = ['항목'].concat(달.map(function (m) { return m + '월'; }), ['누계', '연간목표', '달성률']);
+  // 달성률 칸만 % 서식 — 줄 단위 서식과 겹치는 마지막 열을 따로 잡는다
+  var ws = 시트쓰기(wb, 연도 + ' 손익 (' + (범위 === 'HQ' ? '본사 별도' : '합산') + ')', 머리, 줄들);
+  ws.getColumn(머리.length).eachCell(function (c, 행번호) { if (행번호 > 1) c.numFmt = '0.0"%"'; });
+  return 내려받기(wb, '등대_손익_' + 연도 + (범위 === 'COMBINED' ? '_합산' : '') + '.xlsx');
+}
+
+function 매출엑셀() {
+  var t = 매출맵(매출연도);
+  var 머리 = ['항목'].concat(t.달.map(function (m) { return m + '월'; }), [t.달.length < 12 ? '누계' : '연간']);
+  var 원래 = 매출모드;
+  var wb = new ExcelJS.Workbook();
+  [['금액', '금액', '금액'], ['장비', '장비 대수', '수'], ['노즐', '노즐 수량', '수']].forEach(function (p) {
+    매출모드 = p[0];
+    var 줄들 = 매출행들(t).map(function (r) {
+      var 값들 = t.달.map(function (m) { return r.값(m); });
+      var 누계 = null;
+      값들.forEach(function (v) { if (v != null) 누계 = (누계 || 0) + v; });
+      return { 이름: r.이름, 급: r.급, 형: p[2], 값들: 값들.concat([누계]) };
+    });
+    시트쓰기(wb, p[1], 머리, 줄들);
+  });
+  매출모드 = 원래;
+  return 내려받기(wb, '등대_매출_' + 매출연도 + '.xlsx');
+}
+
+function 엑셀단추(단추, 만들기) {
+  단추.addEventListener('click', function () {
+    if (!DB) return;
+    단추.disabled = true; var 원문 = 단추.textContent; 단추.textContent = '만드는 중…';
+    엑셀SDK().then(만들기)
+      .catch(function (e) { alert(e.message); })
+      .then(function () { 단추.disabled = false; 단추.textContent = 원문; });
+  });
+}
+엑셀단추($('xlsPL'), 손익엑셀);
+엑셀단추($('xlsSales'), 매출엑셀);
 
 탭설정('pl');
 불러오기();
