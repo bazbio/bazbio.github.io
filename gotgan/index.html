@@ -591,7 +591,7 @@ function aggregate() {
   });
   const spentDA = {}, pendDA = {};
   let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
-  let totSpent = 0, totPend = 0;
+  let totSpent = 0, totPend = 0, cogs = 0;
   // 금액이 빈 것은 대부분 "아직 지급 전"이라 정상이다. 사람이 봐야 하는 것은
   // 종결된 지 2주가 지나도록 자금 자료에 안 나타난 건뿐이다 — 그것만 경고로 올린다.
   const STALE_MS = 14 * 86400000, 오늘 = Date.now();
@@ -610,6 +610,8 @@ function aggregate() {
     // 계정 규칙(서버 acctRules_)은 이 두 계정을 경영관리부문으로 통일한다 — 코드가 이기므로 어긋나면 코드가 틀린 것
     if (/^(지급임차료|자기계발비)/.test(String(acct)) && dept !== '경영관리부문') ruleConflict++;
     if (amt <= 0) return;
+    // 매출원가는 판관비 예산과 다른 돈이다 — 집행률·잔액 어디에도 섞지 않고 따로 센다
+    if (dept === '매출원가') { if (st === '종결') cogs += amt; return; }
     if (dept === '예산외') return;
     const k = dept + '|' + acct;
     if (st === '종결') { spentDA[k] = (spentDA[k] || 0) + amt; totSpent += amt; }
@@ -622,7 +624,7 @@ function aggregate() {
     }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
-  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh };
+  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh };
 }
 
 function rateBadge(rate, warnTh) {
@@ -645,6 +647,9 @@ function renderDash() {
     <div class="card"><div class="label">잔액</div><div class="value">${fmt(A.totBudget - A.totSpent)}원</div><div class="extra">진행 반영 시 ${fmt(A.totBudget - A.totSpent - A.totPend)}원</div></div>
     <div class="card"><div class="label">집행률</div><div class="value">${A.totBudget > 0 ? (A.totSpent / A.totBudget * 100).toFixed(1) : '0.0'}%</div></div>
   </div>`;
+  // 매출원가는 판관비 예산 밖의 돈이라 위 카드에 안 섞는다. 그래도 지출결의서로 올라오니 보여는 준다.
+  if (A.cogs) html += `<div class="alert info">매출원가 ${fmt(A.cogs)}원 — 원재료비·외주가공비·제조(제) 귀속 비용입니다.
+    판관비 예산·집행률에는 넣지 않습니다. [지출내역]에서 예산부서 <b>매출원가</b>로 볼 수 있습니다.</div>`;
 
   const issues = [];
   if (A.noAmtStale) issues.push(`금액 미입력 ${A.noAmtStale}건 (종결 2주 경과 — 자금 자료에 안 나타난 건)`);
@@ -783,10 +788,12 @@ function renderMonthly() {
     if (!byCls[cls][key]) byCls[cls][key] = {};
     byCls[cls][key][mm] = (byCls[cls][key][mm] || 0) + amt;
   };
+  let cogsM = 0;
   EXPENSES.forEach(r => {
     const st = r[8], dept = String(r[9] || '').trim(), acct = String(r[10] || '').trim(), amt = Number(r[12]) || 0;
     if (amt <= 0) return;
-    if (acct.indexOf('원재료비') === 0) return; // 매출원가 — 판관비 제외
+    // 매출원가는 판관비가 아니다 — 예산부서로 가른다(v17). 계정명으로 보던 것을 대체한다.
+    if (dept === '매출원가') { if (st === '종결') cogsM += amt; return; }
     const isInvest = acct === '경상연구개발비-투자비' && dept.indexOf('연구소') === 0;
     const ok = st === '종결' || (inclPending && st === '진행');
     if (!ok) { if (st === '진행' && !isInvest) { const mm = String(r[4]).slice(0, 7); pendM[mm] = (pendM[mm] || 0) + amt; } return; }
@@ -812,11 +819,12 @@ function renderMonthly() {
     <div class="card"><div class="label">기간 내 총 지출${inclPending ? ' (진행 포함)' : ' (종결)'}</div><div class="value">${fmt(tot)}원</div></div>
     <div class="card"><div class="label">이번 달 (${mLabel(thisMonth)})</div><div class="value">${fmt(curSum)}원</div><div class="extra">진행중 ${fmt(pendM[thisMonth] || 0)}원 별도</div></div>
     <div class="card"><div class="label">월평균</div><div class="value">${fmt(tot / monthsPast)}원</div><div class="extra">경과 ${monthsPast}개월 기준</div></div>
+    <div class="card"><div class="label">매출원가 (별도)</div><div class="value">${fmt(cogsM)}원</div><div class="extra">위 판관비 집계에는 안 들어감</div></div>
   </div>`;
 
   // 표1: 월별 전체 (예산내/예산외)
   html += `<section class="panel"><h2 class="section-head">월별 전체 지출</h2>
-    <p class="section-sub">예산 항목에 없는 비용(예산외) 포함, 원재료비(매출원가)는 제외. 연구소 투자비는 집행 월부터 5년(60개월) 정액 상각으로 인식${investTot ? ' — 자산화 누계 ' + fmt(investTot) + '원' : ''}. 월 기준은 기안일${inclPending ? ' · 진행중 포함' : ' · 결재 종결 기준'}.</p>
+    <p class="section-sub">예산 항목에 없는 비용(예산외) 포함, <b>매출원가는 제외</b>(원재료비·외주가공비·제조(제) 귀속 — 위 카드에 별도 표시). 연구소 투자비는 집행 월부터 5년(60개월) 정액 상각으로 인식${investTot ? ' — 자산화 누계 ' + fmt(investTot) + '원' : ''}. 월 기준은 기안일${inclPending ? ' · 진행중 포함' : ' · 결재 종결 기준'}.</p>
     <div class="filters"><label class="muted"><input type="checkbox" id="mon-pend" ${inclPending ? 'checked' : ''}> 진행중(미종결) 포함</label></div>
     <div class="table-wrap"><table>
     <tr><th>월</th><th class="num">예산내</th><th class="num">예산외</th><th class="num">합계</th><th class="num">누계</th></tr>`;
@@ -863,7 +871,7 @@ function renderMonthly() {
 // ─── 지출내역 ───
 function expenseDepts() {
   // 부서 열람 계정은 자기 부서만 선택 가능 (서버에서도 검증)
-  return USER.depts ? USER.depts : [...new Set(BUDGET.map(r => r[1]))].concat(['예산외', '미분류']);
+  return USER.depts ? USER.depts : [...new Set(BUDGET.map(r => r[1]))].concat(['매출원가', '예산외', '미분류']);
 }
 
 // 예산부서는 예산코드에서 파생한다 (ADR 0001) — 서버 resolveDept_ 와 같은 규칙
