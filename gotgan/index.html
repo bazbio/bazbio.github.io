@@ -6,6 +6,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>곳간 · BAZ 예산관리</title>
+<!-- ▼ PWA (Pages_생성.js가 넣는다 — gas/웹앱.html에는 없다) -->
+<meta name="theme-color" content="#0E8C4A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="곳간">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- ?v=2: 파비콘 링크가 없던 시절의 크롬 캐시(기본 지구본)가 안 풀려서 주소를 바꿔 강제 갱신 (2026-08-06) -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
+<!-- ▲ PWA -->
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -148,7 +160,12 @@
   #exp-table th.sortable { cursor: pointer; user-select: none; }
   #exp-table th.sortable:hover { color: var(--primary); }
   #exp-table th, #exp-table td { padding: 6px 8px; font-size: 12.5px; letter-spacing: -0.12px; }
-  #exp-table .title-cell { max-width: 300px; }
+  /* 제목은 자르지 않는다 — 잘린 제목으로는 어떤 건인지 알 수 없어 금액·코드를 넣을 수가 없다.
+     표 전체의 nowrap을 이 칸에서만 풀고 두 줄까지 접는다(2026-08-06 요청). */
+  #exp-table .title-cell {
+    max-width: 420px; min-width: 260px; white-space: normal; word-break: keep-all;
+    overflow: visible; text-overflow: clip; line-height: 1.4; vertical-align: middle;
+  }
   #exp-table select, #exp-table input { padding: 4px 8px; font-size: 12.5px; border-radius: 6px; }
   #exp-table input.amt { width: 96px; }
   #exp-table input.code-in { width: 104px; }
@@ -221,18 +238,6 @@
     h2.section-head { font-size: 21px; }
   }
 </style>
-
-<!-- ▼ PWA (Pages_생성.js가 넣는다 — gas/웹앱.html에는 없다) -->
-<meta name="theme-color" content="#0E8C4A">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="곳간">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<!-- ?v=2: 파비콘 링크가 없던 시절의 크롬 캐시(기본 지구본)가 안 풀려서 주소를 바꿔 강제 갱신 (2026-08-06) -->
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
-<!-- ▲ PWA -->
 </head>
 <body>
 <div class="global-nav">
