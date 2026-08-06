@@ -503,24 +503,52 @@ el('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') el('
 el('btn-logout').onclick = () => { localStorage.removeItem(TOKEN_KEY); location.reload(); };
 
 // ─── 초기 로드 ───
+
+// 부트 관문 (ADR 0004 2단계) — GAS 왕복(2~5초)을 안 기다리기 위한 스냅샷 읽기.
+// 관문과 GAS를 동시에 부르고, 먼저 온 쪽(거의 항상 관문)으로 즉시 그린 뒤 GAS로 수렴한다.
+const EDGE_BOOT_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1/gotgan-boot';
+
+function 부트적용(init, expenses) {
+  BUDGET = init.budget; DEPTMAP = init.deptMap; SETTINGS = init.settings;
+  CODED_DEPTS = init.codedDepts; ACCT_CLASS = init.acctClass || [];
+  UNMATCHED = init.unmatched || [];
+  USER = { email: init.email, name: init.name, depts: init.depts || null };
+  EXPENSES = expenses;
+  el('login').style.display = 'none';
+  el('app').style.display = ''; el('nav').style.display = 'flex';
+  el('userbox').style.display = 'flex';
+  el('user-email').textContent = (USER.name ? USER.name + ' · ' : '') + init.email
+    + (USER.depts ? ' (' + USER.depts.join('·') + ')' : '');
+  // 부서 열람 계정은 업로드 숨김
+  el('nav-up').style.display = USER.depts ? 'none' : '';
+  fillDatalists();
+  renderDash(); renderMonthly(); renderExpenses(); renderBudget();
+}
+
 async function boot() {
   loading(true);
+  let gas도착 = false;
+  // 관문 갈래 — v2 토큰일 때만. 실패는 조용히(그냥 GAS를 기다리는 종전 동작).
+  if (token().indexOf('v2.') === 0) {
+    fetch(EDGE_BOOT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 사전요청 없음
+      body: JSON.stringify({ 토큰: token() }),
+    }).then(r => r.json()).then(d => {
+      if (gas도착 || !d || !d.init) return; // GAS가 이미 그렸으면 낡은 스냅샷은 버린다
+      부트적용(d.init, d.expenses || []);
+      loading(false);
+      console.log('관문 부트 ' + (d.서버ms || '?') + 'ms · 굽은 지 ' + (d.bakedAt ? Math.round((Date.now() - d.bakedAt) / 60000) + '분' : '?'));
+    }).catch(() => {});
+  }
   try {
     const [init, expenses] = await Promise.all([gsAuth('apiGetInit'), gsAuth('apiGetExpenses')]);
-    BUDGET = init.budget; DEPTMAP = init.deptMap; SETTINGS = init.settings;
-    CODED_DEPTS = init.codedDepts; ACCT_CLASS = init.acctClass || [];
-    UNMATCHED = init.unmatched || [];
-    USER = { email: init.email, name: init.name, depts: init.depts || null };
-    EXPENSES = expenses;
-    el('login').style.display = 'none';
-    el('app').style.display = ''; el('nav').style.display = 'flex';
-    el('userbox').style.display = 'flex';
-    el('user-email').textContent = (USER.name ? USER.name + ' · ' : '') + init.email
-      + (USER.depts ? ' (' + USER.depts.join('·') + ')' : '');
-    // 부서 열람 계정은 업로드 숨김
-    el('nav-up').style.display = USER.depts ? 'none' : '';
-    fillDatalists();
-    renderDash(); renderMonthly(); renderExpenses(); renderBudget();
+    gas도착 = true;
+    부트적용(init, expenses); // 관문이 먼저 그렸어도 GAS가 최신이다 — 조용히 수렴
+    // 구 토큰이면 v2로 무통증 교체 — 다음 부트부터 관문이 잡힌다
+    if (token().indexOf('v2.') !== 0) {
+      gsAuth('apiUpgradeToken').then(r => { if (r && r.token) localStorage.setItem(TOKEN_KEY, r.token); }).catch(() => {});
+    }
   } catch (e) {
     if (isAuthErr(e)) { showLogin(token() ? String(e.message || e).replace(/^Error:\s*/, '').replace('AUTH:', '') : ''); return; }
     alert('데이터 로드 실패: ' + (e.message || e));
