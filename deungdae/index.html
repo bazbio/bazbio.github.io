@@ -82,6 +82,7 @@ header.top .spacer{flex:1}
 .ghost:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);padding:14px}
+h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 
 /* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -215,6 +216,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       <nav class="tabs" role="tablist" aria-label="화면">
         <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
+        <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
       </nav>
       <span class="spacer"></span>
       <span class="sub" id="asof"></span>
@@ -257,6 +259,39 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
           </table>
         </div>
         <p class="note" id="salesNote"></p>
+      </div>
+    </section>
+
+    <!-- 지표 탭 — 나침반에서 이관한 축 (볼륨·인건비·전년비교) -->
+    <section id="tab-kpi" hidden>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="연도" id="segKpiYear"></div>
+        <span class="cspacer"></span>
+        <button type="button" class="ghost" id="xlsKPI">엑셀</button>
+      </div>
+
+      <div class="card">
+        <h3 class="ct">판매 볼륨</h3>
+        <div class="scroll">
+          <table class="pl"><thead><tr id="volHead"></tr></thead><tbody id="volBody"></tbody></table>
+        </div>
+        <p class="note">장비·노즐은 매출건 마감수량(무상·취소 제외), N-CARE 신규는 판매리스트 집계입니다.</p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">인건비</h3>
+        <div class="scroll">
+          <table class="pl"><thead><tr id="laborHead"></tr></thead><tbody id="laborBody"></tbody></table>
+        </div>
+        <p class="note" id="laborNote"></p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">전년 동기 대비</h3>
+        <div class="scroll">
+          <table class="pl"><thead><tr id="yoyHead"></tr></thead><tbody id="yoyBody"></tbody></table>
+        </div>
+        <p class="note" id="yoyNote"></p>
       </div>
     </section>
   </main>
@@ -329,17 +364,19 @@ function 불러오기() {
 
 /* ===== 탭 ===== */
 var 탭 = 'pl';
-function 현재탭그리기() { if (탭 === 'pl') 그리기(); else 매출그리기(); }
+var 지표연도 = 2026;
+function 현재탭그리기() { if (탭 === 'pl') 그리기(); else if (탭 === 'sales') 매출그리기(); else 지표그리기(); }
 function 탭설정(t) {
   탭 = t;
-  $('tabBtnPL').setAttribute('aria-selected', t === 'pl' ? 'true' : 'false');
-  $('tabBtnSales').setAttribute('aria-selected', t === 'sales' ? 'true' : 'false');
-  $('tab-pl').hidden = (t !== 'pl');
-  $('tab-sales').hidden = (t !== 'sales');
+  [['tabBtnPL', 'pl'], ['tabBtnSales', 'sales'], ['tabBtnKPI', 'kpi']].forEach(function (p) {
+    $(p[0]).setAttribute('aria-selected', t === p[1] ? 'true' : 'false');
+  });
+  ['pl', 'sales', 'kpi'].forEach(function (x) { $('tab-' + x).hidden = (t !== x); });
   if (DB) 현재탭그리기();
 }
 $('tabBtnPL').addEventListener('click', function () { 탭설정('pl'); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
+$('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
 /* ===== 집계 ===== */
 var 백만 = function (v) {
@@ -763,6 +800,150 @@ function 매출그리기() {
 }
 
 /* =========================================================================
+   지표 탭 (2026-08-06 나침반 이관) — 볼륨 · 인건비 · 전년 동기 대비.
+   나침반 GAS 화면만 갖고 있던 축이다. 이게 붙으면 나침반을 퇴역시킬 수 있다.
+   ========================================================================= */
+
+/** 그 연도에 값이 있는 마지막 달 */
+function 지표마감월(줄들) {
+  return 줄들.reduce(function (m, r) {
+    return (+r['회계연도'] === 지표연도 && r['값'] != null) ? Math.max(m, +r['월']) : m;
+  }, 0);
+}
+
+/** 표 하나를 그린다 — 줄: [{이름, 급, 형, 값들:[]}], 꼬리머리: 누계 뒤에 붙는 열 이름들 */
+function 표그리기(머리ID, 몸ID, 달, 줄들, 꼬리머리) {
+  $(머리ID).innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat((꼬리머리 || []).map(function (h) { return '<th scope="col">' + h + '</th>'; }))
+    .join('');
+  $(몸ID).innerHTML = 줄들.map(function (r) {
+    return '<tr class="r-' + (r.급 || 'child') + '">'
+      + '<td>' + r.이름 + '</td>'
+      + r.값들.map(function (v) {
+        var 글 = r.형 === '수' ? 수(v) : r.형 === '율' ? (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%') : 백만(v);
+        // 증감률에는 색을 안 붙인다 — 지표마다 좋은 방향이 달라(판관비 증가는 나쁘다)
+        // 색이 곧 해석이 된다. 등대는 해석하지 않는다 (CONTEXT: 권고는 범위 밖).
+        var 색 = (r.형 === '율') ? ' muted' : (v != null && v < 0 ? ' neg' : '');
+        return '<td class="num' + 색 + '">' + 글 + '</td>';
+      }).join('')
+      + '</tr>';
+  }).join('');
+}
+
+function 지표그리기() {
+  var 볼륨 = DB['볼륨'] || [], 인건비 = DB['인건비'] || [];
+  var 요약 = DB['전년요약'] || [], 판관 = DB['전년판관비'] || [];
+
+  // ── 연도 토글 — 볼륨에 있는 연도들 ──
+  var 연도들 = [];
+  볼륨.forEach(function (r) { if (연도들.indexOf(+r['회계연도']) < 0) 연도들.push(+r['회계연도']); });
+  연도들.sort();
+  if (연도들.indexOf(지표연도) < 0 && 연도들.length) 지표연도 = 연도들[연도들.length - 1];
+  $('segKpiYear').innerHTML = 연도들.map(function (y) {
+    return '<button type="button" data-y="' + y + '" aria-pressed="' + (지표연도 === y ? 'true' : 'false') + '">' + y + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('segKpiYear').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { 지표연도 = +b.dataset.y; 지표그리기(); });
+  });
+
+  var 끝 = 지표마감월(볼륨), 달 = [], m;
+  for (m = 1; m <= 끝; m++) 달.push(m);
+
+  // ── 볼륨 — 장비·노즐은 사업부별, N-CARE는 한 줄 ──
+  var 볼값 = function (지표, 사업부) {
+    return function (m) {
+      var s = null;
+      볼륨.forEach(function (r) {
+        if (+r['회계연도'] !== 지표연도 || +r['월'] !== m || r['지표'] !== 지표) return;
+        if (사업부 && r['사업부'] !== 사업부) return;
+        if (r['값'] != null) s = (s || 0) + Number(r['값']);
+      });
+      return s;
+    };
+  };
+  var 볼줄 = [];
+  [['장비', '장비 (대)'], ['노즐', '노즐 (개)']].forEach(function (p) {
+    var f = 볼값(p[0], null);
+    var 값들 = 달.map(f);
+    볼줄.push({ 이름: p[1], 급: 'total', 형: '수', 값들: 값들.concat([값들.reduce(function (a, b) { return a + (b || 0); }, 0)]) });
+    ['국내', '일본', '해외'].forEach(function (사) {
+      var g = 볼값(p[0], 사);
+      var v = 달.map(g);
+      if (v.every(function (x) { return x == null; })) return;
+      볼줄.push({ 이름: 사, 급: 'leaf', 형: '수', 값들: v.concat([v.reduce(function (a, b) { return a + (b || 0); }, 0)]) });
+    });
+  });
+  var nc = 달.map(볼값('N-CARE 신규', null));
+  if (nc.some(function (x) { return x != null; }))
+    볼줄.push({ 이름: 'N-CARE 신규 (건)', 급: 'total', 형: '수', 값들: nc.concat([nc.reduce(function (a, b) { return a + (b || 0); }, 0)]) });
+  표그리기('volHead', 'volBody', 달, 볼줄, ['누계']);
+
+  // ── 인건비 ──
+  var 인 = function (칸) {
+    return 달.map(function (m) {
+      var r = 인건비.filter(function (x) { return +x['회계연도'] === 지표연도 && +x['월'] === m; })[0];
+      return r ? Number(r[칸]) : null;
+    });
+  };
+  var 인줄 = [];
+  [['labor_total', '인건비 계', 'total'], ['labor_sga', '판관비 인건비', 'child'], ['labor_cogs', '제조원가 인건비', 'child']]
+    .forEach(function (p) {
+      var v = 인(p[0]);
+      인줄.push({ 이름: p[1], 급: p[2], 형: '금액', 값들: v.concat([v.reduce(function (a, b) { return a + (b || 0); }, 0)]) });
+    });
+  표그리기('laborHead', 'laborBody', 달, 인줄, ['누계']);
+  $('laborNote').textContent = 인건비.some(function (r) { return +r['회계연도'] === 지표연도; })
+    ? '단위 백만원 · 급여·4대보험 자동전표 발생 기준입니다 (분기말 퇴직충당 등 결산조정 미반영).'
+    : 지표연도 + '년 인건비 자료가 아직 없습니다.';
+
+  // ── 전년 동기 대비 — 누계 기준 ──
+  var 누계 = function (줄들, 걸러, 연) {
+    var s = null;
+    줄들.forEach(function (r) {
+      if (+r['회계연도'] !== 연 || +r['월'] > 끝) return;
+      if (!걸러(r)) return;
+      if (r['금액'] != null) s = (s || 0) + Number(r['금액']);
+    });
+    return s;
+  };
+  var 전년 = 지표연도 - 1;
+  var yoy줄 = [];
+  ['매출액', '매출원가', '판매비와관리비'].forEach(function (지표) {
+    var 올 = 누계(요약, function (r) { return r['지표'] === 지표; }, 지표연도);
+    var 작 = 누계(요약, function (r) { return r['지표'] === 지표; }, 전년);
+    yoy줄.push({
+      이름: 지표, 급: 'total', 형: '금액',
+      값들: [올, 작, (올 != null && 작 != null) ? 올 - 작 : null],
+    });
+    yoy줄.push({
+      이름: '　증감률', 급: 'leaf', 형: '율',
+      값들: [null, null, (올 != null && 작) ? (올 / 작 - 1) * 100 : null],
+    });
+  });
+  // 판관비 계정별 증감 — 절대 증감 큰 순 상위 8
+  var 계정들 = [];
+  판관.forEach(function (r) { if (계정들.indexOf(r['계정명']) < 0) 계정들.push(r['계정명']); });
+  var 증감 = 계정들.map(function (계) {
+    var 올 = 누계(판관, function (r) { return r['계정명'] === 계; }, 지표연도);
+    var 작 = 누계(판관, function (r) { return r['계정명'] === 계; }, 전년);
+    return { 계: 계, 올: 올, 작: 작, d: (올 || 0) - (작 || 0) };
+  }).filter(function (x) { return Math.abs(x.d) >= 10; })
+    .sort(function (a, b) { return Math.abs(b.d) - Math.abs(a.d); }).slice(0, 8);
+  증감.forEach(function (x) {
+    yoy줄.push({ 이름: x.계, 급: 'child', 형: '금액', 값들: [x.올, x.작, x.d] });
+  });
+
+  var 라벨 = 끝 + '월 누계';
+  표그리기('yoyHead', 'yoyBody', [], yoy줄, [지표연도 + ' ' + 라벨, 전년 + ' ' + 라벨, '증감']);
+  $('yoyNote').innerHTML = '단위 백만원 · <strong>관리기준(분개장)</strong>입니다 — 두 해를 같은 축에 놓으려면 '
+    + '분개장뿐이라, 손익 탭의 조정 후 확정 실적과는 다릅니다. '
+    + '판관비는 증감 10백만 이상 계정만 큰 순으로 8개까지 보입니다.';
+
+  $('asof').textContent = 지표연도 + '년 · ' + 끝 + '월까지';
+}
+
+/* =========================================================================
    엑셀 내보내기 — 현재 탭을 전체 펼침으로 내린다. Toss 스타일 서식
    (Pretendard · 흰 배경 · 하단 헤어라인만). ExcelJS는 단추를 눌렀을 때 처음 받는다.
    ========================================================================= */
@@ -866,6 +1047,26 @@ function 매출엑셀() {
   return 내려받기(wb, '등대_매출_' + 매출연도 + '.xlsx');
 }
 
+function 지표엑셀() {
+  var wb = new ExcelJS.Workbook();
+  // 화면이 그린 표를 그대로 옮긴다 — 계산이 두 벌이 되지 않게 DOM에서 읽는다
+  [['판매 볼륨', 'volHead', 'volBody'], ['인건비', 'laborHead', 'laborBody'],
+   ['전년 동기 대비', 'yoyHead', 'yoyBody']].forEach(function (p) {
+    var 머리 = Array.prototype.map.call($(p[1]).querySelectorAll('th'), function (t) { return t.textContent; });
+    var 줄들 = Array.prototype.map.call($(p[2]).querySelectorAll('tr'), function (tr) {
+      var 칸 = tr.querySelectorAll('td');
+      var 급 = (tr.className.match(/r-(\w+)/) || [, 'child'])[1];
+      var 값들 = Array.prototype.slice.call(칸, 1).map(function (td) {
+        var t = td.textContent.trim().replace(/,/g, '').replace('△', '-').replace('%', '').replace('+', '');
+        return t === '—' || t === '' ? null : Number(t);
+      });
+      return { 이름: 칸[0].textContent.trim(), 급: 급, 형: '금액', 값들: 값들 };
+    });
+    시트쓰기(wb, p[0], 머리, 줄들);
+  });
+  return 내려받기(wb, '등대_지표_' + 지표연도 + '.xlsx');
+}
+
 function 엑셀단추(단추, 만들기) {
   단추.addEventListener('click', function () {
     if (!DB) return;
@@ -877,6 +1078,7 @@ function 엑셀단추(단추, 만들기) {
 }
 엑셀단추($('xlsPL'), 손익엑셀);
 엑셀단추($('xlsSales'), 매출엑셀);
+엑셀단추($('xlsKPI'), 지표엑셀);
 
 탭설정('pl');
 불러오기();
