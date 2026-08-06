@@ -215,6 +215,8 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 .msg.err{color:var(--sig-red)}
 
 .note{margin-top:10px;color:var(--ink-3);font-size:11.5px;line-height:1.6;word-break:keep-all}
+/* 각주 안의 검산 실패 — 회색 각주에 묻히면 경고가 아니다 */
+.note .warn{display:block;margin-bottom:6px;color:var(--sig-red);font-size:12.5px}
 
 .spinner{
   width:22px;height:22px;margin:0 auto 10px;
@@ -496,6 +498,31 @@ function 갈래들() {
   return 범위 === 'COMBINED' ? ['고정비', '변동비'] : ['고정비', '변동비', '그룹내부'];
 }
 
+/**
+ * 갈래 합이 판관비 총계와 같은가 — 표가 자기 안에서 검산된다.
+ *
+ * **2026-08-07에 실제로 어긋났다.** DB를 3분류로 바꾼 날 화면 배포가 큐에 밀려, 하루 동안
+ * DB는 3분류인데 화면은 2분류였다. 화면이 모르는 `그룹내부` 행이 조용히 빠지고 합산에서는
+ * 이중 차감까지 나서 5월 변동비가 △212.7로 떴다 — **아무 경고 없이.**
+ * 다음에 같은 어긋남이 나면 틀린 숫자를 믿는 대신 이 문장을 본다.
+ */
+function 갈래검산(sga, 끝) {
+  var 아는갈래 = 갈래들();
+  var 모르는 = {};
+  sga.forEach(function (r) { if (아는갈래.indexOf(r.구분) < 0) 모르는[r.구분] = 1; });
+  var 이름들 = Object.keys(모르는);
+  if (!이름들.length) return null;
+  var 벌어짐 = 0;
+  for (var m = 1; m <= 끝; m++) {
+    var 총 = 더(sga.filter(function (r) { return r.월 === m; }), function (r) { return r.값; });
+    var 갈 = 더(sga.filter(function (r) { return r.월 === m && 아는갈래.indexOf(r.구분) >= 0; }), function (r) { return r.값; });
+    벌어짐 += 총 - 갈;
+  }
+  return '⚠ <strong>이 화면이 모르는 비용구분이 있습니다 — ' + 이름들.join('·') + '.</strong> '
+    + '갈래 합이 판관비 총계보다 ' + 백만(벌어짐) + ' 모자랍니다. '
+    + '화면이 낡았을 가능성이 큽니다 — 강력 새로고침(Ctrl+Shift+R) 후에도 남으면 알려주세요.';
+}
+
 /** 화면 행 정의를 만든다. 각 행은 월별 값 함수 하나로 정의된다 */
 function 행들() {
   var 매출 = DB['손익매출'] || [];
@@ -638,7 +665,9 @@ function 그리기() {
   변동그리기();
 
   $('asof').textContent = 연도 + '년 · ' + 끝 + '월까지 · 단위 백만원';
-  $('footnote').innerHTML = '숫자는 <strong>결산조정을 반영한 확정 실적</strong>입니다. '
+  var 경고 = 갈래검산(판관비항목(), 끝);
+  $('footnote').innerHTML = (경고 ? '<span class="warn">' + 경고 + '</span> ' : '')
+    + '숫자는 <strong>결산조정을 반영한 확정 실적</strong>입니다. '
     + '<span class="adj"></span> 표시가 붙은 달에 조정이 들어갔고, 매출원가·고정비를 펼치면 내역이 보입니다. '
     + '매출·국가별·제품별은 무상·취소를 포함한 전 건 기준이라 세 블록의 합이 매출액과 같습니다. '
     + '연간목표는 마감된 달은 실적, 남은 달은 목표를 더한 값입니다.'
