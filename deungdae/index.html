@@ -84,6 +84,30 @@ header.top .spacer{flex:1}
 .card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);padding:14px}
 h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 
+/* ===== 이달의 변동 ===== */
+.mv{padding:12px 0;border-top:1px solid var(--hairline)}
+.mv:first-child{border-top:0;padding-top:2px}
+.mv .hd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mv .nm{font-weight:700;font-size:13.5px}
+.mv .dt{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.mv .sub{color:var(--ink-3);font-size:12px}
+.mv .lead{margin:6px 0 0;font-size:12.5px;line-height:1.65;color:var(--ink-2);word-break:keep-all}
+.mv .lead strong{color:var(--ink)}
+.mv ul{margin:8px 0 0;padding:0;list-style:none}
+.mv li{
+  display:flex;gap:8px;align-items:baseline;
+  padding:5px 0;font-size:12.5px;line-height:1.55;color:var(--ink-2);word-break:keep-all;
+}
+.mv li .v{flex:none;min-width:74px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.mv li .v.neg{color:var(--sig-red)}
+.mv li .why{color:var(--ink-3)}
+.mv .flag{
+  display:inline-block;padding:1px 7px;border-radius:var(--r-pill);
+  background:var(--sig-amber-bg);color:var(--sig-amber);
+  font-size:11px;font-weight:700;
+}
+.mv .flag.info{background:var(--blue-bg);color:var(--blue)}
+
 /* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.pl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
@@ -240,6 +264,13 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
           </table>
         </div>
         <p class="note" id="footnote"></p>
+      </div>
+
+      <!-- 이달의 변동 — 결정_이달의변동_260806 -->
+      <div class="card" id="movesCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="movesTitle"></h3>
+        <div id="movesBody"></div>
+        <p class="note" id="movesNote"></p>
       </div>
     </section>
 
@@ -563,6 +594,8 @@ function 그리기() {
     b.addEventListener('click', function () { 펼침[b.dataset['키']] = !펼침[b.dataset['키']]; 그리기(); });
   });
 
+  변동그리기();
+
   $('asof').textContent = 연도 + '년 · ' + 끝 + '월까지 · 단위 백만원';
   $('footnote').innerHTML = '숫자는 <strong>결산조정을 반영한 확정 실적</strong>입니다. '
     + '<span class="adj"></span> 표시가 붙은 달에 조정이 들어갔고, 매출원가·고정비를 펼치면 내역이 보입니다. '
@@ -797,6 +830,216 @@ function 매출그리기() {
       + '24년 원천엔 무상 행 자체가 없습니다(유상 판매 리스트). '
       + (매출모드 === '장비' ? '<strong>누적(24~)</strong>는 2024년부터 선택 연도 마감월까지의 총 누적 판매 대수입니다. ' : ''))
     + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.';
+}
+
+/* =========================================================================
+   이달의 변동 (결정_이달의변동_260806)
+
+   마감월을 전월과 비교해 **사실 · 재측정 · 데이터가 아는 이유**까지 낸다.
+   추측은 하지 않는다 — "…로 보인다"는 문장을 만들지 않는다.
+
+   재측정이 핵심이다. 결산조정이 분기말 한 달에 통째로 들어가므로, 그것을 걷어낸
+   기준선을 함께 내지 않으면 표가 사람을 오도한다 (6월 고정비 △291.5는 실제로는 +131.1).
+   ========================================================================= */
+
+/** 계정별 월별 값 색인 — 패턴 판정용. 전년비교 뷰(관리기준)를 쓴다 */
+function 계정색인(연) {
+  var o = {};
+  (DB['전년판관비'] || []).forEach(function (r) {
+    if (+r['회계연도'] !== 연) return;
+    (o[r['계정명']] = o[r['계정명']] || {})[+r['월']] = Number(r['금액']);
+  });
+  return o;
+}
+
+/**
+ * 이 계정이 왜 이렇게 움직였는지 **데이터가 아는 것**만 낸다.
+ * 아무것도 못 찾으면 빈 문자열 — 억지로 문장을 만들지 않는다.
+ */
+function 계정사유(이름, 당월, 전월값, m, 올해, 작년) {
+  var 사유 = [];
+
+  // ① 분기말에만 발생하는 계정인가 — 작년 12개월로 판정한다 (올해는 아직 반년)
+  var 작 = 작년[이름];
+  if (작) {
+    var 있는달 = Object.keys(작).map(Number).filter(function (k) { return Math.abs(작[k]) > 0.05; });
+    var 분기말 = 있는달.length >= 3 && 있는달.every(function (k) { return k % 3 === 0; });
+    if (분기말 && m % 3 === 0) 사유.push('분기말에만 발생하는 계정입니다 (작년에도 ' + 있는달.join('·') + '월)');
+  }
+
+  // ② 올해 처음 잡힌 값인가
+  var 올 = 올해[이름] || {};
+  var 이전 = [];
+  for (var k = 1; k < m; k++) if (올[k] != null) 이전.push(올[k]);
+  if (!사유.length && 이전.length && 이전.every(function (v) { return Math.abs(v) < 0.05; }) && Math.abs(당월) > 0.05)
+    사유.push('올해 이 달에 처음 잡혔습니다');
+
+  // ③ 환입(음수)에서 돌아온 것 — 평균 비교보다 직접적이라 먼저 본다
+  if (!사유.length && 전월값 != null && 전월값 < 0 && 당월 > 0)
+    사유.push('전월이 음수(' + 백만(전월값) + ')였습니다 — 환입 뒤 정상화');
+
+  // ④ 그 달까지 누계가 0이었나 — 개별 달에 값이 있어도 상계돼 0이면 「이번이 실질 첫 계상」이다
+  if (!사유.length) {
+    var 누 = 0, 있 = false;
+    for (var q = 1; q < m; q++) if (올[q] != null) { 누 += 올[q]; 있 = true; }
+    if (있 && Math.abs(누) < 0.5 && Math.abs(당월) > 0.5)
+      사유.push('1~' + (m - 1) + '월 누계가 0이었습니다 — 이번 달이 실질 첫 계상');
+  }
+
+  // ⑤ 전월이 이례적으로 낮았나/높았나 — 그 앞 달들의 평균과 견준다.
+  //    "반작용으로 보인다"가 아니라 "전월이 평균 대비 얼마였다"는 사실만 말한다.
+  if (!사유.length && m >= 4) {
+    var 앞 = [];
+    for (var j = 1; j <= m - 2; j++) if (올[j] != null) 앞.push(올[j]);
+    if (앞.length >= 2 && 전월값 != null) {
+      var 평 = 앞.reduce(function (a, b) { return a + b; }, 0) / 앞.length;
+      var 벗 = 전월값 - 평;
+      // **증감 방향과 어긋나면 붙이지 않는다.** 감소한 계정에 「전월이 평균보다 낮았다」를
+      // 달면 설명이 아니라 혼란이 된다 (지급수수료에서 실제로 그랬다).
+      var 방향맞나 = (당월 - 전월값) * 벗 < 0;
+      if (평 !== 0 && 방향맞나 && Math.abs(벗) / Math.abs(평) > 0.25 && Math.abs(벗) > 10)
+        사유.push('전월 ' + 백만(전월값) + '이 그 앞 ' + 앞.length + '개월 평균 ' + 백만(평)
+          + '보다 ' + (벗 < 0 ? '낮' : '높') + '았습니다');
+    }
+  }
+
+  return 사유.join(' · ');
+}
+
+/** 지표 하나의 변동 블록 HTML */
+function 변동블록(제목, 당, 전, 옵션) {
+  옵션 = 옵션 || {};
+  var d = 당 - 전;
+  var 부호 = d >= 0 ? '+' : '';
+  var html = '<div class="mv"><div class="hd">'
+    + '<span class="nm">' + 제목 + '</span>'
+    + '<span class="dt' + (d < 0 ? ' neg' : '') + '">' + 부호 + 백만(d) + '</span>'
+    + '<span class="sub">' + 백만(전) + ' → ' + 백만(당) + '</span>';
+  if (옵션.배지) html += ' <span class="flag' + (옵션.배지급 || '') + '">' + 옵션.배지 + '</span>';
+  html += '</div>';
+  if (옵션.리드) html += '<p class="lead">' + 옵션.리드 + '</p>';
+  if (옵션.항목 && 옵션.항목.length) {
+    html += '<ul>' + 옵션.항목.map(function (x) {
+      return '<li><span class="v' + (x.값 < 0 ? ' neg' : '') + '">' + (x.값 >= 0 ? '+' : '') + 백만(x.값) + '</span>'
+        + '<span><strong>' + x.이름 + '</strong>' + (x.why ? ' <span class="why">— ' + x.why + '</span>' : '') + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  return html + '</div>';
+}
+
+/** 계정 증감을 상위 N개 + 기타로 접는다 — 합이 총 증감과 맞게 한다 */
+function 증감항목(목록, m, 올해, 작년, N, 임계) {
+  var 큰 = 목록.filter(function (x) { return Math.abs(x.값) >= 임계; })
+    .sort(function (a, b) { return Math.abs(b.값) - Math.abs(a.값); });
+  var 위 = 큰.slice(0, N);
+  var 나머지 = 목록.filter(function (x) { return 위.indexOf(x) < 0; });
+  var 항목 = 위.map(function (x) {
+    return { 이름: x.이름, 값: x.값, why: 계정사유(x.이름, x.당, x.전, m, 올해, 작년) };
+  });
+  var 잔 = 나머지.reduce(function (s, x) { return s + x.값; }, 0);
+  if (나머지.length && Math.abs(잔) > 0.05)
+    항목.push({ 이름: '기타 ' + 나머지.length + '개 계정', 값: 잔, why: '' });
+  return 항목;
+}
+
+function 변동그리기() {
+  var 끝 = 마감월();
+  var 카드 = $('movesCard');
+  if (끝 < 2) { 카드.hidden = true; return; }
+  카드.hidden = false;
+  var m = 끝, p = 끝 - 1;
+
+  var 매출 = DB['손익매출'] || [];
+  var sga = 판관비항목();
+  var 비용 = DB['손익비용'] || [];
+  var 올해 = 계정색인(연도), 작년 = 계정색인(연도 - 1);
+
+  var 매출월 = function (x) { return 더(매출.filter(function (r) { return +r['월'] === x; }), function (r) { return Number(r['금액']); }); };
+  var 원가월 = function (x) { return 더(비용.filter(function (r) { return r['대분류'] === '원가' && +r['월'] === x; }), function (r) { return Number(r['금액']); }); };
+  var 판관월 = function (x) { return 더(sga.filter(function (r) { return r.월 === x; }), function (r) { return r.값; }); };
+  var 구분월 = function (x, 구) { return 더(sga.filter(function (r) { return r.월 === x && r.구분 === 구; }), function (r) { return r.값; }); };
+  var 조정월값 = function (x) { return 더(sga.filter(function (r) { return r.월 === x && r.이름 === '결산조정'; }), function (r) { return r.값; }); };
+
+  var html = '';
+
+  // ── 판관비 — 결산조정을 걷어낸 기준선을 함께 낸다 ──
+  var 조정당 = 조정월값(m), 조정전 = 조정월값(p);
+  var 판당 = 판관월(m), 판전 = 판관월(p);
+  var 순당 = 판당 - 조정당, 순전 = 판전 - 조정전;
+  var 리드 = '';
+  if (Math.abs(조정당 - 조정전) > 1) {
+    리드 = '<strong>결산조정 ' + 백만(조정당) + '이 ' + m + '월에 반영</strong>됐습니다. '
+      + '이를 제외하면 판관비는 ' + 백만(순전) + ' → ' + 백만(순당) + '으로 '
+      + '<strong>' + (순당 - 순전 >= 0 ? '+' : '') + 백만(순당 - 순전) + '</strong>입니다.';
+  }
+  // 계정별 증감 (조정 제외)
+  var 이름들 = {};
+  sga.forEach(function (r) { if (r.이름 !== '결산조정') 이름들[r.이름] = 1; });
+  var 계정증감 = Object.keys(이름들).map(function (이름) {
+    var a = 더(sga.filter(function (r) { return r.월 === m && r.이름 === 이름; }), function (r) { return r.값; });
+    var b = 더(sga.filter(function (r) { return r.월 === p && r.이름 === 이름; }), function (r) { return r.값; });
+    return { 이름: 이름, 값: a - b, 당: a, 전: b };
+  }).filter(function (x) { return Math.abs(x.값) > 0.05; });
+
+  html += 변동블록('판매비와관리비', 판당, 판전, {
+    배지: Math.abs(조정당 - 조정전) > 1 ? '결산조정 포함' : null,
+    리드: 리드,
+    항목: 증감항목(계정증감, m, 올해, 작년, 5, 10),
+  });
+
+  // 고정·변동 갈래 — 사용자가 실제로 물은 축이다. 각각 계정까지 편다
+  ['고정비', '변동비'].forEach(function (구) {
+    var a = 구분월(m, 구), b = 구분월(p, 구);
+    var 조a = (구 === '고정비') ? 조정당 : 0, 조b = (구 === '고정비') ? 조정전 : 0;
+    var 리 = '';
+    if (Math.abs(조a - 조b) > 1)
+      리 = '결산조정 ' + 백만(조a) + '이 고정비에 귀속됩니다. 제외하면 '
+        + 백만(b - 조b) + ' → ' + 백만(a - 조a) + '으로 <strong>'
+        + ((a - 조a) - (b - 조b) >= 0 ? '+' : '') + 백만((a - 조a) - (b - 조b)) + '</strong>입니다.';
+    var 구계정 = {};
+    sga.forEach(function (r) { if (r.구분 === 구 && r.이름 !== '결산조정') 구계정[r.이름] = 1; });
+    var 구증감 = Object.keys(구계정).map(function (이름) {
+      var x = 더(sga.filter(function (r) { return r.월 === m && r.이름 === 이름; }), function (r) { return r.값; });
+      var y = 더(sga.filter(function (r) { return r.월 === p && r.이름 === 이름; }), function (r) { return r.값; });
+      return { 이름: 이름, 값: x - y, 당: x, 전: y };
+    }).filter(function (x) { return Math.abs(x.값) > 0.05; });
+    html += 변동블록('　ㄴ ' + 구, a, b, {
+      리드: 리,
+      항목: 증감항목(구증감, m, 올해, 작년, 구 === '변동비' ? 4 : 5, 구 === '변동비' ? 3 : 10),
+    });
+  });
+
+  // ── 매출 ──
+  var 국가증감 = ['국내', '일본', '해외'].map(function (g) {
+    var a = 더(매출.filter(function (r) { return +r['월'] === m && r['사업부'] === g; }), function (r) { return Number(r['금액']); });
+    var b = 더(매출.filter(function (r) { return +r['월'] === p && r['사업부'] === g; }), function (r) { return Number(r['금액']); });
+    return { 이름: g, 값: a - b, 당: a, 전: b };
+  }).filter(function (x) { return Math.abs(x.값) > 0.05; })
+    .sort(function (a, b) { return Math.abs(b.값) - Math.abs(a.값); })
+    .map(function (x) { return { 이름: x.이름, 값: x.값, why: '' }; });
+  html += 변동블록('매출액', 매출월(m), 매출월(p), { 항목: 국가증감 });
+
+  // ── 매출원가 · 영업손익 ──
+  var 원가리드 = '';
+  var 매a = 매출월(m), 매b = 매출월(p), 원a = 원가월(m), 원b = 원가월(p);
+  if (매a && 매b) {
+    var ra = 원a / 매a * 100, rb = 원b / 매b * 100;
+    원가리드 = '원가율 ' + rb.toFixed(1) + '% → <strong>' + ra.toFixed(1) + '%</strong>입니다.';
+  }
+  html += 변동블록('매출원가', 원a, 원b, { 리드: 원가리드 });
+
+  var 영a = 매a - 원a - 판당, 영b = 매b - 원b - 판전;
+  html += 변동블록('영업손익', 영a, 영b, {
+    리드: '매출 ' + (매a - 매b >= 0 ? '+' : '') + 백만(매a - 매b)
+      + ' · 원가 ' + (원a - 원b >= 0 ? '+' : '') + 백만(원a - 원b)
+      + ' · 판관비 ' + (판당 - 판전 >= 0 ? '+' : '') + 백만(판당 - 판전) + '의 합입니다.',
+  });
+
+  $('movesTitle').textContent = m + '월의 변동 (' + p + '월 대비)';
+  $('movesBody').innerHTML = html;
+  $('movesNote').innerHTML = '단위 백만원 · ' + (범위 === 'HQ' ? '본사 별도' : '합산') + ' 기준. '
+    + '계정은 증감 10백만 이상을 큰 순으로 5개까지 보이고 나머지는 묶었습니다 — 언급된 값의 합이 총 증감과 같습니다. '
+    + '사유는 <strong>데이터로 확인되는 것만</strong> 답니다 (분기말 발생·첫 계상·전월 이례치). 추정은 하지 않습니다.';
 }
 
 /* =========================================================================
