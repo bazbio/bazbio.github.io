@@ -145,6 +145,8 @@
   #exp-table { max-height: max(420px, calc(100vh - 320px)); overflow: auto; }
   #exp-table table { white-space: nowrap; }
   #exp-table th { position: sticky; top: 0; background: var(--canvas); z-index: 2; box-shadow: 0 1px 0 var(--hairline); }
+  #exp-table th.sortable { cursor: pointer; user-select: none; }
+  #exp-table th.sortable:hover { color: var(--primary); }
   #exp-table th, #exp-table td { padding: 6px 8px; font-size: 12.5px; letter-spacing: -0.12px; }
   #exp-table .title-cell { max-width: 300px; }
   #exp-table select, #exp-table input { padding: 4px 8px; font-size: 12.5px; border-radius: 6px; }
@@ -385,8 +387,9 @@ const CODE_MIG = {
 };
 const normCode = c => { const u = String(c || '').trim().toUpperCase(); return CODE_MIG[u] || u; };
 let BUDGET = [], DEPTMAP = [], SETTINGS = {}, CODED_DEPTS = [];
-let EXPENSES = [], ACCT_CLASS = [], USER = { depts: null };
+let EXPENSES = [], ACCT_CLASS = [], USER = { depts: null }, UNMATCHED = [];
 let dirty = {};
+let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내림차순. i=4 기안일, i=16 지출일자
 const TOKEN_KEY = 'baz_budget_token';
 
 const fmt = n => (Math.round(Number(n) || 0)).toLocaleString('ko-KR');
@@ -506,6 +509,7 @@ async function boot() {
     const [init, expenses] = await Promise.all([gsAuth('apiGetInit'), gsAuth('apiGetExpenses')]);
     BUDGET = init.budget; DEPTMAP = init.deptMap; SETTINGS = init.settings;
     CODED_DEPTS = init.codedDepts; ACCT_CLASS = init.acctClass || [];
+    UNMATCHED = init.unmatched || [];
     USER = { email: init.email, name: init.name, depts: init.depts || null };
     EXPENSES = expenses;
     el('login').style.display = 'none';
@@ -839,8 +843,16 @@ const DEPT_LOCK_HINT = '예산코드가 부서를 결정합니다 — 부서를 
 
 function renderExpenses() {
   const depts = expenseDepts();
+  // 지출결의서 없는 지급 — 문서가 없어 위 표에 못 붙는 돈. 최근 자금 업로드 기준 스냅샷.
+  const 미매칭합 = UNMATCHED.reduce((s, r) => s + (Number(r[1]) || 0), 0);
+  const 미매칭줄 = UNMATCHED.length
+    ? `<div class="alert info">지출결의서 없이 지급된 건 ${UNMATCHED.length}건 · ${fmt(미매칭합)}원 (최근 자금 업로드 기준)
+        <button class="mini" id="btn-unmatched" style="margin-left:8px">보기</button></div>
+       <div class="table-wrap" id="unmatched-table" style="display:none"></div>`
+    : '';
   let html = `<section class="panel"><h2 class="section-head">지출내역</h2>
     <p class="section-sub">${EXPENSES.length}건 · 금액·계정·예산코드를 입력하고 저장하세요.</p>
+    ${미매칭줄}
     <div class="filters">
       <select id="f-dept"><option value="">부서 전체</option>${depts.map(d => `<option>${d}</option>`).join('')}</select>
       <select id="f-status"><option value="">상태 전체</option><option>종결</option><option>진행</option><option>반려</option><option>보류</option></select>
@@ -852,6 +864,20 @@ function renderExpenses() {
   el('tab-exp').innerHTML = html;
   ['f-dept', 'f-status', 'f-todo', 'f-q'].forEach(id => el(id).oninput = drawExpTable);
   el('btn-save').onclick = saveDirty;
+  if (el('btn-unmatched')) el('btn-unmatched').onclick = () => {
+    const t = el('unmatched-table');
+    const 열림 = t.style.display !== 'none';
+    t.style.display = 열림 ? 'none' : '';
+    el('btn-unmatched').textContent = 열림 ? '보기' : '접기';
+    if (!열림 && !t.innerHTML) {
+      let h = `<table><tr><th>문서번호</th><th class="num">금액</th><th>계정</th><th>지출일자</th></tr>`;
+      UNMATCHED.forEach(r => {
+        h += `<tr><td style="font-weight:600">${r[0] || '(없음)'}</td><td class="num">${fmt(r[1])}</td>
+          <td class="muted">${r[2] || ''}</td><td class="muted">${payCell(r[3])}</td></tr>`;
+      });
+      t.innerHTML = h + '</table>';
+    }
+  };
   drawExpTable();
 }
 
@@ -877,10 +903,22 @@ function drawExpTable() {
     }
     if (q && String(r[3]).indexOf(q) === -1 && String(r[7]).indexOf(q) === -1) return false;
     return true;
-  }).sort((a, b) => String(b[4]).localeCompare(String(a[4])));
+  }).sort((a, b) => {
+    // 헤더 클릭 정렬 (기안일·지출일자). 빈 값은 방향과 무관하게 뒤로 — 지출일자 정렬에서
+    // 지급 전 건들이 맨 앞을 덮으면 쓸 수가 없다.
+    const av = String(a[EXP_SORT.i] || '').slice(0, 10), bv = String(b[EXP_SORT.i] || '').slice(0, 10);
+    if (!av && !bv) return String(b[4]).localeCompare(String(a[4]));
+    if (!av) return 1;
+    if (!bv) return -1;
+    return EXP_SORT.d * av.localeCompare(bv);
+  });
 
+  const 화살 = i => EXP_SORT.i === i ? (EXP_SORT.d === -1 ? ' ▼' : ' ▲') : '';
   const depts = expenseDepts();
-  let h = `<table><tr><th>기안일</th><th>지출일자</th><th>제목</th><th>기안부서</th><th>기안자</th><th>상태</th>
+  let h = `<table><tr>
+    <th class="sortable" data-sort="4" title="클릭해서 정렬">기안일${화살(4)}</th>
+    <th class="sortable" data-sort="16" title="클릭해서 정렬">지출일자${화살(16)}</th>
+    <th>제목</th><th>기안부서</th><th>기안자</th><th>상태</th>
     <th>예산부서</th><th>계정</th><th>예산코드</th><th class="num">금액</th><th></th></tr>`;
   rows.slice(0, 500).forEach(r => {
     const id = r[0];
@@ -900,6 +938,11 @@ function drawExpTable() {
   if (rows.length > 500) h += `<p class="muted" style="margin-top:12px">상위 500건만 표시 (전체 ${rows.length}건 — 필터를 좁혀주세요)</p>`;
   el('exp-table').innerHTML = h;
 
+  el('exp-table').querySelectorAll('[data-sort]').forEach(th => th.onclick = () => {
+    const i = Number(th.dataset.sort);
+    EXP_SORT = EXP_SORT.i === i ? { i: i, d: -EXP_SORT.d } : { i: i, d: -1 };
+    drawExpTable();
+  });
   el('exp-table').querySelectorAll('[data-f]').forEach(inp => inp.onchange = e => {
     const tr = e.target.closest('tr'), id = tr.dataset.id;
     dirty[id] = dirty[id] || { id };
