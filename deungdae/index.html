@@ -117,6 +117,30 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 .adj-d[open] summary::before{content:'▾ '}
 .adj-d summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
+/* ===== 물어보기 ===== */
+.chat-log:empty{display:none}
+.chat-log{margin-bottom:10px;max-height:420px;overflow-y:auto}
+.chat-turn{padding:8px 0;border-top:1px solid var(--hairline)}
+.chat-turn:first-child{border-top:0;padding-top:0}
+.chat-turn .who{font-size:11.5px;font-weight:700;color:var(--ink-3);margin-bottom:3px}
+.chat-turn.me .who{color:var(--blue)}
+.chat-turn .say{font-size:13px;line-height:1.7;color:var(--ink);word-break:keep-all;white-space:pre-wrap}
+.chat-turn .say table{border-collapse:collapse;margin:6px 0;font-size:12.5px}
+.chat-turn .say th,.chat-turn .say td{
+  padding:4px 10px;border-bottom:1px solid var(--hairline);text-align:right;white-space:nowrap;
+}
+.chat-turn .say th:first-child,.chat-turn .say td:first-child{text-align:left}
+.chat-turn .say th{color:var(--ink-3);font-size:11.5px}
+.chat-turn.err .say{color:var(--sig-red)}
+.chat-form{display:flex;gap:8px}
+.chat-form input{
+  flex:1;min-width:0;padding:11px 12px;font:inherit;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink);min-height:44px;
+}
+.chat-form input:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:transparent}
+.btn.chat-send{width:auto;flex:none;padding:11px 20px}
+
 /* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.pl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
@@ -280,6 +304,18 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <h3 class="ct" id="movesTitle"></h3>
         <div id="movesBody"></div>
         <p class="note" id="movesNote"></p>
+      </div>
+
+      <!-- 물어보기 — 화면이 계산한 것 위에서 답한다 (결정_이달의변동_260806 ⑤) -->
+      <div class="card" id="askCard" style="margin-top:12px">
+        <h3 class="ct">물어보기</h3>
+        <div id="chatLog" class="chat-log" aria-live="polite"></div>
+        <form id="chatForm" class="chat-form">
+          <input type="text" id="chatInput" placeholder="예: 6월 고정비가 왜 줄었어?" autocomplete="off">
+          <button class="btn chat-send" type="submit" id="chatSend">묻기</button>
+        </form>
+        <p class="note" id="chatNote">지금 보고 있는 <strong>손익 탭 화면의 숫자만</strong> 근거로 답합니다.
+          없는 것은 「등대에 없습니다」라고 답하고, 무엇을 하라고 권하지는 않습니다.</p>
       </div>
     </section>
 
@@ -1208,6 +1244,96 @@ function 지표그리기() {
 
   $('asof').textContent = 지표연도 + '년 · ' + 끝 + '월까지';
 }
+
+/* =========================================================================
+   물어보기 (결정_이달의변동_260806 ⑤ — A안)
+
+   **화면이 이미 계산한 것을 재료로 준다.** 엣지가 그것과 질문만 Claude에 넘기므로
+   숫자가 지어질 여지가 없다. 자연어→SQL(B안)은 기각했다 — 틀린 SQL은 틀린 숫자를
+   자신 있게 말하고, 그러면 지표까지 아무도 안 보게 된다.
+   ========================================================================= */
+var 대화 = [];
+
+/** 손익 탭이 화면에 그려 놓은 것을 그대로 텍스트로 뜬다 — 계산이 두 벌이 되지 않게 */
+function 맥락만들기() {
+  var 끝 = 마감월();
+  var 줄 = ['[' + 연도 + '년 손익 · ' + (범위 === 'HQ' ? '본사 별도' : '합산') + ' 기준 · 단위 백만원 · ' + 끝 + '월까지]'];
+
+  var 표 = $('pl');
+  var 머리 = Array.prototype.map.call(표.querySelectorAll('thead th'), function (t) { return t.textContent.trim(); });
+  줄.push(머리.join(' | '));
+  Array.prototype.forEach.call(표.querySelectorAll('tbody tr'), function (tr) {
+    줄.push(Array.prototype.map.call(tr.querySelectorAll('td'), function (td) { return td.textContent.trim(); }).join(' | '));
+  });
+
+  if (!$('movesCard').hidden) {
+    줄.push('', '[' + $('movesTitle').textContent + ']');
+    // 접혀 있는 조정 내역도 함께 준다 — 화면에서 접혔을 뿐 데이터는 있다
+    Array.prototype.forEach.call($('movesBody').querySelectorAll('details'), function (d) { d.open = true; });
+    줄.push($('movesBody').innerText.replace(/\n{3,}/g, '\n\n'));
+  }
+  줄.push('', '[각주] ' + $('footnote').textContent);
+  return 줄.join('\n');
+}
+
+/** 답에 섞여 오는 간단한 마크다운만 푼다 (표·굵게·줄바꿈). 그 외는 문자 그대로 */
+function 마크다운(s) {
+  var 벗 = function (t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var 줄 = String(s).split('\n');
+  var 나온 = [], i = 0;
+  while (i < 줄.length) {
+    // | a | b |  /  | --- | --- |  형태를 표로
+    if (/^\s*\|.*\|\s*$/.test(줄[i]) && i + 1 < 줄.length && /^\s*\|[\s\-:|]+\|\s*$/.test(줄[i + 1])) {
+      var 칸 = function (r) { return r.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return 벗(c.trim()); }); };
+      var h = '<table><thead><tr>' + 칸(줄[i]).map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < 줄.length && /^\s*\|.*\|\s*$/.test(줄[i])) {
+        h += '<tr>' + 칸(줄[i]).map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
+        i++;
+      }
+      나온.push(h + '</tbody></table>');
+      continue;
+    }
+    나온.push(벗(줄[i]).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
+    i++;
+  }
+  return 나온.join('\n');
+}
+
+function 말풍선(누구, 글, 클래스) {
+  var d = document.createElement('div');
+  d.className = 'chat-turn' + (클래스 ? ' ' + 클래스 : '');
+  d.innerHTML = '<div class="who">' + 누구 + '</div><div class="say">' + 글 + '</div>';
+  $('chatLog').appendChild(d);
+  $('chatLog').scrollTop = $('chatLog').scrollHeight;
+  return d;
+}
+
+$('chatForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var 물음 = $('chatInput').value.trim();
+  if (!물음 || !DB) return;
+  var t = 토큰읽기();
+  if (!t) { 면('login'); return; }
+
+  $('chatInput').value = '';
+  말풍선('나', 마크다운(물음), 'me');
+  대화.push({ role: 'user', content: 물음 });
+  var 기다림 = 말풍선('등대', '<span class="muted">생각 중…</span>');
+  $('chatSend').disabled = true;
+
+  부르기({ 동작: '질문', 토큰: t, 맥락: 맥락만들기(), 대화: 대화 })
+    .then(function (d) {
+      기다림.querySelector('.say').innerHTML = 마크다운(d['답']);
+      대화.push({ role: 'assistant', content: d['답'] });
+    })
+    .catch(function (err) {
+      기다림.className = 'chat-turn err';
+      기다림.querySelector('.say').textContent = err.message;
+      대화.pop();                                  // 실패한 턴은 이력에서 뺀다
+    })
+    .then(function () { $('chatSend').disabled = false; $('chatInput').focus(); });
+});
 
 /* =========================================================================
    엑셀 내보내기 — 현재 탭을 전체 펼침으로 내린다. Toss 스타일 서식
