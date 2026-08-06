@@ -987,34 +987,60 @@ function drawExpTable() {
     el('btn-save').textContent = `변경사항 저장 (${n})`;
     el('btn-save').disabled = n === 0;
   });
-  el('exp-table').querySelectorAll('[data-del]').forEach(b => b.onclick = async e => {
+  // 삭제 — 낙관 반영: 화면에서 먼저 지우고 서버는 뒤에서. 실패하면 행을 되살린다.
+  el('exp-table').querySelectorAll('[data-del]').forEach(b => b.onclick = e => {
     if (!confirm('이 지출 건을 삭제할까요? (아마란스 원본에는 영향 없음)')) return;
-    loading(true);
-    try {
-      await gsAuth('apiDeleteExpense', e.target.dataset.del);
-      EXPENSES = await gsAuth('apiGetExpenses');
-      toast('삭제됨'); drawExpTable(); renderDash(); renderMonthly();
-    } catch (err) { if (isAuthErr(err)) return showLogin('세션이 만료됐습니다.'); alert(err.message || err); }
-    loading(false);
+    const id = e.target.dataset.del;
+    const i = EXPENSES.findIndex(x => x[0] === id);
+    if (i === -1) return;
+    const 지운행 = EXPENSES.splice(i, 1)[0];
+    delete dirty[id];
+    toast('삭제됨');
+    drawExpTable(); renderDash(); renderMonthly();
+    gsAuth('apiDeleteExpense', id).catch(err => {
+      EXPENSES.splice(Math.min(i, EXPENSES.length), 0, 지운행);
+      drawExpTable(); renderDash(); renderMonthly();
+      if (isAuthErr(err)) return showLogin('세션이 만료됐습니다.');
+      alert('삭제 실패 — 행을 되살렸습니다: ' + (err.message || err));
+    });
   });
 }
 
+/* 저장 — 낙관 반영 (2026-08-06). 화면을 안 막는다: 입력한 값은 이미 표에 보이고,
+ * 서버가 확정한 행(규칙 계정·파생 부서·수정일시)이 응답에 실려 오면 그걸로 조용히
+ * 수렴한다. 전체 재조회 왕복이 없어져 저장이 두 왕복(4~7초) → 한 왕복 뒤 수렴,
+ * 체감은 0초다. 실패하면 dirty를 되살려 다시 저장할 수 있게 한다. */
 async function saveDirty() {
   const updates = Object.values(dirty);
   if (!updates.length) return;
-  loading(true);
+  const 보낸것 = dirty;
+  dirty = {};
+  el('btn-save').textContent = '저장 중…'; el('btn-save').disabled = true;
+  el('exp-table').querySelectorAll('tr.dirty').forEach(tr => tr.classList.remove('dirty'));
   try {
     const r = await gsAuth('apiSaveExpenses', updates);
-    dirty = {};
-    EXPENSES = await gsAuth('apiGetExpenses');
+    // 서버 확정 행으로 패치 — 전송 중에 또 고친 행(dirty에 다시 들어간 것)은 덮지 않는다
+    (r.rows || []).forEach(row => {
+      if (dirty[row[0]]) return;
+      const i = EXPENSES.findIndex(x => x[0] === row[0]);
+      if (i > -1) EXPENSES[i] = row;
+    });
     toast(`${r.saved}건 저장 완료`);
-    el('btn-save').textContent = '변경사항 저장 (0)'; el('btn-save').disabled = true;
-    drawExpTable(); renderDash(); renderMonthly();
+    if (!Object.keys(dirty).length) drawExpTable();
+    renderDash(); renderMonthly();
   } catch (e) {
     if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
-    alert('저장 실패: ' + (e.message || e));
+    // 실패 — 보낸 것을 dirty로 되살린다 (전송 중 새 수정이 있으면 그쪽이 우선)
+    dirty = Object.assign({}, 보낸것, dirty);
+    Object.keys(dirty).forEach(id => {
+      const tr = el('exp-table').querySelector(`tr[data-id="${id}"]`);
+      if (tr) tr.classList.add('dirty');
+    });
+    alert('저장 실패: ' + (e.message || e) + '\n입력한 내용은 남아 있습니다 — 다시 저장을 눌러 주세요.');
   }
-  loading(false);
+  const n = Object.keys(dirty).length;
+  el('btn-save').textContent = `변경사항 저장 (${n})`;
+  el('btn-save').disabled = n === 0;
 }
 
 // ─── 업로드 ① 전자결재 목록 ───
