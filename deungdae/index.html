@@ -117,6 +117,29 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 .adj-d[open] summary::before{content:'▾ '}
 .adj-d summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
+/* 사람이 붙이는 메모 — 화면이 낸 사유(.why)와 눈으로 구별돼야 한다 */
+.memo{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:3px}
+.memo-t{color:var(--ink);font-size:12.5px}
+.memo-t::before{content:'✎ ';color:var(--ink-3)}
+.memo-by{color:var(--ink-3);font-size:11px;white-space:nowrap}
+.memo-add{
+  border:0;background:none;padding:2px 0;cursor:pointer;
+  color:var(--blue);font:inherit;font-size:11.5px;font-weight:600;
+}
+.memo-add:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.memo.edit{width:100%;gap:6px;flex-wrap:nowrap}
+.memo-in{
+  flex:1;min-width:0;padding:7px 9px;font:inherit;font-size:12.5px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink);min-height:34px;
+}
+.memo-in:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:transparent}
+.memo-ok,.memo-no{
+  flex:none;padding:7px 11px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--ink-2);
+}
+.memo-ok{border-color:transparent;background:var(--blue);color:#fff}
+
 /* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.pl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:13px}
@@ -927,6 +950,74 @@ function 계정사유(이름, 당월, 전월값, m, 올해, 작년) {
   return 사유.join(' · ');
 }
 
+/* ── 사람이 붙이는 메모 (0019) ────────────────────────────────────────
+   화면이 만드는 사유는 데이터로 확인되는 것뿐이다(분기말 발생·첫 계상·전월 이례치).
+   데이터에 없는 이유 — 「6월 학회 부스」 같은 것 — 는 사람이 여기 한 줄 적는다.
+   계정 × 월 하나에 한 줄이고 마지막에 쓴 사람 것이 남는다. */
+var 메모중 = null;                              // 지금 편집 중인 계정명 (한 번에 하나)
+
+function 메모찾기(m, 계정명) {
+  var r = (DB['메모'] || []).filter(function (x) { return +x['월'] === m && x['계정명'] === 계정명; })[0];
+  return r || null;
+}
+
+/** 메모 한 줄의 HTML — 편집 중이면 입력칸, 아니면 적힌 것 또는 「메모」 단추 */
+function 메모HTML(m, 계정명) {
+  var r = 메모찾기(m, 계정명);
+  if (메모중 === 계정명) {
+    return '<div class="memo edit"><input type="text" class="memo-in" maxlength="500"'
+      + ' placeholder="데이터에 없는 이유를 한 줄로" value="' + 벗기(r ? r['메모'] : '') + '">'
+      + '<button class="memo-ok" type="button">저장</button>'
+      + '<button class="memo-no" type="button">취소</button></div>';
+  }
+  if (!r) return '<div class="memo"><button class="memo-add" type="button">+ 메모</button></div>';
+  return '<div class="memo"><span class="memo-t">' + 벗기(r['메모']) + '</span>'
+    + '<span class="memo-by">' + 벗기(r['작성자']) + ' · ' + 날짜짧게(r['updated_at']) + '</span>'
+    + '<button class="memo-add" type="button">고침</button></div>';
+}
+
+function 날짜짧게(s) {
+  var d = new Date(s);
+  return isNaN(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate();
+}
+function 벗기(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** 메모 단추들을 잇는다 — movesBody는 그릴 때마다 통째로 갈리므로 매번 다시 건다 */
+function 메모잇기(m) {
+  Array.prototype.forEach.call($('movesBody').querySelectorAll('li[data-계정]'), function (li) {
+    var 계정명 = li.dataset['계정'];
+    var 추가 = li.querySelector('.memo-add');
+    if (추가) 추가.addEventListener('click', function () { 메모중 = 계정명; 변동그리기(); });
+    var 입력 = li.querySelector('.memo-in');
+    if (!입력) return;
+    입력.focus();
+    li.querySelector('.memo-no').addEventListener('click', function () { 메모중 = null; 변동그리기(); });
+    var 저장 = function () {
+      var t = 토큰읽기();
+      if (!t) { 면('login'); return; }
+      var 값 = 입력.value.trim();
+      입력.disabled = true;
+      부르기({ 동작: '메모저장', 토큰: t, 연도: 연도, 월: m, 계정명: 계정명, 메모: 값 })
+        .then(function (d) {
+          var 남 = (DB['메모'] || []).filter(function (x) { return !(+x['월'] === m && x['계정명'] === 계정명); });
+          if (d['메모']) 남.push(d['메모']);
+          DB['메모'] = 남;
+          메모중 = null;
+          변동그리기();
+        })
+        .catch(function (err) { 입력.disabled = false; alert(err.message); });
+    };
+    li.querySelector('.memo-ok').addEventListener('click', 저장);
+    입력.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); 저장(); }
+      if (e.key === 'Escape') { 메모중 = null; 변동그리기(); }
+    });
+  });
+}
+
 /** 지표 하나의 변동 블록 HTML */
 function 변동블록(제목, 당, 전, 옵션) {
   옵션 = 옵션 || {};
@@ -941,8 +1032,12 @@ function 변동블록(제목, 당, 전, 옵션) {
   if (옵션.리드) html += '<p class="lead">' + 옵션.리드 + '</p>';
   if (옵션.항목 && 옵션.항목.length) {
     html += '<ul>' + 옵션.항목.map(function (x) {
-      return '<li><span class="v' + (x.값 < 0 ? ' neg' : '') + '">' + (x.값 >= 0 ? '+' : '') + 백만(x.값) + '</span>'
-        + '<span><strong>' + x.이름 + '</strong>' + (x.why ? ' <span class="why">— ' + x.why + '</span>' : '') + '</span></li>';
+      // 메모는 계정 항목에만 붙는다 — 「기타 N개 계정」은 계정이 아니라 묶음이다
+      var 메모가능 = 옵션.메모월 && !/^기타 /.test(x.이름);
+      return '<li' + (메모가능 ? ' data-계정="' + 벗기(x.이름) + '"' : '') + '>'
+        + '<span class="v' + (x.값 < 0 ? ' neg' : '') + '">' + (x.값 >= 0 ? '+' : '') + 백만(x.값) + '</span>'
+        + '<span><strong>' + x.이름 + '</strong>' + (x.why ? ' <span class="why">— ' + x.why + '</span>' : '')
+        + (메모가능 ? 메모HTML(옵션.메모월, x.이름) : '') + '</span></li>';
     }).join('') + '</ul>';
   }
   return html + '</div>';
@@ -1020,6 +1115,7 @@ function 변동그리기() {
     배지: Math.abs(조정당 - 조정전) > 1 ? '결산조정 포함' : null,
     리드: 리드,
     항목: 증감항목(계정증감, m, 올해, 작년, 5, 10),
+    메모월: m,
   });
 
   // 고정·변동·그룹내부 갈래 — 사용자가 실제로 물은 축이다. 각각 계정까지 편다
@@ -1046,6 +1142,7 @@ function 변동그리기() {
     html += 변동블록('　ㄴ ' + 구, a, b, {
       리드: 리,
       항목: 증감항목(구증감, m, 올해, 작년, 폭[구][0], 폭[구][1]),
+      메모월: m,
     });
   });
 
@@ -1077,9 +1174,11 @@ function 변동그리기() {
 
   $('movesTitle').textContent = m + '월의 변동 (' + p + '월 대비)';
   $('movesBody').innerHTML = html;
+  메모잇기(m);
   $('movesNote').innerHTML = '단위 백만원 · ' + (범위 === 'HQ' ? '본사 별도' : '합산') + ' 기준. '
     + '계정은 증감 10백만 이상을 큰 순으로 5개까지 보이고 나머지는 묶었습니다 — 언급된 값의 합이 총 증감과 같습니다. '
-    + '사유는 <strong>데이터로 확인되는 것만</strong> 답니다 (분기말 발생·첫 계상·전월 이례치). 추정은 하지 않습니다.';
+    + '사유는 <strong>데이터로 확인되는 것만</strong> 답니다 (분기말 발생·첫 계상·전월 이례치). 추정은 하지 않습니다. '
+    + '데이터에 없는 이유는 <strong>「+ 메모」로 직접 적습니다</strong> — 계정마다 한 줄이고 마지막에 쓴 사람 것이 남습니다.';
 }
 
 /* =========================================================================
