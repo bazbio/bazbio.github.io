@@ -420,7 +420,12 @@ function 불러오기() {
   if (!t) { 면('login'); return; }
   면('loading');
   부르기({ 토큰: t, 연도: 연도 })
-    .then(function (d) { DB = d; 현재탭그리기(); 면('app'); })
+    .then(function (d) {
+      DB = d;
+      권한 = d['권한'] || '전체';
+      권한적용();                     // 탭을 고르고 그리는 것까지 여기서 한다
+      면('app');
+    })
     .catch(function (err) {
       if (err.코드 === 401) { 토큰쓰기(null); 면('login'); return; }   // 만료·무효 → 다시 로그인
       $('errorMsg').textContent = err.message; 면('error');
@@ -430,6 +435,21 @@ function 불러오기() {
 /* ===== 탭 ===== */
 var 탭 = 'pl';
 var 지표연도 = 2026;
+
+/**
+ * 권한 (0020) — '전체' 아니면 매출 탭만.
+ *
+ * **여기서 숨기는 것은 거들 뿐이다.** 진짜 차단은 엣지가 한다 — 권한이 '매출'이면
+ * 손익·지표 축을 응답에 아예 담지 않는다. 화면만 숨기면 개발자도구에서 다 보인다.
+ */
+var 권한 = '전체';
+function 권한적용() {
+  var 전체 = 권한 === '전체';
+  $('tabBtnPL').hidden = !전체;
+  $('tabBtnKPI').hidden = !전체;
+  탭설정(전체 ? 탭 : 'sales');       // 탭설정이 그린다 — 여기서 또 그리지 않는다
+}
+
 function 현재탭그리기() { if (탭 === 'pl') 그리기(); else if (탭 === 'sales') 매출그리기(); else 지표그리기(); }
 function 탭설정(t) {
   탭 = t;
