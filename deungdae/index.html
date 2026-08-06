@@ -107,6 +107,15 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
   font-size:11px;font-weight:700;
 }
 .mv .flag.info{background:var(--blue-bg);color:var(--blue)}
+.adj-d{margin-top:8px}
+.adj-d summary{
+  cursor:pointer;font-size:12px;font-weight:600;color:var(--blue);
+  padding:4px 0;min-height:28px;list-style:none;
+}
+.adj-d summary::-webkit-details-marker{display:none}
+.adj-d summary::before{content:'▸ ';font-size:10px}
+.adj-d[open] summary::before{content:'▾ '}
+.adj-d summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 /* ===== 표 (손익·매출 공용) ===== */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -971,6 +980,20 @@ function 변동그리기() {
     리드 = '<strong>결산조정 ' + 백만(조정당) + '이 ' + m + '월에 반영</strong>됐습니다. '
       + '이를 제외하면 판관비는 ' + 백만(순전) + ' → ' + 백만(순당) + '으로 '
       + '<strong>' + (순당 - 순전 >= 0 ? '+' : '') + 백만(순당 - 순전) + '</strong>입니다.';
+    // 조정이 무엇으로 이뤄졌는지 — 적요별로 접어 둔다 (등대.결산조정_내역)
+    var 내역 = (DB['조정내역'] || []).filter(function (r) {
+      return +r['월'] === m && r['지표'] === 'sga_total';
+    });
+    if (내역.length) {
+      var 적요별 = {};
+      내역.forEach(function (r) { 적요별[r['적요']] = (적요별[r['적요']] || 0) + Number(r['금액']); });
+      var 줄 = Object.keys(적요별).filter(function (k) { return Math.abs(적요별[k]) >= 1; })
+        .sort(function (a, b) { return Math.abs(적요별[b]) - Math.abs(적요별[a]); })
+        .map(function (k) { return '<li><span class="v' + (적요별[k] < 0 ? ' neg' : '') + '">'
+          + (적요별[k] >= 0 ? '+' : '') + 백만(적요별[k]) + '</span><span>' + k + '</span></li>'; });
+      리드 += '<details class="adj-d"><summary>조정 내역 ' + Object.keys(적요별).length + '건</summary>'
+        + '<ul>' + 줄.join('') + '</ul></details>';
+    }
   }
   // 계정별 증감 (조정 제외)
   var 이름들 = {};
