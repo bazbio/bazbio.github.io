@@ -117,6 +117,12 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 .adj-d[open] summary::before{content:'▾ '}
 .adj-d summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
+/* 손익표·BEP 표 — 열 폭을 고정해 두 표의 월 열이 위아래로 맞는다.
+   auto 폭이면 표마다 내용에 따라 폭이 갈려 같은 달이 어긋난 자리에 선다. */
+#pl,#bep{table-layout:fixed;min-width:880px}
+#pl th:first-child,#bep th:first-child{width:172px}
+#pl td:first-child,#bep td:first-child{overflow:hidden;text-overflow:ellipsis}
+
 /* BEP 시뮬레이션 */
 .sim{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px}
 .sim label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-weight:600}
@@ -818,20 +824,28 @@ function BEP그리기(행, 달) {
   var 고정f = function (m) { return 고정0f(m) - (조정sga[m] || 0); };
 
   var bep = [], 실제 = [], 여유 = [];
+  var 누매 = 0, 누변 = 0, 누고 = 0;                // 누계 열 — 손익표와 열을 맞춘다
   달.forEach(function (m) {
     var 매 = 매출f(m), 변율 = 매 > 0 ? (원가f(m) + 변동f(m)) / 매 : null;
     var 고 = 고정f(m) + 그룹f(m);
     var b = (변율 != null && 변율 < 1) ? 고 / (1 - 변율) : null;
     bep.push(b); 실제.push(매); 여유.push(b == null ? null : 매 - b);
+    누매 += 매; 누변 += 원가f(m) + 변동f(m); 누고 += 고;
   });
+  var 누율 = 누매 > 0 ? 누변 / 누매 : null;
+  var 누bep = (누율 != null && 누율 < 1) ? 누고 / (1 - 누율) : null;
+  bep.push(누bep); 실제.push(누매); 여유.push(누bep == null ? null : 누매 - 누bep);
 
+  // 머리·꼬리를 손익표와 똑같이 — 두 표 다 열 폭이 고정이라(pl-fixed) 월 열이 위아래로 맞는다
   $('bepHead').innerHTML = ['<th scope="col">항목</th>']
-    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; })).join('');
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>', '<th scope="col">연간목표</th>', '<th scope="col">달성률</th>'])
+    .join('');
   var 줄 = function (이름, v, 급) {
     return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>' + v.map(function (x) {
       if (x == null) return '<td class="num muted">—</td>';
       return '<td class="num' + (x < 0 ? ' neg' : '') + '">' + 백만(x) + '</td>';
-    }).join('') + '</tr>';
+    }).join('') + '<td class="num muted">—</td><td class="num muted">—</td></tr>';
   };
   $('bepBody').innerHTML =
     줄('BEP 매출 (필요 매출)', bep) +
