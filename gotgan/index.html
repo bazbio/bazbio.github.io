@@ -1153,14 +1153,14 @@ async function handleDocsFile(file) {
   el('btn-import-docs').onclick = async () => {
     loading(true);
     try {
-      let added = 0, updated = 0, skipped = 0;
+      let added = 0, updated = 0, skipped = 0, ms = 0;
       for (let i = 0; i < docs.length; i += 300) {
         const r = await gsAuth('apiImportDocs', docs.slice(i, i + 300));
-        added += r.added; updated += r.updated; skipped += r.skipped;
+        added += r.added; updated += r.updated; skipped += r.skipped; ms += r.ms || 0;
       }
       EXPENSES = await gsAuth('apiGetExpenses');
       el('docs-preview').innerHTML = `<div class="alert info">완료 — 신규 ${added}건 · 상태갱신 ${updated}건 · 제외/중복 ${skipped}건.
-        신규 건은 [지출내역] 탭에서 금액·계정을 입력하세요.</div>`;
+        신규 건은 [지출내역] 탭에서 금액·계정을 입력하세요.<br><span class="muted">서버 처리 ${(ms / 1000).toFixed(1)}초</span></div>`;
       renderDash(); renderMonthly(); renderExpenses();
     } catch (e) {
       if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
@@ -1218,7 +1218,8 @@ async function handleAmtFile(file) {
       const r = await gsAuth('apiMergeAmounts', rows);
       EXPENSES = await gsAuth('apiGetExpenses');
       el('amt-preview').innerHTML = `<div class="alert info">완료 — ${r.matched}건 금액 반영.
-        ${r.unmatched.length ? '매칭 안 된 문서번호 ' + r.unmatched.length + '건: ' + r.unmatched.slice(0, 10).join(', ') + (r.unmatched.length > 10 ? ' …' : '') : ''}</div>`;
+        ${r.unmatched.length ? '매칭 안 된 문서번호 ' + r.unmatched.length + '건: ' + r.unmatched.slice(0, 10).join(', ') + (r.unmatched.length > 10 ? ' …' : '') : ''}
+        <br><span class="muted">서버 처리 ${((r.ms || 0) / 1000).toFixed(1)}초</span></div>`;
       renderDash(); renderMonthly(); renderExpenses();
     } catch (e) {
       if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
