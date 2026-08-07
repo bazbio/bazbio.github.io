@@ -338,6 +338,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
           <div class="sim">
             <label>월 매출<input type="number" id="simRev" step="10" inputmode="decimal"><span class="u">백만</span></label>
             <label>원가율<input type="number" id="simCogs" step="0.5" inputmode="decimal"><span class="u">%</span></label>
+            <label>변동판관율<input type="number" id="simVar" step="0.5" inputmode="decimal"><span class="u">%</span></label>
             <label>고정비<input type="number" id="simFix" step="10" inputmode="decimal"><span class="u">백만/월</span></label>
           </div>
           <div class="sim-out" id="simOut"></div>
@@ -823,20 +824,23 @@ function BEP그리기(행, 달) {
   });
   var 고정f = function (m) { return 고정0f(m) - (조정sga[m] || 0); };
 
-  var bep = [], 실제 = [], 여유 = [];
-  var 누매 = 0, 누변 = 0, 누고 = 0;                // 누계 열 — 손익표와 열을 맞춘다
+  var bep = [], 실제 = [], 여유 = [], 원가율들 = [], 변동율들 = [];
+  var 누매 = 0, 누원 = 0, 누변 = 0, 누고 = 0;      // 누계 열 — 손익표와 열을 맞춘다
   달.forEach(function (m) {
-    var 매 = 매출f(m), 변율 = 매 > 0 ? (원가f(m) + 변동f(m)) / 매 : null;
+    var 매 = 매출f(m), 원 = 원가f(m);
+    var 변율 = 매 > 0 ? (원 + 변동f(m)) / 매 : null;
     var 고 = 고정f(m) + 그룹f(m);
     var b = (변율 != null && 변율 < 1) ? 고 / (1 - 변율) : null;
+    원가율들.push(매 > 0 ? 원 / 매 : null); 변동율들.push(변율);
     bep.push(b); 실제.push(매); 여유.push(b == null ? null : 매 - b);
-    누매 += 매; 누변 += 원가f(m) + 변동f(m); 누고 += 고;
+    누매 += 매; 누원 += 원; 누변 += 원 + 변동f(m); 누고 += 고;
   });
   var 누율 = 누매 > 0 ? 누변 / 누매 : null;
   var 누bep = (누율 != null && 누율 < 1) ? 누고 / (1 - 누율) : null;
+  원가율들.push(누매 > 0 ? 누원 / 누매 : null); 변동율들.push(누율);
   bep.push(누bep); 실제.push(누매); 여유.push(누bep == null ? null : 누매 - 누bep);
 
-  // 머리·꼬리를 손익표와 똑같이 — 두 표 다 열 폭이 고정이라(pl-fixed) 월 열이 위아래로 맞는다
+  // 머리·꼬리를 손익표와 똑같이 — 두 표 다 열 폭이 고정이라 월 열이 위아래로 맞는다
   $('bepHead').innerHTML = ['<th scope="col">항목</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계</th>', '<th scope="col">연간목표</th>', '<th scope="col">달성률</th>'])
@@ -847,7 +851,15 @@ function BEP그리기(행, 달) {
       return '<td class="num' + (x < 0 ? ' neg' : '') + '">' + 백만(x) + '</td>';
     }).join('') + '<td class="num muted">—</td><td class="num muted">—</td></tr>';
   };
+  // 비율 행 — 어떤 비율에서 그 BEP가 나왔는지 표가 스스로 보여준다
+  var 율줄 = function (이름, v) {
+    return '<tr><td>' + 이름 + '</td>' + v.map(function (x) {
+      return '<td class="num muted">' + (x == null ? '—' : (100 * x).toFixed(1) + '%') + '</td>';
+    }).join('') + '<td class="num muted">—</td><td class="num muted">—</td></tr>';
+  };
   $('bepBody').innerHTML =
+    율줄('원가율', 원가율들) +
+    율줄('변동비율 (원가+변동판관)', 변동율들) +
     줄('BEP 매출 (필요 매출)', bep) +
     줄('실제 매출', 실제) +
     줄('여유 (실제 − BEP)', 여유, 'op');
@@ -886,6 +898,7 @@ function 시뮬차리기(달, f) {
     $('simRev').value = Math.round(f.매출f(끝));
     var 매 = f.매출f(끝);
     $('simCogs').value = 매 > 0 ? (100 * f.원가f(끝) / 매).toFixed(1) : '';
+    $('simVar').value = (100 * 변동판관율).toFixed(1);      // 올해 누계 실측 — 고칠 수 있다
     $('simFix').value = Math.round(f.고정f(끝));
   }
 
@@ -893,7 +906,7 @@ function 시뮬차리기(달, f) {
     var 매출 = Number($('simRev').value) || 0;
     var 원가율 = (Number($('simCogs').value) || 0) / 100;
     var 고정 = Number($('simFix').value) || 0;
-    var 변동율 = 원가율 + 변동판관율;
+    var 변동율 = 원가율 + (Number($('simVar').value) || 0) / 100;
     var 고정성 = 고정 + 그룹;
     var 손익 = 매출 * (1 - 변동율) - 고정성;
     var bep = 변동율 < 1 ? 고정성 / (1 - 변동율) : null;
@@ -908,11 +921,12 @@ function 시뮬차리기(달, f) {
         : 거리 >= 0
           ? ' · 여유 <span class="ok">+' + 백만(거리) + '</span>'
           : ' · 부족 <span class="bad">' + 백만(거리) + '</span> — 장비 약 <strong>' + 대수 + '대</strong>분')
-      + '<br><span class="muted">자동: 변동판관율 ' + (100 * 변동판관율).toFixed(1) + '% (올해 누계 실측)'
-      + (범위 === 'HQ' ? ' · 그룹내부 ' + 백만(그룹) + ' (마감월)' : '')
+      + '<br><span class="muted">변동판관율 기본값 ' + (100 * 변동판관율).toFixed(1) + '%는 올해 누계 실측 —'
+      + ' 하반기엔 딜러 수수료(대당 8.0)로 높아질 수 있어 고칠 수 있게 열어 뒀습니다.'
+      + (범위 === 'HQ' ? ' 자동: 그룹내부 ' + 백만(그룹) + ' (마감월)' : '')
       + ' · 장비 환산 대당 ' + 대당.toFixed(1) + '</span>';
   };
-  ['simRev', 'simCogs', 'simFix'].forEach(function (id) {
+  ['simRev', 'simCogs', 'simVar', 'simFix'].forEach(function (id) {
     $(id).oninput = function () { 시뮬만짐 = true; 계산(); };
   });
   계산();
