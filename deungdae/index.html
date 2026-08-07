@@ -117,6 +117,22 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 .adj-d[open] summary::before{content:'▾ '}
 .adj-d summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
+/* BEP 시뮬레이션 */
+.sim{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px}
+.sim label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);font-weight:600}
+.sim input{
+  width:90px;padding:7px 9px;font:inherit;font-size:13px;text-align:right;
+  font-variant-numeric:tabular-nums;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--ink);min-height:34px;
+}
+.sim input:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:transparent}
+.sim .u{color:var(--ink-3);font-size:11px;font-weight:400}
+.sim-out{margin-top:8px;font-size:12.5px;line-height:1.8;color:var(--ink-2);word-break:keep-all}
+.sim-out strong{color:var(--ink)}
+.sim-out .ok{color:var(--sig-green);font-weight:700}
+.sim-out .bad{color:var(--sig-red);font-weight:700}
+
 /* 사람이 붙이는 메모 — 화면이 낸 사유(.why)와 눈으로 구별돼야 한다 */
 .memo{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-top:3px}
 .memo-t{color:var(--ink);font-size:12.5px}
@@ -309,6 +325,17 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
             <tbody id="bepBody"></tbody>
           </table>
         </div>
+
+        <!-- 시뮬레이션 — 레버 3개(매출·원가율·고정비), 나머지는 자동 (2026-08-07 합의) -->
+        <details class="adj-d" id="simPanel">
+          <summary>시뮬레이션 — 값을 바꿔 보기</summary>
+          <div class="sim">
+            <label>월 매출<input type="number" id="simRev" step="10" inputmode="decimal"><span class="u">백만</span></label>
+            <label>원가율<input type="number" id="simCogs" step="0.5" inputmode="decimal"><span class="u">%</span></label>
+            <label>고정비<input type="number" id="simFix" step="10" inputmode="decimal"><span class="u">백만/월</span></label>
+          </div>
+          <div class="sim-out" id="simOut"></div>
+        </details>
         <p class="note" id="bepNote"></p>
       </div>
 
@@ -776,10 +803,19 @@ function BEP그리기(행, 달) {
   var 카드 = $('bepCard');
   var 찾기 = function (키) { return 행.filter(function (r) { return r.키 === 키; })[0]; };
   var 매출f = 찾기('매출').값, 원가f = 찾기('원가').값,
-      고정f = 찾기('판관비:고정비').값, 변동f = 찾기('판관비:변동비').값;
+      고정0f = 찾기('판관비:고정비').값, 변동f = 찾기('판관비:변동비').값;
   var 그룹f = 찾기('판관비:그룹내부') ? 찾기('판관비:그룹내부').값 : function () { return 0; };
-  if (!매출f || !고정f) { 카드.hidden = true; return; }
+  if (!매출f || !고정0f) { 카드.hidden = true; return; }
   카드.hidden = false;
+
+  // 고정비에서 결산조정을 걷어낸다 — 분기 일회성(주식보상 등)이 그 달의 구조적 BEP를
+  // 왜곡한다(6월 838로 보인다). 이달의 변동의 재측정과 같은 논리다. 원가 조정은 그대로 —
+  // 그쪽은 관리기준을 확정으로 맞추는 실제 원가다.
+  var 조정sga = {};
+  (DB['손익비용'] || []).forEach(function (r) {
+    if (r['대분류'] === '판관비' && r['계정명'] === '결산조정') 조정sga[+r['월']] = Number(r['금액']);
+  });
+  var 고정f = function (m) { return 고정0f(m) - (조정sga[m] || 0); };
 
   var bep = [], 실제 = [], 여유 = [];
   달.forEach(function (m) {
@@ -804,13 +840,74 @@ function BEP그리기(행, 달) {
 
   $('bepNote').innerHTML = 'BEP 매출 = 고정성 비용 ÷ (1 − 변동비율). 고정성 = 고정비'
     + (범위 === 'HQ' ? ' + 그룹내부' : '') + ', 변동비율 = (매출원가 + 변동판관비) ÷ 매출 — 당월 기준. '
+    + '고정비는 <strong>결산조정을 걷어낸 값</strong>입니다 — 분기 일회성이 그 달의 구조를 왜곡하지 않게'
+    + ' (손익표의 고정비와 조정 달에만 다릅니다). '
     + '<strong>매출원가를 전액 변동으로 근사</strong>합니다 (제품별 원가가 확보되면 정교화). '
     + '여유가 양수인 달이 손익분기를 넘은 달입니다.';
+
+  시뮬차리기(달, { 매출f: 매출f, 원가f: 원가f, 고정f: 고정f, 변동f: 변동f, 그룹f: 그룹f });
+}
+
+/* ── BEP 시뮬레이션 — 레버 3개, 나머지는 자동 (2026-08-07 합의) ──────
+   레버: 월 매출 · 원가율 · 고정비. 기본값은 마감월 실적이라 「지금 여기」에서 출발한다.
+   자동: 변동판관율(올해 누계 실측 — 레버로 열면 조작할 수 없는 걸 조작하는 착각을 준다),
+   그룹내부(별도만, 마감월 실적). 저장하지 않는다 — 브라우저 안에서만 논다. */
+var 시뮬만짐 = false;                       // 사용자가 건드렸으면 다시 그릴 때 안 덮는다
+function 시뮬차리기(달, f) {
+  var 끝 = 달[달.length - 1];
+  if (!끝) { $('simPanel').hidden = true; return; }
+  $('simPanel').hidden = false;
+
+  // 자동값 — 올해 누계 변동판관율 · 마감월 그룹내부
+  var 매합 = 0, 변합 = 0;
+  달.forEach(function (m) { 매합 += f.매출f(m); 변합 += f.변동f(m); });
+  var 변동판관율 = 매합 > 0 ? 변합 / 매합 : 0;
+  var 그룹 = 범위 === 'HQ' ? f.그룹f(끝) : 0;
+
+  // 장비 환산 단가 — 기준값 equip_price (없으면 32.0)
+  var 대당 = 32.0;
+  (DB['기준값'] || []).forEach(function (r) { if (r['키'] === 'equip_price') 대당 = Number(r['값']) || 대당; });
+
+  if (!시뮬만짐) {
+    $('simRev').value = Math.round(f.매출f(끝));
+    var 매 = f.매출f(끝);
+    $('simCogs').value = 매 > 0 ? (100 * f.원가f(끝) / 매).toFixed(1) : '';
+    $('simFix').value = Math.round(f.고정f(끝));
+  }
+
+  var 계산 = function () {
+    var 매출 = Number($('simRev').value) || 0;
+    var 원가율 = (Number($('simCogs').value) || 0) / 100;
+    var 고정 = Number($('simFix').value) || 0;
+    var 변동율 = 원가율 + 변동판관율;
+    var 고정성 = 고정 + 그룹;
+    var 손익 = 매출 * (1 - 변동율) - 고정성;
+    var bep = 변동율 < 1 ? 고정성 / (1 - 변동율) : null;
+    var 거리 = bep == null ? null : 매출 - bep;
+    var 대수 = (거리 != null && 거리 < 0) ? Math.ceil(-거리 / 대당) : null;
+
+    $('simOut').innerHTML =
+      '영업손익 <strong class="' + (손익 >= 0 ? 'ok' : 'bad') + '">'
+      + (손익 >= 0 ? '+' : '') + 백만(손익) + '</strong>'
+      + ' · BEP 매출 <strong>' + (bep == null ? '—' : 백만(bep)) + '</strong>'
+      + (거리 == null ? ''
+        : 거리 >= 0
+          ? ' · 여유 <span class="ok">+' + 백만(거리) + '</span>'
+          : ' · 부족 <span class="bad">' + 백만(거리) + '</span> — 장비 약 <strong>' + 대수 + '대</strong>분')
+      + '<br><span class="muted">자동: 변동판관율 ' + (100 * 변동판관율).toFixed(1) + '% (올해 누계 실측)'
+      + (범위 === 'HQ' ? ' · 그룹내부 ' + 백만(그룹) + ' (마감월)' : '')
+      + ' · 장비 환산 대당 ' + 대당.toFixed(1) + '</span>';
+  };
+  ['simRev', 'simCogs', 'simFix'].forEach(function (id) {
+    $(id).oninput = function () { 시뮬만짐 = true; 계산(); };
+  });
+  계산();
 }
 
 /* ===== 범위 토글 ===== */
 function 범위설정(v) {
   범위 = v;
+  시뮬만짐 = false;                 // 별도/합산의 고정비가 다르다 — 기본값을 새 범위로 다시 심는다
   $('btnHQ').setAttribute('aria-pressed', v === 'HQ' ? 'true' : 'false');
   $('btnCOMB').setAttribute('aria-pressed', v === 'COMBINED' ? 'true' : 'false');
   if (DB) 그리기();
