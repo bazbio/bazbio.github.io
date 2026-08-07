@@ -300,6 +300,18 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <p class="note" id="footnote"></p>
       </div>
 
+      <!-- 손익분기 — 결정_회계사TDL ㉒ -->
+      <div class="card" id="bepCard" style="margin-top:12px" hidden>
+        <h3 class="ct">손익분기 (BEP)</h3>
+        <div class="scroll">
+          <table class="pl" id="bep">
+            <thead><tr id="bepHead"></tr></thead>
+            <tbody id="bepBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="bepNote"></p>
+      </div>
+
       <!-- 이달의 변동 — 결정_이달의변동_260806 -->
       <div class="card" id="movesCard" style="margin-top:12px" hidden>
         <h3 class="ct" id="movesTitle"></h3>
@@ -325,6 +337,32 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         </div>
         <p class="note" id="salesNote"></p>
       </div>
+
+      <!-- 채널별 — 결정_회계사TDL ⑨ -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">채널별</h3>
+        <div class="scroll">
+          <table class="pl" id="chan">
+            <thead><tr id="chanHead"></tr></thead>
+            <tbody id="chanBody"></tbody>
+          </table>
+        </div>
+        <p class="note">채널 표기는 표준 5종으로 접었습니다 — 직접판매·직접·직접매출은 직판,
+          2025년 채널 칸의 N-CARE 등급(제품 속성)도 직판입니다. 기타는 CS·품질·취소·미기재입니다.</p>
+      </div>
+
+      <!-- 거래처 Top 30 — 결정_회계사TDL ⑧ -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">거래처 Top 30</h3>
+        <div class="scroll">
+          <table class="pl" id="top30">
+            <thead><tr id="top30Head"></tr></thead>
+            <tbody id="top30Body"></tbody>
+          </table>
+        </div>
+        <p class="note">선택 연도 매출 큰 순 30곳 — 무상·취소 포함 전 건 기준이라 합이 매출액과 같은 축입니다.
+          네트워크(체인) 묶음은 SalesON에 네트워크 정보가 채워지면 붙습니다.</p>
+      </div>
     </section>
 
     <!-- 지표 탭 — 나침반에서 이관한 축 (볼륨·인건비·전년비교) -->
@@ -341,6 +379,15 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
           <table class="pl"><thead><tr id="volHead"></tr></thead><tbody id="volBody"></tbody></table>
         </div>
         <p class="note">장비·노즐은 매출건 마감수량(무상·취소 제외), N-CARE 신규는 판매리스트 집계입니다.</p>
+      </div>
+
+      <!-- Attach Rate — 결정_회계사TDL ⑦ -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">Attach Rate — 장비 1대당 노즐</h3>
+        <div class="scroll">
+          <table class="pl"><thead><tr id="attHead"></tr></thead><tbody id="attBody"></tbody></table>
+        </div>
+        <p class="note" id="attNote"></p>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -549,7 +596,7 @@ function 행들() {
   var 비용 = DB['손익비용'] || [];
   var sga = 판관비항목();
   var 국가순 = ['국내', '일본', '해외'];
-  var 제품순 = ['CUREJET', 'NOVOJET', 'NOZZLE', '기타'];
+  var 제품군순 = ['장비', '노즐', '기타'];       // 매출 탭과 같은 계층 — 결정_회계사TDL ②
 
   var 매출월 = function (f) { return function (m) { return 더(매출.filter(function (r) { return +r['월'] === m && f(r); }), function (r) { return Number(r['금액']); }); }; };
   var 원가행 = 비용.filter(function (r) { return r['대분류'] === '원가'; });
@@ -567,10 +614,21 @@ function 행들() {
       값: 매출월(function (r) { return r['사업부'] === g; }), 목표: 목표[사업부지표[g]]
     });
   });
-  제품순.forEach(function (p) {
+  // 제품 — 매출 탭과 같은 「제품군 → 표준명」 계층 (마스터코드 = ERP 품번, 결정_회계사TDL ②).
+  // 장비만 펼친다 — CUREJET·NOVOJET 둘뿐이고, 노즐·기타의 세부는 매출 탭 몫이다
+  제품군순.forEach(function (p) {
     out.push({
-      키: '제품:' + p, 이름: p, 급: 'child', 부모: '매출', 비중: true,
-      값: 매출월(function (r) { return r['제품구분'] === p; })
+      키: '제품:' + p, 이름: p, 급: 'child', 부모: '매출', 비중: true, 접기: p === '장비',
+      값: 매출월(function (r) { return r['제품군'] === p; })
+    });
+    if (p !== '장비') return;
+    var 이름들 = {};
+    매출.forEach(function (r) { if (r['제품군'] === p) 이름들[r['표준명']] = 1; });
+    Object.keys(이름들).sort().forEach(function (n) {
+      out.push({
+        키: '제품:' + p + '/' + n, 이름: n, 급: 'leaf', 부모: '제품:' + p,
+        값: 매출월(function (r) { return r['제품군'] === p && r['표준명'] === n; })
+      });
     });
   });
 
@@ -687,9 +745,11 @@ function 그리기() {
   $('asof').textContent = 연도 + '년 · ' + 끝 + '월까지 · 단위 백만원';
   var 경고 = 갈래검산(판관비항목(), 끝);
   $('footnote').innerHTML = (경고 ? '<span class="warn">' + 경고 + '</span> ' : '')
-    + '숫자는 <strong>결산조정을 반영한 확정 실적</strong>입니다. '
+    + '숫자는 <strong>결산조정을 반영한 확정 실적</strong>이며, 매출액은 <strong>별도정산표 확정본과 원 단위로'
+    + ' 같습니다</strong> — DART에 올라가는 그 기준입니다 (분개장 관리기준 매출은 지표 탭 전년비교에만 씁니다). '
     + '<span class="adj"></span> 표시가 붙은 달에 조정이 들어갔고, 매출원가·고정비를 펼치면 내역이 보입니다. '
     + '매출·국가별·제품별은 무상·취소를 포함한 전 건 기준이라 세 블록의 합이 매출액과 같습니다. '
+    + '제품은 ERP 품번 마스터 기준이라 매출 탭과 같은 이름·같은 계층입니다. '
     + '연간목표는 마감된 달은 실적, 남은 달은 목표를 더한 값입니다.'
     + (범위 === 'COMBINED' ? ''
       : ' 판관비의 <strong>그룹내부</strong>는 일본법인 코스트플러스 청구액(일본법인 판관비 × 1.05)입니다 —'
@@ -698,6 +758,52 @@ function 그리기() {
       ? ' <strong>합산</strong>은 내부거래를 제거하고 일본법인 비용을 얹은 값이며, 분기 확정 월에는'
         + ' 일본 K-IFRS 조정까지 반영돼 <strong>연결 공시와 같습니다</strong>(미확정 월은 J-GAAP PL 기준).'
       : '');
+
+  BEP그리기(행, 달);
+}
+
+/* =========================================================================
+   손익분기 (결정_회계사TDL ㉒)
+
+   BEP 매출 = 고정성 비용 ÷ (1 − 변동비율)
+     고정성 = 고정비 (+ 별도면 그룹내부 — 매출과 무관한 돈 전부)
+     변동비율 = (매출원가 + 변동판관비) ÷ 매출
+   매출원가를 전액 변동으로 근사한다 — 제품별 원가가 오면 정교화한다 (TDL ⑫).
+   ========================================================================= */
+function BEP그리기(행, 달) {
+  var 카드 = $('bepCard');
+  var 찾기 = function (키) { return 행.filter(function (r) { return r.키 === 키; })[0]; };
+  var 매출f = 찾기('매출').값, 원가f = 찾기('원가').값,
+      고정f = 찾기('판관비:고정비').값, 변동f = 찾기('판관비:변동비').값;
+  var 그룹f = 찾기('판관비:그룹내부') ? 찾기('판관비:그룹내부').값 : function () { return 0; };
+  if (!매출f || !고정f) { 카드.hidden = true; return; }
+  카드.hidden = false;
+
+  var bep = [], 실제 = [], 여유 = [];
+  달.forEach(function (m) {
+    var 매 = 매출f(m), 변율 = 매 > 0 ? (원가f(m) + 변동f(m)) / 매 : null;
+    var 고 = 고정f(m) + 그룹f(m);
+    var b = (변율 != null && 변율 < 1) ? 고 / (1 - 변율) : null;
+    bep.push(b); 실제.push(매); 여유.push(b == null ? null : 매 - b);
+  });
+
+  $('bepHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; })).join('');
+  var 줄 = function (이름, v, 급) {
+    return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>' + v.map(function (x) {
+      if (x == null) return '<td class="num muted">—</td>';
+      return '<td class="num' + (x < 0 ? ' neg' : '') + '">' + 백만(x) + '</td>';
+    }).join('') + '</tr>';
+  };
+  $('bepBody').innerHTML =
+    줄('BEP 매출 (필요 매출)', bep) +
+    줄('실제 매출', 실제) +
+    줄('여유 (실제 − BEP)', 여유, 'op');
+
+  $('bepNote').innerHTML = 'BEP 매출 = 고정성 비용 ÷ (1 − 변동비율). 고정성 = 고정비'
+    + (범위 === 'HQ' ? ' + 그룹내부' : '') + ', 변동비율 = (매출원가 + 변동판관비) ÷ 매출 — 당월 기준. '
+    + '<strong>매출원가를 전액 변동으로 근사</strong>합니다 (제품별 원가가 확보되면 정교화). '
+    + '여유가 양수인 달이 손익분기를 넘은 달입니다.';
 }
 
 /* ===== 범위 토글 ===== */
@@ -923,6 +1029,57 @@ function 매출그리기() {
       + '24년 원천엔 무상 행 자체가 없습니다(유상 판매 리스트). '
       + (매출모드 === '장비' ? '<strong>누적(24~)</strong>는 2024년부터 선택 연도 마감월까지의 총 누적 판매 대수입니다. ' : ''))
     + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.';
+
+  채널그리기(달);
+  거래처그리기();
+}
+
+/* ── 채널별 (결정_회계사TDL ⑨) — 금액 기준, 연도 토글 연동 ─────── */
+function 채널그리기(달) {
+  var 순 = ['직판', '딜러', '대리점', '바즈몰', '기타'];
+  var 행들 = (DB['채널'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  $('chanHead').innerHTML = ['<th scope="col">채널</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>', '<th scope="col">비중</th>']).join('');
+  var 총 = 더(행들, function (r) { return Number(r['금액']); });
+  $('chanBody').innerHTML = 순.map(function (ch) {
+    var 안 = 행들.filter(function (r) { return r['표준채널'] === ch; });
+    var 계 = 더(안, function (r) { return Number(r['금액']); });
+    if (!안.length && !계) return '';
+    return '<tr><td>' + ch + '</td>' + 달.map(function (m) {
+      var v = 더(안.filter(function (r) { return +r['월'] === m; }), function (r) { return Number(r['금액']); });
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (v ? 백만(v) : '—') + '</td>';
+    }).join('')
+      + '<td class="num"><strong>' + 백만(계) + '</strong></td>'
+      + '<td class="num muted">' + (총 ? (100 * 계 / 총).toFixed(1) + '%' : '—') + '</td></tr>';
+  }).join('');
+}
+
+/* ── 거래처 Top 30 (결정_회계사TDL ⑧) — 전년 대비까지 ──────────── */
+function 거래처그리기() {
+  var 전부 = DB['거래처'] || [];
+  var 올 = 전부.filter(function (r) { return +r['회계연도'] === 매출연도; })
+    .sort(function (a, b) { return Number(b['금액']) - Number(a['금액']); });
+  var 전년맵 = {};
+  전부.forEach(function (r) { if (+r['회계연도'] === 매출연도 - 1) 전년맵[r['거래처코드']] = Number(r['금액']); });
+  var 총 = 더(올, function (r) { return Number(r['금액']); });
+  var 위 = 올.slice(0, 30);
+
+  $('top30Head').innerHTML = '<th scope="col">순위</th><th scope="col" style="text-align:left">거래처</th>'
+    + '<th scope="col">국가</th><th scope="col">금액</th><th scope="col">비중</th>'
+    + '<th scope="col">전년</th><th scope="col">증감</th>';
+  $('top30Body').innerHTML = 위.map(function (r, i) {
+    var v = Number(r['금액']), 전 = 전년맵[r['거래처코드']];
+    var 증 = (전 == null) ? null : v - 전;
+    return '<tr><td class="num muted">' + (i + 1) + '</td>'
+      + '<td style="text-align:left;white-space:normal">' + 벗기(r['거래처']) + '</td>'
+      + '<td class="num muted">' + 벗기(r['국가'] || '—') + '</td>'
+      + '<td class="num">' + 백만(v) + '</td>'
+      + '<td class="num muted">' + (총 ? (100 * v / 총).toFixed(1) + '%' : '—') + '</td>'
+      + '<td class="num muted">' + (전 == null ? '신규' : 백만(전)) + '</td>'
+      + '<td class="num' + (증 != null && 증 < 0 ? ' neg' : '') + '">'
+      + (증 == null ? '—' : (증 >= 0 ? '+' : '') + 백만(증)) + '</td></tr>';
+  }).join('');
 }
 
 /* =========================================================================
@@ -1262,6 +1419,82 @@ function 표그리기(머리ID, 몸ID, 달, 줄들, 꼬리머리) {
   }).join('');
 }
 
+/* =========================================================================
+   Attach Rate (결정_회계사TDL ⑦)
+
+   당월 노즐 유상 판매수량 ÷ **전월말** 누적 장비 대수. 당월에 팔린 장비는 아직
+   노즐을 안 쓰므로 분모는 전월말이다. 분모 = 2021년부터 누적 판매 대수
+   (21~23은 등대.장비기초, 24~는 매출탭 수량) — 판매 누적 = 가동 프록시다.
+   ========================================================================= */
+function Attach그리기(달) {
+  var 탭 = DB['매출탭'] || [], 기초 = DB['장비기초'] || [];
+  var 사업부들 = ['국내', '일본', '해외'];
+  var 사업부of = function (국가) { return 국가 === '한국' ? '국내' : 국가 === '일본' ? '일본' : '해외'; };
+
+  // 사업부별 기초 (21~23)
+  var 기초맵 = { 국내: 0, 일본: 0, 해외: 0 };
+  기초.forEach(function (r) { 기초맵[사업부of(r['국가'])] += Number(r['대수']) || 0; });
+
+  // (연도, 월, 사업부)까지의 누적 장비 — 24년부터 매출탭 수량으로 쌓는다
+  var 누적장비 = function (연, 월, 사) {
+    var s = 기초맵[사] || 0;
+    탭.forEach(function (r) {
+      if (r['제품'] !== '장비' || (사 && r['사업부'] !== 사)) return;
+      var y = +r['회계연도'], m = +r['월'];
+      if (y < 연 || (y === 연 && m <= 월)) s += Number(r['수량']) || 0;
+    });
+    return s;
+  };
+  var 노즐 = function (연, 월, 사, 칸) {
+    return 더(탭.filter(function (r) {
+      return r['제품'] === '노즐' && +r['회계연도'] === 연 && +r['월'] === 월 && (!사 || r['사업부'] === 사);
+    }), function (r) { return Number(r[칸]) || 0; });
+  };
+  // 전월말 분모 — 1월이면 전년 12월 말
+  var 분모 = function (m, 사) {
+    return m === 1 ? 누적장비(지표연도 - 1, 12, 사) : 누적장비(지표연도, m - 1, 사);
+  };
+  var 전사분모 = function (m) { return 사업부들.reduce(function (s, 사) { return s + 분모(m, 사); }, 0); };
+
+  var 율 = function (분자f, 분모f) {
+    return 달.map(function (m) {
+      var b = 분모f(m);
+      return b > 0 ? 분자f(m) / b : null;
+    });
+  };
+  var 평균붙임 = function (v) {
+    var 있 = v.filter(function (x) { return x != null; });
+    return v.concat([있.length ? 있.reduce(function (a, b) { return a + b; }, 0) / 있.length : null]);
+  };
+  var 소수 = function (이름, 급, v) {
+    return { 이름: 이름, 급: 급, 형: '소수', 값들: 평균붙임(v) };
+  };
+
+  var 줄 = [소수('전사 (개/대)', 'total', 율(function (m) { return 노즐(지표연도, m, null, '수량'); }, 전사분모))];
+  사업부들.forEach(function (사) {
+    if (분모(달[달.length - 1] || 1, 사) <= 0) return;
+    줄.push(소수(사, 'leaf', 율(function (m) { return 노즐(지표연도, m, 사, '수량'); }, function (m) { return 분모(m, 사); })));
+  });
+  줄.push(소수('노즐 매출/대 (백만원)', 'total',
+    율(function (m) { return 노즐(지표연도, m, null, '금액'); }, 전사분모)));
+
+  // 표그리기의 형에 소수가 없다 — 직접 그린다 (한 자리 소수)
+  $('attHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">월평균</th>']).join('');
+  $('attBody').innerHTML = 줄.map(function (r) {
+    return '<tr class="r-' + r.급 + '"><td>' + r.이름 + '</td>'
+      + r.값들.map(function (v) {
+        return '<td class="num">' + (v == null ? '—' : v.toFixed(1)) + '</td>';
+      }).join('') + '</tr>';
+  }).join('');
+
+  var 말분모 = 전사분모(달.length ? 달[달.length - 1] + 1 : 1);
+  $('attNote').innerHTML = '당월 <strong>노즐 유상 판매수량 ÷ 전월말 누적 장비 대수</strong>입니다. '
+    + '분모는 2021년부터의 누적 판매 대수(현재 전사 ' + 수(말분모) + '대)로, 폐기·이전을 알 수 없어'
+    + ' <strong>판매 누적 = 가동 프록시</strong>입니다. 무상 제공 노즐은 분자에서 제외돼 있습니다.';
+}
+
 function 지표그리기() {
   var 볼륨 = DB['볼륨'] || [], 인건비 = DB['인건비'] || [];
   var 요약 = DB['전년요약'] || [], 판관 = DB['전년판관비'] || [];
@@ -1309,6 +1542,8 @@ function 지표그리기() {
   if (nc.some(function (x) { return x != null; }))
     볼줄.push({ 이름: 'N-CARE 신규 (건)', 급: 'total', 형: '수', 값들: nc.concat([nc.reduce(function (a, b) { return a + (b || 0); }, 0)]) });
   표그리기('volHead', 'volBody', 달, 볼줄, ['누계']);
+
+  Attach그리기(달);
 
   // ── 인건비 ──
   var 인 = function (칸) {
