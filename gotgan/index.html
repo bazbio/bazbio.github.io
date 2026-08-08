@@ -648,22 +648,27 @@ function fillDatalists() {
  * 건에 코드를 넣으려는 사람이 그 안에서 `CLM-018`을 찾아낼 방법이 없다 — 코드 번호를
  * 외우고 있지 않으면 목록은 없는 것과 같다. 실제로 "예산코드에 왜 접대비가 없어?"가 나왔다.
  *
- * 그 줄의 **예산부서** 것만 남기고, 그중 **같은 계정**을 맨 위로 올린다.
- * 라벨도 부서(이미 아는 것) 대신 계정·내역으로 바꾼다.
+ * 그 줄의 **예산부서** 것을 맨 위로 올리되, 다른 부서 코드도 아래에 남긴다
+ * (2026-08-08 저녁 — 종전에는 부서로 잘라 버렸다). 부서를 넘겨 다는 경우가 실제로 많아서,
+ * 잘라 버리면 그 건은 목록에서 코드를 고를 방법이 아예 없다.
+ *
+ * 순위: [그 부서·그 계정] → [그 부서 나머지] → [다른 부서·그 계정] → [나머지].
+ * 같은 순위 안에서는 예산코드 순서가 그대로 남는다(정렬이 안정적이라 부서별로 묶여 보인다).
+ * 다른 부서 항목은 라벨 맨 앞에 부서명을 붙인다 — 안 붙이면 어느 부서 예산인지 알 수 없다.
  * tr이 없으면(부팅 시) 전체를 넣는다 — 아무 줄도 안 골랐을 때의 기본값이다.
  */
 function 코드후보(tr) {
-  let 목록 = BUDGET;
+  let 목록 = BUDGET, dept = '';
   if (tr) {
-    const dept = String(tr.querySelector('[data-f="budgetDept"]').value || '').trim();
+    dept = String(tr.querySelector('[data-f="budgetDept"]').value || '').trim();
     const acct = String(tr.querySelector('[data-f="acct"]').value || '').trim();
-    const 같은부서 = BUDGET.filter(r => String(r[1]).trim() === dept);
-    if (같은부서.length) {
-      목록 = 같은부서.filter(r => String(r[2]).trim() === acct)
-        .concat(같은부서.filter(r => String(r[2]).trim() !== acct));
-    }
+    const 순위 = r => (String(r[1]).trim() === dept ? 0 : 2) + (String(r[2]).trim() === acct ? 0 : 1);
+    목록 = BUDGET.slice().sort((a, b) => 순위(a) - 순위(b));
   }
-  el('dl-codes').innerHTML = 목록.map(r => `<option value="${r[0]}">${r[2]} · ${r[3]}</option>`).join('');
+  el('dl-codes').innerHTML = 목록.map(r => {
+    const 남의부서 = dept && String(r[1]).trim() !== dept;
+    return `<option value="${r[0]}">${남의부서 ? r[1] + ' · ' : ''}${r[2]} · ${r[3]}</option>`;
+  }).join('');
   return 목록;
 }
 
