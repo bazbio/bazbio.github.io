@@ -129,6 +129,17 @@
   .acct-fix button.mini:hover { border-color: var(--primary); }
   .acct-fix button.mini:disabled { opacity: .45; cursor: default; }
   select.fin-pick { padding: 3px 8px; font-size: 12px; border-radius: 8px; max-width: 190px; }
+  /* 대시보드에서 걸려 온 계정 필터 — 필터 줄의 컨트롤이 아니라 눈에 띄어야 한다 */
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+    background: rgba(49, 130, 246, .1); color: var(--primary-focus);
+    padding: 5px 8px 5px 12px; border-radius: 999px;
+  }
+  .filter-chip button {
+    border: none; background: none; color: inherit; cursor: pointer; font: inherit;
+    padding: 0 4px; opacity: .7; transition: opacity .2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .filter-chip button:hover { opacity: 1; }
 
   /* ─ 컨트롤 ─ */
   .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
@@ -460,6 +471,8 @@ let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내�
 // 대시보드 경고에서 넘어올 때 걸리는 필터. '' = 없음 / all = 입력 필요 전체 /
 // amt·acct·dept·code·rule = 경고 한 종류 (aggregate의 A.할일 키와 같다)
 let EXP_FOCUS = '';
+// 계정 하나만 보기 (대시보드 배너에서 계정 이름을 누르면 걸린다). '' = 전체
+let EXP_ACCT = '';
 const TOKEN_KEY = 'baz_budget_token';
 
 const fmt = n => (Math.round(Number(n) || 0)).toLocaleString('ko-KR');
@@ -649,7 +662,6 @@ document.querySelectorAll('.sub-nav nav button').forEach(b => b.onclick = () => 
 // ─── 집계 로직 ───
 function aggregate() {
   const warnTh = Number(SETTINGS['주의임계값'] || 0.8);
-  const clsSet = new Set(ACCT_CLASS.map(r => String(r[0] || '').trim()).filter(Boolean));
   /* 계정 → 회계 계정 (v21). 곳간의 '계정'에는 관리용 분류(설비·JIG·자재창고·인허가)와
      실제 회계 계정(지급수수료·소모품비)이 섞여 있다. 예산안은 앞쪽 이름으로 적혔고 자금
      자료는 뒤쪽 이름으로 들어와, 예산과 실지출이 서로 만나지 못했다 — 2026-08-07 기준
@@ -664,7 +676,15 @@ function aggregate() {
   const finOf = a => { const f = finMap[String(a || '').trim()] || ''; return f === '해당없음' ? '' : f; };
   const 정해짐 = a => !!(finMap[String(a || '').trim()] || '');
   const finDA = {};              // '부서|회계계정' → 예산·집행·진행중
-  const 회계미지정 = new Map();   // 회계계정이 안 정해진 계정 → 금액이 걸린 건수
+  /* 회계계정이 안 정해진 계정 → { 건수, 금액 }. 건수만으로는 "2건"이 2만 원인지 3억인지
+     알 수 없어 결정을 못 한다 — 금액을 같이 나른다 (2026-08-08). */
+  const 회계미지정 = new Map();
+  const 미지정적립 = (이름, n, amt) => {
+    const k = String(이름 || '').trim() || '(계정 미지정)';
+    const o = 회계미지정.get(k) || { n: 0, amt: 0 };
+    o.n += n; o.amt += amt;
+    회계미지정.set(k, o);
+  };
   const fin적립 = (dept, acct, 칸, v) => {
     const f = finOf(acct);
     if (!f) return false;
@@ -680,14 +700,17 @@ function aggregate() {
     const k = r[1] + '|' + r[2];
     budDA[k] = (budDA[k] || 0) + b;
     budCode[r[0]] = { dept: r[1], acct: r[2], desc: r[3], budget: b, spent: 0, pending: 0, cnt: 0 };
-    if (b > 0 && !fin적립(r[1], r[2], 'budget', b) && !정해짐(r[2])) {
-      회계미지정.set(r[2], (회계미지정.get(r[2]) || 0) + 1);
-    }
+    if (b > 0 && !fin적립(r[1], r[2], 'budget', b) && !정해짐(r[2])) 미지정적립(r[2], 0, 0);
   });
   const spentDA = {}, pendDA = {};
   let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
   let totSpent = 0, totPend = 0, cogs = 0;
-  const 새계정 = new Map();   // 계정분류 시트에 없는 계정 → 건수
+  /* 원가처럼 보이는데 판관비에 섞인 계정 → 건수 (2026-08-07).
+     매출원가 판정이 계정명 접두사 셋(제조(제)·원재료비·외주가공비)에만 의존해서,
+     '부재료비'·'제조경비' 같은 새 이름은 못 잡고 그 부서 집행률이 원가만큼 부푼다.
+     ⚠ 이건 고정비/변동비와 무관하다 — v23에서 그 분류를 걷어낼 때도 이 신호는 남긴다. */
+  const 원가의심 = new Map();
+  const 원가낌새 = /재료|가공|제조|원가|부자재|포장/;
   /* 경고 종류별 지출 ID. 대시보드 경고를 누르면 지출내역이 이걸로 걸러진다.
      판정을 여기서 한 번만 하고 ID를 나르는 이유: 필터가 따로 판정하면 "금액 미입력 14건"을
      눌렀는데 20건이 나오는 일이 생기고, 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
@@ -707,11 +730,9 @@ function aggregate() {
     }
     if (!acct && amt > 0) { noAcct++; 할일.acct[r[0]] = 1; }
     if (dept === '미분류') { unmappedDept++; 할일.dept[r[0]] = 1; }
-    /* 계정분류 시트에 없는 계정 (2026-08-07) — 종전에는 아무도 안 알려줬다. 월별 탭 맨 아래
-       미분류 행에 조용히 쌓여서, 재경팀이 그 탭을 열어봐야만 알았다.
-       매출원가로 이미 갈린 건은 뺀다 — 고정비/변동비 표에 애초에 안 들어가므로 할 일이 없다. */
-    if (acct && dept !== '매출원가' && !clsSet.has(String(acct).trim())) {
-      새계정.set(String(acct).trim(), (새계정.get(String(acct).trim()) || 0) + 1);
+    // 매출원가로 이미 갈린 건은 뺀다 — 제자리에 있으므로 할 일이 없다
+    if (acct && dept !== '매출원가' && 원가낌새.test(String(acct).trim())) {
+      원가의심.set(String(acct).trim(), (원가의심.get(String(acct).trim()) || 0) + 1);
     }
     // 계정 규칙(서버 acctRules_)은 이 두 계정을 경영관리부문으로 통일한다 — 코드가 이기므로 어긋나면 코드가 틀린 것
     if (/^(지급임차료|자기계발비)/.test(String(acct)) && dept !== '경영관리부문') { ruleConflict++; 할일.rule[r[0]] = 1; }
@@ -724,8 +745,7 @@ function aggregate() {
     else { pendDA[k] = (pendDA[k] || 0) + amt; totPend += amt; }
     // 같은 돈을 회계 계정으로도 접는다 (v21). 아직 아무도 안 본 계정만 셈해서 화면이 물어본다.
     if (!fin적립(dept, acct, st === '종결' ? 'spent' : 'pending', amt) && !정해짐(acct)) {
-      const 이름 = String(acct).trim() || '(계정 미지정)';
-      회계미지정.set(이름, (회계미지정.get(이름) || 0) + 1);
+      미지정적립(acct, 1, amt);
     }
     if (code) {
       if (budCode[code]) {
@@ -735,7 +755,7 @@ function aggregate() {
     }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
-  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 새계정, 할일, finDA, finMap, 회계미지정 };
+  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 원가의심, 할일, finDA, finMap, 회계미지정 };
 }
 
 // 이름을 다 늘어놓으면 배너가 화면을 먹는다 — 많은 순으로 8종까지만 보이고 나머지는 센다
@@ -781,34 +801,16 @@ function renderDash() {
   if (issues.length) html += `<div class="alert warn">처리 필요 — ${issues.join(' · ')}<br>
     <span class="muted" style="font-size:13px">누르면 지출내역에서 그 건들만 걸러 보여줍니다.</span></div>`;
 
-  /* 계정분류 시트에 없는 계정 (2026-08-07). 이걸 안 잡으면 두 가지가 조용히 샌다:
-       ① 고정비/변동비 표에서 미분류로 쌓인다 (월별 탭을 열어봐야만 보인다)
-       ② 원가성 비용이 판관비에 섞인다 — 매출원가 판정이 계정명 접두사 셋(제조(제)·원재료비·
-          외주가공비)에만 의존하므로, '부재료비'·'제조경비' 같은 새 이름은 못 잡는다.
-          그러면 그 부서 집행률이 원가만큼 부푼다. 그래서 원가로 보이는 이름은 따로 짚는다. */
-  if (A.새계정 && A.새계정.size) {
-    const 원가낌새 = /재료|가공|제조|원가|부자재|포장/;
-    const 목록 = [...A.새계정.entries()].sort((a, b) => b[1] - a[1]);
-    const 의심 = 목록.filter(([이름]) => 원가낌새.test(이름));
-    /* 종전에는 이름만 늘어놓고 "시트 [계정분류]에 지정하세요"라고 했다. 시트를 따로 여는
-       그 한 걸음 때문에 모르는 계정이 계속 쌓였다 — 이제 여기서 바로 누른다 (2026-08-08).
-       고정비/변동비는 전사 집계를 가르는 값이라 전체 권한만 바꾼다(서버도 같이 막는다). */
-    const 고칠수있나 = !USER.depts;
-    // 이름을 다 늘어놓으면 배너가 화면을 먹는다 — 많은 순으로 8종까지만 보이고 나머지는 센다
-    const 줄 = ([이름, n]) => `<div class="acct-fix"><b>${이름}</b> <span class="muted">${n}건</span>`
-      + (고칠수있나
-        ? ` <button class="mini" data-cls-acct="${이름.replace(/"/g, '&quot;')}" data-cls="고정비">고정비</button>`
-          + `<button class="mini" data-cls-acct="${이름.replace(/"/g, '&quot;')}" data-cls="변동비">변동비</button>`
-        : '') + `</div>`;
-    html += `<div class="alert warn">모르는 계정 ${목록.length}종 — 계정분류 시트에 없습니다.
-      ${고칠수있나 ? '고정비·변동비를 누르면 바로 반영됩니다.' : '재경팀(전체 권한 계정)이 지정해야 합니다.'}
-      안 정하면 고정비/변동비 집계에서 미분류로 쌓입니다.
-      <div class="acct-fix-list">${상위8(목록, 줄)}</div>`;
-    if (의심.length) {
-      html += `<b style="color:var(--over)">원가성으로 보이는 계정이 판관비에 섞여 있습니다 — ${의심.slice(0, 8).map(([이름]) => 이름).join(' · ')}.</b>
-        매출원가로 보내야 한다면 알려주세요(판정 규칙에 이름을 넣어야 합니다).`;
-    }
-    html += `</div>`;
+  /* 원가성 비용이 판관비에 섞였을 때 (2026-08-07). 매출원가 판정이 계정명 접두사 셋
+     (제조(제)·원재료비·외주가공비)에만 의존해서 '부재료비'·'제조경비' 같은 새 이름은 못 잡고,
+     그러면 그 부서 집행률이 원가만큼 부푼다 — 예산 숫자가 틀어지는 일이라 곳간이 알려야 한다.
+     (v23에서 고정비/변동비를 걷어낼 때 이 신호만 남겼다. 둘은 원래 다른 문제였다.) */
+  if (A.원가의심 && A.원가의심.size) {
+    const 의심 = [...A.원가의심.entries()].sort((a, b) => b[1] - a[1]);
+    html += `<div class="alert warn">원가성으로 보이는 계정이 판관비에 섞여 있습니다 —
+      ${의심.slice(0, 8).map(([이름, n]) => `<b>${이름}</b> ${n}건`).join(' · ')}${의심.length > 8 ? ` 외 ${의심.length - 8}종` : ''}.
+      <br><span class="muted" style="font-size:13px">매출원가로 보내야 하면 알려주세요 — 판정 규칙에 이름을 넣어야 합니다.
+      그대로 두면 그 부서 집행률이 원가만큼 부풀어 보입니다.</span></div>`;
   }
   /* 회계계정 미지정 (v21) — 「회계 계정별」 표에서 빠지는 몫이다.
      ⚠ **경고가 아니라 안내다.** 곳간은 예산 도구이지 회계 장부가 아니다 — 이 값이 비어 있어도
@@ -816,18 +818,27 @@ function renderDash() {
      보조 표 하나뿐이다. 빨간 경고로 띄우면 진짜 문제(금액 미입력·부서 미분류)가 묻힌다.
      '해당없음'으로 닫은 것은 여기 안 뜬다 (선지급금처럼 손익 계정이 아예 없는 경우). */
   if (A.회계미지정 && A.회계미지정.size && !USER.depts) {
-    const 목록 = [...A.회계미지정.entries()].sort((a, b) => b[1] - a[1]);
+    const 목록 = [...A.회계미지정.entries()].sort((a, b) => b[1].amt - a[1].amt);
     /* 관문(부트 스냅샷)에는 finAccts가 없다 — 굽기 payload에 안 들어가고 엣지 펑션도
        모르는 키는 안 흘린다. 그 갈래로 먼저 그려지면 드롭다운이 빈 채로 뜬다.
        고를 것이 없는 드롭다운을 보여주느니 잠깐 감춘다 — 2~3초 뒤 GAS가 도착하면
        부트적용이 다시 돌아 채워진다. (엣지를 다음에 배포할 때 finAccts를 실어 보낼 것) */
     const 고를수있나 = FIN_ACCTS.length > 0;
     const opt = FIN_ACCTS.map(f => `<option value="${f}">${f}</option>`).join('');
-    const 줄 = ([이름, n]) => `<div class="acct-fix"><b>${이름}</b> <span class="muted">${n}건</span>`
+    /* 계정 이름은 누르면 지출내역이 그 계정 건들만 걸러 열린다 (2026-08-08).
+       한 계정에 서로 다른 부서 예산이 섞여 있을 수 있어서다 — 실제로 `선지급분(원화)` 2건이
+       글로벌사업 3,000만과 C-Labs_마케팅 22만으로 갈린다. 계정 하나에 답 하나를 고르게
+       하면 그 갈림을 표현할 수 없다. 건별 결정은 지출내역의 예산코드 칸이 받는다.
+       금액을 같이 보여주는 이유도 같다 — "2건"만으로는 볼지 말지 정할 수가 없다. */
+    const 줄 = ([이름, o]) => `<div class="acct-fix">
+      <button class="link-warn" data-acct-see="${이름.replace(/"/g, '&quot;')}"><b>${이름}</b></button>
+      <span class="muted">${o.n}건 · ${fmt(o.amt)}원</span>`
       + (고를수있나 ? `<select class="fin-pick" data-fin-acct="${이름.replace(/"/g, '&quot;')}">
         <option value="">회계 계정 고르기…</option>${opt}</select>` : '') + `</div>`;
     html += `<div class="alert info">회계 계정 미지정 ${목록.length}종 — 재무제표 대조용 「회계 계정별」 표에서만 빠집니다.
-      <b>예산·집행률·잔액은 그대로입니다.</b> 정할 것이 없으면 <b>해당없음</b>을 골라 닫아 두세요.
+      <b>예산·집행률·잔액은 그대로입니다.</b>
+      <br><span class="muted" style="font-size:13px">계정 이름을 누르면 그 건들을 지출내역에서 봅니다 —
+      한 계정에 부서가 섞여 있으면 건별로 예산코드를 넣으세요. 회계 계정을 정할 것이 없으면 <b>해당없음</b>으로 닫습니다.</span>
       <div class="acct-fix-list">${상위8(목록, 줄)}</div></div>`;
   }
 
@@ -864,9 +875,9 @@ function renderDash() {
   // 경고 클릭 → 지출내역이 그 건들만 걸러진 채로 열린다
   el('tab-dash').querySelectorAll('[data-focus]').forEach(b => b.onclick = () => 짚어보기(b.dataset.focus));
   // 모르는 계정 → 고정비/변동비를 그 자리에서 지정
-  el('tab-dash').querySelectorAll('[data-cls-acct]').forEach(b => b.onclick = () => 계정분류지정(b));
-  // 회계계정 미지정 → 드롭다운으로 그 자리에서 지정 (v21)
   el('tab-dash').querySelectorAll('[data-fin-acct]').forEach(s => s.onchange = () => 회계계정지정(s));
+  // 계정 이름 → 그 계정 건들만 지출내역에서 (건별로 예산코드를 넣게)
+  el('tab-dash').querySelectorAll('[data-acct-see]').forEach(b => b.onclick = () => 계정건보기(b.dataset.acctSee));
 
   document.querySelectorAll('.dept-card').forEach(b => b.onclick = () => {
     const sel = b.classList.contains('on');
@@ -884,7 +895,7 @@ function renderDash() {
  * 배너의 건수와 표의 줄 수가 달라 보인다.
  */
 function 짚어보기(키) {
-  EXP_FOCUS = 키;
+  EXP_FOCUS = 키; EXP_ACCT = '';
   탭이동('exp');
   if (!el('f-todo')) renderExpenses();   // 부팅에서 이미 그려지지만, 없으면 만들고 본다
   el('f-todo').value = 키;
@@ -893,23 +904,18 @@ function 짚어보기(키) {
 }
 
 /**
- * 모르는 계정에 고정비/변동비를 그 자리에서 지정한다 (2026-08-08).
- * 낙관 반영은 안 한다 — 서버가 전체 권한을 확인하고, 거절되면 화면만 바뀐 채로 두면 안 된다.
+ * 계정 하나의 건들을 지출내역에서 본다 (2026-08-08).
+ *
+ * 한 계정에 서로 다른 부서 예산이 섞여 있을 수 있다 — `선지급분(원화)` 2건이 글로벌사업
+ * 3,000만과 C-Labs_마케팅 22만으로 갈리는 것이 실제 예다. 그 갈림은 계정 단위로는
+ * 표현할 수 없고, 건별로 예산코드를 넣어야 풀린다.
  */
-async function 계정분류지정(btn) {
-  const acct = btn.dataset.clsAcct, cls = btn.dataset.cls;
-  const 형제 = btn.parentElement.querySelectorAll('[data-cls-acct]');
-  형제.forEach(b => { b.disabled = true; });
-  try {
-    const r = await gsAuth('apiSetAcctClass', [{ acct: acct, cls: cls }]);
-    ACCT_CLASS = r.acctClass || ACCT_CLASS;
-    toast(`${acct} → ${cls}`);
-    renderDash(); renderMonthly();   // 배너에서 사라지고 월별 표에도 바로 반영된다
-  } catch (e) {
-    if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
-    형제.forEach(b => { b.disabled = false; });
-    toast(String(e.message || e).replace(/^Error:\s*/, ''));
-  }
+function 계정건보기(acct) {
+  EXP_ACCT = acct; EXP_FOCUS = '';
+  탭이동('exp');
+  if (!el('f-todo')) renderExpenses();
+  el('f-todo').value = ''; el('f-dept').value = ''; el('f-status').value = ''; el('f-q').value = '';
+  drawExpTable();
 }
 
 /**
@@ -1038,21 +1044,18 @@ function renderMonthly() {
 
   // 예산내 판정: 부서|계정 조합이 예산마스터에 존재하면 예산내, 아니면 예산외
   const budKeys = new Set(BUDGET.map(r => r[1] + '|' + r[2]));
-  const clsMap = {}; // 계정 → 고정비/변동비
-  ACCT_CLASS.forEach(r => { if (r[0]) clsMap[String(r[0]).trim()] = String(r[1]).trim() || '미분류'; });
 
-  // 월×(예산내/예산외), 분류×계정×월
+  // 월×(예산내/예산외), 계정×월
   // 회계 규칙: ① 원재료비*는 매출원가 → 판관비 월별 집계 제외
   //           ② 연구소 투자비(경상연구개발비-투자비)는 집행 월부터 60개월 정액 상각으로 감가상각비 인식
   const inBud = {}, outBud = {}, pendM = {};
-  const byCls = { '고정비': {}, '변동비': {}, '미분류': {} };
+  const byAcct = {};   // 계정 → 월 → 금액
   let tot = 0, investTot = 0;
-  const put = (mm, amt, budgeted, cls, key) => {
+  const put = (mm, amt, budgeted, key) => {
     tot += amt;
     (budgeted ? inBud : outBud)[mm] = ((budgeted ? inBud : outBud)[mm] || 0) + amt;
-    if (!byCls[cls]) byCls[cls] = {};
-    if (!byCls[cls][key]) byCls[cls][key] = {};
-    byCls[cls][key][mm] = (byCls[cls][key][mm] || 0) + amt;
+    if (!byAcct[key]) byAcct[key] = {};
+    byAcct[key][mm] = (byAcct[key][mm] || 0) + amt;
   };
   let cogsM = 0;
   EXPENSES.forEach(r => {
@@ -1069,10 +1072,10 @@ function renderMonthly() {
       // 자산화 후 월 1/60 상각 (기간 내 월만 표시)
       investTot += amt;
       const dep = Math.round(amt / 60);
-      months.filter(m2 => m2 >= mm).forEach(m2 => put(m2, dep, true, '고정비', '감가상각비(연구 투자상각)'));
+      months.filter(m2 => m2 >= mm).forEach(m2 => put(m2, dep, true, '감가상각비(연구 투자상각)'));
       return;
     }
-    put(mm, amt, budKeys.has(dept + '|' + acct), acct ? (clsMap[acct] || '미분류') : '미분류', acct || '(계정 미지정)');
+    put(mm, amt, budKeys.has(dept + '|' + acct), acct || '(계정 미지정)');
   });
 
   const mLabel = mm => Number(mm.slice(5)) + '월';
@@ -1108,24 +1111,22 @@ function renderMonthly() {
     <td class="num">${fmt(tot)}</td><td></td></tr>`;
   html += `</table></div></section>`;
 
-  // 표2: 고정비/변동비 × 계정 × 월
-  html += `<section class="panel"><h2 class="section-head">고정비 / 변동비</h2>
-    <p class="section-sub">계정과목별 월 지출입니다. 분류 변경은 구글시트 [계정분류]에서.</p>
+  /* 표2: 계정 × 월.
+     종전에는 고정비/변동비로 묶어 보여줬는데, 그 분류는 곳간 어디에도 안 쓰였다 —
+     예산·집행률·잔액·임계 알림 전부 무관하고 이 표의 머리글 두 줄이 전부였다.
+     손익 분석(BEP·변동비율)은 등대가 한다. 곳간은 예산 도구다 (2026-08-08 결정, v23).
+     금액 큰 순으로 정렬한다 — 가나다순은 어느 계정이 큰지 안 보인다. */
+  const acctRows = Object.keys(byAcct)
+    .map(a => ({ a, sum: months.reduce((s, mm) => s + (byAcct[a][mm] || 0), 0) }))
+    .sort((x, y) => y.sum - x.sum);
+  html += `<section class="panel"><h2 class="section-head">계정별 월 지출</h2>
+    <p class="section-sub">기간 내 지출을 계정과목별로 편 것입니다. 금액 큰 순.</p>
     <div class="table-wrap"><table>
-    <tr><th>구분 / 계정</th>${months.map(mm => `<th class="num">${mLabel(mm)}</th>`).join('')}<th class="num">합계</th></tr>`;
-  ['고정비', '변동비', '미분류'].forEach(cls => {
-    const accts = Object.keys(byCls[cls] || {}).sort();
-    if (!accts.length) return;
-    const clsTot = {};
-    accts.forEach(a => months.forEach(mm => { clsTot[mm] = (clsTot[mm] || 0) + (byCls[cls][a][mm] || 0); }));
-    const clsSum = months.reduce((s, mm) => s + (clsTot[mm] || 0), 0);
-    html += `<tr class="cls-row"><td>${cls}</td>${months.map(mm => `<td class="num">${fmt(clsTot[mm] || 0)}</td>`).join('')}<td class="num">${fmt(clsSum)}</td></tr>`;
-    accts.forEach(a => {
-      const rowSum = months.reduce((s, mm) => s + (byCls[cls][a][mm] || 0), 0);
-      html += `<tr><td style="padding-left:28px;color:var(--ink-80)">${a}</td>
-        ${months.map(mm => `<td class="num">${byCls[cls][a][mm] ? fmt(byCls[cls][a][mm]) : '<span class="muted">—</span>'}</td>`).join('')}
-        <td class="num">${fmt(rowSum)}</td></tr>`;
-    });
+    <tr><th>계정</th>${months.map(mm => `<th class="num">${mLabel(mm)}</th>`).join('')}<th class="num">합계</th></tr>`;
+  acctRows.forEach(({ a, sum }) => {
+    html += `<tr><td style="color:var(--ink-80)">${a}</td>
+      ${months.map(mm => `<td class="num">${byAcct[a][mm] ? fmt(byAcct[a][mm]) : '<span class="muted">—</span>'}</td>`).join('')}
+      <td class="num" style="font-weight:600">${fmt(sum)}</td></tr>`;
   });
   html += `<tr class="grand-row"><td>전체 합계</td>${months.map(mm => `<td class="num">${fmt((inBud[mm] || 0) + (outBud[mm] || 0))}</td>`).join('')}<td class="num">${fmt(tot)}</td></tr>`;
   html += `</table></div></section>`;
@@ -1175,6 +1176,7 @@ function renderExpenses() {
       </select>
       <input type="search" id="f-q" placeholder="제목·기안자 검색">
       <button class="btn" id="btn-save" disabled>변경사항 저장 (0)</button>
+      <span id="acct-chip"></span>
     </div>
     <div class="table-wrap" id="exp-table"></div></section>`;
   el('tab-exp').innerHTML = html;
@@ -1215,6 +1217,7 @@ function drawExpTable() {
      어긋나고, 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
   const 할일 = todo ? aggregate().할일 : null;
   const rows = EXPENSES.filter(r => {
+    if (EXP_ACCT && String(r[10] || '').trim() !== EXP_ACCT) return false;
     if (fd && r[9] !== fd) return false;
     if (fs && r[8] !== fs) return false;
     if (todo === 'all') {
@@ -1236,6 +1239,16 @@ function drawExpTable() {
     if (!bv) return -1;
     return EXP_SORT.d * av.localeCompare(bv);
   });
+
+  /* 계정 필터는 필터 줄의 컨트롤이 아니라 대시보드에서 걸려 온 것이라, 걸린 사실이 안 보이면
+     "왜 3건밖에 없지?"가 된다. 칩으로 보여주고 X로 풀 수 있게 한다. */
+  const chip = el('acct-chip');
+  if (chip) {
+    chip.innerHTML = EXP_ACCT
+      ? `<span class="filter-chip">계정 <b>${EXP_ACCT}</b><button title="필터 풀기">✕</button></span>` : '';
+    const x = chip.querySelector('button');
+    if (x) x.onclick = () => { EXP_ACCT = ''; drawExpTable(); };
+  }
 
   const 화살 = i => EXP_SORT.i === i ? (EXP_SORT.d === -1 ? ' ▼' : ' ▲') : '';
   const depts = expenseDepts();
