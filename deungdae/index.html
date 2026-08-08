@@ -1047,7 +1047,9 @@ function 연간BEP그리기(달, f) {
       + '<td class="num muted">' + r['곳간분류'] + '</td>'
       + '<td class="num">' + 백만(Number(r['월평균'])) + '</td>'
       + '<td class="num muted">' + (r['변동계수'] == null ? '—' : Number(r['변동계수']).toFixed(2)) + '</td>'
-      + '<td class="num' + (r['어긋남'] ? ' neg' : ' muted') + '">' + (r['어긋남'] || '—') + '</td>'
+      // 검증제외는 「왜 이건 안 걸리나」를 묻지 않게 사유를 그대로 보인다 (알람만 끈 것이다)
+      + '<td class="num' + (r['어긋남'] ? ' neg' : ' muted') + '">'
+      + (r['어긋남'] || (r['검증제외사유'] ? '확인됨 — ' + r['검증제외사유'] : '—')) + '</td>'
       + '<td class="num muted">—</td><td class="num muted">—</td></tr>';
   }).join('');
 
