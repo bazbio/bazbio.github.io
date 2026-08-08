@@ -432,6 +432,10 @@
 
 <!-- 계획 입력 -->
 <div class="view" id="view-plan"><div class="wrap">
+  <div id="pDraftBar" class="warnbox" style="display:none;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+    <span class="dtxt"></span>
+    <span style="display:flex;gap:7px;"><button class="btn dload">이어서 쓰기</button><button class="btn ghost ddrop">버리기</button></span>
+  </div>
   <div style="text-align:right;margin-bottom:8px;">
     <button class="btn" onclick="toggleEvtReg()">＋ 행사 등록</button>
   </div>
@@ -1066,7 +1070,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608052220';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608082357';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1268,6 +1272,7 @@ function onData(d) {
     if (el && cl) el.style.display = 'none';
   });
   renderHome(); renderForm(); renderLeads(); 임시저장복구_();
+  계획폼바인딩_(); 계획임시저장복구_();
   if (DATA.dbSrc) 홈받기_();   // 관문 읽기가 도착하면 홈·리드가 그걸로 다시 그려진다
   if (vw) show(cl ? 'meta' : 'dash');
   setTimeout(prefetch, 1200);
@@ -2275,6 +2280,7 @@ function pickPCat(el) {
   selPCat = el.getAttribute('data-v');
   document.querySelectorAll('#pCat .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   checkNewHosp();
+  계획임시저장_();
 }
 function pickFCat(el) {
   selFCat = el.getAttribute('data-v');
@@ -2303,12 +2309,14 @@ function pickPCh(el) {
   selPCh = el.getAttribute('data-v');
   document.querySelectorAll('#pCh .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   document.getElementById('pDealerWrap').style.display = selPCh === '딜러' ? 'block' : 'none';
+  계획임시저장_();
 }
 function pickPSrc(el) {
   selPSrc = el.getAttribute('data-v');
   document.querySelectorAll('#pSrc .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   document.getElementById('pEvtWrap').style.display = selPSrc === '학회/세미나' ? 'block' : 'none';
   document.getElementById('pReferWrap').style.display = selPSrc === '소개' ? 'block' : 'none';
+  계획임시저장_();
 }
 function pickPType(el) {
   selPType = el.getAttribute('data-v');
@@ -2316,6 +2324,7 @@ function pickPType(el) {
   var etc = document.getElementById('pTypeEtc');
   etc.style.display = selPType === '__etc' ? 'block' : 'none';
   if (selPType === '__etc') etc.focus();
+  계획임시저장_();
 }
 function savePlan() {
   var name = document.getElementById('pHosp').value.trim();
@@ -2356,6 +2365,10 @@ function savePlan() {
   var 승격문의 = META_PREFILL ? META_PREFILL.id : 0;   // resetPlanForm이 지우기 전에 잡아 둔다
   gsrun().withSuccessHandler(function(d) {
     busy(false);   // ⚠ 없으면 저장 성공 시 오버레이가 안 걷힌다 (saveLog와 같은 부류)
+    /* ⚠ onData보다 **먼저** 지운다 — onData 끝에서 `계획임시저장복구_()`가 돌기 때문에,
+       뒤에 지우면 방금 저장한 내용이 「저장하지 않은 계획」 배너로 되살아난다.
+       실패 핸들러에서는 안 지운다: 그때 남아 있는 것이 이 기능의 전부다 */
+    계획임시저장지우기_();
     var keepDate = document.getElementById('pDate').value;
     onData(d); resetPlanForm(keepDate); show('plan');
     toast('계획을 저장했습니다. 이어서 등록하세요');
@@ -3039,6 +3052,84 @@ function 임시저장복구_() {
     show('log');
   };
   el.querySelector('.ddrop').onclick = function() { 임시저장지우기_(); el.style.display = 'none'; };
+}
+
+/* 계획 임시저장 (감사 U5) — 기록 폼과 같은 규칙이다. 계획은 칸이 최대 15개고 신규 병원이면
+   필수칸이 넷 더 열려, 날아갔을 때 다시 채우는 비용이 기록보다 크다.
+
+   ⚠ **Meta 문의에서 온 계획은 담지 않는다.** 저장되면 그 문의가 '리드 전환'으로 승격되는데,
+   복구해서 저장할 무렵엔 다른 사람이 이미 처리했을 수 있다(문의는 팀 공용이고 10분 폴링으로
+   상태가 바뀐다). 문의 자체는 Meta DB 탭에 남아 있으니 거기서 다시 시작하면 되고, 잃는 게 없다.
+   기록 폼이 수정 모드에서 임시저장을 안 하는 것과 같은 논리 — 원본이 다른 곳에 있는 상태다. */
+var 계획임시저장키_ = 'saleson_draft_plan';
+function 계획임시저장_() {
+  if (META_PREFILL) return;
+  try {
+    var 값 = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
+    var d = {
+      hname: 값('pHosp'), date: 값('pDate'),
+      purpose: 값('pPurpose'), contact: 값('pContact'), prep: 값('pPrep'),
+      typeEtc: 값('pTypeEtc'),
+      // 신규 병원일 때만 열리는 리드 블록 — 필수칸이 여기 몰려 있다
+      reg: 값('pAccReg'), dept: 값('pAccDept'), dealer: 값('pDealer'),
+      ecode: 값('pEvt'), refer: 값('pRefer'),
+      type: selPType, cat: selPCat, ch: selPCh, src: selPSrc,
+      at: Date.now(),
+    };
+    if (!d.hname && !d.purpose) { localStorage.removeItem(계획임시저장키_); return; }
+    localStorage.setItem(계획임시저장키_, JSON.stringify(d));
+  } catch (e) {}
+}
+/* 배너도 같이 내린다 — 배너를 띄워 둔 채 새 계획을 써서 저장하면, 지운 뒤에도 「저장하지 않은
+   계획이 있습니다」가 남아 방금 저장한 것이 안 들어간 것처럼 보인다 */
+function 계획임시저장지우기_() {
+  try { localStorage.removeItem(계획임시저장키_); } catch (e) {}
+  var el = document.getElementById('pDraftBar');
+  if (el) el.style.display = 'none';
+}
+/* 입력할 때마다 담는다. 칩은 `pickP*`가 직접 부른다 — 칩만 누르고 앱을 닫아도 남아야 한다.
+   `dataset.draft` 가드는 renderForm과 같다: onData는 부트마다 도는데 핸들러가 쌓이면 안 된다 */
+function 계획폼바인딩_() {
+  ['pHosp', 'pAccReg', 'pAccDept', 'pDealer', 'pRefer', 'pDate',
+   'pTypeEtc', 'pPurpose', 'pContact', 'pPrep'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && !el.dataset.draft) { el.dataset.draft = '1'; el.addEventListener('input', 계획임시저장_); }
+  });
+  var ev = document.getElementById('pEvt');
+  if (ev && !ev.dataset.draft) { ev.dataset.draft = '1'; ev.addEventListener('change', 계획임시저장_); }
+}
+function 계획임시저장복구_() {
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem(계획임시저장키_) || 'null'); } catch (e) {}
+  if (!d || (!d.hname && !d.purpose)) return;
+  if (Date.now() - (d.at || 0) > 3 * 86400000) { 계획임시저장지우기_(); return; }   // 사흘 지난 건 버린다
+  var el = document.getElementById('pDraftBar');
+  if (!el) return;
+  el.style.display = 'flex';
+  el.querySelector('.dtxt').textContent =
+    '저장하지 않은 계획이 있습니다 — ' + (d.hname || '(병원 미입력)');
+  el.querySelector('.dload').onclick = function() {
+    var 넣기 = function(id, v) { var e2 = document.getElementById(id); if (e2) e2.value = v || ''; };
+    넣기('pHosp', d.hname);
+    /* 병원명을 넣은 **뒤에** 부른다 — 리드 블록(#pLeadSec)을 여는 것이 이 함수다.
+       열기 전에 그 안의 칸을 채우면 화면에 안 보이는 값이 되고, 저장 때 검증이
+       "판매 구분을 선택해 주세요"로 막히는데 사용자에게는 그 칸이 안 보인다. */
+    checkNewHosp();
+    넣기('pDate', d.date || DATA.today);
+    넣기('pPurpose', d.purpose); 넣기('pContact', d.contact); 넣기('pPrep', d.prep);
+    넣기('pAccReg', d.reg); 넣기('pAccDept', d.dept);
+    // 칩은 pick*이 딸린 칸(딜러명·행사·소개처)의 표시까지 맡는다 — 값을 직접 넣지 않는다
+    document.querySelectorAll('#pCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.cat) pickPCat(c); });
+    document.querySelectorAll('#pCh .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.ch) pickPCh(c); });
+    document.querySelectorAll('#pSrc .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.src) pickPSrc(c); });
+    document.querySelectorAll('#pType .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.type) pickPType(c); });
+    // 칩이 칸을 연 뒤라야 값이 보이는 자리에 들어간다
+    넣기('pDealer', d.dealer); 넣기('pEvt', d.ecode); 넣기('pRefer', d.refer);
+    넣기('pTypeEtc', d.typeEtc);
+    el.style.display = 'none';
+    show('plan');
+  };
+  el.querySelector('.ddrop').onclick = function() { 계획임시저장지우기_(); el.style.display = 'none'; };
 }
 
 /* 관문에서 「내 입력」을 받는다 — `스냅샷받기_`와 같은 규칙(본문에 토큰, 실패는 조용히).
