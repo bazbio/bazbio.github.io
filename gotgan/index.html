@@ -360,7 +360,7 @@
       <h3>2. 내 부서 예산 확인</h3>
       <ul>
         <li><b>[대시보드]</b> — 부서 카드에서 집행률·잔액 확인, 카드를 누르면 계정별·항목별 세부</li>
-        <li><b>[월별]</b> — 월별 지출 추이와 고정비/변동비 구분</li>
+        <li><b>[월별]</b> — 월별 지출 추이와 계정별 월 지출</li>
         <li><b>[예산마스터]</b> — 전체 예산 항목과 코드 목록</li>
       </ul>
 
@@ -874,7 +874,7 @@ function renderDash() {
 
   // 경고 클릭 → 지출내역이 그 건들만 걸러진 채로 열린다
   el('tab-dash').querySelectorAll('[data-focus]').forEach(b => b.onclick = () => 짚어보기(b.dataset.focus));
-  // 모르는 계정 → 고정비/변동비를 그 자리에서 지정
+  // 회계계정 미지정 → 드롭다운으로 그 자리에서 지정
   el('tab-dash').querySelectorAll('[data-fin-acct]').forEach(s => s.onchange = () => 회계계정지정(s));
   // 계정 이름 → 그 계정 건들만 지출내역에서 (건별로 예산코드를 넣게)
   el('tab-dash').querySelectorAll('[data-acct-see]').forEach(b => b.onclick = () => 계정건보기(b.dataset.acctSee));
@@ -1024,7 +1024,7 @@ function renderDeptDetail(dept) {
   el('dept-detail').innerHTML = h;
 }
 
-// ─── 월별 (예산외 포함 전체 지출 + 고정비/변동비) ───
+// ─── 월별 (예산외 포함 전체 지출 + 계정별) ───
 function monthList() {
   const from = String(SETTINGS['집계시작일'] || '2026-07-01').slice(0, 7);
   const to = String(SETTINGS['집계종료일'] || '2026-12-31').slice(0, 7);
