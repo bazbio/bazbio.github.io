@@ -170,6 +170,12 @@
   .title-cell { max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
   tr.dirty td { background: #fffbea; }
 
+  /* 부서 세부 표는 컨테이너 폭에 맞춘다 (2026-08-08).
+     내역이 400px 고정이라 표가 1,116px까지 벌어져 오른쪽 끝의 집행률이 잘렸다.
+     `max-width:0 + width:100%`는 "남는 폭만 먹고 넘치면 말줄임"이라는 뜻이다 —
+     나머지 칸은 내용만큼만 차지하므로 숫자가 밀려나지 않는다. */
+  #dept-detail .title-cell { max-width: 0; width: 100%; min-width: 120px; }
+
   /* ─ 지출내역: 한 화면 고정 (내부 스크롤 + 고정 헤더 + 컴팩트 밀도) ─ */
   #exp-table { max-height: max(420px, calc(100vh - 320px)); overflow: auto; }
   #exp-table table { white-space: nowrap; }
