@@ -119,11 +119,17 @@ h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
 
 /* 손익표·BEP 표 — 열 폭을 고정해 두 표의 월 열이 위아래로 맞는다.
    auto 폭이면 표마다 내용에 따라 폭이 갈려 같은 달이 어긋난 자리에 선다. */
-#pl,#bep,#inv,#xfer,#yr,#yrCls{table-layout:fixed;min-width:880px}
+#pl,#bep,#inv,#xfer,#yrCls{table-layout:fixed;min-width:880px}
 #pl th:first-child,#bep th:first-child,#inv th:first-child,#xfer th:first-child,
-#yr th:first-child,#yrCls th:first-child{width:172px}
+#yrCls th:first-child{width:172px}
 #pl td:first-child,#bep td:first-child,#inv td:first-child,#xfer td:first-child,
-#yr td:first-child,#yrCls td:first-child{overflow:hidden;text-overflow:ellipsis}
+#yrCls td:first-child{overflow:hidden;text-overflow:ellipsis}
+
+/* 연간 BEP — 마지막 열이 산출 근거(문장)라 폭을 고정하지 않는다 */
+#yr{min-width:760px}
+#yr th:first-child,#yr td:first-child{width:180px}
+#yr .why{text-align:left;color:var(--ink-3);font-size:11.5px;line-height:1.5;
+  word-break:keep-all;white-space:normal;padding-left:14px}
 
 /* BEP 시뮬레이션 */
 .sim{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 2px}
@@ -1004,38 +1010,65 @@ function 연간BEP그리기(달, f) {
   var 칸들 = ['추세', '예산'];
   $('yrHead').innerHTML = '<th scope="col">항목</th>'
     + 칸들.map(function (k) { return '<th scope="col">' + k + ' 기준</th>'; }).join('')
-    + '<th scope="col"></th><th scope="col"></th><th scope="col"></th>';
+    + '<th scope="col">산출 근거</th>';
 
-  var 줄 = function (이름, v, 급, 율) {
+  // 마지막 열은 「이 숫자가 어디서 왔나」다. 연간 BEP는 가정이 많아 숫자만 내면
+  // 믿을 수도 의심할 수도 없다 — 각 줄이 자기 출처를 말하게 한다 (2026-08-08 사용자 요청).
+  var 줄 = function (이름, v, 급, 율, 근거) {
     return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>'
       + v.map(function (x) {
         if (x == null) return '<td class="num muted">—</td>';
         return '<td class="num' + (x < 0 ? ' neg' : '') + '">'
           + (율 ? (100 * x).toFixed(1) + '%' : 백만(x)) + '</td>';
       }).join('')
-      + '<td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td></tr>';
+      + '<td class="why">' + (근거 || '') + '</td></tr>';
   };
   var 고정성 = 칸들.map(function (k) { return 상.반복 + 상.비반복 + 상그룹 + 안[k].반복 + 안[k].비반복 + 하그룹; });
   var bep = 고정성.map(function (v) { return (변율 != null && 변율 < 1) ? v / (1 - 변율) : null; });
   var 매출목 = 연매출(목표축), 매출추 = 연매출(추세축);
 
+  var 반복수 = 갈래표.filter(function (r) { return r['갈래'] === '반복'; }).length;
+  var 비반복수 = 갈래표.length - 반복수;
+  var 예산행 = {};
+  예산표.forEach(function (r) { 예산행[r['갈래']] = r['행수']; });
+  var 창 = Math.max(1, 끝 - 2) + '~' + 끝 + '월';
+
   $('yrTitle').textContent = '연간 BEP 전망 (' + 끝 + '월까지 실적 + ' + 남 + '개월 전망)';
   $('yrBody').innerHTML =
-    줄('상반기 고정성 (실적)', 칸들.map(function () { return 상.반복 + 상.비반복 + 상그룹; }), 'r-total') +
-    줄('반복', 칸들.map(function () { return 상.반복; }), 'r-child') +
-    줄('비반복', 칸들.map(function () { return 상.비반복; }), 'r-child') +
-    줄('그룹내부', 칸들.map(function () { return 상그룹; }), 'r-child') +
-    줄('하반기 고정성 (전망)', 칸들.map(function (k) { return 안[k].반복 + 안[k].비반복 + 하그룹; }), 'r-total') +
-    줄('반복', 칸들.map(function (k) { return 안[k].반복; }), 'r-child') +
-    줄('비반복', 칸들.map(function (k) { return 안[k].비반복; }), 'r-child') +
-    줄('그룹내부', 칸들.map(function () { return 하그룹; }), 'r-child') +
-    줄('연간 고정성', 고정성, 'r-total') +
-    줄('변동비율 (상반기 누계)', 칸들.map(function () { return 변율; }), '', true) +
-    줄('연간 BEP 매출', bep, 'r-op') +
-    줄('연간 매출 — 목표 기준', 칸들.map(function () { return 매출목; }), 'r-child') +
-    줄('여유 (목표 − BEP)', bep.map(function (b) { return b == null ? null : 매출목 - b; }), 'r-child') +
-    줄('연간 매출 — 추세 기준', 칸들.map(function () { return 매출추; }), 'r-child') +
-    줄('여유 (추세 − BEP)', bep.map(function (b) { return b == null ? null : 매출추 - b; }), 'r-child');
+    줄('상반기 고정성 (실적)', 칸들.map(function () { return 상.반복 + 상.비반복 + 상그룹; }), 'r-total', 0,
+      '1~' + 끝 + '월 손익표 <strong>고정비 + 그룹내부</strong>. 결산조정(△422.6)은 뺐다 — 분기 일회성이 구조를 왜곡한다') +
+    줄('반복', 칸들.map(function () { return 상.반복; }), 'r-child', 0,
+      '곳간 계정분류가 <strong>고정비</strong>라 한 ' + 반복수 + '계정 (급여·임차료·감가상각 등)') +
+    줄('비반복', 칸들.map(function () { return 상.비반복; }), 'r-child', 0,
+      '곳간 계정분류가 <strong>변동비</strong>(= 집행 재량)라 한 ' + 비반복수 + '계정 (광고선전비·지급수수료·연구개발비 등)') +
+    줄('그룹내부', 칸들.map(function () { return 상그룹; }), 'r-child', 0,
+      '일본법인 판관비 × 1.05 (코스트플러스 청구액). 매출 무연동이라 고정성에 넣는다') +
+    줄('하반기 고정성 (전망)', 칸들.map(function (k) { return 안[k].반복 + 안[k].비반복 + 하그룹; }), 'r-total', 0,
+      '아래 셋의 합. <strong>추세와 예산이 갈리는 곳은 여기뿐</strong>이다') +
+    줄('반복', 칸들.map(function (k) { return 안[k].반복; }), 'r-child', 0,
+      '추세 = ' + 창 + ' 평균 ' + 백만(최근3('반복')) + ' × ' + 남 + '개월 · '
+      + '예산 = 곳간 예산 중 반복 ' + (예산행['반복'] || 0) + '행') +
+    줄('비반복', 칸들.map(function (k) { return 안[k].비반복; }), 'r-child', 0,
+      '추세 = ' + 창 + ' 평균 ' + 백만(최근3('비반복')) + ' × ' + 남 + '개월 · '
+      + '예산 = 곳간 예산 중 비반복 ' + (예산행['비반복'] || 0) + '행. '
+      + '<strong>여기가 가장 크게 갈린다</strong> — 학회 계획은 추세로 못 맞힌다') +
+    줄('그룹내부', 칸들.map(function () { return 하그룹; }), 'r-child', 0,
+      '일본법인 계획에서 파생된 ' + (끝 + 1) + '~12월 예측 (ADR 0012). 두 시나리오 공통') +
+    줄('연간 고정성', 고정성, 'r-total', 0, '상반기 실적 + 하반기 전망') +
+    줄('변동비율 (상반기 누계)', 칸들.map(function () { return 변율; }), '', true,
+      '(매출원가 ' + 백만(달.reduce(function (s, m) { return s + f.원가f(m); }, 0))
+      + ' + 변동판관비 ' + 백만(달.reduce(function (s, m) { return s + f.변동f(m); }, 0))
+      + ') ÷ 매출 ' + 백만(매출누) + '. <strong>월별은 9.1~62.6%로 널뛰어 누계로 고정</strong>했다') +
+    줄('연간 BEP 매출', bep, 'r-op', 0,
+      '<strong>연간 고정성 ÷ (1 − 변동비율)</strong>. 이만큼 팔아야 영업손익 0이 된다') +
+    줄('연간 매출 — 목표 기준', 칸들.map(function () { return 매출목; }), 'r-child', 0,
+      '1~' + 끝 + '월 실적 + ' + (끝 + 1) + '~12월 <strong>목표</strong> (손익표 연간목표와 같은 정의)') +
+    줄('여유 (목표 − BEP)', bep.map(function (b) { return b == null ? null : 매출목 - b; }), 'r-child', 0,
+      '양수면 목표 달성 시 흑자, 음수면 <strong>목표를 채워도 적자</strong>') +
+    줄('연간 매출 — 추세 기준', 칸들.map(function () { return 매출추; }), 'r-child', 0,
+      '1~' + 끝 + '월 실적 + ' + (끝 + 1) + '~12월 <strong>추세</strong>(최근 3개월 매출 평균 연장)') +
+    줄('여유 (추세 − BEP)', bep.map(function (b) { return b == null ? null : 매출추 - b; }), 'r-child', 0,
+      '지금 속도가 그대로 갔을 때');
 
   // ── 계정별 갈래 — 곳간이 뭐라 했고 실측은 어떤가 ──
   $('yrClsHead').innerHTML = '<th scope="col">계정</th><th scope="col">갈래</th>'
@@ -1065,8 +1098,13 @@ function 연간BEP그리기(달, f) {
     + (어긋 ? '<strong>곳간 분류와 18개월 실측이 어긋나는 계정이 ' + 어긋 + '건</strong> 있습니다 —'
         + ' 위 접이식 표에서 볼 수 있고, 고칠 곳은 곳간 [계정분류] 시트입니다. ' : '')
     + '변동비율은 <strong>상반기 누계</strong>로 고정했습니다 — 월별 원가율이 9.1%~62.6%로 널뛰어'
-    + ' 한 달을 잡으면 답이 그 달을 따라갑니다. 매출원가는 전액 변동으로 근사했습니다'
-    + ' (제품별 원가가 오면 정교화). 결산조정은 상·하반기 모두 제외했습니다.';
+    + ' 한 달을 잡으면 답이 그 달을 따라갑니다. 결산조정은 상·하반기 모두 제외했습니다. '
+    + '<strong>가장 약한 가정은 「매출원가 전액 변동」입니다.</strong> 실측은 매출이 큰 달에 원가율이'
+    + ' 낮아(6월 20.7% vs 4월 62.6%) 매출원가에 고정 제조원가가 섞여 있음을 시사하며, 그렇다면'
+    + ' 이 BEP는 <strong>과대평가</strong>입니다 — 18개월 회귀(원가 = 132.2 + 13.6%×매출)로 다시 재면'
+    + ' 연간 BEP가 <strong>약 4,300 낮아집니다</strong>(2026-08-08 측정). R²가 0.27로 약해 반영하지'
+    + ' 않았고, 제품별 원가(회계사 TDL ⑫)가 오면 그때 정교화합니다. '
+    + '<strong>이 표는 「얼마나 부족한가」의 자릿수를 보는 것이지 소수점을 믿는 표가 아닙니다.</strong>';
 }
 
 /* =========================================================================
