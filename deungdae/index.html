@@ -411,6 +411,9 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       <!-- 연간 BEP 전망 — 반복/비반복 (ADR 0017, 2026-08-08) -->
       <div class="card" id="yrCard" style="margin-top:12px" hidden>
         <h3 class="ct" id="yrTitle"></h3>
+        <div class="sim" style="margin:0 0 10px">
+          <label>목표 영업이익<input type="number" id="yrProfit" step="500" value="0" inputmode="decimal"><span class="u">백만/연</span></label>
+        </div>
         <div class="scroll">
           <table class="pl" id="yr">
             <thead><tr id="yrHead"></tr></thead>
@@ -639,6 +642,8 @@ function 탭설정(t) {
 }
 $('tabBtnPL').addEventListener('click', function () { 탭설정('pl'); });
 $('tabBtnBEP').addEventListener('click', function () { 탭설정('bep'); });
+// 목표이익은 저장하지 않는다 — 브라우저 안에서만 논다 (BEP 시뮬과 같은 원칙)
+$('yrProfit').addEventListener('input', function () { if (DB && 탭 === 'bep') BEP탭그리기(); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
@@ -1126,6 +1131,17 @@ function 연간BEP그리기(달, f) {
   var 하그룹 = 0;
   for (var m2 = 끝 + 1; m2 <= 12; m2++) 하그룹 += 그룹하[m2] || 0;
 
+  // ── 비현금 (현금 BEP용, 0028) ────────────────────────────────────
+  // **적자 구간에서는 「언제 흑자가 되나」보다 「언제 현금이 안 마르나」가 먼저 오는 질문이다.**
+  // 판관비 쪽은 계정명으로 걸러내고, 제조원가 쪽은 가공비 대비 비중을 고정제조원가에 곱한다
+  // — 고정제조원가 자체가 매출원가를 배분해 만든 값이라 비현금도 같은 축으로 배분해야 맞는다.
+  // **퇴직급여는 안 뺀다** — 확정기여형(DC)이라 매달 실제로 납입된다 (2026-08-08 사용자 확인).
+  var 비현금계정 = ['감가상각비', '무형고정자산상각', '사용권자산상각비'];
+  var 판비현금 = 더((DB['손익비용'] || []).filter(function (r) {
+    return r['대분류'] === '판관비' && 비현금계정.indexOf(r['계정명']) >= 0;
+  }), function (r) { return Number(r['금액']); });
+  var 제비현금비중 = (DB['원가분해'] || [])[0] ? Number(DB['원가분해'][0]['제조비현금비중']) || 0 : 0;
+
   // 고정 제조원가 — 매출원가에서 갈라낸 몫 (0027). 하반기는 상반기 월평균을 민다:
   // 노무비 변동계수 0.05 · 제조경비 0.11로 반복비와 성격이 같다. 곳간 예산에는 제조원가가
   // 없으므로 **두 시나리오 공통**이다 — 예산 열에서도 추세를 쓴다는 뜻이라 각주에 밝힌다.
@@ -1170,16 +1186,36 @@ function 연간BEP그리기(달, f) {
     return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>'
       + v.map(function (x) {
         if (x == null) return '<td class="num muted">—</td>';
-        return '<td class="num' + (x < 0 ? ' neg' : '') + '">'
-          + (율 ? (100 * x).toFixed(1) + '%' : 백만(x)) + '</td>';
+        // 음수는 금액과 같은 △로 — 같은 표 안에서 부호 표기가 두 갈래면 눈이 헷갈린다
+        var 글 = 율
+          ? (x < 0 ? '△' : '') + Math.abs(100 * x).toFixed(1) + '%'
+          : 백만(x);
+        return '<td class="num' + (x < 0 ? ' neg' : '') + '">' + 글 + '</td>';
       }).join('')
       + '<td class="why">' + (근거 || '') + '</td></tr>';
   };
   var 고정성 = 칸들.map(function (k) {
     return 상.반복 + 상.비반복 + 상그룹 + 상제조 + 안[k].반복 + 안[k].비반복 + 하그룹 + 하제조;
   });
-  var bep = 고정성.map(function (v) { return (변율 != null && 변율 < 1) ? v / (1 - 변율) : null; });
+  var 나눔 = function (v) { return (변율 != null && 변율 < 1) ? v / (1 - 변율) : null; };
+  var bep = 고정성.map(나눔);
   var 매출목 = 연매출(목표축), 매출추 = 연매출(추세축);
+
+  // 비현금 연간 — 판관비는 상반기 실적을 연간으로 밀고(반복비와 성격이 같다),
+  // 제조 쪽은 연간 고정제조원가에 비중을 곱한다
+  var 판비현금연 = 끝 ? 판비현금 / 끝 * 12 : 0;
+  var 제비현금연 = (상제조 + 하제조) * 제비현금비중;
+  var 비현금연 = 판비현금연 + 제비현금연;
+  var 현금고정성 = 고정성.map(function (v) { return v - 비현금연; });
+  var 현금bep = 현금고정성.map(나눔);
+  // 안전한계율 — (매출 − BEP) ÷ 매출. 「얼마나 여유가 있나」를 금액이 아니라 비율로 본다
+  var 안전 = function (매출) {
+    return bep.map(function (b) { return (b == null || !매출) ? null : (매출 - b) / 매출; });
+  };
+  // 목표이익 매출 — BEP는 이익 0 기준이다. 실무 질문은 「영업이익 X를 내려면 얼마 팔아야 하나」
+  var 목표이익 = Number($('yrProfit').value);
+  if (!isFinite(목표이익)) 목표이익 = 0;
+  var 목표매출 = 고정성.map(function (v) { return 나눔(v + 목표이익); });
 
   var 반복수 = 갈래표.filter(function (r) { return r['갈래'] === '반복'; }).length;
   var 비반복수 = 갈래표.length - 반복수;
@@ -1217,20 +1253,34 @@ function 연간BEP그리기(달, f) {
       '1~' + 끝 + '월 월평균 ' + 백만(끝 ? 상제조 / 끝 : 0) + ' × ' + 남 + '개월. '
       + '<strong>곳간 예산에 제조원가가 없어 두 열 공통</strong>이다') +
     줄('연간 고정성', 고정성, 'r-total', 0, '상반기 실적 + 하반기 전망') +
+    줄('비현금 (감가상각 등)', 칸들.map(function () { return 비현금연; }), 'r-child', 0,
+      '판관비 ' + 백만(판비현금연) + '(' + 비현금계정.join('·') + ') + 제조원가 ' + 백만(제비현금연)
+      + '(가공비의 ' + (제비현금비중 * 100).toFixed(1) + '%). '
+      + '<strong>퇴직급여는 확정기여형(DC)이라 안 뺐다</strong> — 매달 실제로 납입된다') +
+    줄('현금 고정성', 현금고정성, 'r-child', 0, '연간 고정성 − 비현금. 현금 BEP의 분자다') +
     줄('변동비율 (상반기 누계)', 칸들.map(function () { return 변율; }), '', true,
       '(<strong>변동</strong> 매출원가 ' + 백만(달.reduce(function (s, m) { return s + f.변원f(m); }, 0))
       + ' + 변동판관비 ' + 백만(달.reduce(function (s, m) { return s + f.변동f(m); }, 0))
       + ') ÷ 매출 ' + 백만(매출누) + '. 매출원가 전액이 아니라 <strong>재료비 몫만</strong> 들어간다') +
     줄('연간 BEP 매출', bep, 'r-op', 0,
       '<strong>연간 고정성 ÷ (1 − 변동비율)</strong>. 이만큼 팔아야 영업손익 0이 된다') +
+    줄('연간 현금 BEP 매출', 현금bep, 'r-total', 0,
+      '<strong>현금 고정성 ÷ (1 − 변동비율)</strong>. 감가상각처럼 돈이 안 나가는 비용을 뺀 것이라, '
+      + '<strong>「현금이 마르지 않으려면 얼마 팔아야 하나」</strong>의 답이다. 적자 구간에서는 이쪽이 먼저 온다') +
     줄('연간 매출 — 목표 기준', 칸들.map(function () { return 매출목; }), 'r-child', 0,
       '1~' + 끝 + '월 실적 + ' + (끝 + 1) + '~12월 <strong>목표</strong> (손익표 연간목표와 같은 정의)') +
     줄('여유 (목표 − BEP)', bep.map(function (b) { return b == null ? null : 매출목 - b; }), 'r-child', 0,
       '양수면 목표 달성 시 흑자, 음수면 <strong>목표를 채워도 적자</strong>') +
+    줄('안전한계율 (목표 기준)', 안전(매출목), 'r-child', true,
+      '(목표 매출 − BEP) ÷ 목표 매출. <strong>매출이 몇 %까지 빠져도 적자가 안 되나</strong>. 음수면 이미 밑이다') +
     줄('연간 매출 — 추세 기준', 칸들.map(function () { return 매출추; }), 'r-child', 0,
       '1~' + 끝 + '월 실적 + ' + (끝 + 1) + '~12월 <strong>추세</strong>(최근 3개월 매출 평균 연장)') +
     줄('여유 (추세 − BEP)', bep.map(function (b) { return b == null ? null : 매출추 - b; }), 'r-child', 0,
-      '지금 속도가 그대로 갔을 때');
+      '지금 속도가 그대로 갔을 때') +
+    줄('안전한계율 (추세 기준)', 안전(매출추), 'r-child', true, '지금 속도 기준') +
+    줄('영업이익 ' + 백만(목표이익) + ' 필요 매출', 목표매출, 'r-op', 0,
+      '<strong>(연간 고정성 + 목표이익) ÷ (1 − 변동비율)</strong>. BEP는 이익 0 기준이라, '
+      + '「얼마를 벌려면 얼마 팔아야 하나」는 이 줄이다. 목표이익은 표 위 칸에서 바꾼다');
 
   // ── 계정별 갈래 — 곳간이 뭐라 했고 실측은 어떤가 ──
   $('yrClsHead').innerHTML = '<th scope="col">계정</th><th scope="col">갈래</th>'
@@ -1267,6 +1317,10 @@ function 연간BEP그리기(달, f) {
     + ' 회계 원천이라 이 부분은 가정이 아닙니다. 다만 <strong>매출원가 안의 재료비 몫을 누계 비중으로'
     + ' 배분</strong>한 것은 근사이며(생산과 판매의 시점 차이를 재고가 흡수합니다), 제품별 원가가'
     + ' 오면 정교화합니다. 변동비율은 상반기 누계로 고정했고 결산조정은 상·하반기 모두 뺐습니다. '
+    + '<strong>현금 BEP</strong>는 고정성에서 감가상각·무형상각·사용권자산상각을 뺀 것입니다 —'
+    + ' 적자 구간에서는 「언제 흑자가 되나」보다 「언제 현금이 안 마르나」가 먼저 오는 질문이라'
+    + ' 같이 냅니다. <strong>퇴직급여는 확정기여형(DC)이라 빼지 않았고</strong>, 변동비 쪽의'
+    + ' 대손상각비도 비현금이지만 변동비율에서 걷어내지 않았습니다(그만큼 현금 BEP가 보수적입니다). '
     + '<strong>이 표는 「얼마나 부족한가」의 자릿수를 보는 것이지 소수점을 믿는 표가 아닙니다.</strong>';
 }
 
