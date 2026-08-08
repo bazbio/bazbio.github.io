@@ -638,7 +638,33 @@ async function boot() {
 function fillDatalists() {
   const accts = [...new Set(BUDGET.map(r => r[2]))].sort();
   el('dl-accts').innerHTML = accts.map(a => `<option value="${a}">`).join('');
-  el('dl-codes').innerHTML = BUDGET.map(r => `<option value="${r[0]}">${r[1]} ${r[3]}</option>`).join('');
+  코드후보(null);
+}
+
+/**
+ * 예산코드 후보 목록을 그 줄에 맞춘다 (2026-08-08).
+ *
+ * 종전에는 전사 예산코드 267개를 한 datalist에 통째로 쏟았다. 「C-Labs_마케팅 · 접대비」
+ * 건에 코드를 넣으려는 사람이 그 안에서 `CLM-018`을 찾아낼 방법이 없다 — 코드 번호를
+ * 외우고 있지 않으면 목록은 없는 것과 같다. 실제로 "예산코드에 왜 접대비가 없어?"가 나왔다.
+ *
+ * 그 줄의 **예산부서** 것만 남기고, 그중 **같은 계정**을 맨 위로 올린다.
+ * 라벨도 부서(이미 아는 것) 대신 계정·내역으로 바꾼다.
+ * tr이 없으면(부팅 시) 전체를 넣는다 — 아무 줄도 안 골랐을 때의 기본값이다.
+ */
+function 코드후보(tr) {
+  let 목록 = BUDGET;
+  if (tr) {
+    const dept = String(tr.querySelector('[data-f="budgetDept"]').value || '').trim();
+    const acct = String(tr.querySelector('[data-f="acct"]').value || '').trim();
+    const 같은부서 = BUDGET.filter(r => String(r[1]).trim() === dept);
+    if (같은부서.length) {
+      목록 = 같은부서.filter(r => String(r[2]).trim() === acct)
+        .concat(같은부서.filter(r => String(r[2]).trim() !== acct));
+    }
+  }
+  el('dl-codes').innerHTML = 목록.map(r => `<option value="${r[0]}">${r[2]} · ${r[3]}</option>`).join('');
+  return 목록;
 }
 
 // ─── 탭 ───
@@ -1201,6 +1227,21 @@ function drawExpTable() {
     const i = Number(th.dataset.sort);
     EXP_SORT = EXP_SORT.i === i ? { i: i, d: -EXP_SORT.d } : { i: i, d: -1 };
     drawExpTable();
+  });
+  /* 예산코드 칸에 들어오면 그 줄(부서·계정)에 맞는 후보만 남긴다.
+     후보가 하나도 없으면 그 사실을 칸이 직접 말한다 — 빈 목록은 "없다"인지 "못 찾겠다"인지
+     구분이 안 돼서, 실제로 "예산코드에 왜 접대비가 없어?"라는 물음이 나왔다. */
+  el('exp-table').querySelectorAll('.code-in').forEach(inp => inp.onfocus = e => {
+    const tr = e.target.closest('tr');
+    const 후보 = 코드후보(tr);
+    const dept = String(tr.querySelector('[data-f="budgetDept"]').value || '').trim();
+    const acct = String(tr.querySelector('[data-f="acct"]').value || '').trim();
+    const 맞는것 = 후보.filter(r => String(r[1]).trim() === dept && String(r[2]).trim() === acct);
+    e.target.placeholder = 맞는것.length ? 맞는것[0][0]
+      : (acct ? `${acct} 예산 없음` : '부서 코드');
+    e.target.title = 맞는것.length
+      ? `${dept} · ${acct} → ${맞는것.map(r => r[0]).join(', ')}`
+      : `${dept}에 「${acct || '이 계정'}」 예산 항목이 없습니다. 재경팀에 항목 신설을 요청하세요.`;
   });
   el('exp-table').querySelectorAll('[data-f]').forEach(inp => inp.onchange = e => {
     const tr = e.target.closest('tr'), id = tr.dataset.id;
