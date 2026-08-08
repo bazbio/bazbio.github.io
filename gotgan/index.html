@@ -102,8 +102,6 @@
   tr:last-child td { border-bottom: none; }
 
   /* ─ 상태 표현: 조용하게 ─ */
-  .bar { display: inline-block; width: 80px; height: 4px; background: var(--divider-soft); border-radius: 2px; overflow: hidden; vertical-align: middle; margin-right: 8px; }
-  .bar i { display: block; height: 100%; border-radius: 2px; }
   .badge { display: inline-block; font-size: 12px; letter-spacing: -0.12px; font-weight: 600; }
   .b-ok { color: var(--ok); }
   .b-warn { color: var(--warn); }
@@ -731,15 +729,27 @@ function aggregate() {
   return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 원가의심, 할일, 무코드 };
 }
 
-function rateBadge(rate, warnTh) {
-  if (rate > 1) return '<span class="badge b-over">초과</span>';
-  if (rate >= warnTh) return '<span class="badge b-warn">주의</span>';
-  return '<span class="badge b-ok">정상</span>';
-}
-function barHtml(rate) {
-  const pct = Math.min(rate * 100, 100);
-  const color = rate > 1 ? 'var(--over)' : rate >= 0.8 ? 'var(--warn)' : 'var(--primary)';
-  return `<span class="bar"><i style="width:${pct}%;background:${color}"></i></span><span class="muted" style="font-size:12px">${(rate * 100).toFixed(1)}%</span>`;
+/**
+ * 집행률 칸 — 막대가 아니라 숫자다 (2026-08-08).
+ *
+ * 막대는 표가 좁아지면 오른쪽에서 잘렸고(연구소 선행연구 38줄에서 실제로 그랬다),
+ * 여러 줄을 훑을 때 눈에 들어오는 것은 막대 길이가 아니라 숫자다.
+ *
+ * 색은 화면 다른 곳과 같은 3단계를 따른다: 정상(초록) · 주의(주황, 기본 80%) · 초과(빨강).
+ * 아직 안 쓴 0%는 회색으로 내려 눈에 덜 걸리게 한다 — 38줄 중 대부분이 0%다.
+ *
+ * 예산이 0원인데 집행이 있으면 나눗셈이 무의미하다. 종전에는 999%(9.99)라는 가짜 값을
+ * 만들어 넣었는데, 그건 비율이 아니라 **예산이 없다는 사실**이라 그대로 적는다.
+ */
+function 집행률칸(budget, spent, warnTh) {
+  if (!budget) {
+    return spent > 0
+      ? '<b style="color:var(--over)">예산없음</b>'
+      : '<span class="muted">—</span>';
+  }
+  const r = spent / budget;
+  const 색 = r > 1 ? 'var(--over)' : r >= warnTh ? 'var(--warn)' : (r > 0 ? 'var(--ok)' : 'var(--ink-48)');
+  return `<b style="color:${색}">${(r * 100).toFixed(1)}%</b>`;
 }
 
 // ─── 대시보드 ───
@@ -872,13 +882,10 @@ function renderDeptDetail(dept) {
     const hasSeg = items.some(([c]) => segOf(c));
     h += `<p class="muted" style="margin:4px 0 8px">예산코드별 집행현황 <span style="font-size:12px">(${items.length}개${hasSeg ? ' · 제품별' : ''})</span></p>
       <div class="table-wrap"><table><tr><th>코드</th><th>계정</th><th>내역</th>
-      <th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th>집행률</th></tr>`;
-    const rowHtml = ([code, v]) => {
-      const rate = v.budget > 0 ? v.spent / v.budget : (v.spent > 0 ? 9.99 : 0);
-      return `<tr><td style="font-weight:600">${code}</td><td class="muted">${v.acct}</td><td class="title-cell" title="${String(v.desc).replace(/"/g, '&quot;')}">${v.desc}</td>
+      <th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th class="num">집행률</th></tr>`;
+    const rowHtml = ([code, v]) => `<tr><td style="font-weight:600">${code}</td><td class="muted">${v.acct}</td><td class="title-cell" title="${String(v.desc).replace(/"/g, '&quot;')}">${v.desc}</td>
         <td class="num">${fmt(v.budget)}</td><td class="num">${fmt(v.spent)}</td><td class="num">${fmt(v.pending)}</td>
-        <td class="num">${fmt(v.budget - v.spent)}</td><td>${barHtml(rate)}</td></tr>`;
-    };
+        <td class="num">${fmt(v.budget - v.spent)}</td><td class="num">${집행률칸(v.budget, v.spent, A.warnTh)}</td></tr>`;
     if (hasSeg) {
       const groups = new Map(); // seg → items (BUDGET 순서 유지)
       items.forEach(it => {
@@ -889,10 +896,9 @@ function renderDeptDetail(dept) {
       groups.forEach((list, seg) => {
         let gB = 0, gS = 0, gP = 0;
         list.forEach(([, v]) => { gB += v.budget; gS += v.spent; gP += v.pending; });
-        const gRate = gB > 0 ? gS / gB : (gS > 0 ? 9.99 : 0);
         h += `<tr class="prod-head"><td colspan="3">${seg === '_' ? '기타' : PRODUCT_SEG[seg]} <span class="muted" style="font-weight:400">${list.length}개</span></td>
           <td class="num">${fmt(gB)}</td><td class="num">${fmt(gS)}</td><td class="num">${fmt(gP)}</td>
-          <td class="num">${fmt(gB - gS)}</td><td>${barHtml(gRate)}</td></tr>`;
+          <td class="num">${fmt(gB - gS)}</td><td class="num">${집행률칸(gB, gS, A.warnTh)}</td></tr>`;
         list.forEach(it => { h += rowHtml(it); });
       });
     } else {
