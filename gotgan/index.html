@@ -657,7 +657,12 @@ function aggregate() {
      빈칸은 "아직 재경팀이 안 정했다"는 뜻이다 — 짐작으로 채우지 않는다. */
   const finMap = {};
   ACCT_CLASS.forEach(r => { const a = String(r[0] || '').trim(); if (a) finMap[a] = String(r[2] || '').trim(); });
-  const finOf = a => finMap[String(a || '').trim()] || '';
+  /* '해당없음'은 "보고 나서 안 정하기로 했다"는 결정이다 — 회계 계정별 표에는 안 들어가되
+     경고에서도 빠진다. 결정이 끝난 항목을 계속 경고로 띄우면 사람들이 경고 전체를 무시한다.
+     선지급금이 그 경우다: 자산이라 손익 계정이 없고, 곳간이 알아야 할 것은
+     "어느 부서 예산에서 나갔나"뿐인데 그건 이미 예산부서 칸이 답하고 있다. */
+  const finOf = a => { const f = finMap[String(a || '').trim()] || ''; return f === '해당없음' ? '' : f; };
+  const 정해짐 = a => !!(finMap[String(a || '').trim()] || '');
   const finDA = {};              // '부서|회계계정' → 예산·집행·진행중
   const 회계미지정 = new Map();   // 회계계정이 안 정해진 계정 → 금액이 걸린 건수
   const fin적립 = (dept, acct, 칸, v) => {
@@ -675,7 +680,9 @@ function aggregate() {
     const k = r[1] + '|' + r[2];
     budDA[k] = (budDA[k] || 0) + b;
     budCode[r[0]] = { dept: r[1], acct: r[2], desc: r[3], budget: b, spent: 0, pending: 0, cnt: 0 };
-    if (b > 0 && !fin적립(r[1], r[2], 'budget', b)) 회계미지정.set(r[2], (회계미지정.get(r[2]) || 0) + 1);
+    if (b > 0 && !fin적립(r[1], r[2], 'budget', b) && !정해짐(r[2])) {
+      회계미지정.set(r[2], (회계미지정.get(r[2]) || 0) + 1);
+    }
   });
   const spentDA = {}, pendDA = {};
   let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
@@ -715,9 +722,10 @@ function aggregate() {
     const k = dept + '|' + acct;
     if (st === '종결') { spentDA[k] = (spentDA[k] || 0) + amt; totSpent += amt; }
     else { pendDA[k] = (pendDA[k] || 0) + amt; totPend += amt; }
-    // 같은 돈을 회계 계정으로도 접는다 (v21). 회계계정이 안 정해진 계정은 셈해서 화면이 물어본다.
-    if (!fin적립(dept, acct, st === '종결' ? 'spent' : 'pending', amt)) {
-      회계미지정.set(String(acct).trim() || '(계정 미지정)', (회계미지정.get(String(acct).trim() || '(계정 미지정)') || 0) + 1);
+    // 같은 돈을 회계 계정으로도 접는다 (v21). 아직 아무도 안 본 계정만 셈해서 화면이 물어본다.
+    if (!fin적립(dept, acct, st === '종결' ? 'spent' : 'pending', amt) && !정해짐(acct)) {
+      const 이름 = String(acct).trim() || '(계정 미지정)';
+      회계미지정.set(이름, (회계미지정.get(이름) || 0) + 1);
     }
     if (code) {
       if (budCode[code]) {
@@ -802,9 +810,11 @@ function renderDash() {
     }
     html += `</div>`;
   }
-  /* 회계계정 미지정 (v21) — 「회계 계정별」 표에서 통째로 빠지는 몫이다. 종전에는 예산 계정과
-     실지출 계정이 다른 이름이라는 것 자체가 안 보였다(2026-08-07 기준 29종 2.67억).
-     '설비'를 어느 회계 계정에 넣을지는 회계 정책이라 곳간이 못 정한다 — 재경팀에게 묻는다. */
+  /* 회계계정 미지정 (v21) — 「회계 계정별」 표에서 빠지는 몫이다.
+     ⚠ **경고가 아니라 안내다.** 곳간은 예산 도구이지 회계 장부가 아니다 — 이 값이 비어 있어도
+     그 돈은 이미 부서 예산에서 차감되고 있고, 집행률·잔액은 멀쩡하다. 영향은 재무제표 대조용
+     보조 표 하나뿐이다. 빨간 경고로 띄우면 진짜 문제(금액 미입력·부서 미분류)가 묻힌다.
+     '해당없음'으로 닫은 것은 여기 안 뜬다 (선지급금처럼 손익 계정이 아예 없는 경우). */
   if (A.회계미지정 && A.회계미지정.size && !USER.depts) {
     const 목록 = [...A.회계미지정.entries()].sort((a, b) => b[1] - a[1]);
     /* 관문(부트 스냅샷)에는 finAccts가 없다 — 굽기 payload에 안 들어가고 엣지 펑션도
@@ -816,8 +826,8 @@ function renderDash() {
     const 줄 = ([이름, n]) => `<div class="acct-fix"><b>${이름}</b> <span class="muted">${n}건</span>`
       + (고를수있나 ? `<select class="fin-pick" data-fin-acct="${이름.replace(/"/g, '&quot;')}">
         <option value="">회계 계정 고르기…</option>${opt}</select>` : '') + `</div>`;
-    html += `<div class="alert warn">회계 계정 미지정 ${목록.length}종 — 부서별 「회계 계정별」 표에서 이만큼이 빠집니다.
-      예산안이 쓰는 관리용 이름(설비·JIG·자재창고 등)과 자금 자료의 회계 계정이 서로 달라서입니다.
+    html += `<div class="alert info">회계 계정 미지정 ${목록.length}종 — 재무제표 대조용 「회계 계정별」 표에서만 빠집니다.
+      <b>예산·집행률·잔액은 그대로입니다.</b> 정할 것이 없으면 <b>해당없음</b>을 골라 닫아 두세요.
       <div class="acct-fix-list">${상위8(목록, 줄)}</div></div>`;
   }
 
@@ -949,8 +959,8 @@ function renderDeptDetail(dept) {
   const 빠진예산 = d.dB - finB, 빠진집행 = d.dS - finS;
   h += `<p class="muted" style="margin:20px 0 8px">회계 계정별 <span style="font-size:12px">(재무제표 대조용)</span></p>`;
   if (!finKeys.length) {
-    h += `<div class="alert warn" style="margin:0">이 부서의 계정에 회계 계정이 하나도 안 정해져 있습니다.
-      시트 [계정분류]의 <b>회계계정</b> 칸을 채우거나, 대시보드의 「회계계정 미지정」 경고에서 지정하세요.</div>`;
+    h += `<div class="alert info" style="margin:0">이 부서는 회계 계정이 아직 안 정해졌습니다 — 위 「계정」 표가 예산 기준 현황입니다.
+      재무제표와 대조하려면 시트 [계정분류]의 <b>회계계정</b> 칸을 채우세요.</div>`;
   } else {
     h += `<div class="table-wrap"><table><tr><th>회계 계정</th><th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th>집행률</th></tr>`;
     finKeys.sort().forEach(k => {
@@ -964,8 +974,9 @@ function renderDeptDetail(dept) {
       <td class="num">${fmt(finKeys.reduce((s, k) => s + A.finDA[k].pending, 0))}</td>
       <td class="num">${fmt(finB - finS)}</td><td></td></tr></table></div>`;
     if (빠진예산 > 0 || 빠진집행 > 0) {
-      h += `<p class="muted" style="margin-top:8px;color:var(--warn)">⚠ 회계 계정이 안 정해진 몫이 빠져 있습니다 —
-        예산 ${fmt(빠진예산)}원 · 집행 ${fmt(빠진집행)}원. 위 「계정」 표의 합과 다릅니다.</p>`;
+      h += `<p class="muted" style="margin-top:8px">회계 계정이 안 정해진 몫이 빠져 있습니다 —
+        예산 ${fmt(빠진예산)}원 · 집행 ${fmt(빠진집행)}원. <b>위 「계정」 표가 예산 기준의 전부</b>이고,
+        이 표는 재무제표 대조용입니다.</p>`;
     }
   }
 
