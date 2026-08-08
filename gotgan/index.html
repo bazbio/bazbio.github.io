@@ -121,14 +121,6 @@
     text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
   }
   button.link-warn:hover { color: var(--over); }
-  .acct-fix-list { margin: 10px 0 4px; display: flex; flex-direction: column; gap: 6px; }
-  .acct-fix { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .acct-fix button.mini {
-    border: 1px solid var(--hairline); border-radius: 8px; padding: 3px 10px; background: var(--canvas);
-  }
-  .acct-fix button.mini:hover { border-color: var(--primary); }
-  .acct-fix button.mini:disabled { opacity: .45; cursor: default; }
-  select.fin-pick { padding: 3px 8px; font-size: 12px; border-radius: 8px; max-width: 190px; }
   /* 대시보드에서 걸려 온 계정 필터 — 필터 줄의 컨트롤이 아니라 눈에 띄어야 한다 */
   .filter-chip {
     display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
@@ -465,7 +457,7 @@ const CODE_MERGED = {
 };
 const normCode = c => { const u = String(c || '').trim().toUpperCase(); const v = CODE_MIG[u] || u; return CODE_MERGED[v] || v; };
 let BUDGET = [], DEPTMAP = [], SETTINGS = {}, CODED_DEPTS = [];
-let EXPENSES = [], ACCT_CLASS = [], USER = { depts: null }, UNMATCHED = [], FIN_ACCTS = [];
+let EXPENSES = [], USER = { depts: null }, UNMATCHED = [];
 let dirty = {};
 let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내림차순. i=4 기안일, i=16 지출일자
 // 대시보드 경고에서 넘어올 때 걸리는 필터. '' = 없음 / all = 입력 필요 전체 /
@@ -593,7 +585,7 @@ const EDGE_BOOT_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1/got
 
 function 부트적용(init, expenses) {
   BUDGET = init.budget; DEPTMAP = init.deptMap; SETTINGS = init.settings;
-  CODED_DEPTS = init.codedDepts; ACCT_CLASS = init.acctClass || []; FIN_ACCTS = init.finAccts || [];
+  CODED_DEPTS = init.codedDepts;
   UNMATCHED = init.unmatched || [];
   USER = { email: init.email, name: init.name, depts: init.depts || null };
   EXPENSES = expenses;
@@ -662,45 +654,23 @@ document.querySelectorAll('.sub-nav nav button').forEach(b => b.onclick = () => 
 // ─── 집계 로직 ───
 function aggregate() {
   const warnTh = Number(SETTINGS['주의임계값'] || 0.8);
-  /* 계정 → 회계 계정 (v21). 곳간의 '계정'에는 관리용 분류(설비·JIG·자재창고·인허가)와
-     실제 회계 계정(지급수수료·소모품비)이 섞여 있다. 예산안은 앞쪽 이름으로 적혔고 자금
-     자료는 뒤쪽 이름으로 들어와, 예산과 실지출이 서로 만나지 못했다 — 2026-08-07 기준
-     예산 계정에 없는 (부서|계정) 조합이 29종 2억 6,722만원이었다. 이 표가 둘을 잇는다.
-     빈칸은 "아직 재경팀이 안 정했다"는 뜻이다 — 짐작으로 채우지 않는다. */
-  const finMap = {};
-  ACCT_CLASS.forEach(r => { const a = String(r[0] || '').trim(); if (a) finMap[a] = String(r[2] || '').trim(); });
-  /* '해당없음'은 "보고 나서 안 정하기로 했다"는 결정이다 — 회계 계정별 표에는 안 들어가되
-     경고에서도 빠진다. 결정이 끝난 항목을 계속 경고로 띄우면 사람들이 경고 전체를 무시한다.
-     선지급금이 그 경우다: 자산이라 손익 계정이 없고, 곳간이 알아야 할 것은
-     "어느 부서 예산에서 나갔나"뿐인데 그건 이미 예산부서 칸이 답하고 있다. */
-  const finOf = a => { const f = finMap[String(a || '').trim()] || ''; return f === '해당없음' ? '' : f; };
-  const 정해짐 = a => !!(finMap[String(a || '').trim()] || '');
-  const finDA = {};              // '부서|회계계정' → 예산·집행·진행중
-  /* 회계계정이 안 정해진 계정 → { 건수, 금액 }. 건수만으로는 "2건"이 2만 원인지 3억인지
-     알 수 없어 결정을 못 한다 — 금액을 같이 나른다 (2026-08-08). */
-  const 회계미지정 = new Map();
-  const 미지정적립 = (이름, n, amt) => {
-    const k = String(이름 || '').trim() || '(계정 미지정)';
-    const o = 회계미지정.get(k) || { n: 0, amt: 0 };
-    o.n += n; o.amt += amt;
-    회계미지정.set(k, o);
-  };
-  const fin적립 = (dept, acct, 칸, v) => {
-    const f = finOf(acct);
-    if (!f) return false;
-    const k = dept + '|' + f;
-    const o = finDA[k] || (finDA[k] = { budget: 0, spent: 0, pending: 0 });
-    o[칸] += v;
-    return true;
-  };
+  /* ⚠ 회계 계정별 집계는 v24에서 걷어냈다. 곳간은 **예산 도구**다 — 세운 예산 안에서
+     쓰이고 있는지를 본다. 회계 계정 대조를 화면에 같이 놓으니 표가 둘씩 겹쳐 정작
+     예산코드별 현황이 맨 아래로 밀렸다. 매핑 값(계정분류 시트 C열, 재경 결정 17건)은
+     시트에 그대로 있으니 필요해지면 다시 꺼낼 수 있다. */
 
+  /* 예산코드에 안 붙은 집행 → '부서|계정' → {집행, 진행중, 건수} (2026-08-08).
+     곳간의 존재 이유가 "세운 예산 안에서 쓰이고 있나"인데, 코드가 없으면 그 돈은 어느
+     예산 항목에도 안 붙는다. 2026-08-07 기준 **전사 집행의 77%(3억 6,714만)**가 그렇고
+     연구개발·글로벌사업·인허가·해외영업은 100%다. 종전에는 「계정」 표 안의
+     '예산없음' 배지로만 흘려 보여서, 얼마나 큰 구멍인지가 화면에 안 드러났다. */
+  const 무코드 = {};
   const budDA = {}, budCode = {};
   BUDGET.forEach(r => {
     const b = Number(r[4] || 0);
     const k = r[1] + '|' + r[2];
     budDA[k] = (budDA[k] || 0) + b;
     budCode[r[0]] = { dept: r[1], acct: r[2], desc: r[3], budget: b, spent: 0, pending: 0, cnt: 0 };
-    if (b > 0 && !fin적립(r[1], r[2], 'budget', b) && !정해짐(r[2])) 미지정적립(r[2], 0, 0);
   });
   const spentDA = {}, pendDA = {};
   let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
@@ -743,25 +713,22 @@ function aggregate() {
     const k = dept + '|' + acct;
     if (st === '종결') { spentDA[k] = (spentDA[k] || 0) + amt; totSpent += amt; }
     else { pendDA[k] = (pendDA[k] || 0) + amt; totPend += amt; }
-    // 같은 돈을 회계 계정으로도 접는다 (v21). 아직 아무도 안 본 계정만 셈해서 화면이 물어본다.
-    if (!fin적립(dept, acct, st === '종결' ? 'spent' : 'pending', amt) && !정해짐(acct)) {
-      미지정적립(acct, 1, amt);
-    }
     if (code) {
       if (budCode[code]) {
         if (st === '종결') budCode[code].spent += amt; else budCode[code].pending += amt;
         budCode[code].cnt++;
       } else { badCode++; 할일.code[r[0]] = 1; }
     }
+    // 코드가 없거나 죽은 코드면 어느 예산 항목에도 안 붙는다 — 둘 다 같이 센다
+    if (!code || !budCode[code]) {
+      const mk = dept + '|' + (String(acct || '').trim() || '(계정 미지정)');
+      const mo = 무코드[mk] || (무코드[mk] = { spent: 0, pending: 0, n: 0 });
+      if (st === '종결') mo.spent += amt; else mo.pending += amt;
+      mo.n++;
+    }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
-  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 원가의심, 할일, finDA, finMap, 회계미지정 };
-}
-
-// 이름을 다 늘어놓으면 배너가 화면을 먹는다 — 많은 순으로 8종까지만 보이고 나머지는 센다
-function 상위8(목록, 줄) {
-  return 목록.slice(0, 8).map(줄).join('')
-    + (목록.length > 8 ? `<div class="muted">외 ${목록.length - 8}종</div>` : '');
+  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 원가의심, 할일, 무코드 };
 }
 
 function rateBadge(rate, warnTh) {
@@ -812,36 +779,6 @@ function renderDash() {
       <br><span class="muted" style="font-size:13px">매출원가로 보내야 하면 알려주세요 — 판정 규칙에 이름을 넣어야 합니다.
       그대로 두면 그 부서 집행률이 원가만큼 부풀어 보입니다.</span></div>`;
   }
-  /* 회계계정 미지정 (v21) — 「회계 계정별」 표에서 빠지는 몫이다.
-     ⚠ **경고가 아니라 안내다.** 곳간은 예산 도구이지 회계 장부가 아니다 — 이 값이 비어 있어도
-     그 돈은 이미 부서 예산에서 차감되고 있고, 집행률·잔액은 멀쩡하다. 영향은 재무제표 대조용
-     보조 표 하나뿐이다. 빨간 경고로 띄우면 진짜 문제(금액 미입력·부서 미분류)가 묻힌다.
-     '해당없음'으로 닫은 것은 여기 안 뜬다 (선지급금처럼 손익 계정이 아예 없는 경우). */
-  if (A.회계미지정 && A.회계미지정.size && !USER.depts) {
-    const 목록 = [...A.회계미지정.entries()].sort((a, b) => b[1].amt - a[1].amt);
-    /* 관문(부트 스냅샷)에는 finAccts가 없다 — 굽기 payload에 안 들어가고 엣지 펑션도
-       모르는 키는 안 흘린다. 그 갈래로 먼저 그려지면 드롭다운이 빈 채로 뜬다.
-       고를 것이 없는 드롭다운을 보여주느니 잠깐 감춘다 — 2~3초 뒤 GAS가 도착하면
-       부트적용이 다시 돌아 채워진다. (엣지를 다음에 배포할 때 finAccts를 실어 보낼 것) */
-    const 고를수있나 = FIN_ACCTS.length > 0;
-    const opt = FIN_ACCTS.map(f => `<option value="${f}">${f}</option>`).join('');
-    /* 계정 이름은 누르면 지출내역이 그 계정 건들만 걸러 열린다 (2026-08-08).
-       한 계정에 서로 다른 부서 예산이 섞여 있을 수 있어서다 — 실제로 `선지급분(원화)` 2건이
-       글로벌사업 3,000만과 C-Labs_마케팅 22만으로 갈린다. 계정 하나에 답 하나를 고르게
-       하면 그 갈림을 표현할 수 없다. 건별 결정은 지출내역의 예산코드 칸이 받는다.
-       금액을 같이 보여주는 이유도 같다 — "2건"만으로는 볼지 말지 정할 수가 없다. */
-    const 줄 = ([이름, o]) => `<div class="acct-fix">
-      <button class="link-warn" data-acct-see="${이름.replace(/"/g, '&quot;')}"><b>${이름}</b></button>
-      <span class="muted">${o.n}건 · ${fmt(o.amt)}원</span>`
-      + (고를수있나 ? `<select class="fin-pick" data-fin-acct="${이름.replace(/"/g, '&quot;')}">
-        <option value="">회계 계정 고르기…</option>${opt}</select>` : '') + `</div>`;
-    html += `<div class="alert info">회계 계정 미지정 ${목록.length}종 — 재무제표 대조용 「회계 계정별」 표에서만 빠집니다.
-      <b>예산·집행률·잔액은 그대로입니다.</b>
-      <br><span class="muted" style="font-size:13px">계정 이름을 누르면 그 건들을 지출내역에서 봅니다 —
-      한 계정에 부서가 섞여 있으면 건별로 예산코드를 넣으세요. 회계 계정을 정할 것이 없으면 <b>해당없음</b>으로 닫습니다.</span>
-      <div class="acct-fix-list">${상위8(목록, 줄)}</div></div>`;
-  }
-
   // 지급 전 대기는 정상이다 — 경고와 섞으면 "처리 필요"가 부풀어 진짜 문제가 묻힌다
   const waiting = A.noAmtWait + A.noAmtDraft;
   if (waiting) html += `<div class="alert info">지급 대기 ${waiting}건 — 결재 진행 중 ${A.noAmtDraft}건 · 지급 전 ${A.noAmtWait}건. 자금 지급 자료를 올리면 자동으로 채워집니다.</div>`;
@@ -875,9 +812,6 @@ function renderDash() {
   // 경고 클릭 → 지출내역이 그 건들만 걸러진 채로 열린다
   el('tab-dash').querySelectorAll('[data-focus]').forEach(b => b.onclick = () => 짚어보기(b.dataset.focus));
   // 회계계정 미지정 → 드롭다운으로 그 자리에서 지정
-  el('tab-dash').querySelectorAll('[data-fin-acct]').forEach(s => s.onchange = () => 회계계정지정(s));
-  // 계정 이름 → 그 계정 건들만 지출내역에서 (건별로 예산코드를 넣게)
-  el('tab-dash').querySelectorAll('[data-acct-see]').forEach(b => b.onclick = () => 계정건보기(b.dataset.acctSee));
 
   document.querySelectorAll('.dept-card').forEach(b => b.onclick = () => {
     const sel = b.classList.contains('on');
@@ -910,87 +844,33 @@ function 짚어보기(키) {
  * 3,000만과 C-Labs_마케팅 22만으로 갈리는 것이 실제 예다. 그 갈림은 계정 단위로는
  * 표현할 수 없고, 건별로 예산코드를 넣어야 풀린다.
  */
-function 계정건보기(acct) {
-  EXP_ACCT = acct; EXP_FOCUS = '';
+function 계정건보기(acct, dept) {
+  EXP_ACCT = acct === '(계정 미지정)' ? '' : acct;   // 계정이 빈 건들은 계정으로 못 거른다
+  EXP_FOCUS = acct === '(계정 미지정)' ? 'acct' : '';
   탭이동('exp');
   if (!el('f-todo')) renderExpenses();
-  el('f-todo').value = ''; el('f-dept').value = ''; el('f-status').value = ''; el('f-q').value = '';
+  el('f-todo').value = EXP_FOCUS;
+  el('f-dept').value = dept || '';   // 부서까지 좁힌다 — 같은 계정이 여러 부서에 걸쳐 있다
+  el('f-status').value = ''; el('f-q').value = '';
   drawExpTable();
 }
 
-/**
- * 관리용 계정을 회계 계정에 잇는다 (v21, 2026-08-08).
- * 이 값이 정해져야 부서 세부의 「회계 계정별」 표에 그 돈이 들어간다.
- */
-async function 회계계정지정(sel) {
-  const acct = sel.dataset.finAcct, fin = sel.value;
-  if (!fin) return;
-  sel.disabled = true;
-  try {
-    const r = await gsAuth('apiSetAcctClass', [{ acct: acct, fin: fin }]);
-    ACCT_CLASS = r.acctClass || ACCT_CLASS;
-    toast(`${acct} → ${fin}`);
-    renderDash(); renderMonthly();
-  } catch (e) {
-    if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
-    sel.disabled = false; sel.value = '';
-    toast(String(e.message || e).replace(/^Error:\s*/, ''));
-  }
-}
-
-// 부서 카드 클릭 → 계정별 + 항목별 세부
+/* 부서 카드 클릭 → 세부.
+   두 가지만 본다 (2026-08-08 재정비):
+     ① **예산코드별 집행현황** — 세운 예산 항목이 어떻게 쓰이고 있나. 곳간의 본래 일이다.
+     ② **예산코드 없이 집행된 건** — 어느 예산 항목에도 안 붙은 돈. 2026-08-07 기준
+        전사 집행의 77%다. 이게 안 보이면 ①의 집행률은 실제보다 한참 낮게 보인다.
+   종전에는 계정별·회계계정별 표가 앞에 있어 ①이 맨 아래로 밀려 있었다. 회계 계정 대조는
+   곳간이 할 일이 아니라 걷어냈다 (매핑 값은 계정분류 시트에 남아 있다). */
 function renderDeptDetail(dept) {
   const A = window.__A, d = window.__deptAgg[dept];
   let h = `<div class="dept-detail tab-in"><h3>${dept.replace(/_/g, ' ')} <span class="muted" style="font-size:13px">예산 ${fmt(d.dB)} · 집행 ${fmt(d.dS)} · 잔액 ${fmt(d.dB - d.dS)}</span></h3>`;
-  // 계정별
-  h += `<div class="table-wrap"><table>
-    <tr><th>계정</th><th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th>집행률</th><th>상태</th></tr>`;
-  d.keys.sort().forEach(k => {
-    const acct = k.split('|')[1] || '(계정 미지정)';
-    const b = A.budDA[k] || 0, s = A.spentDA[k] || 0, p = A.pendDA[k] || 0;
-    if (b === 0 && s === 0 && p === 0) return;
-    const rate = b > 0 ? s / b : (s > 0 ? 9.99 : 0);
-    h += `<tr><td>${acct}${b === 0 && s > 0 ? ' <span class="badge b-over">예산없음</span>' : ''}</td>
-      <td class="num">${fmt(b)}</td><td class="num">${fmt(s)}</td><td class="num">${fmt(p)}</td>
-      <td class="num">${fmt(b - s)}</td><td>${b > 0 ? barHtml(rate) : '<span class="muted">—</span>'}</td><td>${b > 0 ? rateBadge(rate, A.warnTh) : ''}</td></tr>`;
-  });
-  h += `</table></div>`;
 
-  /* 회계 계정별 (v21) — 위 표의 '계정'은 예산안이 쓰는 관리용 이름이라 재무제표와 대조가 안 된다.
-     같은 돈을 회계 계정으로 접어 한 번 더 보여준다. 매핑이 안 된 계정은 합계에서 빠지므로
-     빠진 금액을 반드시 밝힌다 — 안 밝히면 이 표를 전부인 줄 알고 결산에 쓴다. */
-  const finKeys = Object.keys(A.finDA).filter(k => k.indexOf(dept + '|') === 0);
-  const finB = finKeys.reduce((s, k) => s + A.finDA[k].budget, 0);
-  const finS = finKeys.reduce((s, k) => s + A.finDA[k].spent, 0);
-  const 빠진예산 = d.dB - finB, 빠진집행 = d.dS - finS;
-  h += `<p class="muted" style="margin:20px 0 8px">회계 계정별 <span style="font-size:12px">(재무제표 대조용)</span></p>`;
-  if (!finKeys.length) {
-    h += `<div class="alert info" style="margin:0">이 부서는 회계 계정이 아직 안 정해졌습니다 — 위 「계정」 표가 예산 기준 현황입니다.
-      재무제표와 대조하려면 시트 [계정분류]의 <b>회계계정</b> 칸을 채우세요.</div>`;
-  } else {
-    h += `<div class="table-wrap"><table><tr><th>회계 계정</th><th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th>집행률</th></tr>`;
-    finKeys.sort().forEach(k => {
-      const v = A.finDA[k], name = k.split('|')[1];
-      const rate = v.budget > 0 ? v.spent / v.budget : (v.spent > 0 ? 9.99 : 0);
-      h += `<tr><td style="font-weight:600">${name}</td><td class="num">${fmt(v.budget)}</td>
-        <td class="num">${fmt(v.spent)}</td><td class="num">${fmt(v.pending)}</td>
-        <td class="num">${fmt(v.budget - v.spent)}</td><td>${v.budget > 0 ? barHtml(rate) : '<span class="muted">—</span>'}</td></tr>`;
-    });
-    h += `<tr class="prod-head"><td>합계</td><td class="num">${fmt(finB)}</td><td class="num">${fmt(finS)}</td>
-      <td class="num">${fmt(finKeys.reduce((s, k) => s + A.finDA[k].pending, 0))}</td>
-      <td class="num">${fmt(finB - finS)}</td><td></td></tr></table></div>`;
-    if (빠진예산 > 0 || 빠진집행 > 0) {
-      h += `<p class="muted" style="margin-top:8px">회계 계정이 안 정해진 몫이 빠져 있습니다 —
-        예산 ${fmt(빠진예산)}원 · 집행 ${fmt(빠진집행)}원. <b>위 「계정」 표가 예산 기준의 전부</b>이고,
-        이 표는 재무제표 대조용입니다.</p>`;
-    }
-  }
-
-  // 항목별 (예산코드) — 제품 세그먼트가 있는 부서(연구소 2·디자인)는 제품별 소계로 묶어 표시
+  // ① 예산코드별 — 제품 세그먼트가 있는 부서(연구소 2·디자인)는 제품별 소계로 묶어 표시
   const items = Object.entries(A.budCode).filter(([c, v]) => v.dept === dept);
   if (items.length) {
     const hasSeg = items.some(([c]) => segOf(c));
-    h += `<p class="muted" style="margin:20px 0 8px">세부 항목 (예산코드 ${items.length}개${hasSeg ? ' · 제품별' : ''})</p>
+    h += `<p class="muted" style="margin:4px 0 8px">예산코드별 집행현황 <span style="font-size:12px">(${items.length}개${hasSeg ? ' · 제품별' : ''})</span></p>
       <div class="table-wrap"><table><tr><th>코드</th><th>계정</th><th>내역</th>
       <th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th>집행률</th></tr>`;
     const rowHtml = ([code, v]) => {
@@ -1020,8 +900,38 @@ function renderDeptDetail(dept) {
     }
     h += '</table></div>';
   }
+  /* ② 예산코드 없이 집행된 건.
+     예산코드가 없거나 죽은 코드면 그 돈은 어느 예산 항목에도 안 붙는다 — ①의 집행률이
+     실제보다 낮게 보이는 이유가 이것이다. 계정별로 묶어 보여주고, **각 줄을 누르면
+     지출내역에서 그 건들이 열린다** — 제목·기안자를 봐야 맞는 예산코드를 고를 수 있다. */
+  const 무 = Object.entries(A.무코드)
+    .filter(([k]) => k.indexOf(dept + '|') === 0)
+    .map(([k, v]) => ({ acct: k.split('|')[1], v }))
+    .sort((x, y) => (y.v.spent + y.v.pending) - (x.v.spent + x.v.pending));
+  if (무.length) {
+    const 합집행 = 무.reduce((s, x) => s + x.v.spent, 0);
+    const 합진행 = 무.reduce((s, x) => s + x.v.pending, 0);
+    const 비중 = d.dS > 0 ? Math.round(합집행 / d.dS * 100) : 0;
+    h += `<p class="muted" style="margin:22px 0 8px">예산코드 없이 집행된 건
+      <span style="font-size:12px">— 어느 예산 항목에도 안 붙은 돈입니다. 계정 이름을 누르면 그 건들을 봅니다</span></p>
+      <div class="table-wrap"><table><tr><th>계정</th><th class="num">건수</th><th class="num">집행</th><th class="num">진행중</th></tr>`;
+    무.forEach(x => {
+      h += `<tr><td><button class="link-warn" data-nocode-acct="${x.acct.replace(/"/g, '&quot;')}" data-nocode-dept="${dept}"><b>${x.acct}</b></button></td>
+        <td class="num muted">${x.v.n}건</td><td class="num" style="font-weight:600">${fmt(x.v.spent)}</td>
+        <td class="num">${x.v.pending ? fmt(x.v.pending) : '<span class="muted">—</span>'}</td></tr>`;
+    });
+    h += `<tr class="prod-head"><td>합계</td><td class="num">${무.reduce((s, x) => s + x.v.n, 0)}건</td>
+      <td class="num">${fmt(합집행)}</td><td class="num">${fmt(합진행)}</td></tr></table></div>
+      <p class="muted" style="margin-top:8px${비중 >= 50 ? ';color:var(--warn)' : ''}">
+      이 부서 집행 ${fmt(d.dS)}원 중 <b>${fmt(합집행)}원(${비중}%)</b>이 예산코드 없이 나갔습니다.
+      예산코드를 넣으면 위 표의 집행률에 반영됩니다.</p>`;
+  }
+
   h += '</div>';
   el('dept-detail').innerHTML = h;
+  // 계정 이름 → 그 부서·그 계정의 건들만 지출내역에서
+  el('dept-detail').querySelectorAll('[data-nocode-acct]').forEach(b =>
+    b.onclick = () => 계정건보기(b.dataset.nocodeAcct, b.dataset.nocodeDept));
 }
 
 // ─── 월별 (예산외 포함 전체 지출 + 계정별) ───
