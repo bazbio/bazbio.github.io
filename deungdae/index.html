@@ -224,6 +224,13 @@ table.pl tbody tr:hover td:first-child{background:var(--bg)}
 .miss{color:var(--sig-amber);font-weight:700;margin-left:3px;font-size:11px}
 .rate{font-weight:600}
 .rate.g{color:var(--sig-green)} .rate.a{color:var(--sig-amber)} .rate.r{color:var(--sig-red)}
+
+/* 달성률 진행바 — 숫자만으로는 「지금 어디쯤이어야 하나」가 안 보인다.
+   눈금(b)이 경과 시점이고, 채움(i)이 그보다 왼쪽이면 페이스 미달이다. */
+.bar{display:block;position:relative;height:4px;margin-top:5px;border-radius:2px;background:var(--line)}
+.bar>i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:currentColor}
+.bar>b{position:absolute;top:-3px;bottom:-3px;width:1.5px;background:var(--ink-2);border-radius:1px}
+.pace{display:block;color:var(--ink-3);font-size:10.5px;font-weight:400;margin-top:3px}
 .muted{color:var(--ink-3)}
 
 /* ===== 로그인 · 상태 ===== */
@@ -311,6 +318,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       <h1>등대</h1>
       <nav class="tabs" role="tablist" aria-label="화면">
         <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
+        <button type="button" role="tab" id="tabBtnBEP" aria-selected="false">BEP</button>
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
         <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
       </nav>
@@ -338,8 +346,46 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <p class="note" id="footnote"></p>
       </div>
 
+      <!-- 이달의 변동 — 결정_이달의변동_260806 -->
+      <div class="card" id="movesCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="movesTitle"></h3>
+        <div id="movesBody"></div>
+        <p class="note" id="movesNote"></p>
+      </div>
+
+      <!-- 재고자산 — 회계사 TDL ⑱⑲ (2026-08-08) -->
+      <div class="card" id="invCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="invTitle"></h3>
+        <div class="scroll">
+          <table class="pl" id="inv">
+            <thead><tr id="invHead"></tr></thead>
+            <tbody id="invBody"></tbody>
+          </table>
+        </div>
+        <details class="adj-d">
+          <summary>재고에서 빠져나간 것 — 타계정대체</summary>
+          <div class="scroll">
+            <table class="pl" id="xfer">
+              <thead><tr id="xferHead"></tr></thead>
+              <tbody id="xferBody"></tbody>
+            </table>
+          </div>
+        </details>
+        <p class="note" id="invNote"></p>
+      </div>
+    </section>
+
+    <!-- BEP 탭 — 손익분기와 연간 전망 (2026-08-08 사용자 요청으로 손익 탭에서 분리) -->
+    <section id="tab-bep" hidden>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="집계 범위">
+          <button type="button" id="btnHQ2" aria-pressed="true">본사 별도</button>
+          <button type="button" id="btnCOMB2" aria-pressed="false">합산</button>
+        </div>
+      </div>
+
       <!-- 손익분기 — 결정_회계사TDL ㉒ -->
-      <div class="card" id="bepCard" style="margin-top:12px" hidden>
+      <div class="card" id="bepCard" hidden>
         <h3 class="ct">손익분기 (BEP)</h3>
         <div class="scroll">
           <table class="pl" id="bep">
@@ -383,14 +429,8 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <p class="note" id="yrNote"></p>
       </div>
 
-      <!-- 이달의 변동 — 결정_이달의변동_260806 -->
-      <div class="card" id="movesCard" style="margin-top:12px" hidden>
-        <h3 class="ct" id="movesTitle"></h3>
-        <div id="movesBody"></div>
-        <p class="note" id="movesNote"></p>
-      </div>
+      <!-- 판관비 증감 추이 — 연간 BEP가 하반기를 평균으로 밀 때 그 평균이 덮는 것 -->
 
-      <!-- 판관비 증감 추이 — 계정별 6개월 흐름 (2026-08-08) -->
       <div class="card" id="trCard" style="margin-top:12px" hidden>
         <h3 class="ct" id="trTitle"></h3>
         <div class="scroll">
@@ -402,26 +442,6 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <p class="note" id="trNote"></p>
       </div>
 
-      <!-- 재고자산 — 회계사 TDL ⑱⑲ (2026-08-08) -->
-      <div class="card" id="invCard" style="margin-top:12px" hidden>
-        <h3 class="ct" id="invTitle"></h3>
-        <div class="scroll">
-          <table class="pl" id="inv">
-            <thead><tr id="invHead"></tr></thead>
-            <tbody id="invBody"></tbody>
-          </table>
-        </div>
-        <details class="adj-d">
-          <summary>재고에서 빠져나간 것 — 타계정대체</summary>
-          <div class="scroll">
-            <table class="pl" id="xfer">
-              <thead><tr id="xferHead"></tr></thead>
-              <tbody id="xferBody"></tbody>
-            </table>
-          </div>
-        </details>
-        <p class="note" id="invNote"></p>
-      </div>
     </section>
 
     <!-- 매출 탭 -->
@@ -599,20 +619,26 @@ var 권한 = '전체';
 function 권한적용() {
   var 전체 = 권한 === '전체';
   $('tabBtnPL').hidden = !전체;
+  $('tabBtnBEP').hidden = !전체;     // BEP는 판관비·원가가 다 드러난다 — 손익과 같은 권한이다
   $('tabBtnKPI').hidden = !전체;
   탭설정(전체 ? 탭 : 'sales');       // 탭설정이 그린다 — 여기서 또 그리지 않는다
 }
 
-function 현재탭그리기() { if (탭 === 'pl') 그리기(); else if (탭 === 'sales') 매출그리기(); else 지표그리기(); }
+var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnSales', 'sales'], ['tabBtnKPI', 'kpi']];
+function 현재탭그리기() {
+  if (탭 === 'pl') 그리기();
+  else if (탭 === 'bep') BEP탭그리기();
+  else if (탭 === 'sales') 매출그리기();
+  else 지표그리기();
+}
 function 탭설정(t) {
   탭 = t;
-  [['tabBtnPL', 'pl'], ['tabBtnSales', 'sales'], ['tabBtnKPI', 'kpi']].forEach(function (p) {
-    $(p[0]).setAttribute('aria-selected', t === p[1] ? 'true' : 'false');
-  });
-  ['pl', 'sales', 'kpi'].forEach(function (x) { $('tab-' + x).hidden = (t !== x); });
+  탭목록.forEach(function (p) { $(p[0]).setAttribute('aria-selected', t === p[1] ? 'true' : 'false'); });
+  탭목록.forEach(function (p) { $('tab-' + p[1]).hidden = (t !== p[1]); });
   if (DB) 현재탭그리기();
 }
 $('tabBtnPL').addEventListener('click', function () { 탭설정('pl'); });
+$('tabBtnBEP').addEventListener('click', function () { 탭설정('bep'); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
@@ -878,13 +904,25 @@ function 그리기() {
     }).join('');
 
     var 비중 = (r.비중 && 매출누계) ? 비중표기(누계, 매출누계) : '';
-    var 등급 = 달성 == null ? '' : (달성 >= 95 ? ' g' : (달성 >= 80 ? ' a' : ' r'));
+
+    // **달성률은 경과율 대비로 판정한다** (2026-08-08 사용자 확정). 절대 95%/80% 기준이면
+    // 6월에 23.3%가 당연히 빨강이고 12월까지 매달 빨강이라 색이 정보가 되지 못한다.
+    // 뜻은 그대로(연간목표 대비 누계)고 **판정 기준만** 경과 시점을 본다.
+    var 경과 = 끝 / 12 * 100;
+    var 페이스 = (달성 == null || !경과) ? null : 달성 / 경과;
+    var 등급 = 페이스 == null ? '' : (페이스 >= 0.95 ? ' g' : (페이스 >= 0.8 ? ' a' : ' r'));
+    // 눈금이 경과 시점, 채움이 실제 진척 — 눈금보다 왼쪽이면 늦은 것이다
+    var 달성칸 = 달성 == null ? ''
+      : 달성.toFixed(1) + '%'
+        + '<span class="bar"><i style="width:' + Math.max(0, Math.min(100, 달성)).toFixed(1) + '%"></i>'
+        + '<b style="left:' + 경과.toFixed(1) + '%" title="' + 끝 + '월 경과 = ' + 경과.toFixed(0) + '%"></b></span>'
+        + '<span class="pace">페이스 ' + (페이스 * 100).toFixed(0) + '%</span>';
 
     return '<tr class="r-' + r.급 + '">'
       + '<td>' + 제목 + '</td>' + 칸
       + '<td class="num' + (누계 < 0 ? ' neg' : '') + '">' + 백만(누계) + 비중 + '</td>'
-      + '<td class="num muted">' + (연목 == null ? '—' : 백만(연목)) + '</td>'
-      + '<td class="num rate' + 등급 + '">' + (달성 == null ? '—' : 달성.toFixed(1) + '%') + '</td>'
+      + '<td class="num muted">' + (연목 == null ? '' : 백만(연목)) + '</td>'
+      + '<td class="num rate' + 등급 + '">' + 달성칸 + '</td>'
       + '</tr>';
   }).join('');
 
@@ -905,6 +943,9 @@ function 그리기() {
     + '매출·국가별·제품별은 무상·취소를 포함한 전 건 기준이라 세 블록의 합이 매출액과 같습니다. '
     + '제품은 ERP 품번 마스터 기준이라 매출 탭과 같은 이름·같은 계층입니다. '
     + '연간목표는 마감된 달은 실적, 남은 달은 목표를 더한 값입니다. '
+    + '<strong>달성률의 색과 「페이스」는 경과 시점 대비</strong>입니다 — ' + 끝 + '월이면 '
+    + Math.round(끝 / 12 * 100) + '% 경과이므로 달성률을 그 값으로 나눈 것이 페이스입니다. '
+    + '막대의 <strong>세로 눈금이 경과 시점</strong>이고, 채움이 눈금보다 왼쪽이면 늦은 것입니다. '
     + '누계 옆 괄호는 <strong>매출액 대비 비중</strong>입니다 — 매출원가 줄은 원가율, 판관비 줄은 '
     + '판관비율이고, 펼치면 그 계정이 매출의 몇 %인지 보입니다.'
     + (범위 === 'COMBINED' ? ''
@@ -915,7 +956,16 @@ function 그리기() {
         + ' 일본 K-IFRS 조정까지 반영돼 <strong>연결 공시와 같습니다</strong>(미확정 월은 J-GAAP PL 기준).'
       : '');
 
-  BEP그리기(행, 달);
+  재고그리기();
+}
+
+/** BEP 탭 — 손익 탭과 같은 행 정의를 쓴다 (2026-08-08 분리). 산식이 갈리면 안 되므로
+ *  `행들()`을 다시 만들어 넘긴다 — 두 탭이 같은 함수에서 매출·원가·판관비를 꺼낸다. */
+function BEP탭그리기() {
+  var 끝 = 마감월(), 달 = [], m;
+  for (m = 1; m <= 끝; m++) 달.push(m);
+  if (!끝) { $('bepCard').hidden = true; return; }
+  BEP그리기(행들(), 달);
 }
 
 /* =========================================================================
@@ -1010,7 +1060,6 @@ function BEP그리기(행, 달) {
   연간BEP그리기(달, { 매출f: 매출f, 원가f: 원가f, 고정f: 고정f, 변동f: 변동f, 그룹f: 그룹f,
     변원f: 변원f, 고원f: 고원f, 재료비중: 재료비중 });
   판관비추이그리기(달);
-  재고그리기();
 }
 
 /* =========================================================================
@@ -1483,15 +1532,24 @@ function 시뮬차리기(달, f) {
 }
 
 /* ===== 범위 토글 ===== */
+// 범위는 손익 탭과 BEP 탭이 **같은 상태를 공유**한다 — 한쪽에서 합산으로 바꾸고 다른 탭에
+// 갔더니 별도로 돌아와 있으면, 같은 화면 안에서 기준이 두 개가 된다. 토글은 두 벌이지만
+// 상태와 그리기는 하나다.
 function 범위설정(v) {
   범위 = v;
   시뮬만짐 = false;                 // 별도/합산의 고정비가 다르다 — 기본값을 새 범위로 다시 심는다
-  $('btnHQ').setAttribute('aria-pressed', v === 'HQ' ? 'true' : 'false');
-  $('btnCOMB').setAttribute('aria-pressed', v === 'COMBINED' ? 'true' : 'false');
-  if (DB) 그리기();
+  [['btnHQ', 'btnCOMB'], ['btnHQ2', 'btnCOMB2']].forEach(function (p) {
+    $(p[0]).setAttribute('aria-pressed', v === 'HQ' ? 'true' : 'false');
+    $(p[1]).setAttribute('aria-pressed', v === 'COMBINED' ? 'true' : 'false');
+  });
+  if (DB) 현재탭그리기();
 }
-$('btnHQ').addEventListener('click', function () { 범위설정('HQ'); });
-$('btnCOMB').addEventListener('click', function () { 범위설정('COMBINED'); });
+['btnHQ', 'btnHQ2'].forEach(function (id) {
+  $(id).addEventListener('click', function () { 범위설정('HQ'); });
+});
+['btnCOMB', 'btnCOMB2'].forEach(function (id) {
+  $(id).addEventListener('click', function () { 범위설정('COMBINED'); });
+});
 
 /* =========================================================================
    매출 탭 (결정_매출탭_260806)
