@@ -528,6 +528,14 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
+        <h3 class="ct">인원과 1인당</h3>
+        <div class="scroll">
+          <table class="pl"><thead><tr id="hcHead"></tr></thead><tbody id="hcBody"></tbody></table>
+        </div>
+        <p class="note" id="hcNote"></p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
         <h3 class="ct">전년 동기 대비</h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="yoyHead"></tr></thead><tbody id="yoyBody"></tbody></table>
@@ -2429,6 +2437,8 @@ function 지표그리기() {
     ? '단위 백만원 · 급여·4대보험 자동전표 발생 기준입니다 (분기말 퇴직충당 등 결산조정 미반영).'
     : 지표연도 + '년 인건비 자료가 아직 없습니다.';
 
+  인원그리기(달, 끝);
+
   // ── 전년 동기 대비 — 누계 기준 ──
   var 누계 = function (줄들, 걸러, 연) {
     var s = null;
@@ -2502,6 +2512,72 @@ function 지표그리기() {
     + '판관비는 증감 10백만 이상 계정만 큰 순으로 8개까지 보입니다.';
 
   $('asof').textContent = 지표연도 + '년 · ' + 끝 + '월까지';
+}
+
+/* =========================================================================
+   인원과 1인당 (회계사 TDL ㉕, 0031 · 2026-08-09)
+
+   **1인당 매출은 누계로 읽어야 한다.** 월별은 1~6월에 6.2~33.5로 널뛰는데 분기말에 매출이
+   몰려서지 생산성이 다섯 배가 된 게 아니다 — 재고일수가 원가 작은 달에 튀는 것과 같다.
+   그래서 누계 열을 오른쪽에 세우고, 각주가 「월별만 보지 말라」고 먼저 말한다.
+
+   **1인당 인건비의 분자는 등대.인건비(분개장 기준)다.** 위 인건비 표와 같은 축이라 이 화면
+   안에서 두 값이 갈리지 않는다. 인원과 같은 원천인 급여대장 총지급액을 쓰면 부서별 1인당까지
+   낼 수 있었지만 (1~6월 1,920.8 vs 2,259.3) 세 번째 인건비 숫자가 생긴다 — 안 하기로 했다.
+   ========================================================================= */
+function 인원그리기(달, 끝) {
+  var 표 = (DB['인당'] || []).filter(function (r) { return +r['회계연도'] === 지표연도; });
+  var 구성 = (DB['인원'] || []).filter(function (r) { return +r['회계연도'] === 지표연도; });
+  var 카드 = $('hcHead').closest('.card');
+  if (!표.length) { 카드.hidden = true; return; }
+  카드.hidden = false;
+
+  var of = {};
+  표.forEach(function (r) { of[+r['월']] = r; });
+  var 끝행 = of[끝] || 표[표.length - 1];
+  var 값 = function (칸, 형) {
+    return 달.map(function (m) { return of[m] ? (of[m][칸] == null ? null : Number(of[m][칸])) : null; })
+      .concat([끝행 && 끝행[형] != null ? Number(끝행[형]) : null]);
+  };
+
+  // 구성은 5구분 인원 — 계가 먼저 오고 갈래가 아래 붙는다 (다른 표와 같은 계층 규칙).
+  // 순서는 기능 순으로 못 박는다 — DB가 주는 대로 두면 가나다순(관리·생산품질·…)이 된다.
+  var 순 = ['생산품질', '연구개발', '영업', '관리', '기타'];
+  var 구분들 = [];
+  구성.forEach(function (r) { if (구분들.indexOf(r['구분']) < 0) 구분들.push(r['구분']); });
+  구분들.sort(function (a, b) {
+    var i = 순.indexOf(a), j = 순.indexOf(b);
+    return (i < 0 ? 순.length : i) - (j < 0 ? 순.length : j);
+  });
+  var 구분값 = function (g) {
+    return 달.map(function (m) {
+      var s = null;
+      구성.forEach(function (r) { if (+r['월'] === m && r['구분'] === g) s = (s || 0) + Number(r['인원']); });
+      return s;
+    }).concat([null]);            // 인원은 누계가 뜻이 없다 — 합치면 연인원이 된다
+  };
+
+  var 줄들 = [{ 이름: '인원 계', 급: 'total', 형: '수',
+    값들: 값('인원', '평균인원') }];
+  구분들.forEach(function (g) { 줄들.push({ 이름: g, 급: 'child', 형: '수', 값들: 구분값(g) }); });
+  줄들.push({ 이름: '1인당 매출', 급: 'op', 형: '금액', 값들: 값('인당매출', '인당매출_누계') });
+  줄들.push({ 이름: '1인당 인건비', 급: 'op', 형: '금액', 값들: 값('인당인건비', '인당인건비_누계') });
+
+  // 꼬리 열이 줄마다 뜻이 다르다 — 1인당은 누계, 인원은 평균이다. 머리글이 그걸 말한다.
+  표그리기('hcHead', 'hcBody', 달, 줄들, ['누계 (인원은 평균)']);
+
+  $('hcNote').innerHTML = '인원은 명, 1인당은 백만원입니다. '
+    + '<strong>1인당 매출은 누계 열로 읽으십시오</strong> — 월별 값은 분기말에 매출이 몰려 크게 '
+    + '튑니다(' + 지표연도 + '년 월별 최저 ' + (Math.min.apply(null, 표.map(function (r) { return Number(r['인당매출']); })) || 0).toFixed(1)
+    + ' ~ 최고 ' + (Math.max.apply(null, 표.map(function (r) { return Number(r['인당매출']); })) || 0).toFixed(1) + '). '
+    + '누계 열의 분모는 <strong>그때까지의 평균 인원</strong>입니다 — 누계 매출은 여러 달치인데 '
+    + '분모가 한 달 인원이면 축이 안 맞습니다(인원 계 줄의 누계 칸이 그 평균입니다). '
+    + '<strong>인원은 「월말 재직」이 아니라 그 달 급여 지급 건수</strong>입니다 — 원천(급여대장 '
+    + '부서별집계표)이 그렇게 셉니다. 중도 입·퇴사자가 어떻게 잡히는지는 원천이 말하지 않습니다. '
+    + '<strong>1인당 인건비의 분자는 위 「인건비」 표와 같은 축</strong>(분개장 기준)입니다 — '
+    + '인원과 같은 원천인 급여대장 총지급액은 상반기 1,920.8로 15% 낮은데, 4대보험 회사부담 '
+    + '175.3이 거기 안 들어가는 것이 큰 몫입니다. '
+    + '<strong>2025년 급여내역서가 없어 전년 비교는 못 합니다.</strong>';
 }
 
 /* =========================================================================
