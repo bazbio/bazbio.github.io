@@ -1070,7 +1070,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608090012';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608102208';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2518,14 +2518,7 @@ function saveLog() {
     if (DATA.dbSrc) {
       관문호출_('/saleson-visit-act', JSON.stringify({
         토큰: TOKEN, 동작: '수정', no: f.no, 기록: f,
-      })).then(화면갱신감싸기_(function(r) {
-        수정끝(r);
-        /* 저장 경로와 같은 두 걸음째 (8/5 감사에서 발견). 관문이 DB에서 한 계획 완료·리드
-           승격을 시트에도 해야 한다 — 안 하면 10분 폴링(시트→DB)이 그 결과를 **매번** 되돌린다. */
-        gsrun().withSuccessHandler(function() {})
-          .withFailureHandler(function(e) { console.warn('[기록 후처리]', e && e.message); })
-          .웹_기록후처리(TOKEN, f);
-      }), 수정실패);
+      })).then(화면갱신감싸기_(수정끝), 수정실패);
       return;
     }
     gsrun().withSuccessHandler(수정끝).withFailureHandler(수정실패)
@@ -2575,15 +2568,7 @@ function saveLog() {
   if (DATA.dbSrc) {
     관문호출_('/saleson-visit-act', JSON.stringify({
       토큰: TOKEN, 동작: '저장', 기록: f,
-    })).then(화면갱신감싸기_(function(d) {
-      저장끝(d);
-      /* 계획 완료·리드 승격은 **시트에도** 해야 한다 — `plans`·`leads`는 아직 시트가
-         원천이라(GAS 쓰기가 남아 있다) 관문이 DB에만 한 일은 거울이 되돌린다.
-         두 걸음째는 뒤에서 조용히 돈다. 실패해도 저장은 이미 끝났으므로 화면을 안 건드린다. */
-      gsrun().withSuccessHandler(function() {})
-        .withFailureHandler(function(e) { console.warn('[기록 후처리]', e && e.message); })
-        .웹_기록후처리(TOKEN, f);
-    }), 저장실패);
+    })).then(화면갱신감싸기_(저장끝), 저장실패);
     return;
   }
   gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
@@ -2616,17 +2601,20 @@ function resetForm() {
    「계획에서 기록을 쓰고 등록하면 저장이 안 되고 내용이 사라진다」가 이 모양이다.
 
    그래서 `.then(성공, 실패)` 두 인자 꼴로 갈라 붙이고, 성공 핸들러는 여기서 한 번 더 감싼다.
-   서버가 받았다는 사실이 화면 사정으로 뒤집히면 안 된다. */
-function 화면갱신감싸기_(성공핸들러) {
+   서버가 받았다는 사실이 화면 사정으로 뒤집히면 안 된다.
+
+   문구는 저장 경로 기준이라 목록을 읽는 자리에는 맞지 않는다 — 그런 자리는 둘째 인자로
+   제 문구를 준다 (2026-08-10, 감사 화7). */
+function 화면갱신감싸기_(성공핸들러, 문구) {
   return function(d) {
     try {
       성공핸들러(d);
     } catch (e) {
-      console.error('[저장 후 화면 갱신 실패]', e);
+      console.error('[화면 갱신 실패]', e);
       busy(false);
       var b = document.getElementById('fSave');
       if (b) b.disabled = false;
-      toast('저장은 됐습니다. 화면 갱신에서 문제가 생겼으니 「내 입력」에서 확인해 주세요', true);
+      toast(문구 || '저장은 됐습니다. 화면 갱신에서 문제가 생겼으니 「내 입력」에서 확인해 주세요', true);
     }
   };
 }
@@ -2672,9 +2660,9 @@ function 관문호출_(경로, 몸통) {
 function loadMeta() {
   busy(true);
   // 목록 관문만 토큰을 본문에 **날것으로** 받는다 (saleson-inquiries). 쓰기 쪽은 JSON이다
-  관문호출_('/saleson-inquiries', TOKEN).then(function(d) {
+  관문호출_('/saleson-inquiries', TOKEN).then(화면갱신감싸기_(function(d) {
     METAQ = d; busy(false); renderMeta();
-  }).catch(function(e) {
+  }, '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
     busy(false);
     document.getElementById('metaBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
   });
@@ -2804,10 +2792,10 @@ function metaAct_(id, action, why, next, text) {
   busy(true, '처리 중…');
   관문호출_('/saleson-inquiry-act', JSON.stringify({
     토큰: TOKEN, id: id, 동작: action, why: why || '', next: next || '', text: text || ''
-  })).then(function(r) {
+  })).then(화면갱신감싸기_(function(r) {
     busy(false); toast(r.msg);
     if (!문의갱신_(r.q)) { METAQ = null; loadMeta(); }
-  }).catch(function(e) {
+  }, '처리는 됐습니다. 화면 갱신에서 문제가 생겼으니 새로고침해 주세요'), function(e) {
     busy(false); toast(e.message, true); METAQ = null; loadMeta();   // 남이 먼저 잡았을 수 있다 — 최신으로
   });
 }
@@ -2901,10 +2889,10 @@ function metaAssign(id) {
     // ② 시트에 리드가 생겼다 — 이제 DB의 문의 상태를 올린다
     관문호출_('/saleson-inquiry-act', JSON.stringify({
       토큰: TOKEN, id: id, 동작: '리드전환', hname: hname.trim()
-    })).then(function(g) {
+    })).then(화면갱신감싸기_(function(g) {
       busy(false); toast(r.msg); METAOPEN = 0; METAREP = '';
       if (!문의갱신_(g.q)) { METAQ = null; loadMeta(); }
-    }).catch(function(e) {
+    }, '리드 등록과 문의 상태 변경은 됐습니다. 화면 갱신에서 문제가 생겼으니 새로고침해 주세요'), function(e) {
       /* 리드는 만들어졌는데 상태만 못 올렸다. 목록을 다시 받아 진짜 상태를 보여 준다 —
          조용히 넘기면 같은 문의를 또 전환해 리드가 둘이 된다 */
       busy(false); METAOPEN = 0; METAREP = '';
@@ -3160,11 +3148,12 @@ function 내입력받기_(onOk, onFail) {
     return res.ok ? res.json() : null;
   }).then(function(r) {
     if (!r || !r.logs) throw new Error('목록을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요.');
-    onOk(r);
-  }).catch(function(e) {
-    console.warn('내 입력을 관문에서 받지 못했습니다:', (e && e.message) || e);
-    if (onFail) onFail(e);
-  });
+    return r;
+  }).then(화면갱신감싸기_(onOk, '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
+    function(e) {
+      console.warn('내 입력을 관문에서 받지 못했습니다:', (e && e.message) || e);
+      if (onFail) onFail(e);
+    });
 }
 
 /* 관문이 먼저 그리고, GAS 응답이 오면 수렴한다 — 부트(`스냅샷받기_`)와 같은 구조다.
@@ -3670,7 +3659,7 @@ function submitMat() {
   if (!file && !f.link) return toast('파일을 첨부하거나 링크를 입력해 주세요', true);
   if (file && file.size > 20 * 1024 * 1024) return toast('파일은 20MB 이하만 업로드할 수 있습니다', true);
   var send = function() {
-    busy(true);
+    busy(true, '저장 중…');
     document.getElementById('mSave').disabled = true;
     gsrun().withSuccessHandler(function(d) {
       MATL = d; busy(false);
@@ -3688,12 +3677,20 @@ function submitMat() {
     }).웹_영업자료등록(TOKEN, f);
   };
   if (file) {
+    // 20MB짜리는 읽는 데 몇 초 걸린다. 그동안 버튼이 열려 있으면 한 번 더 눌러 등록이 두 건,
+    // 영업사원 전체에게 가는 메일도 두 통이 된다 — 되돌릴 수 없는 쪽이 메일이다 (감사 화6)
+    busy(true, '파일을 읽는 중…');
+    document.getElementById('mSave').disabled = true;
     var rd = new FileReader();
     rd.onload = function() {
       f.file = { name: file.name, mime: file.type || 'application/octet-stream', b64: String(rd.result).split(',')[1] };
       send();
     };
-    rd.onerror = function() { toast('파일을 읽지 못했습니다', true); };
+    rd.onerror = function() {
+      busy(false);
+      document.getElementById('mSave').disabled = false;
+      toast('파일을 읽지 못했습니다', true);
+    };
     rd.readAsDataURL(file);
   } else send();
 }
