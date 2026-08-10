@@ -177,6 +177,9 @@
 
   .title-cell { max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
   tr.dirty td { background: #fffbea; }
+  /* 저장이 막힌 줄 — 노란 dirty보다 세게 말한다 (2026-08-11) */
+  tr.blocked td { background: #fff0f1; }
+  .row-msg { margin-top: 4px; font-size: 11px; line-height: 1.4; font-weight: 600; color: var(--over); white-space: normal; }
 
   /* 부서 세부 표는 컨테이너 폭에 맞춘다 (2026-08-08).
      내역이 400px 고정이라 표가 1,116px까지 벌어져 오른쪽 끝의 집행률이 잘렸다.
@@ -1325,6 +1328,7 @@ function drawExpTable() {
     dirty[id] = dirty[id] || { id };
     dirty[id][e.target.dataset.f] = e.target.value;
     tr.classList.add('dirty');
+    막힘지우기(tr);   // 고치기 시작했으면 지난번 거절 사유는 치운다
     if (e.target.dataset.f === 'code') {
       // 코드를 넣으면 부서가 그 자리에서 확정된다 (저장 시 서버도 같은 규칙으로 다시 계산)
       const d = deptOfCode(e.target.value), sel = tr.querySelector('[data-f="budgetDept"]');
@@ -1355,6 +1359,25 @@ function drawExpTable() {
   });
 }
 
+/* 저장이 막힌 줄에 이유를 붙인다 — 예산코드 칸 아래에 둔다. 막히는 이유가 대개 그 칸이고,
+   고쳐야 할 곳 바로 옆에 있어야 읽힌다. 그 줄을 다시 건드리면 사라진다. */
+function 막힘표시(id, msg) {
+  const tr = el('exp-table').querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  막힘지우기(tr);   // 지난번 것을 먼저 치운다 — 순서가 바뀌면 방금 붙인 것을 지운다
+  tr.classList.add('dirty', 'blocked');
+  const inp = tr.querySelector('.code-in');
+  if (!inp) return;
+  const d = document.createElement('div');
+  d.className = 'row-msg'; d.textContent = msg;
+  inp.parentElement.appendChild(d);
+}
+function 막힘지우기(tr) {
+  tr.classList.remove('blocked');
+  const m = tr.querySelector('.row-msg');
+  if (m) m.remove();
+}
+
 /* 저장 — 낙관 반영 (2026-08-06). 화면을 안 막는다: 입력한 값은 이미 표에 보이고,
  * 서버가 확정한 행(규칙 계정·파생 부서·수정일시)이 응답에 실려 오면 그걸로 조용히
  * 수렴한다. 전체 재조회 왕복이 없어져 저장이 두 왕복(4~7초) → 한 왕복 뒤 수렴,
@@ -1374,8 +1397,13 @@ async function saveDirty() {
       const i = EXPENSES.findIndex(x => x[0] === row[0]);
       if (i > -1) EXPENSES[i] = row;
     });
-    toast(`${r.saved}건 저장 완료`);
+    /* 서버가 건너뛴 줄은 dirty로 되살려 그 자리에서 고칠 수 있게 하고, 왜 안 됐는지를
+       그 줄이 직접 말한다 (2026-08-11). 토스트 한 줄로는 어느 줄인지 알 수 없다. */
+    const 막힌것 = (r.skipped || []).filter(s => 보낸것[s.id]);
+    막힌것.forEach(s => { if (!dirty[s.id]) dirty[s.id] = 보낸것[s.id]; });
+    toast(막힌것.length ? `${r.saved}건 저장 · ${막힌것.length}건 저장 안 됨` : `${r.saved}건 저장 완료`);
     if (!Object.keys(dirty).length) drawExpTable();
+    막힌것.forEach(s => 막힘표시(s.id, s.msg));
     renderDash(); renderMonthly();
   } catch (e) {
     if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
