@@ -432,14 +432,18 @@
 
   /* 배포 시각 도장. `브리지배포.js`가 이 자리를 실제 값으로 바꿔 넣는다 — 저장소 원본은 dev.
      낡은 화면이 붙었는지 사람이 알아볼 근거다. */
-  var 빌드버전_ = '202608112320';
+  var 빌드버전_ = '202608112323';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
    *
    * **한 파일이 두 곳에 배포된다.**
    *   bazbio.github.io/bridge/       임원들이 쓴다.    → 운영 배포(@32, 고정 ID)
-   *   bazbio.github.io/bridge-next/  여기서 검증한다.  → @HEAD 배포(clasp push가 곧 반영)
+   *   bazbio.github.io/bridge-next/  여기서 검증한다.  → 검증 배포(@33)
+   *
+   * ⚠ 검증용으로 `@HEAD` 배포를 쓰면 안 된다. 그 배포는 익명 접근이 막혀 있어 화면이 부르면
+   *   Google 로그인 HTML이 401로 돌아온다(2026-08-12 확인). 코드를 고칠 때마다
+   *   `clasp deploy`로 검증 배포를 새로 만들거나, 같은 ID에 `clasp redeploy`한다.
    *
    * 그래서 주소를 경로로 가른다. 손으로 바꿔 넣으면 승격할 때마다 빠뜨릴 자리가 생기고,
    * 그 실수는 **임원들이 검증용 배포를 부르는 것**이라 조용히 위험하다. 파일 하나가 어디에
@@ -450,7 +454,7 @@
    *   `clasp redeploy`로 같은 ID를 유지하는 한 운영 ID는 안 바뀐다(새 배포 금지). */
   const API_URL = 'https://script.google.com/macros/s/'
     + (location.pathname.indexOf('-next') >= 0
-        ? 'AKfycbzHF6rhuCN2R2l81CC_3RGt-lMk4MbIn7XglSgyu-sR'                            // 검증용 @HEAD
+        ? 'AKfycbxI6OHqfezvQ3a8lvIdH3lUqQJR_Hep6JUruARDgXoBcbF4vVRVs9tyBmm4qKNH_GyKMg'  // 검증용 @33
         : 'AKfycbx9Y99D3BdLucPbmYVb14Go7fOhtnIXQ7namenu9zRe0BWXL6rV4vCD2eCuWx4He21fqw') // 운영 @32
     + '/exec';
   // 관문(Supabase 엣지 펑션) — Code.js CONFIG.GATE_URL과 같다
