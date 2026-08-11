@@ -274,6 +274,17 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
   .btn:hover,.btn:active,.seg button:active{transform:none}
 }
 @media (min-width:768px){ .wrap{padding:24px} header.top h1{font-size:22px} }
+
+/* ===== 런웨이 타일 (0032) — 분자·분모를 항상 같이 보인다 ===== */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.tile{background:var(--hairline);border-radius:var(--r-md);padding:14px 16px}
+.tile .k{font-size:12.5px;color:var(--ink-3);margin-bottom:6px}
+.tile .v{font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+.tile .u{font-size:14px;font-weight:600;margin-left:2px}
+.tile .d{font-size:12px;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
+.tile.red{background:var(--sig-red-bg)}    .tile.red .v{color:var(--sig-red)}
+.tile.amber{background:var(--sig-amber-bg)} .tile.amber .v{color:var(--sig-amber)}
+.tile.green{background:var(--sig-green-bg)} .tile.green .v{color:var(--sig-green)}
 </style>
 </head>
 <body>
@@ -320,6 +331,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
         <button type="button" role="tab" id="tabBtnBEP" aria-selected="false">BEP</button>
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
+        <button type="button" role="tab" id="tabBtnFIN" aria-selected="false">재무</button>
         <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
       </nav>
       <span class="spacer"></span>
@@ -492,6 +504,49 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <p class="note">선택 연도 매출 큰 순 30곳 — 무상·취소 포함 전 건 기준이라 합이 매출액과 같은 축입니다.
           네트워크(체인) 묶음은 SalesON에 네트워크 정보가 채워지면 붙습니다.</p>
       </div>
+
+      <!-- 국가 × 제품 공헌이익 (0033) -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct" id="cmTitle">국가 × 제품 수익성</h3>
+        <div class="scroll">
+          <table class="pl" id="cm">
+            <thead><tr id="cmHead"></tr></thead>
+            <tbody id="cmBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="cmNote"></p>
+      </div>
+    </section>
+
+    <!-- 재무 탭 — 현금·운전자본·런웨이 (0032). 손익 탭이 P&L, 여기가 BS다 -->
+    <section id="tab-fin" hidden>
+      <div class="card">
+        <h3 class="ct" id="finTitle">현금과 런웨이</h3>
+        <div class="tiles" id="runway"></div>
+        <p class="note" id="runwayNote"></p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">운전자본</h3>
+        <div class="scroll">
+          <table class="pl" id="wc">
+            <thead><tr id="wcHead"></tr></thead>
+            <tbody id="wcBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="wcNote"></p>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">재무상태 — 계정별</h3>
+        <div class="scroll">
+          <table class="pl" id="bs">
+            <thead><tr id="bsHead"></tr></thead>
+            <tbody id="bsBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="bsNote"></p>
+      </div>
     </section>
 
     <!-- 지표 탭 — 나침반에서 이관한 축 (볼륨·인건비·전년비교) -->
@@ -632,14 +687,17 @@ function 권한적용() {
   $('tabBtnPL').hidden = !전체;
   $('tabBtnBEP').hidden = !전체;     // BEP는 판관비·원가가 다 드러난다 — 손익과 같은 권한이다
   $('tabBtnKPI').hidden = !전체;
+  $('tabBtnFIN').hidden = !전체;     // 현금·채권 잔액이 다 드러난다 — 손익과 같은 권한이다
   탭설정(전체 ? 탭 : 'sales');       // 탭설정이 그린다 — 여기서 또 그리지 않는다
 }
 
-var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnSales', 'sales'], ['tabBtnKPI', 'kpi']];
+var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnSales', 'sales'],
+              ['tabBtnFIN', 'fin'], ['tabBtnKPI', 'kpi']];
 function 현재탭그리기() {
   if (탭 === 'pl') 그리기();
   else if (탭 === 'bep') BEP탭그리기();
   else if (탭 === 'sales') 매출그리기();
+  else if (탭 === 'fin') 재무그리기();
   else 지표그리기();
 }
 function 탭설정(t) {
@@ -653,6 +711,7 @@ $('tabBtnBEP').addEventListener('click', function () { 탭설정('bep'); });
 // 목표이익은 저장하지 않는다 — 브라우저 안에서만 논다 (BEP 시뮬과 같은 원칙)
 $('yrProfit').addEventListener('input', function () { if (DB && 탭 === 'bep') BEP탭그리기(); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
+$('tabBtnFIN').addEventListener('click', function () { 탭설정('fin'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
 /* ===== 집계 ===== */
@@ -1906,6 +1965,7 @@ function 매출그리기() {
 
   채널그리기(달);
   거래처그리기();
+  공헌이익그리기();
 }
 
 /* ── 채널별 (결정_회계사TDL ⑨) — 금액 기준, 연도 토글 연동 ─────── */
@@ -2367,6 +2427,235 @@ function Attach그리기(달) {
   $('attNote').innerHTML = '당월 <strong>노즐 유상 판매수량 ÷ 전월말 누적 장비 대수</strong>입니다. '
     + '분모는 2021년부터의 누적 판매 대수(현재 전사 ' + 수(말분모) + '대)로, 폐기·이전을 알 수 없어'
     + ' <strong>판매 누적 = 가동 프록시</strong>입니다. 무상 제공 노즐은 분자에서 제외돼 있습니다.';
+}
+
+/* ===== 재무 탭 (0032) — 손익 탭이 P&L이고 여기가 BS다 =====
+ *
+ * **런웨이는 다른 지표와 성격이 다르다.** 나머지는 「이상이 떠도 리스크가 아닐 수 있다」인데
+ * (계절성 등) 런웨이는 틀렸을 때의 비용이 한쪽으로만 크다. 그래서 셋을 지킨다.
+ *   ① 분자·분모를 항상 같이 보인다 — 「1.5개월」만 쓰면 안 되고 「530.1 ÷ 354.0」이 옆에 있어야 한다
+ *   ② 기준월을 제목에 박는다 — 현금은 손익보다 훨씬 빨리 낡는다
+ *   ③ 별도(HQ) 기준임을 밝힌다 — 일본법인 현금은 여기 없다
+ */
+function 재무그리기() {
+  var 운 = (DB['운전자본'] || []).slice().sort(function (a, b) { return +a['월'] - +b['월']; });
+  var 잔 = DB['재무상태'] || [];
+  if (!운.length) { $('finTitle').textContent = '현금과 런웨이 — 원천 없음'; return; }
+
+  var 끝 = 운[운.length - 1], 달 = 운.map(function (r) { return +r['월']; });
+  var n = function (r, k) { return r[k] == null ? null : Number(r[k]); };
+  $('finTitle').textContent = '현금과 런웨이 (' + 끝['월'] + '월 기준 · 본사 별도)';
+
+  // 임계 — 3개월 미만 적 / 3~6 황 / 6 이상 녹
+  var 등급 = function (v) { return v == null ? '' : v < 3 ? 'red' : v < 6 ? 'amber' : 'green'; };
+  var 타일 = function (키, 값, 단위, 밑, 급) {
+    return '<div class="tile ' + (급 || '') + '"><div class="k">' + 키 + '</div>'
+      + '<div class="v">' + (값 == null ? '—' : 값.toLocaleString('ko-KR',
+          { minimumFractionDigits: 1, maximumFractionDigits: 1 }))
+      + '<span class="u">' + (값 == null ? '' : 단위) + '</span></div>'
+      + '<div class="d">' + 밑 + '</div></div>';
+  };
+
+  var 현금 = n(끝, '현금'), 소진 = n(끝, '소진율_3개월'), 소진누 = n(끝, '소진율_누계');
+  var 런 = n(끝, '런웨이_개월'), 런회 = n(끝, '런웨이_외부순액'), 런내 = n(끝, '런웨이_일본포함');
+  var 채권 = n(끝, '외상매출금'), 내부 = n(끝, '미수금_내부'), 충당 = n(끝, '대손충당금');
+  var 일본미지급 = n(끝, '일본미지급'), 일본미수금 = n(끝, '일본미수금');
+  var 비일본채무 = n(끝, '비일본채무');
+  var 첫현금 = n(운[0], '현금') - n(운[0], '현금증감');   // 전기말 = 1월 잔액 − 1월 증감
+
+  $('runway').innerHTML =
+    타일('현금성 자산', 현금, '백만', '전기말 ' + 백만(첫현금) + ' → 소진 ' + 백만(첫현금 - 현금)) +
+    타일('월 소진율', 소진, '백만', '최근 3개월 평균 · 누계 기준 ' + 백만(소진누)) +
+    타일('현금 런웨이', 런, '개월', 현금 == null || !소진 ? '—' : 백만(현금) + ' ÷ ' + 백만(소진), 등급(런)) +
+    타일('외부 순액', 런회, '개월',
+      '+ 순매출채권 ' + 백만(채권 - 충당) + ' − 갚을 것 ' + 백만(비일본채무), 등급(런회)) +
+    타일('일본 회수 시', 런내, '개월', '+ 일본법인 미수 ' + 백만(일본미수금), 등급(런내));
+
+  $('runwayNote').innerHTML =
+    '<strong>런웨이 = 현금 ÷ 월 소진율</strong>이고 분모는 <strong>최근 3개월 평균</strong>입니다. '
+    + '한 구간만 쓰면 반드시 틀립니다 — 상반기 평균(' + 백만(소진누) + ')과 최근 3개월(' + 백만(소진) + ')이 '
+    + '2배 넘게 갈립니다. 소진율이 0 이하인 달은 「순유입」이라 런웨이를 내지 않습니다. '
+    + '<strong>세 숫자가 다른 질문에 답합니다.</strong> 「현금만」은 오늘 통장, '
+    + '<strong>「외부 순액」은 외부와 주고받을 것을 다 정리한 자리</strong>, '
+    + '「일본 회수 시」는 일본법인이 갚았을 때입니다. '
+    + '<strong>받을 것과 갚을 것이 거의 상계됩니다</strong> — 순매출채권 ' + 백만(채권 - 충당)
+    + ' 대 갚을 것 ' + 백만(비일본채무) + '. 그래서 외부 순액이 현금만 볼 때와 거의 같습니다. '
+    + '<strong>런웨이를 실제로 늘려 주는 것은 일본법인 앞 미수금 ' + 백만(일본미수금) + ' 하나뿐입니다.</strong> '
+    + '일본법인 앞 미지급 ' + 백만(일본미지급) + '은 그룹 내부라 「갚을 것」에서 뺐습니다 '
+    + '(2026-08-10 확인). 양쪽 다 당해 분개 누적입니다 — 미지급금의 전기말 몫을 거래처로 못 갈라, '
+    + '갚을 것이 그만큼 크게(보수적으로) 잡힙니다. '
+    + '재무활동(증자·차입)은 소진율에서 걷어냅니다 — 상반기 분개장에는 해당 계정이 '
+    + '0행이라 지금은 걷어낼 것이 없습니다. <strong>본사 별도 기준이고 일본법인 현금은 없습니다.</strong>';
+
+  // ── 운전자본 ──
+  var 머리 = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }));
+  $('wcHead').innerHTML = 머리.join('');
+
+  // 일수는 백만()을 못 쓰지만 음수 표기는 △로 맞춘다 — 한 표 안에서 부호가 갈리면 안 된다
+  var 일 = function (v) {
+    return (v < 0 ? '△' : '') + Math.abs(v).toLocaleString('ko-KR',
+      { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  };
+  var 줄 = function (이름, 키, 급, 단위) {
+    var 칸 = 운.map(function (r) {
+      var v = n(r, 키);
+      if (v == null) return '<td class="num muted">—</td>';
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">'
+        + (단위 ? 일(v) + 단위 : 백만(v)) + '</td>';
+    });
+    return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>' + 칸.join('') + '</tr>';
+  };
+
+  // CCC는 화면이 더한다 — 세 값이 전부 뷰에서 오므로 계산처가 갈리지 않는다
+  var ccc = 운.map(function (r) {
+    var a = n(r, 'DSO'), b = n(r, 'DIO'), c = n(r, 'DPO');
+    return (a == null || b == null || c == null) ? null : Math.round((a + b - c) * 10) / 10;
+  });
+  var ccc줄 = '<tr class="r-op"><td>현금전환일수 (CCC)</td>'
+    + ccc.map(function (v) {
+        return v == null ? '<td class="num muted">—</td>'
+          : '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 일(v) + '일</td>';
+      }).join('') + '</tr>';
+
+  $('wcBody').innerHTML =
+    줄('현금성 자산', '현금', 'r-total') +
+    줄('외상매출금', '외상매출금', 'r-child') +
+    줄('미수금 (일본법인)', '미수금_내부', 'r-child') +
+    줄('재고자산', '재고', 'r-child') +
+    줄('매입채무·미지급', '매입채무', 'r-child') +
+    줄('선수금', '선수금', 'r-child') +
+    줄('당월 현금증감', '현금증감', 'r-op') +
+    줄('DSO 매출채권회수일', 'DSO', 'r-child', '일') +
+    줄('DIO 재고일수', 'DIO', 'r-child', '일') +
+    줄('DPO 매입채무회전일', 'DPO', 'r-child', '일') +
+    ccc줄;
+
+  $('wcNote').innerHTML =
+    '<strong>DIO는 재고 탭과 같은 뷰에서 옵니다</strong> — 계산처가 하나라 두 화면이 갈리지 않습니다. '
+    + 'DSO·DIO·DPO 모두 <strong>월별로는 크게 튑니다</strong> (그 달 매출·원가가 분모라서). '
+    + '6월 DSO가 낮은 것은 회수가 빨라진 게 아니라 6월 매출이 컸기 때문입니다 — 추세로 읽으십시오. '
+    + '⚠ <strong>매입채무는 분개장이 정산표를 다 설명하지 못합니다</strong> (미설명 △639.3, 부채 5계정). '
+    + '<strong>DPO와 CCC는 그만큼 부정확합니다.</strong> 현금·매출채권·재고는 계정 단위로 일치합니다.';
+
+  // ── 계정별 재무상태 ──
+  $('bsHead').innerHTML = 머리.join('');
+  var 코드들 = [], 봤다 = {};
+  잔.forEach(function (r) {
+    if (!봤다[r['계정코드']]) { 봤다[r['계정코드']] = r['계정명']; 코드들.push(r['계정코드']); }
+  });
+  // 움직임이 없는 계정은 접는다 — 56종을 다 세우면 읽히지 않는다
+  var 움직인 = 코드들.filter(function (c) {
+    return 잔.some(function (r) { return r['계정코드'] === c && Math.abs(Number(r['당월증감'])) >= 1; });
+  });
+  $('bsBody').innerHTML = 움직인.map(function (c) {
+    var 칸 = 달.map(function (m) {
+      var r = 잔.filter(function (x) { return x['계정코드'] === c && +x['월'] === m; })[0];
+      var v = r ? Number(r['잔액']) : null;
+      return v == null ? '<td class="num muted">—</td>'
+        : '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 백만(v) + '</td>';
+    });
+    return '<tr class="r-child"><td>' + 봤다[c] + '</td>' + 칸.join('') + '</tr>';
+  }).join('');
+  $('bsNote').innerHTML = '전기말 잔액 + 분개장 누적입니다 — <strong>' + 움직인.length + '종</strong>만 '
+    + '세웠습니다 (상반기에 움직인 계정). 산식은 MCR의 BS 시트와 같아 두 곳이 갈리지 않습니다.';
+}
+
+/* ===== 국가 × 제품 수익성 (0033) =====
+ *
+ * **제품 간 비교는 공헌이익이 아니라 매출총이익으로 한다.** 변동원가가 매출원가의 31.5%뿐이라
+ * 공헌이익률은 큐어젯 96.6% · 노즐 80.0% · 노보젯 76.9%로 전부 높게 나온다 — 그 표로는
+ * 아무것도 못 고른다. 공헌이익 열은 BEP와 축을 맞추려고 같이 낸다.
+ */
+function 공헌이익그리기() {
+  var 행 = (DB['공헌이익'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 단위 = (DB['단위원가'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 카드 = $('cm').closest('.card');
+  if (!행.length) { 카드.hidden = true; return; }
+  카드.hidden = false;
+
+  $('cmHead').innerHTML = ['제품 · 국가', '수량', '무상', '단가', '매출액', '변동원가',
+    '공헌이익', '률', '매출총이익', '률', '단위당 총이익']
+    .map(function (h) { return '<th scope="col">' + h + '</th>'; }).join('');
+
+  var 합 = function (a, k) { return a.reduce(function (s, r) { return s + Number(r[k] || 0); }, 0); };
+  // 음수는 화면 전체가 △를 쓴다 (백만()과 같은 규약) — 여기서 −를 쓰면 한 표 안에서 갈린다
+  var 원 = function (v) {
+    if (v == null) return '—';
+    var x = Math.round(v);
+    return (x < 0 ? '△' : '') + Math.abs(x).toLocaleString('ko-KR');
+  };
+  var 률 = function (a, b) {
+    if (!b) return '—';
+    var x = Math.round(a / b * 1000) / 10;
+    return (x < 0 ? '△' : '') + Math.abs(x).toFixed(1) + '%';
+  };
+  var 줄 = function (이름, rs, 급) {
+    var 수량 = 합(rs, '수량'), 매출 = 합(rs, '매출액');
+    var 변동 = 합(rs, '변동원가'), 공헌 = 합(rs, '공헌이익'), 총 = 합(rs, '매출총이익');
+    var 음 = function (v) { return v < 0 ? ' neg' : ''; };
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>'
+      + '<td class="num">' + 원(수량) + '</td>'
+      + '<td class="num muted">' + 원(합(rs, '무상수량')) + '</td>'
+      + '<td class="num">' + (수량 ? 원(매출 * 1e6 / 수량) : '—') + '</td>'
+      + '<td class="num">' + 백만(매출) + '</td>'
+      + '<td class="num">' + 백만(변동) + '</td>'
+      + '<td class="num' + 음(공헌) + '">' + 백만(공헌) + '</td>'
+      + '<td class="num' + 음(공헌) + '">' + 률(공헌, 매출) + '</td>'
+      + '<td class="num' + 음(총) + '"><strong>' + 백만(총) + '</strong></td>'
+      + '<td class="num' + 음(총) + '"><strong>' + 률(총, 매출) + '</strong></td>'
+      + '<td class="num' + 음(총) + '">' + (수량 ? 원(총 * 1e6 / 수량) : '—') + '</td></tr>';
+  };
+
+  // 제품구분 → 국가. 매출 큰 순으로 세운다
+  var 구분들 = [], 봤다 = {};
+  행.slice().sort(function (a, b) { return Number(b['매출액']) - Number(a['매출액']); })
+    .forEach(function (r) { if (!봤다[r['제품구분']]) { 봤다[r['제품구분']] = 1; 구분들.push(r['제품구분']); } });
+
+  var html = '';
+  구분들.forEach(function (g) {
+    var rs = 행.filter(function (r) { return r['제품구분'] === g; });
+    html += 줄(g, rs, 'r-total');
+    var 국가들 = [], 봄 = {};
+    rs.slice().sort(function (a, b) { return Number(b['매출액']) - Number(a['매출액']); })
+      .forEach(function (r) { if (!봄[r['국가']]) { 봄[r['국가']] = 1; 국가들.push(r['국가']); } });
+    // 매출 0인 국가(무상 출고만)는 한 줄로 접는다 — 「기타」가 20개국으로 늘어지면 읽히지 않는다.
+    // 지우지 않고 접는 이유는 그 원가가 실제로 나간 돈이고 소계와 닫혀야 하기 때문이다.
+    var 유상 = 국가들.filter(function (c) {
+      return rs.some(function (r) { return r['국가'] === c && Math.abs(Number(r['매출액'])) >= 0.05; });
+    });
+    var 무상만 = 국가들.filter(function (c) { return 유상.indexOf(c) < 0; });
+    유상.forEach(function (c) {
+      html += 줄('　' + c, rs.filter(function (r) { return r['국가'] === c; }), 'r-child');
+    });
+    if (무상만.length) {
+      html += 줄('　무상 출고만 — ' + 무상만.length + '개국',
+        rs.filter(function (r) { return 무상만.indexOf(r['국가']) >= 0; }), 'r-child');
+    }
+  });
+  $('cmBody').innerHTML = html;
+
+  // 단위원가가 달마다 움직인다 — 한 값으로 굳어 읽히지 않게 폭을 밝힌다 (0034)
+  var 표본 = 단위.slice().sort(function (a, b) { return Number(b['총수량']) - Number(a['총수량']); })
+    .slice(0, 3).map(function (r) {
+      return r['품명'] + ' ' + Number(r['단위원가']).toLocaleString('ko-KR') + '원'
+        + '(' + r['개월수'] + '개월 · 폭 ' + (Math.round(Number(r['변동폭']) * 1000) / 10).toFixed(1) + '%)';
+    }).join(' · ');
+  var 폴백 = 행.filter(function (r) { return r['원가있음'] && !r['당월원가']; }).length;
+
+  $('cmNote').innerHTML =
+    '<strong>제품 간 비교는 매출총이익으로 하십시오.</strong> 공헌이익은 변동원가(매출원가의 '
+    + '재료비 비중)만 뺀 값이라 전 제품이 70~97%로 나옵니다 — BEP와 축을 맞추려고 같이 낸 열입니다. '
+    + '원가는 <strong>재고자산수불부의 품번 × 월 「출고 – 영업」</strong>입니다. '
+    + '<strong>달마다 다릅니다</strong> — ' + (표본 ? 표본 + '. ' : '')
+    + (폴백 ? '그 달 출고가 없는 ' + 폴백 + '칸은 연간 가중평균으로 떨어집니다. ' : '')
+    + '⚠ 수불부 영업출고 누계는 분개장 매출원가와 9.6% 다릅니다 — <strong>총액 기준은 손익 탭'
+    + '(분개장)이고 여기 원가는 품번별 배분에만 씁니다.</strong> '
+    + '수량은 <strong>무상 포함 전 건</strong>입니다 — 무상으로 나간 것도 원가는 나갔습니다. '
+    + '⚠ <strong>무상의 귀속처가 아직 정해지지 않아</strong> (장비 번들인지 판촉인지) 그 나라 그 제품에 '
+    + '달아 뒀고, 그만큼 노즐 이익률이 실제보다 나쁘게 보일 수 있습니다. '
+    + '수출부대비용·수출제비용·판관비 변동비·일본향 그룹내부는 담지 않습니다 — '
+    + '⚠ 그래서 <strong>해외 이익이 약 56.2 과대</strong>합니다.';
 }
 
 function 지표그리기() {
