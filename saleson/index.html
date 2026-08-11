@@ -1075,7 +1075,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608102354';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608110037';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1254,6 +1254,18 @@ function 홈받기_() {
     DATA.plans = d.plans;
     DATA.leads = d.leads;
     if (d.leadNames && d.leadNames.length) DATA.leadNames = d.leadNames;
+    /* 타일 숫자도 갈아끼운다 (2026-08-11). 여태 계획·리드만 받아서, 기록을 써도
+       「이달 방문」과 「팀 미기록」은 앱을 다시 열기 전까지 그대로였다.
+       **덮어쓰지 않고 그 칸만 바꾼다** — 목표(target)나 팀원별 주간표(team.week)는
+       관문이 안 주는 값이라 통째로 갈면 사라진다. */
+    if (d.tiles) {
+      if (d.tiles.my && DATA.month) DATA.month.visits = d.tiles.my.visits;
+      if (d.tiles.team && DATA.team) {
+        DATA.team.plan = d.tiles.team.plan;
+        DATA.team.stale = d.tiles.team.stale;
+        DATA.team.monthVisits = d.tiles.team.monthVisits;
+      }
+    }
     renderHome(); renderLeads(); renderForm();
   }, function(e) {
     홈받는중_ = false;   // 실패해도 화면은 GAS 데이터로 이미 서 있다 — 조용히 넘어간다
