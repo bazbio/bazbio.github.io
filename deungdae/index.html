@@ -505,19 +505,6 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           2025년 채널 칸의 N-CARE 등급(제품 속성)은 직판, 기타는 CS·품질·취소·미기재입니다.</p>
       </div>
 
-      <!-- 거래처 Top 30 — 결정_회계사TDL ⑧ -->
-      <div class="card" style="margin-top:12px">
-        <h3 class="ct">거래처 Top 30<span class="u">백만원</span></h3>
-        <div class="scroll">
-          <table class="pl" id="top30">
-            <thead><tr id="top30Head"></tr></thead>
-            <tbody id="top30Body"></tbody>
-          </table>
-        </div>
-        <p class="note">선택 연도 매출 큰 순 30곳 — 무상·취소 포함 전 건 기준이라 합이 매출액과 같은 축입니다.
-          네트워크(체인) 묶음은 SalesON에 네트워크 정보가 채워지면 붙습니다.</p>
-      </div>
-
       <!-- 국가 × 제품 공헌이익 (0033) -->
       <div class="card" style="margin-top:12px">
         <h3 class="ct" id="cmTitle">국가 × 제품 수익성</h3>
@@ -537,6 +524,18 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <h3 class="ct" id="finTitle">현금과 런웨이</h3>
         <div class="tiles" id="runway"></div>
         <p class="note" id="runwayNote"></p>
+      </div>
+
+      <!-- 손익 → 현금 다리 (0037) — 「흑자인데 왜 현금이 마르나」 -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">손익에서 현금까지<span class="u">백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cf">
+            <thead><tr id="cfHead"></tr></thead>
+            <tbody id="cfBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="cfNote"></p>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -1990,7 +1989,6 @@ function 매출그리기() {
       : '');
 
   채널그리기(달);
-  거래처그리기();
   공헌이익그리기();
 }
 
@@ -2012,33 +2010,6 @@ function 채널그리기(달) {
     }).join('')
       + '<td class="num"><strong>' + 백만(계) + '</strong></td>'
       + '<td class="num muted">' + (총 ? (100 * 계 / 총).toFixed(1) + '%' : '—') + '</td></tr>';
-  }).join('');
-}
-
-/* ── 거래처 Top 30 (결정_회계사TDL ⑧) — 전년 대비까지 ──────────── */
-function 거래처그리기() {
-  var 전부 = DB['거래처'] || [];
-  var 올 = 전부.filter(function (r) { return +r['회계연도'] === 매출연도; })
-    .sort(function (a, b) { return Number(b['금액']) - Number(a['금액']); });
-  var 전년맵 = {};
-  전부.forEach(function (r) { if (+r['회계연도'] === 매출연도 - 1) 전년맵[r['거래처코드']] = Number(r['금액']); });
-  var 총 = 더(올, function (r) { return Number(r['금액']); });
-  var 위 = 올.slice(0, 30);
-
-  $('top30Head').innerHTML = '<th scope="col">순위</th><th scope="col" style="text-align:left">거래처</th>'
-    + '<th scope="col">국가</th><th scope="col">금액</th><th scope="col">비중</th>'
-    + '<th scope="col">전년</th><th scope="col">증감</th>';
-  $('top30Body').innerHTML = 위.map(function (r, i) {
-    var v = Number(r['금액']), 전 = 전년맵[r['거래처코드']];
-    var 증 = (전 == null) ? null : v - 전;
-    return '<tr><td class="num muted">' + (i + 1) + '</td>'
-      + '<td style="text-align:left;white-space:normal">' + 벗기(r['거래처']) + '</td>'
-      + '<td class="num muted">' + 벗기(r['국가'] || '—') + '</td>'
-      + '<td class="num">' + 백만(v) + '</td>'
-      + '<td class="num muted">' + (총 ? (100 * v / 총).toFixed(1) + '%' : '—') + '</td>'
-      + '<td class="num muted">' + (전 == null ? '신규' : 백만(전)) + '</td>'
-      + '<td class="num' + (증 != null && 증 < 0 ? ' neg' : '') + '">'
-      + (증 == null ? '—' : (증 >= 0 ? '+' : '') + 백만(증)) + '</td></tr>';
   }).join('');
 }
 
@@ -2514,9 +2485,15 @@ function 재무그리기() {
     + '재무활동(증자·차입)은 소진율에서 걷어냅니다 — 상반기 분개장에는 해당 계정이 '
     + '0행이라 지금은 걷어낼 것이 없습니다. <strong>본사 별도 기준이고 일본법인 현금은 없습니다.</strong>';
 
-  // ── 운전자본 ──
   var 머리 = ['<th scope="col">항목</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }));
+
+  // ── 손익 → 현금 다리 (0037) ──
+  // **이 표가 「흑자인데 왜 현금이 마르나」에 답한다.** 6월 영업손익 +683.7인데 현금은 △296.3이다.
+  // 흐름이라 누계가 성립한다 — 운전자본은 잔액(스톡)이라 누계 열을 안 붙인다.
+  현금흐름그리기(달);
+
+  // ── 운전자본 ──
   $('wcHead').innerHTML = 머리.join('');
 
   // 일수는 백만()을 못 쓰지만 음수 표기는 △로 맞춘다 — 한 표 안에서 부호가 갈리면 안 된다
@@ -2588,6 +2565,74 @@ function 재무그리기() {
   }).join('');
   $('bsNote').innerHTML = '전기말 잔액 + 분개장 누적입니다 — <strong>' + 움직인.length + '종</strong>만 '
     + '세웠습니다 (상반기에 움직인 계정). 산식은 MCR의 BS 시트와 같아 두 곳이 갈리지 않습니다.';
+}
+
+/* ── 손익 → 현금 다리 (0037, 지표 A) ─────────────────────────────
+ *
+ * **등대가 「2Q 흑자」와 「현금 45.6억 소진」을 다른 탭에서 따로 보여주고 있었다.**
+ * 둘 다 맞는 숫자인데 잇지 않아 「흑자인데 왜 현금이 마르나」에 아무도 답하지 못했다.
+ *
+ * 정식 현금흐름표가 아니다 — 실제 현금증감과의 차이를 「투자·재무·기타」로 남긴다.
+ * **억지로 맞추지 않는다.** 맞추면 그 줄이 쓰레기통이 되고 벌어질 때 아무도 못 알아챈다.
+ */
+function 현금흐름그리기(달) {
+  var cf = (DB['현금흐름'] || []).filter(function (r) { return +r['회계연도'] === 2026; })
+    .sort(function (a, b) { return +a['월'] - +b['월']; });
+  var 카드 = $('cf').closest('.card');
+  if (!cf.length) { 카드.hidden = true; return; }
+  카드.hidden = false;
+
+  $('cfHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+
+  var 값 = function (키) {
+    return 달.map(function (m) {
+      var r = cf.filter(function (x) { return +x['월'] === m; })[0];
+      return r == null || r[키] == null ? null : Number(r[키]);
+    });
+  };
+  var 줄 = function (이름, 키, 급) {
+    var v = 값(키);
+    var 누 = v.reduce(function (s, x) { return s + (x || 0); }, 0);
+    var 칸 = function (x) {
+      return x == null ? '<td class="num muted">—</td>'
+        : '<td class="num' + (x < 0 ? ' neg' : '') + '">' + 백만(x) + '</td>';
+    };
+    return '<tr class="' + (급 || '') + '"><td>' + 이름 + '</td>'
+      + v.map(칸).join('') + 칸(누) + '</tr>';
+  };
+
+  $('cfBody').innerHTML =
+    줄('영업손익', '영업손익', 'r-total') +
+    줄('　+ 상각비 (비현금)', '상각비', 'r-child') +
+    줄('　− 매출채권 증가', '매출채권증감', 'r-child') +
+    줄('　− 미수금 증가 (일본법인)', '미수금증감', 'r-child') +
+    줄('　− 재고 증가', '재고증감', 'r-child') +
+    줄('　+ 매입채무 증가', '매입채무증감', 'r-child') +
+    줄('　+ 선수금 증가', '선수금증감', 'r-child') +
+    줄('= 영업현금흐름', '영업현금흐름', 'r-op') +
+    줄('　투자 · 재무 · 기타', '투자재무기타', 'r-child') +
+    줄('= 실제 현금 증감', '실제현금증감', 'r-total');
+
+  // 마지막 달을 문장으로 — 표만 보고 「그래서 뭐」가 되지 않게
+  var 끝 = cf[cf.length - 1], n = function (k) { return Number(끝[k] || 0); };
+  var 큰것 = [['매출채권', n('매출채권증감')], ['미수금', n('미수금증감')],
+              ['재고', n('재고증감')], ['매입채무', n('매입채무증감')]]
+    .filter(function (x) { return x[1] < 0; })
+    .sort(function (a, b) { return a[1] - b[1]; }).slice(0, 2);
+
+  $('cfNote').innerHTML =
+    '<strong>' + 끝['월'] + '월: 영업손익 ' + 백만(n('영업손익'))
+    + '인데 현금은 ' + 백만(n('실제현금증감')) + '입니다.</strong> '
+    + (큰것.length ? '차이를 만든 것은 <strong>' + 큰것.map(function (x) {
+        return x[0] + ' ' + 백만(-x[1]) + ' 증가';
+      }).join('와 ') + '</strong>입니다. ' : '')
+    + '판 것이 아직 현금이 안 됐다는 뜻입니다. '
+    + '<strong>정식 현금흐름표가 아닙니다</strong> — 현금 분류 규칙이 아직 없어 '
+    + '설명 못 하는 몫을 「투자·재무·기타」로 남겼습니다. 억지로 맞추면 그 줄이 쓰레기통이 되고 '
+    + '벌어질 때 아무도 못 알아챕니다. 재고 증감은 <strong>분개장 계정</strong>이지 '
+    + '수불부가 아닙니다 — 현금 축은 분개장으로 닫습니다.';
 }
 
 /* ===== 국가 × 제품 수익성 (0033) =====
