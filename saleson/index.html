@@ -1075,7 +1075,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608110144';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608110647';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2117,9 +2117,16 @@ function renderEvt() {
           + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
           + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#b0b8c1;">-</span>')
           + (l.due ? '<div style="font-size:10.5px;color:#8b95a1;margin-top:2px;">시기 ' + esc(l.due) + '</div>' : '') + '</td>'
+          /* 미방문인데 **행사 전에** 다녀온 기록이 있으면 같이 보여 준다 (2026-08-11).
+             「행사 후 방문」은 행사일 뒤만 세는 것이 맞고 그 숫자는 안 건드린다. 다만 방문하고
+             기록까지 넣은 담당자에게 「미방문」만 보이면 「입력이 인식이 안 된다」로 읽힌다. */
           + '<td class="c">' + (l.stage === '계약' || l.achv === '달성'
             ? (l.visits > 0 ? l.visits + '회' : '-')
-            : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>')) + '</td>'
+            : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>'))
+          + (l.visits === 0 && l.pre
+            ? '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;white-space:nowrap;">행사 전 ' + l.pre.cnt + '회<br>'
+              + l.pre.days.map(function(d) { return esc(d.slice(5).replace('-', '/')); }).join(' · ') + '</div>'
+            : '') + '</td>'
           + '<td class="c">' + (l.target ? (done ? '<span class="badge deal" style="margin-left:0;">달성</span>' : '<span class="badge tgt" style="margin-left:0;">진행 중</span>') : '-') + '</td>'
           + (admin ? '<td class="c"><button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="EVTEDIT=' + l.k + ';renderEvt()">수정</button></td>' : '')
           + '</tr>';
