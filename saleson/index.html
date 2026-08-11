@@ -152,7 +152,7 @@
      나머지 5개는 더보기 화면 안으로. PC는 사이드바라 9개를 그대로 펼친다. */
   #nav-more { display:none; }
   @media (max-width: 899px) {
-    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta { display:none; }
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-ncare { display:none; }
     #nav-more { display:block; }
   }
   /* 더보기 화면 메뉴 */
@@ -654,6 +654,7 @@
       <tr><td style="white-space:nowrap;"><b>학회/세미나</b></td><td>행사별 참석자·달성 현황, 내 모객 등록</td></tr>
       <tr><td><b>흐름</b></td><td>월별 영업 퍼널 (리드→제안→계약→입금)</td></tr>
       <tr><td><b>KPI</b></td><td>내 목표 대비 달성률, 목표 시기 임박 리드</td></tr>
+      <tr><td><b>N-Care</b></td><td>Pool 병원별 진행 단계(제팅교육→가입→업그레이드) 관리 · 우선 방문 후보</td></tr>
       <tr><td><b>현황</b></td><td>이번 주 팀 활동 모니터링</td></tr>
       </tbody>
     </table>
@@ -712,6 +713,19 @@
     <button class="refresh" onclick="KPIT=null;loadKpiTab()">새로고침</button>
   </div>
   <div id="kpiBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
+<!-- N-Care — Pool 단계별 진행현황 (ADR 0021). 원천은 DB(ncare_pool), 시트가 없다 -->
+<div class="view" id="view-ncare"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;color:#4e5968;">N-Care Pool — 병원별 진행 단계 관리</span>
+    <div style="display:flex;gap:8px;">
+      <button class="refresh" onclick="ncAddOpen()">+ 병원 추가</button>
+      <button class="refresh" onclick="NCARE=null;loadNcare()">새로고침</button>
+    </div>
+  </div>
+  <div class="seg scrollx" id="ncSeg"></div>
+  <div id="ncBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
 
 <!-- 흐름 — 월별 영업 퍼널 -->
@@ -807,6 +821,11 @@
       <div class="mb2"><div class="mn">KPI</div><div class="ms2">목표 · 달성 관리</div></div>
       <div class="mc">›</div>
     </div>
+    <div class="mrow" id="more-ncare" onclick="show('ncare')">
+      <div class="mi" style="background:#0f9d76;">N</div>
+      <div class="mb2"><div class="mn">N-Care</div><div class="ms2">Pool 단계별 진행현황</div></div>
+      <div class="mc">›</div>
+    </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
       <div class="mi" style="background:#6b7684;">?</div>
       <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
@@ -827,6 +846,7 @@
   <button id="nav-mat" onclick="show('mat')">자료</button>
   <button id="nav-evt" onclick="show('evt')">학회<span class="pconly">/세미나</span></button>
   <button id="nav-kpi" onclick="show('kpi')">KPI</button>
+  <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
   <button id="nav-more" onclick="show('more')">더보기</button>
 </div>
 
@@ -898,6 +918,9 @@ var MINESEG = '방문기록';
 var EDITKEY = '';       // 빈 값이면 새 기록, 아니면 그 열쇠(열쇠_)의 기록을 수정 중
 var METAQ = null;       // Meta DB 탭 데이터
 var METASEG = '전체';
+var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
+var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
+var NCST = 0;           // 단계 필터 (0 = 전체)
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
 var MATSEG = '전체';
 var LEADSEG = 'open';
@@ -1075,7 +1098,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608110647';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608112307';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1305,7 +1328,7 @@ function onData(d) {
   // Meta DB는 개인 연락처가 있어 조회 전용에게 숨기지만, C-Labs는 그 확인이 업무라 연다
   var mm = document.getElementById('more-meta');
   if (mm) mm.style.display = (vw && !cl) ? 'none' : '';
-  ['nav-dash', 'nav-flow', 'more-kpi'].forEach(function(id) {
+  ['nav-dash', 'nav-flow', 'more-kpi', 'nav-ncare', 'more-ncare'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && cl) el.style.display = 'none';
   });
@@ -1318,6 +1341,7 @@ function onData(d) {
 function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
+  NCARE = null; NCSEG = null; NCST = 0;
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
   document.getElementById('liName').value = '';
   document.getElementById('liPin').value = '';
@@ -1388,9 +1412,9 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'ncare'];
 function show(v) {
-  ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta'].forEach(function(k) {
+  ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'].forEach(function(k) {
     document.getElementById('view-' + k).classList.toggle('on', k === v);
     var nb = document.getElementById('nav-' + k);
     if (nb) nb.classList.toggle('on', k === v);
@@ -1412,6 +1436,7 @@ function show(v) {
   if (v === 'kpi') { KPIT ? renderKpiTab() : loadKpiTab(); }
   if (v === 'mine') { MINE ? renderMine() : loadMine(); }
   if (v === 'meta') { METAQ ? renderMeta() : loadMeta(); }
+  if (v === 'ncare') { NCARE ? renderNcare() : loadNcare(); }
   if (v === 'flow') {
     if (FLOW) { document.getElementById('fMonth').value = FLOW.ym; renderFlow(); }
     else loadFlow('');
@@ -1426,6 +1451,8 @@ function prefetch() {
   if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
   if (!KPIT) gsrun().withSuccessHandler(function(d) { KPIT = d; }).웹_KPI현황(TOKEN);
   if (!MATL) gsrun().withSuccessHandler(function(d) { MATL = d; }).웹_영업자료목록(TOKEN);
+  if (!NCARE) 관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '목록' }))
+    .then(function(d) { NCARE = d; }, function() {});
 }
 function openEvtReg() {
   show('plan');
@@ -2554,7 +2581,7 @@ function saveLog() {
       busy(false); document.getElementById('fSave').disabled = false;
       var 고친열쇠 = EDITKEY;
       EDITKEY = ''; resetForm(); editMode(false); 임시저장지우기_();
-      DASH = null; FLOW = null; KPIT = null;
+      DASH = null; FLOW = null; KPIT = null; NCARE = null;
       내입력_GAS만 = !DATA.dbSrc;   // 저장끝과 같은 이유 — GAS로 썼으면 관문 거울에 아직 없다
       // 쓰기 응답이 **갱신된 한 건**을 실어 온다 — 그 자리만 갈아끼운다. 예전에는 목록을
       // 통째로 받았고, 그걸 만드느라 서버가 시트를 850행 다시 읽었다
@@ -2613,7 +2640,7 @@ function saveLog() {
     쓴적_ = true;
     if (DATA.dbSrc) 홈받기_();
     resetForm(); 임시저장지우기_();
-    DASH = null; FLOW = null; KPIT = null;
+    DASH = null; FLOW = null; KPIT = null; NCARE = null;
     /* 저장 뒤 **「내 입력」으로 보낸다.** 예전에는 홈으로 갔는데 홈에는 방문기록이 없어서,
        방금 쓴 것이 어디에도 안 보였다 — 그것만으로 「저장이 안 됐다」고 느낀다.
        영업팀 피드백 조사(8/3)에서 나온 세 후보 중 하나다. MINE을 비워 새로 받게 한다. */
@@ -3331,7 +3358,7 @@ function deleteLog(열쇠) {
     busy(false);
     // 목록에서 그 카드만 걷어낸다 — 목록을 다시 부르면 왕복이 하나 는다
     MINE.logs = (MINE.logs || []).filter(function(x) { return 열쇠_(x) !== 열쇠; });
-    DASH = null; FLOW = null; KPIT = null;
+    DASH = null; FLOW = null; KPIT = null; NCARE = null;
     renderMine();
     toast(r.msg || '지웠습니다.');
   }), function(e) {
@@ -3648,13 +3675,280 @@ function leadStage(row, stage) {
   busy(true);
   if (DATA.dbSrc && cur && cur.no) {
     관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '단계변경', no: cur.no, stage: stage }))
-      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); DASH = null; FLOW = null; 홈받기_(); }),
+      .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); DASH = null; FLOW = null; NCARE = null; 홈받기_(); }),
       function(e) { busy(false); toast(e.message, true); });
     return;
   }
   gsrun().withSuccessHandler(function(d) { onData(d); toast('단계를 \'' + stage + '\'(으)로 변경했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_리드단계변경(TOKEN, 키_(row).row, stage, 키_(row).no);
+}
+
+/* ══ N-Care Pool — 단계별 진행현황 (ADR 0021) ══
+   원천은 DB(ncare_pool)라 GAS 폴백이 없다 — 이 탭만은 dbSrc 분기 없이 관문만 부른다.
+   단계 ≥ 5 ⟺ 「N-Care 가입」 파생 — 관문이 DB 거래처를 맞추고, 02 시트는 아래
+   뒷걸음(웹_엔케어가입갱신)이 맞춘다. 실패해도 조용히 — 다음 전환 때 다시 시도된다. */
+var NC_STAGES = [
+  { n: 1, name: '제팅교육', cond: '완료 조건: 원장·간호사가 100샷 이내 제팅을 잡을 수 있다' },
+  { n: 2, name: '핸들링·이벤트 교육', cond: '원장 핸들링 / 실장 이벤트 교육' },
+  { n: 3, name: '교육 완료', cond: '완료 조건: 주 10회 시술 케이스 → 노즐 소모' },
+  { n: 4, name: '사용 안정화', cond: '인디케이션 확립 · 완료 조건: 2개월 내 첫 발주' },
+  { n: 5, name: 'N-Care 가입', cond: '가입 계약 체결 — 이 단계부터 거래처 「N-Care 가입」이 예가 됩니다' },
+  { n: 6, name: '확장', cond: '다양한 적응증 도입' },
+  { n: 7, name: '업그레이드', cond: 'N-Care 등급 상향 (BASIC → STANDARD → PRO → PREMIUM)' }];
+var NC_COLOR = { 1: '#6b7684', 2: '#3182f6', 3: '#1b64da', 4: '#fe9800', 5: '#03b26c', 6: '#058652', 7: '#7C3AED' };
+var NC_GCOLOR = { A: ['#d0223a', '#fdeef0'], B: ['#fe9800', '#fff4e2'], C: ['#4e5968', '#f2f4f6'], D: ['#8b95a1', '#f9fafb'] };
+function ncStageName(n) { var s = NC_STAGES[n - 1]; return s ? s.name : String(n); }
+function ncGradeBadge(g) {
+  if (!g) return '<span style="color:#b0b8c1;">—</span>';
+  var c = NC_GCOLOR[g] || NC_GCOLOR.C;
+  return '<span style="display:inline-block;min-width:20px;text-align:center;padding:1px 6px;border-radius:6px;font-weight:700;font-size:12px;color:' + c[0] + ';background:' + c[1] + ';">' + g + '</span>';
+}
+function ncStageBadge(n) {
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:' + (NC_COLOR[n] || '#6b7684') + ';">' + n + ' ' + esc(ncStageName(n)) + '</span>';
+}
+
+function loadNcare() {
+  busy(true);
+  관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '목록' }))
+    .then(화면갱신감싸기_(function(d) { NCARE = d; busy(false); renderNcare(); },
+      '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
+    function(e) {
+      busy(false);
+      document.getElementById('ncBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    });
+}
+
+function ncRow_(id) { return (NCARE.pool || []).filter(function(x) { return x.id === id; })[0]; }
+function ncRowSet_(p) {
+  if (!p) return;
+  var arr = NCARE.pool || [];
+  for (var i = 0; i < arr.length; i++) if (arr[i].id === p.id) { arr[i] = p; return; }
+  arr.push(p);
+}
+
+function renderNcare() {
+  var d = NCARE;
+  // 담당자 필터 — 처음이면 내 병원이 있는 사람은 내 것부터, 아니면 전체
+  var repNames = [];
+  (d.pool || []).forEach(function(p) { if (p.rep && repNames.indexOf(p.rep) < 0) repNames.push(p.rep); });
+  repNames.sort();
+  var 미지정 = (d.pool || []).some(function(p) { return !p.rep; });
+  if (NCSEG === null) NCSEG = repNames.indexOf(d.me.name) >= 0 ? d.me.name : '전체';
+  var segs = ['전체'].concat(repNames).concat(미지정 ? ['미지정'] : []);
+  document.getElementById('ncSeg').innerHTML = segs.map(function(s) {
+    return '<div class="chip' + (s === NCSEG ? ' on' : '') + '" onclick="NCSEG=\'' + s + '\';renderNcare()">' + esc(s) + '</div>';
+  }).join('');
+
+  var mine = (d.pool || []).filter(function(p) {
+    return NCSEG === '전체' || (NCSEG === '미지정' ? !p.rep : p.rep === NCSEG);
+  });
+
+  var h = '';
+  // 단계 분포 — 타일을 누르면 그 단계만 본다
+  var cnt = {};
+  mine.forEach(function(p) { cnt[p.stage] = (cnt[p.stage] || 0) + 1; });
+  h += '<div class="card" style="padding:14px;"><div style="display:flex;gap:6px;overflow-x:auto;">'
+    + NC_STAGES.map(function(s) {
+        var on = NCST === s.n;
+        return '<div onclick="NCST=NCST===' + s.n + '?0:' + s.n + ';renderNcare()" style="flex:1;min-width:64px;text-align:center;padding:10px 4px;border-radius:12px;cursor:pointer;border:1.5px solid ' + (on ? NC_COLOR[s.n] : '#f2f4f6') + ';background:' + (on ? '#fff' : '#f9fafb') + ';">'
+          + '<div style="font-size:20px;font-weight:700;color:' + NC_COLOR[s.n] + ';">' + (cnt[s.n] || 0) + '</div>'
+          + '<div style="margin-top:2px;font-size:11px;color:#6b7684;white-space:nowrap;">' + s.n + '. ' + esc(s.name) + '</div></div>';
+      }).join('')
+    + '</div>'
+    + '<div style="margin-top:10px;font-size:12px;color:#8b95a1;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳 · 단계 타일을 누르면 그 단계만 봅니다</div>'
+    + '</div>';
+
+  // 이번 주 우선 방문 후보 — 소모 많은데(A·B) 아직 미가입(단계 < 5)
+  var pri = mine.filter(function(p) { return p.stage < 5 && (p.grade === 'A' || p.grade === 'B'); })
+    .sort(function(a, b) { return (a.grade < b.grade ? -1 : a.grade > b.grade ? 1 : b.stage - a.stage); });
+  if (pri.length && !NCST) {
+    h += kick('우선 방문 후보 — 노즐 소모 많은데 미가입 (' + pri.length + '곳)');
+    h += '<div class="card" style="padding:8px 14px;"><table class="dt"><tbody>'
+      + pri.slice(0, 8).map(function(p) {
+          return '<tr style="cursor:pointer;" onclick="ncOpen(' + p.id + ')"><td style="width:30px;">' + ncGradeBadge(p.grade) + '</td>'
+            + '<td><b>' + esc(p.hname) + '</b><span style="margin-left:6px;font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span></td>'
+            + '<td style="text-align:right;white-space:nowrap;">' + ncStageBadge(p.stage) + '</td></tr>';
+        }).join('')
+      + '</tbody></table>'
+      + (pri.length > 8 ? '<div style="margin-top:6px;font-size:12px;color:#8b95a1;">외 ' + (pri.length - 8) + '곳 — 아래 목록에서 보세요</div>' : '')
+      + '</div>';
+  }
+
+  // 목록
+  var rows = mine.filter(function(p) { return !NCST || p.stage === NCST; })
+    .sort(function(a, b) {
+      if (a.stage !== b.stage) return a.stage - b.stage;
+      var ga = a.grade || 'Z', gb = b.grade || 'Z';
+      if (ga !== gb) return ga < gb ? -1 : 1;
+      return a.hname < b.hname ? -1 : 1;
+    });
+  h += kick((NCSEG === '전체' ? '전체' : NCSEG) + (NCST ? ' · ' + NCST + '단계' : '') + ' ' + rows.length + '곳');
+  h += rows.length
+    ? '<div class="card" style="padding:8px 14px;"><table class="dt"><tbody>'
+      + rows.map(function(p) {
+          return '<tr style="cursor:pointer;" onclick="ncOpen(' + p.id + ')">'
+            + '<td style="width:30px;">' + ncGradeBadge(p.grade) + '</td>'
+            + '<td><b>' + esc(p.hname) + '</b><span style="margin-left:6px;font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span>'
+            + (NCSEG === '전체' || NCSEG === '미지정' ? '<div style="font-size:12px;color:#8b95a1;">' + esc(p.rep || '담당 미지정') + '</div>' : '')
+            + '</td>'
+            + '<td style="text-align:right;white-space:nowrap;">' + ncStageBadge(p.stage) + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>'
+    : '<div class="card empty">해당하는 병원이 없습니다</div>';
+
+  document.getElementById('ncBody').innerHTML = h;
+}
+
+/* 병원 상세 — 단계 전환·등급·담당·이력·계획 잡기 (hospModal 재사용) */
+function ncOpen(id) {
+  var p = ncRow_(id);
+  if (!p) return;
+  var me = NCARE.me;
+  // 수정 권한: 케어 담당 본인 + 관리자. 담당이 비어 있으면 지정만 누구나 (ADR 0021 §8)
+  var canEdit = !me.viewer && (me.admin || p.rep === me.name);
+  var canAssign = !me.viewer && (me.admin || p.rep === me.name || !p.rep);
+  var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div><div style="font-size:17px;font-weight:700;color:#191f28;">' + esc(p.hname) + '</div>'
+    + '<div style="margin-top:4px;font-size:13px;color:#6b7684;">' + esc(p.region || '') + (p.code ? ' · ' + esc(p.code) : ' · 거래처 미연결') + ' · 노즐 ' + ncGradeBadge(p.grade) + '</div></div>'
+    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+  if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
+
+  h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">진행 단계</div>';
+  h += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">'
+    + NC_STAGES.map(function(s) {
+        var cur = p.stage === s.n;
+        return '<div ' + (canEdit && !cur ? 'onclick="ncStage(' + p.id + ',' + s.n + ')" style="cursor:pointer;"' : 'style="cursor:default;"') + '>'
+          + '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;border:1.5px solid ' + (cur ? NC_COLOR[s.n] : '#f2f4f6') + ';background:' + (cur ? '#fff' : '#fbfcfd') + ';">'
+          + '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:' + (cur ? NC_COLOR[s.n] : '#d5dae0') + ';">' + s.n + '</span>'
+          + '<span style="flex:1;"><span style="font-size:14px;font-weight:' + (cur ? 700 : 600) + ';color:' + (cur ? '#191f28' : '#6b7684') + ';">' + esc(s.name) + '</span>'
+          + '<span style="display:block;margin-top:1px;font-size:11.5px;color:#8b95a1;">' + esc(s.cond) + '</span></span>'
+          + (cur ? '<span style="font-size:11.5px;font-weight:700;color:' + NC_COLOR[s.n] + ';">현재</span>' : '')
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+  if (!canEdit) {
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">'
+      + (me.viewer ? '조회 전용 계정은 보기만 할 수 있습니다'
+        : p.rep ? '단계는 케어 담당(' + esc(p.rep) + ')과 관리자만 바꿀 수 있습니다' : '담당을 먼저 지정하면 단계를 바꿀 수 있습니다')
+      + '</div>';
+  } else {
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">단계를 누르면 그 단계로 옮깁니다 (뒤로도 이동 가능 — 이력이 남습니다)</div>';
+  }
+
+  h += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+  if (canAssign) {
+    h += '<select id="ncRep" style="flex:1;min-width:120px;margin:0;">'
+      + '<option value="">담당 선택…</option>'
+      + (NCARE.reps || []).map(function(r) {
+          return '<option value="' + esc(r.name) + '"' + (r.name === p.rep ? ' selected' : '') + '>' + esc(r.name) + (r.team ? ' (' + esc(r.team) + ')' : '') + '</option>';
+        }).join('')
+      + '</select>'
+      + '<button class="btn" onclick="ncAssign(' + p.id + ')">담당 지정</button>';
+  }
+  if (canEdit) {
+    h += '<select id="ncGrade" style="width:110px;margin:0;">'
+      + ['', 'A', 'B', 'C', 'D'].map(function(g) {
+          return '<option value="' + g + '"' + (g === (p.grade || '') ? ' selected' : '') + '>' + (g ? '노즐 ' + g : '노즐 없음') + '</option>';
+        }).join('')
+      + '</select>'
+      + '<button class="btn" onclick="ncGradeSave(' + p.id + ')">등급 저장</button>';
+  }
+  if (!me.viewer) h += '<button class="btn pri" onclick="ncPlan(' + p.id + ')">방문 계획 잡기</button>';
+  h += '</div>';
+
+  h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">전환 이력</div>'
+    + '<div id="ncHist" style="margin-top:6px;font-size:12.5px;color:#6b7684;">불러오는 중…</div>';
+
+  document.getElementById('hospModalBody').innerHTML = h;
+  document.getElementById('hospModal').style.display = 'flex';
+  관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '이력', id: p.id }))
+    .then(화면갱신감싸기_(function(r) {
+      var el = document.getElementById('ncHist');
+      if (!el) return;
+      el.innerHTML = (r.logs || []).length
+        ? r.logs.map(function(g) {
+            return '<div style="padding:3px 0;">' + esc(g.on) + ' · ' + (g.from ? g.from + '단계 → ' : '편입 → ') + g.to + '단계'
+              + ' <span style="color:#8b95a1;">(' + esc(g.by) + ')</span></div>';
+          }).join('')
+        : '이력이 없습니다';
+    }), function() {
+      var el = document.getElementById('ncHist');
+      if (el) el.textContent = '이력을 불러오지 못했습니다';
+    });
+}
+
+function ncAct_(몸통, 끝) {
+  busy(true, '저장 중…');
+  관문호출_('/saleson-ncare', JSON.stringify(몸통))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false); toast(r.msg);
+      ncRowSet_(r.pool);
+      /* 파생 뒷걸음 — 5 경계를 넘었고 거래처가 연결돼 있으면 02 시트도 맞춘다.
+         실패해도 조용히 — DB(거래처·Pool)는 관문이 이미 맞췄고, 시트는 다음 전환 때 재시도 */
+      if (r.jChanged && r.code) {
+        try { gsrun().withSuccessHandler(function() {}).withFailureHandler(function() {}).웹_엔케어가입갱신(TOKEN, r.code, r.joined); } catch (e) {}
+      }
+      renderNcare();
+      if (끝) 끝(r);
+    }), function(e) { busy(false); toast(e.message, true); });
+}
+
+function ncStage(id, n) {
+  ncAct_({ 토큰: TOKEN, 동작: '단계변경', id: id, stage: n }, function() { ncOpen(id); });
+}
+function ncAssign(id) {
+  var v = document.getElementById('ncRep').value;
+  if (!v) { toast('담당자를 선택해 주세요', true); return; }
+  ncAct_({ 토큰: TOKEN, 동작: '담당지정', id: id, rep: v }, function() { ncOpen(id); });
+}
+function ncGradeSave(id) {
+  ncAct_({ 토큰: TOKEN, 동작: '등급변경', id: id, grade: document.getElementById('ncGrade').value }, function() { ncOpen(id); });
+}
+
+/* 방문 계획 잡기 — 계획 폼에 병원명을 채워 넘긴다 (metaPlan과 같은 동선, 승격 연결만 없다) */
+function ncPlan(id) {
+  var p = ncRow_(id);
+  if (!p) return;
+  document.getElementById('hospModal').style.display = 'none';
+  show('plan');
+  document.getElementById('pHosp').value = p.hname;
+  checkNewHosp();
+  toast('병원명을 채웠습니다. 방문 예정일과 목적을 넣고 저장하세요');
+}
+
+/* 수동 추가 — 자동 편입(장비 계약)이 못 잡는 딜러·과거 판매처를 손으로 넣는다 */
+function ncAddOpen() {
+  if (!NCARE) { toast('목록을 먼저 불러오는 중입니다', true); loadNcare(); return; }
+  if (NCARE.me.viewer) { toast('조회 전용 계정은 추가할 수 없습니다', true); return; }
+  var h = '<div style="font-size:16px;font-weight:700;color:#191f28;">Pool에 병원 추가</div>'
+    + '<div style="margin-top:4px;font-size:12.5px;color:#8b95a1;">장비 계약이 기록되면 자동으로 들어옵니다 — 여기는 딜러·과거 판매처용입니다. 1단계(제팅교육)로 들어갑니다</div>'
+    + '<label class="f">병원명 *</label><input type="text" id="ncAddName" placeholder="예: 홍길동피부과의원">'
+    + '<label class="f">케어 담당</label><select id="ncAddRep"><option value="">나중에 지정</option>'
+    + (NCARE.reps || []).map(function(r) {
+        return '<option value="' + esc(r.name) + '"' + (r.name === NCARE.me.name ? ' selected' : '') + '>' + esc(r.name) + '</option>';
+      }).join('')
+    + '</select>'
+    + '<label class="f">노즐 등급</label><select id="ncAddGrade"><option value="">모름</option><option>A</option><option>B</option><option>C</option><option>D</option></select>'
+    + '<label class="f">지역</label><input type="text" id="ncAddRegion" placeholder="예: 서울">'
+    + '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button class="btn" style="flex:1;" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">취소</button>'
+    + '<button class="btn pri" style="flex:1;" onclick="ncAddSave()">추가</button></div>';
+  document.getElementById('hospModalBody').innerHTML = h;
+  document.getElementById('hospModal').style.display = 'flex';
+}
+function ncAddSave() {
+  var name = document.getElementById('ncAddName').value.trim();
+  if (!name) { toast('병원명을 입력해 주세요', true); return; }
+  ncAct_({ 토큰: TOKEN, 동작: '추가', f: {
+    hname: name,
+    rep: document.getElementById('ncAddRep').value,
+    grade: document.getElementById('ncAddGrade').value,
+    region: document.getElementById('ncAddRegion').value.trim(),
+  } }, function(r) {
+    document.getElementById('hospModal').style.display = 'none';
+    if (r.pool) ncOpen(r.pool.id);
+  });
 }
 
 /* ── 영업자료 탭 (MA·C-Labs 공식 자료) ── */
