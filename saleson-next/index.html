@@ -1075,7 +1075,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608110124';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608110144';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1407,7 +1407,8 @@ function show(v) {
   if (v === 'home' && DATA && DATA.plans) renderHome();
   if (v === 'mat') { MATL ? renderMat() : loadMat(); }
   if (v === 'dash') { DASH ? renderDash() : loadDash(); }
-  if (v === 'evt') { EVT ? renderEvt() : loadEvt(); }
+  // 행사는 여럿이 같이 넣는 탭이다 — 그려 둔 것을 먼저 보이고 뒤에서 다시 받는다
+  if (v === 'evt') { if (EVT) { renderEvt(); loadEvt(true); } else loadEvt(); }
   if (v === 'kpi') { KPIT ? renderKpiTab() : loadKpiTab(); }
   if (v === 'mine') { MINE ? renderMine() : loadMine(); }
   if (v === 'meta') { METAQ ? renderMeta() : loadMeta(); }
@@ -1979,8 +1980,12 @@ function evtEditSave(row) {
     busy(false); toast(e.message, true);
   }).웹_리드정보수정(TOKEN, 키_(row).row, f, 키_(row).no);
 }
-function loadEvt() {
-  busy(true);
+/* @param 조용히 이미 그려 둔 것이 있을 때의 뒤따라 받기 — 덮개도 오류 카드도 안 띄운다.
+   모객은 **여럿이 같이 넣는다.** 캐시가 있으면 다시 안 받던 탓에 남이 등록한 참석자는
+   앱을 다시 열기 전까지 안 보였고, 안 보이니 이름을 바꿔 또 등록했다
+   (`레픽의원`·`레픽의원2`가 같은 행사에 이틀 연속 들어와 있다). 관문이라 0.3초다. */
+function loadEvt(조용히) {
+  if (!조용히) busy(true);
   var 끝 = function(d) {
     // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙)
     (d.events || []).forEach(function(ev) {
@@ -1990,6 +1995,7 @@ function loadEvt() {
   };
   var 실패 = function(e) {
     busy(false);
+    if (조용히) { console.warn('[행사 뒤따라 받기]', (e && e.message) || e); return; }
     document.getElementById('evtBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
   };
   if (DATA.dbSrc) {
@@ -2098,7 +2104,15 @@ function renderEvt() {
           return;
         }
         var done = l.achv === '달성';
-        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l.contact) + '</span>' : '') + '</td>'
+        /* 이름만 다른 방문이 있으면 알린다 (2026-08-11). 「행사 후 방문」은 병원명이 글자까지
+           같아야 붙어서, 표기가 다르면 방문하고도 미방문으로 남았다 —
+           「세미나 끝나고 방문했는데 반영되는 건과 안 되는 건이 있다」가 이것이다.
+           자동으로 안 붙인다: 다른 병원을 잘못 붙이면 숫자가 조용히 틀리고 확인할 길이 없다. */
+        var near = l.near
+          ? '<div style="font-size:11px;color:#c2410c;margin-top:3px;">「' + esc(l.near.name)
+            + '」 이름으로 방문 ' + l.near.cnt + '회 — 같은 병원이면 이름을 맞춰 주세요</div>'
+          : '';
+        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
           + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
           + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
           + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#b0b8c1;">-</span>')
