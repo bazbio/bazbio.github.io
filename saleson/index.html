@@ -838,6 +838,7 @@
 <div class="nav">
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
   <button id="nav-dash" onclick="show('dash')">현황</button>
+  <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
   <button id="nav-log" onclick="show('log')">기록</button>
@@ -847,7 +848,6 @@
   <button id="nav-mat" onclick="show('mat')">자료</button>
   <button id="nav-evt" onclick="show('evt')">학회<span class="pconly">/세미나</span></button>
   <button id="nav-kpi" onclick="show('kpi')">KPI</button>
-  <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
   <button id="nav-more" onclick="show('more')">더보기</button>
 </div>
 
@@ -1100,7 +1100,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608112336';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608112348';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
