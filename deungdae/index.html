@@ -573,6 +573,19 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="wcNote"></p>
       </div>
 
+      <!-- 매출채권 연령·거래처별 미회수 (0038, 지표 D) -->
+      <div class="card" id="arCard" style="margin-top:12px" hidden>
+        <h3 class="ct">매출채권 — 누가 얼마나 오래<span class="u">백만원 · 경과일</span></h3>
+        <div id="arBuckets" class="tiles" style="margin-bottom:10px"></div>
+        <div class="scroll">
+          <table class="pl" id="ar">
+            <thead><tr id="arHead"></tr></thead>
+            <tbody id="arBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="arNote"></p>
+      </div>
+
       <div class="card" style="margin-top:12px">
         <h3 class="ct">재무상태 — 계정별<span class="u">백만원</span></h3>
         <div class="scroll">
@@ -2698,6 +2711,8 @@ function 재무그리기() {
     + '⚠ <strong>매입채무는 분개장이 정산표를 다 설명하지 못합니다</strong> (미설명 △639.3, 부채 5계정). '
     + '<strong>DPO와 CCC는 그만큼 부정확합니다.</strong> 현금·매출채권·재고는 계정 단위로 일치합니다.';
 
+  채권연령그리기();
+
   // ── 계정별 재무상태 ──
   $('bsHead').innerHTML = 머리.join('');
   var 코드들 = [], 봤다 = {};
@@ -2719,6 +2734,66 @@ function 재무그리기() {
   }).join('');
   $('bsNote').innerHTML = '전기말 잔액 + 분개장 누적입니다 — <strong>' + 움직인.length + '종</strong>만 '
     + '세웠습니다 (상반기에 움직인 계정). 산식은 MCR의 BS 시트와 같아 두 곳이 갈리지 않습니다.';
+}
+
+/* ── 매출채권 연령·거래처별 미회수 (0038, 지표 D) ────────────────
+ *
+ * DSO는 「평균 며칠 걸리나」를 말하지만 **누가 얼마나 오래 안 갚고 있는지는 말하지 않는다.**
+ * 상반기 현금 유출의 두 번째가 매출채권 △755.3이고 6월 한 달에만 △1,035.7이다.
+ *
+ * ⚠ **당해 발생분만이다.** 전기말 이월분은 기초잔액에 거래처가 없어 못 가른다.
+ */
+function 채권연령그리기() {
+  var ar = (DB['채권연령'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  if (!ar.length) { $('arCard').hidden = true; return; }
+  $('arCard').hidden = false;
+
+  // ── 구간 요약 타일 ──
+  var 순서 = ['30일 이내', '31~60일', '61~90일', '90일 초과'];
+  var 급 = { '30일 이내': 'green', '31~60일': '', '61~90일': 'amber', '90일 초과': 'red' };
+  var 총 = ar.reduce(function (s, r) { return s + Number(r['미회수']); }, 0);
+  $('arBuckets').innerHTML = 순서.map(function (g) {
+    var rs = ar.filter(function (r) { return r['구간'] === g; });
+    var v = rs.reduce(function (s, r) { return s + Number(r['미회수']); }, 0);
+    return '<div class="tile ' + 급[g] + '"><div class="k">' + g + '</div>'
+      + '<div class="v">' + 백만(v) + '<span class="u">백만</span></div>'
+      + '<div class="d">' + rs.length + '곳 · 비중 '
+      + (총 ? (100 * v / 총).toFixed(1) : '0.0') + '%</div></div>';
+  }).join('');
+
+  // ── 미회수 상위 ──
+  var 위 = ar.slice().sort(function (a, b) { return Number(b['미회수']) - Number(a['미회수']); })
+    .slice(0, 15);
+  $('arHead').innerHTML = ['순위', '거래처', '건수', '발생', '회수', '미회수', '경과일', '구간']
+    .map(function (h, i) {
+      return '<th scope="col"' + (i === 1 ? ' style="text-align:left"' : '') + '>' + h + '</th>';
+    }).join('');
+
+  $('arBody').innerHTML = 위.map(function (r, i) {
+    var 경 = r['경과일'] == null ? null : Number(r['경과일']);
+    var 늦음 = 경 != null && 경 > 60;
+    return '<tr class="r-child"><td class="num muted">' + (i + 1) + '</td>'
+      + '<td style="text-align:left;white-space:normal">' + 벗기(r['거래처']) + '</td>'
+      + '<td class="num muted">' + r['건수'] + '</td>'
+      + '<td class="num muted">' + 백만(Number(r['발생'])) + '</td>'
+      + '<td class="num muted">' + 백만(Number(r['회수'])) + '</td>'
+      + '<td class="num"><strong>' + 백만(Number(r['미회수'])) + '</strong></td>'
+      + '<td class="num' + (늦음 ? ' neg' : '') + '">' + (경 == null ? '—' : 경 + '일') + '</td>'
+      + '<td class="num' + (늦음 ? ' neg' : ' muted') + '">' + r['구간'] + '</td></tr>';
+  }).join('');
+
+  var 묵은 = ar.filter(function (r) { return Number(r['경과일'] || 0) > 60; })
+    .reduce(function (s, r) { return s + Number(r['미회수']); }, 0);
+
+  $('arNote').innerHTML =
+    '<strong>당해 발생분만입니다.</strong> 전기말 이월분(외상매출금 기초 1,014.6)은 '
+    + '기초잔액에 거래처가 없어 못 가릅니다 — 6월 잔액의 상당 부분이 그 몫이라 '
+    + '<strong>이 표의 합은 매출채권 잔액보다 작습니다.</strong> '
+    + '경과일은 <strong>가장 최근 발생 건 기준</strong>이라 한 거래처가 여러 건을 갖고 있으면 '
+    + '실제보다 짧게 나옵니다 — 보수적이지 않은 근사입니다. '
+    + '회수를 어느 발생 건에 대응시킬지(FIFO)는 정하지 않았습니다. 규칙을 세우면 그것이 또 하나의 '
+    + '「우리가 만든 숫자」가 되고, 전기말 몫을 모르는 상태에서는 결과가 가정에 끌려갑니다. '
+    + '<strong>60일 넘은 미회수는 ' + 백만(묵은) + '입니다.</strong>';
 }
 
 /* ── 손익 → 현금 다리 (0037, 지표 A) ─────────────────────────────
