@@ -1644,8 +1644,20 @@ function 판정칸갱신(결과) {
 }
 
 // ─── 예산마스터 ───
+/* 부서로 묶고 그 안에서 코드 순 (2026-08-11). 종전에는 시트 순서를 그대로 그려서,
+   v20·v25~v27이 뒤에 덧붙인 코드들이 부서와 무관하게 표 끝에 몰려 있었다 —
+   자기 부서 항목을 보려면 표를 두 군데서 읽어야 했다.
+   부서 순서는 대시보드(CODED_DEPTS)와 맞춘다. 두 화면이 다른 순서면 눈이 다시 헤맨다.
+   코드는 전부 3자리 0채움(MGT-080·MGT-236)이라 문자열 비교로 번호 순이 맞는다. */
+function 예산정렬_(rows) {
+  const 순위 = d => { const i = CODED_DEPTS.indexOf(d); return i === -1 ? CODED_DEPTS.length : i; };
+  return rows.slice().sort((a, b) =>
+    순위(a[1]) - 순위(b[1]) || String(a[1]).localeCompare(b[1]) || String(a[0]).localeCompare(String(b[0])));
+}
+
 function renderBudget() {
-  const depts = [...new Set(BUDGET.map(r => r[1]))];
+  const depts = CODED_DEPTS.filter(d => BUDGET.some(r => r[1] === d))
+    .concat([...new Set(BUDGET.map(r => r[1]))].filter(d => CODED_DEPTS.indexOf(d) === -1));
   let html = `<section class="panel"><h2 class="section-head">예산마스터</h2>
     <p class="section-sub">${BUDGET.length}개 항목 · 수정은 구글시트에서</p>
     <div class="filters"><select id="b-dept"><option value="">부서 전체</option>${depts.map(d => `<option>${d}</option>`).join('')}</select>
@@ -1657,12 +1669,12 @@ function renderBudget() {
   draw();
   function draw() {
     const fd = el('b-dept').value, q = el('b-q').value.trim().toUpperCase();
-    const rows = BUDGET.filter(r => {
+    const rows = 예산정렬_(BUDGET.filter(r => {
       if (fd && r[1] !== fd) return false;
       // 코드로 찾는 사람과 "케이스 제작비"로 찾는 사람이 둘 다 있다 — 한 칸으로 받는다
       if (q && [r[0], r[2], r[3]].join(' ').toUpperCase().indexOf(q) === -1) return false;
       return true;
-    });
+    }));
     let h = `<table><tr><th>코드</th><th>부서</th><th>계정</th><th>내역</th><th class="num">예산금액</th></tr>`;
     let sum = 0;
     rows.forEach(r => {
