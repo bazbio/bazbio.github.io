@@ -1098,7 +1098,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608112307';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608112325';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3759,23 +3759,8 @@ function renderNcare() {
     + '<div style="margin-top:10px;font-size:12px;color:#8b95a1;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳 · 단계 타일을 누르면 그 단계만 봅니다</div>'
     + '</div>';
 
-  // 이번 주 우선 방문 후보 — 소모 많은데(A·B) 아직 미가입(단계 < 5)
-  var pri = mine.filter(function(p) { return p.stage < 5 && (p.grade === 'A' || p.grade === 'B'); })
-    .sort(function(a, b) { return (a.grade < b.grade ? -1 : a.grade > b.grade ? 1 : b.stage - a.stage); });
-  if (pri.length && !NCST) {
-    h += kick('우선 방문 후보 — 노즐 소모 많은데 미가입 (' + pri.length + '곳)');
-    h += '<div class="card" style="padding:8px 14px;"><table class="dt"><tbody>'
-      + pri.slice(0, 8).map(function(p) {
-          return '<tr style="cursor:pointer;" onclick="ncOpen(' + p.id + ')"><td style="width:30px;">' + ncGradeBadge(p.grade) + '</td>'
-            + '<td><b>' + esc(p.hname) + '</b><span style="margin-left:6px;font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span></td>'
-            + '<td style="text-align:right;white-space:nowrap;">' + ncStageBadge(p.stage) + '</td></tr>';
-        }).join('')
-      + '</tbody></table>'
-      + (pri.length > 8 ? '<div style="margin-top:6px;font-size:12px;color:#8b95a1;">외 ' + (pri.length - 8) + '곳 — 아래 목록에서 보세요</div>' : '')
-      + '</div>';
-  }
-
-  // 목록
+  /* 목록 — 병원마다 1→7 단계를 쭉 펼치고 지금 어디까지 왔는지를 진행바로 보인다
+     (2026-08-12 사용자 요청 — 단계 배지 하나보다 전체 여정에서의 위치가 보여야 한다) */
   var rows = mine.filter(function(p) { return !NCST || p.stage === NCST; })
     .sort(function(a, b) {
       if (a.stage !== b.stage) return a.stage - b.stage;
@@ -3785,16 +3770,26 @@ function renderNcare() {
     });
   h += kick((NCSEG === '전체' ? '전체' : NCSEG) + (NCST ? ' · ' + NCST + '단계' : '') + ' ' + rows.length + '곳');
   h += rows.length
-    ? '<div class="card" style="padding:8px 14px;"><table class="dt"><tbody>'
-      + rows.map(function(p) {
-          return '<tr style="cursor:pointer;" onclick="ncOpen(' + p.id + ')">'
-            + '<td style="width:30px;">' + ncGradeBadge(p.grade) + '</td>'
-            + '<td><b>' + esc(p.hname) + '</b><span style="margin-left:6px;font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span>'
-            + (NCSEG === '전체' || NCSEG === '미지정' ? '<div style="font-size:12px;color:#8b95a1;">' + esc(p.rep || '담당 미지정') + '</div>' : '')
-            + '</td>'
-            + '<td style="text-align:right;white-space:nowrap;">' + ncStageBadge(p.stage) + '</td></tr>';
+    ? '<div class="card" style="padding:4px 16px;">'
+      + rows.map(function(p, i) {
+          var c = NC_COLOR[p.stage] || '#6b7684';
+          return '<div style="padding:12px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="ncOpen(' + p.id + ')">'
+            + '<div style="display:flex;align-items:center;gap:8px;">'
+            + ncGradeBadge(p.grade)
+            + '<b style="font-size:14.5px;color:#191f28;">' + esc(p.hname) + '</b>'
+            + '<span style="font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span>'
+            + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#8b95a1;">· ' + esc(p.rep || '담당 미지정') + '</span>' : '')
+            + '<span style="margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap;color:' + c + ';">' + p.stage + '/7 ' + esc(ncStageName(p.stage)) + '</span>'
+            + '</div>'
+            + '<div style="display:flex;gap:3px;margin-top:8px;">'
+            + NC_STAGES.map(function(s) {
+                var done = s.n < p.stage, cur = s.n === p.stage;
+                return '<div title="' + s.n + '. ' + esc(s.name) + '" style="flex:1;height:' + (cur ? 8 : 6) + 'px;border-radius:4px;background:'
+                  + (cur ? c : done ? '#c9d9f0' : '#eceff2') + ';"></div>';
+              }).join('')
+            + '</div></div>';
         }).join('')
-      + '</tbody></table></div>'
+      + '</div>'
     : '<div class="card empty">해당하는 병원이 없습니다</div>';
 
   document.getElementById('ncBody').innerHTML = h;
