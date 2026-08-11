@@ -1075,7 +1075,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608110037';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608110124';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1246,7 +1246,11 @@ var 홈받는중_ = false;
 function 홈받기_() {
   if (홈받는중_) return;
   홈받는중_ = true;
-  관문호출_('/saleson-home', JSON.stringify({ 토큰: TOKEN })).then(function(d) {
+  /* 성공 핸들러를 감싼다 (2026-08-11) — 여기서 던지면 `.then(성공, 실패)`라 실패 핸들러도
+     안 타고 **조용히 사라진다.** 그러면 `DATA.plans`만 새것이고 화면은 옛 카드가 남아
+     열쇠가 어긋난다(감사 화2와 같은 부류). 위 show('home') 재그리기가 그물이지만,
+     삼키는 것 자체를 남겨 두지 않는다. */
+  관문호출_('/saleson-home', JSON.stringify({ 토큰: TOKEN })).then(화면갱신감싸기_(function(d) {
     홈받는중_ = false;
     if (!d || !d.plans) return;
     d.plans.forEach(function(p) { p.k = -(p.no || 0); });
@@ -1267,7 +1271,7 @@ function 홈받기_() {
       }
     }
     renderHome(); renderLeads(); renderForm();
-  }, function(e) {
+  }, '홈을 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
     홈받는중_ = false;   // 실패해도 화면은 GAS 데이터로 이미 서 있다 — 조용히 넘어간다
     console.warn('[홈 관문]', (e && e.message) || e);
   });
@@ -1394,6 +1398,13 @@ function show(v) {
   var nm = document.getElementById('nav-more');
   if (nm) nm.classList.toggle('on', v === 'more' || UNDER_MORE.indexOf(v) >= 0);
   window.scrollTo(0, 0);
+  /* 홈만 **다시 안 그리고** 있었다 (2026-08-11). 다른 탭은 전부 여기서 그리거나 받는다.
+     홈 카드의 [기록 쓰기]에는 그릴 때의 열쇠가 박혀 있는데(`prefill(-123)`), 그 사이
+     `DATA.plans`가 바뀌면(저장 뒤 홈받기_, 관문/GAS 열쇠 전환, 렌더가 중간에 실패) 카드는
+     옛 열쇠를 쥔 채 남는다 → 누를 때마다 「그 계획을 찾지 못했습니다」.
+     기록 저장 → 내 입력 → 홈 → 다른 계획 [기록 쓰기]에서 매번 났다.
+     그리기는 메모리에 있는 것을 다시 칠할 뿐이라 서버 왕복이 없다. */
+  if (v === 'home' && DATA && DATA.plans) renderHome();
   if (v === 'mat') { MATL ? renderMat() : loadMat(); }
   if (v === 'dash') { DASH ? renderDash() : loadDash(); }
   if (v === 'evt') { EVT ? renderEvt() : loadEvt(); }
