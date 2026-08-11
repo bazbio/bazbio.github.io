@@ -469,6 +469,30 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="trNote"></p>
       </div>
 
+      <!-- 제조원가 구성 (지표 C, TDL ⑬) -->
+      <div class="card" id="mcCard" style="margin-top:12px" hidden>
+        <h3 class="ct">제조원가 구성<span class="u">백만원 · 구성비는 %</span></h3>
+        <div class="scroll">
+          <table class="pl" id="mc">
+            <thead><tr id="mcHead"></tr></thead>
+            <tbody id="mcBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="mcNote"></p>
+      </div>
+
+      <!-- 품목별 단위원가 추이 (지표 B, TDL ⑭) -->
+      <div class="card" id="ucCard" style="margin-top:12px" hidden>
+        <h3 class="ct">품목별 단위원가 추이<span class="u">원/개·대</span></h3>
+        <div class="scroll">
+          <table class="pl" id="uc">
+            <thead><tr id="ucHead"></tr></thead>
+            <tbody id="ucBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="ucNote"></p>
+      </div>
+
     </section>
 
     <!-- 매출 탭 -->
@@ -1056,6 +1080,136 @@ function BEP탭그리기() {
   for (m = 1; m <= 끝; m++) 달.push(m);
   if (!끝) { $('bepCard').hidden = true; return; }
   BEP그리기(행들(), 달);
+  제조원가구성그리기();
+  단위원가추이그리기();
+}
+
+/* ── 제조원가 구성 (지표 C, TDL ⑬) ───────────────────────────────
+ *
+ * ADR 0018이 「재료비만 변동, 노무비·제조경비는 고정」으로 갈라 놨고 BEP가 그 축을 쓴다.
+ * **그 갈래가 달마다 얼마나 흔들리는지는 아무 데서도 안 보였다.**
+ * 재료비 비중이 4월 2.6%에서 6월 49.4%까지 움직인다 — 생산이 몰린 달과 아닌 달이다.
+ */
+function 제조원가구성그리기() {
+  var mc = (DB['제조원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  if (!mc.length) { $('mcCard').hidden = true; return; }
+  $('mcCard').hidden = false;
+
+  var 달 = [];
+  mc.forEach(function (r) { if (달.indexOf(+r['월']) < 0) 달.push(+r['월']); });
+  달.sort(function (a, b) { return a - b; });
+
+  $('mcHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+
+  var 액 = function (구분, m) {
+    var r = mc.filter(function (x) { return +x['월'] === m && x['구분'] === 구분; })[0];
+    return r ? Number(r['금액']) : null;
+  };
+  var 총 = function (m) {
+    return ['재료비', '노무비', '제조경비'].reduce(function (s, g) { return s + (액(g, m) || 0); }, 0);
+  };
+  var 줄 = function (이름, 구분, 급) {
+    var v = 달.map(function (m) { return 액(구분, m); });
+    var 누 = v.reduce(function (s, x) { return s + (x || 0); }, 0);
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>'
+      + v.map(function (x) { return '<td class="num">' + 백만(x) + '</td>'; }).join('')
+      + '<td class="num">' + 백만(누) + '</td></tr>';
+  };
+  var 비율줄 = function (이름, 구분) {
+    var v = 달.map(function (m) {
+      var t = 총(m); return t ? 100 * (액(구분, m) || 0) / t : null;
+    });
+    var 누분 = 달.reduce(function (s, m) { return s + (액(구분, m) || 0); }, 0);
+    var 누총 = 달.reduce(function (s, m) { return s + 총(m); }, 0);
+    var 칸 = function (x) {
+      return '<td class="num muted">' + (x == null ? '—' : x.toFixed(1) + '%') + '</td>';
+    };
+    return '<tr class="r-child"><td>' + 이름 + '</td>' + v.map(칸).join('')
+      + 칸(누총 ? 100 * 누분 / 누총 : null) + '</tr>';
+  };
+
+  var 총줄 = '<tr class="r-total"><td>총제조원가</td>'
+    + 달.map(function (m) { return '<td class="num">' + 백만(총(m)) + '</td>'; }).join('')
+    + '<td class="num">' + 백만(달.reduce(function (s, m) { return s + 총(m); }, 0)) + '</td></tr>';
+
+  $('mcBody').innerHTML = 총줄
+    + 줄('재료비 (변동)', '재료비', 'r-child')
+    + 줄('노무비 (고정)', '노무비', 'r-child')
+    + 줄('제조경비 (고정)', '제조경비', 'r-child')
+    + 비율줄('　재료비 비중', '재료비')
+    + 비율줄('　노무비 비중', '노무비')
+    + 비율줄('　제조경비 비중', '제조경비');
+
+  $('mcNote').innerHTML =
+    '<strong>BEP의 변동비율이 여기서 나옵니다</strong> — ADR 0018이 재료비만 변동으로, '
+    + '노무비·제조경비는 고정으로 갈랐고 BEP가 그 축을 씁니다. '
+    + '<strong>재료비 비중이 달마다 크게 흔들립니다</strong>(4월 2.6% ↔ 6월 49.4%) — '
+    + '생산이 몰린 달과 아닌 달의 차이입니다. <strong>월별 값 하나로 판단하지 말고 누계로 보십시오.</strong> '
+    + '노무비는 50.1~56.2로 여섯 달 거의 일정합니다 — 사람이 계속 붙어 있었다는 뜻이고, '
+    + '그래서 고정으로 분류됩니다.';
+}
+
+/* ── 품목별 단위원가 추이 (지표 B, TDL ⑭) ────────────────────────
+ *
+ * 수불부의 품번 × 월 「출고 – 영업」 ÷ 수량이다 (0034). 이동평균이라 달마다 움직인다 —
+ * 노즐이 1월 16,478에서 5월 19,605로 **19% 올랐다.** 연간 가중평균 하나만 보면 안 보인다.
+ */
+function 단위원가추이그리기() {
+  var pc = (DB['품목원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  if (!pc.length) { $('ucCard').hidden = true; return; }
+  $('ucCard').hidden = false;
+
+  var 달 = [];
+  pc.forEach(function (r) { if (달.indexOf(+r['월']) < 0) 달.push(+r['월']); });
+  달.sort(function (a, b) { return a - b; });
+
+  // 금액이 큰 품목만 세운다 — 수불부에 품번이 100개 넘어 다 세우면 안 읽힌다
+  var 합 = {};
+  pc.forEach(function (r) {
+    var k = r['품번'];
+    if (!합[k]) 합[k] = { 품번: k, 품명: r['품명'], 금액: 0, 수량: 0 };
+    합[k].금액 += Number(r['영업금액']); 합[k].수량 += Number(r['영업수량']);
+  });
+  var 상위 = Object.keys(합).map(function (k) { return 합[k]; })
+    .sort(function (a, b) { return b.금액 - a.금액; }).slice(0, 8);
+
+  $('ucHead').innerHTML = ['<th scope="col">품목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">가중평균</th>', '<th scope="col">최저→최고</th>']).join('');
+
+  var 원 = function (v) {
+    return v == null ? '—' : Math.round(v).toLocaleString('ko-KR');
+  };
+  $('ucBody').innerHTML = 상위.map(function (p) {
+    var v = 달.map(function (m) {
+      var r = pc.filter(function (x) { return x['품번'] === p.품번 && +x['월'] === m; })[0];
+      // 금액 0은 원가가 0인 게 아니라 **원가 정보가 없는 것**이다 — 0원으로 그리면 거짓말이다
+      if (!r || !Number(r['영업수량']) || !Number(r['영업금액'])) return null;
+      return Number(r['영업금액']) / Number(r['영업수량']);
+    });
+    var 있는값 = v.filter(function (x) { return x != null; });
+    var 평 = p.수량 ? p.금액 / p.수량 : null;
+    var 폭 = 있는값.length > 1
+      ? 원(Math.min.apply(null, 있는값)) + ' → ' + 원(Math.max.apply(null, 있는값)) : '—';
+    // 마지막 값이 첫 값보다 오르면 빨강 — 원가가 오르는 것은 나쁜 소식이다
+    var 오름 = 있는값.length > 1 && 있는값[있는값.length - 1] > 있는값[0];
+    return '<tr class="r-child"><td>' + 벗기(p.품명) + '</td>'
+      + v.map(function (x) {
+          return '<td class="num' + (x == null ? ' muted' : '') + '">' + 원(x) + '</td>';
+        }).join('')
+      + '<td class="num"><strong>' + 원(평) + '</strong></td>'
+      + '<td class="num' + (오름 ? ' neg' : ' muted') + '">' + 폭 + '</td></tr>';
+  }).join('');
+
+  $('ucNote').innerHTML =
+    '<strong>재고자산수불부의 품번 × 월 「출고 – 영업」 ÷ 수량</strong>입니다 — 그 달에 실제로 '
+    + '팔려 나간 것의 원가입니다. 이동평균이라 달마다 움직입니다. '
+    + '<strong>노즐이 1월 16,478원에서 5월 19,605원으로 19% 올랐습니다.</strong> '
+    + '금액이 큰 8개 품목만 세웠습니다. 「최저→최고」가 <span class="neg">빨강</span>이면 '
+    + '마지막 달이 첫 달보다 높다는 뜻입니다 — <strong>원가가 오르는 방향</strong>입니다. '
+    + '자동화 효과를 보려면 이 줄이 내려가야 합니다 (TDL ⑭).';
 }
 
 /* =========================================================================
