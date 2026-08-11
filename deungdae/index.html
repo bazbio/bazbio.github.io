@@ -275,6 +275,17 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 }
 @media (min-width:768px){ .wrap{padding:24px} header.top h1{font-size:22px} }
 
+/* ===== 단위 배지 — 「원인지 백만원인지」를 표마다 못 박는다 (2026-08-10) =====
+   뷰마다 단위가 다르고(손익·인건비는 백만원, 판관비 원천은 원) 표 안에서도 금액·수량·일수가
+   섞인다. 셀마다 붙이면 숫자 열이 깨지므로 **표 머리에 한 번** 적는다. */
+.ct .u, .unitbar{
+  font-size:11.5px;font-weight:600;color:var(--ink-3);letter-spacing:0;
+  background:var(--hairline);border-radius:var(--r-pill);padding:2px 8px;margin-left:6px;
+  white-space:nowrap;display:inline-block;vertical-align:middle;
+}
+.unitbar{margin:0 0 8px}
+th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter-spacing:0}
+
 /* ===== 런웨이 타일 (0032) — 분자·분모를 항상 같이 보인다 ===== */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 .tile{background:var(--hairline);border-radius:var(--r-md);padding:14px 16px}
@@ -349,6 +360,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <button type="button" class="ghost" id="xlsPL">엑셀</button>
       </div>
       <div class="card">
+        <div class="unitbar">백만원 · 달성률은 %</div>
         <div class="scroll">
           <table class="pl" id="pl">
             <thead><tr id="plHead"></tr></thead>
@@ -398,7 +410,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 
       <!-- 손익분기 — 결정_회계사TDL ㉒ -->
       <div class="card" id="bepCard" hidden>
-        <h3 class="ct">손익분기 (BEP)</h3>
+        <h3 class="ct">손익분기 (BEP)<span class="u">백만원</span></h3>
         <div class="scroll">
           <table class="pl" id="bep">
             <thead><tr id="bepHead"></tr></thead>
@@ -468,6 +480,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
         <button type="button" class="ghost" id="xlsSales">엑셀</button>
       </div>
       <div class="card">
+        <div class="unitbar" id="salesUnit"></div>
         <div class="scroll">
           <table class="pl" id="sales">
             <thead><tr id="salesHead"></tr></thead>
@@ -479,7 +492,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 
       <!-- 채널별 — 결정_회계사TDL ⑨ -->
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">채널별</h3>
+        <h3 class="ct">채널별<span class="u" id="chanUnit"></span></h3>
         <div class="scroll">
           <table class="pl" id="chan">
             <thead><tr id="chanHead"></tr></thead>
@@ -494,7 +507,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 
       <!-- 거래처 Top 30 — 결정_회계사TDL ⑧ -->
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">거래처 Top 30</h3>
+        <h3 class="ct">거래처 Top 30<span class="u">백만원</span></h3>
         <div class="scroll">
           <table class="pl" id="top30">
             <thead><tr id="top30Head"></tr></thead>
@@ -527,7 +540,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">운전자본</h3>
+        <h3 class="ct">운전자본<span class="u">백만원 · 일수는 행에 표기</span></h3>
         <div class="scroll">
           <table class="pl" id="wc">
             <thead><tr id="wcHead"></tr></thead>
@@ -538,7 +551,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">재무상태 — 계정별</h3>
+        <h3 class="ct">재무상태 — 계정별<span class="u">백만원</span></h3>
         <div class="scroll">
           <table class="pl" id="bs">
             <thead><tr id="bsHead"></tr></thead>
@@ -558,7 +571,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card">
-        <h3 class="ct">판매 볼륨</h3>
+        <h3 class="ct">판매 볼륨<span class="u">수량 — 대 · 개 · 건</span></h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="volHead"></tr></thead><tbody id="volBody"></tbody></table>
         </div>
@@ -567,7 +580,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 
       <!-- Attach Rate — 결정_회계사TDL ⑦ -->
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">Attach Rate — 장비 1대당 노즐</h3>
+        <h3 class="ct">Attach Rate — 장비 1대당 노즐<span class="u">개/대</span></h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="attHead"></tr></thead><tbody id="attBody"></tbody></table>
         </div>
@@ -575,7 +588,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">인건비</h3>
+        <h3 class="ct">인건비<span class="u">백만원</span></h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="laborHead"></tr></thead><tbody id="laborBody"></tbody></table>
         </div>
@@ -583,7 +596,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">인원과 1인당</h3>
+        <h3 class="ct">인원과 1인당<span class="u">명 · 백만원/명</span></h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="hcHead"></tr></thead><tbody id="hcBody"></tbody></table>
         </div>
@@ -591,7 +604,7 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h3 class="ct">전년 동기 대비</h3>
+        <h3 class="ct">전년 동기 대비<span class="u">백만원 · %</span></h3>
         <div class="scroll">
           <table class="pl"><thead><tr id="yoyHead"></tr></thead><tbody id="yoyBody"></tbody></table>
         </div>
@@ -1348,7 +1361,7 @@ function 연간BEP그리기(달, f) {
     ? ' 중 <strong>' + (끝 + 1) + '~12월분</strong>(곳간 note의 월 표기)'
     : (예산비율 < 1 ? ' × ' + 남 + '/' + 예산개월 + '개월(마감이 6월을 넘어 남은 달로 줄임)' : '');
 
-  $('yrTitle').textContent = '연간 BEP 전망 (' + 끝 + '월까지 실적 + ' + 남 + '개월 전망)';
+  $('yrTitle').innerHTML = '연간 BEP 전망 (' + 끝 + '월까지 실적 + ' + 남 + '개월 전망)' + '<span class="u">백만원</span>';
   $('yrBody').innerHTML =
     줄('상반기 고정성 (실적)', 칸들.map(function () { return 상.반복 + 상.비반복 + 상그룹 + 상제조; }), 'r-total', 0,
       '1~' + 끝 + '월 손익표 <strong>고정비 + 그룹내부 + 고정 제조원가</strong>. 결산조정은 뺐다 — 분기 일회성이 구조를 왜곡한다') +
@@ -1547,7 +1560,7 @@ function 판관비추이그리기(달) {
       + '</tr>';
   }).join('');
 
-  $('trTitle').textContent = '판관비 증감 추이 (1~' + 끝 + '월, 20백만 이상 계정)';
+  $('trTitle').innerHTML = '판관비 증감 추이 (1~' + 끝 + '월, 20백만 이상 계정)' + '<span class="u">백만원</span>';
   $('trNote').innerHTML =
     '<strong>연간 BEP가 하반기를 평균으로 미는 대신, 그 평균이 무엇을 덮고 있는지 보는 표입니다.</strong> '
     + '갈래 열은 고정비를 반복·비반복으로 가른 것이고(변동비·그룹내부는 그대로 표시), '
@@ -1578,8 +1591,9 @@ function 재고그리기() {
   var 달 = 지표.map(function (r) { return +r['월']; });
   var 재고끝 = 달[달.length - 1], 손익끝 = 마감월();
   var 밀림 = 재고끝 < 손익끝;
-  $('invTitle').textContent = '재고자산 (' + 재고끝 + '월 기준'
-    + (밀림 ? ' — 손익은 ' + 손익끝 + '월' : '') + ')';
+  $('invTitle').innerHTML = '재고자산 (' + 재고끝 + '월 기준'
+    + (밀림 ? ' — 손익은 ' + 손익끝 + '월' : '') + ')'
+    + '<span class="u">백만원 · 일수는 행에 표기</span>';
 
   var 머리 = ['<th scope="col">항목</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
@@ -1632,8 +1646,8 @@ function 재고그리기() {
     줄('원재료', 구분별('원재료'), null, 'r-child') +
     줄('상품', 구분별('상품'), null, 'r-child') +
     줄('매출원가 (손익표)', 월지표('매출원가'), 원가누계, 'r-child') +
-    줄('재고일수', 월지표('재고일수'), 누계일수, 'r-op', '일') +
-    줄('재고회전율 (연환산)', 월지표('재고회전율'), 누계회전, 'r-child', '회');
+    줄('재고일수<span class="u">일</span>', 월지표('재고일수'), 누계일수, 'r-op', '일') +
+    줄('재고회전율 (연환산)<span class="u">회</span>', 월지표('재고회전율'), 누계회전, 'r-child', '회');
 
   // ── 타계정대체 — 출고 − 입고. 출고만 보면 리워크로 되돌아온 몫만큼 부풀어 보인다 ──
   var 계정들 = [], 봤다 = {};
@@ -1884,6 +1898,12 @@ function 매출그리기() {
   var 행 = 매출행들(t);
   var 달 = t.달;
   var 부분 = 달.length < 12;
+
+  // 단위가 모드에 따라 바뀐다 — 금액이면 백만원, 아니면 수량이다 (2026-08-10)
+  $('salesUnit').textContent = 매출모드 === '금액'
+    ? '백만원 · 괄호는 매출액 계 대비 비중(%)'
+    : (매출모드 === '장비' ? '수량 — 대' : '수량 — 개·대·건');
+  var chanU = $('chanUnit'); if (chanU) chanU.textContent = 매출모드 === '금액' ? '백만원' : '수량';
 
   var 누적열 = 매출모드 === '장비';                 // 2024~선택 연도 전체 누적 대수
   $('salesHead').innerHTML = ['<th scope="col">항목</th>']
@@ -2318,7 +2338,7 @@ function 변동그리기() {
       + ' · 판관비 ' + (판당 - 판전 >= 0 ? '+' : '') + 백만(판당 - 판전) + '의 합입니다.',
   });
 
-  $('movesTitle').textContent = m + '월의 변동 (' + p + '월 대비)';
+  $('movesTitle').innerHTML = m + '월의 변동 (' + p + '월 대비)' + '<span class="u">백만원</span>';
   $('movesBody').innerHTML = html;
   메모잇기(m);
   $('movesNote').innerHTML = '단위 백만원 · ' + (범위 === 'HQ' ? '본사 별도' : '합산') + ' 기준. '
@@ -2450,7 +2470,8 @@ function 재무그리기() {
 
   var 끝 = 운[운.length - 1], 달 = 운.map(function (r) { return +r['월']; });
   var n = function (r, k) { return r[k] == null ? null : Number(r[k]); };
-  $('finTitle').textContent = '현금과 런웨이 (' + 끝['월'] + '월 기준 · 본사 별도)';
+  $('finTitle').innerHTML = '현금과 런웨이 (' + 끝['월'] + '월 기준 · 본사 별도)'
+    + '<span class="u">백만원 · 런웨이는 개월</span>';
 
   // 임계 — 3개월 미만 적 / 3~6 황 / 6 이상 녹
   var 등급 = function (v) { return v == null ? '' : v < 3 ? 'red' : v < 6 ? 'amber' : 'green'; };
@@ -2518,23 +2539,25 @@ function 재무그리기() {
     var a = n(r, 'DSO'), b = n(r, 'DIO'), c = n(r, 'DPO');
     return (a == null || b == null || c == null) ? null : Math.round((a + b - c) * 10) / 10;
   });
-  var ccc줄 = '<tr class="r-op"><td>현금전환일수 (CCC)</td>'
+  var ccc줄 = '<tr class="r-op"><td>현금전환일수 (CCC)<span class="u">일</span></td>'
     + ccc.map(function (v) {
         return v == null ? '<td class="num muted">—</td>'
           : '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 일(v) + '일</td>';
       }).join('') + '</tr>';
 
+  // 금액 줄과 일수 줄이 한 표에 섞인다 — 행 이름 옆에 단위를 박는다 (2026-08-10)
+  var 단 = function (u) { return '<span class="u">' + u + '</span>'; };
   $('wcBody').innerHTML =
-    줄('현금성 자산', '현금', 'r-total') +
-    줄('외상매출금', '외상매출금', 'r-child') +
-    줄('미수금 (일본법인)', '미수금_내부', 'r-child') +
-    줄('재고자산', '재고', 'r-child') +
-    줄('매입채무·미지급', '매입채무', 'r-child') +
-    줄('선수금', '선수금', 'r-child') +
-    줄('당월 현금증감', '현금증감', 'r-op') +
-    줄('DSO 매출채권회수일', 'DSO', 'r-child', '일') +
-    줄('DIO 재고일수', 'DIO', 'r-child', '일') +
-    줄('DPO 매입채무회전일', 'DPO', 'r-child', '일') +
+    줄('현금성 자산' + 단('백만원'), '현금', 'r-total') +
+    줄('외상매출금' + 단('백만원'), '외상매출금', 'r-child') +
+    줄('미수금 (일본법인)' + 단('백만원'), '미수금_내부', 'r-child') +
+    줄('재고자산' + 단('백만원'), '재고', 'r-child') +
+    줄('매입채무·미지급' + 단('백만원'), '매입채무', 'r-child') +
+    줄('선수금' + 단('백만원'), '선수금', 'r-child') +
+    줄('당월 현금증감' + 단('백만원'), '현금증감', 'r-op') +
+    줄('DSO 매출채권회수일' + 단('일'), 'DSO', 'r-child', '일') +
+    줄('DIO 재고일수' + 단('일'), 'DIO', 'r-child', '일') +
+    줄('DPO 매입채무회전일' + 단('일'), 'DPO', 'r-child', '일') +
     ccc줄;
 
   $('wcNote').innerHTML =
@@ -2580,9 +2603,15 @@ function 공헌이익그리기() {
   if (!행.length) { 카드.hidden = true; return; }
   카드.hidden = false;
 
-  $('cmHead').innerHTML = ['제품 · 국가', '수량', '무상', '단가', '매출액', '변동원가',
-    '공헌이익', '률', '매출총이익', '률', '단위당 총이익']
-    .map(function (h) { return '<th scope="col">' + h + '</th>'; }).join('');
+  // **이 표는 단위가 셋 섞인다** — 수량(개·대) · 단가와 단위당(원) · 금액(백만원).
+  // 표 머리에 한 번 적어 「원인지 백만원인지」를 없앤다 (2026-08-10).
+  $('cmHead').innerHTML = [['제품 · 국가', ''], ['수량', '개·대'], ['무상', '개·대'],
+    ['단가', '원'], ['매출액', '백만원'], ['변동원가', '백만원'],
+    ['공헌이익', '백만원'], ['률', '%'], ['매출총이익', '백만원'], ['률', '%'],
+    ['단위당 총이익', '원']]
+    .map(function (h) {
+      return '<th scope="col">' + h[0] + (h[1] ? '<span class="u">' + h[1] + '</span>' : '') + '</th>';
+    }).join('');
 
   var 합 = function (a, k) { return a.reduce(function (s, r) { return s + Number(r[k] || 0); }, 0); };
   // 음수는 화면 전체가 △를 쓴다 (백만()과 같은 규약) — 여기서 −를 쓰면 한 표 안에서 갈린다
