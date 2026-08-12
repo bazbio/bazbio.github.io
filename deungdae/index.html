@@ -1283,7 +1283,8 @@ function 원가율그리기() {
  */
 function 생산그리기() {
   var pc = (DB['품목원가'] || []).filter(function (r) {
-    return +r['회계연도'] === 연도 && r['계정구분'] === '제품';
+    // Package 세트는 조립품이라 뺀다 — 생산 평준화의 신호가 아니다 (2026-08-13 사용자 요청)
+    return +r['회계연도'] === 연도 && r['계정구분'] === '제품' && !/^package/i.test(r['품명']);
   });
   var 있음 = pc.some(function (r) { return Number(r['생산수량']) > 0; });
   if (!있음) { $('prodCard').hidden = true; return; }
@@ -1436,7 +1437,10 @@ function 제조원가구성그리기() {
  * 노즐이 1월 16,478에서 5월 19,605로 **19% 올랐다.** 연간 가중평균 하나만 보면 안 보인다.
  */
 function 단위원가추이그리기() {
-  var pc = (DB['품목원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  var pc = (DB['품목원가'] || []).filter(function (r) {
+    // Package 세트는 뺀다 (2026-08-13 사용자 요청) — 세트 원가는 구성품 쪽에서 본다
+    return +r['회계연도'] === 연도 && !/^package/i.test(r['품명']);
+  });
   if (!pc.length) { $('ucCard').hidden = true; return; }
   $('ucCard').hidden = false;
 
@@ -1444,15 +1448,25 @@ function 단위원가추이그리기() {
   pc.forEach(function (r) { if (달.indexOf(+r['월']) < 0) 달.push(+r['월']); });
   달.sort(function (a, b) { return a - b; });
 
-  // 금액이 큰 품목만 세운다 — 수불부에 품번이 100개 넘어 다 세우면 안 읽힌다
+  // 금액이 큰 품목만 세운다 — 수불부에 품번이 100개 넘어 다 세우면 안 읽힌다.
+  // RECLOCK은 금액과 무관하게 전부 세운다 (2026-08-13 사용자 요청 — 라인 전체를 본다)
   var 합 = {};
   pc.forEach(function (r) {
     var k = r['품번'];
     if (!합[k]) 합[k] = { 품번: k, 품명: r['품명'], 금액: 0, 수량: 0 };
     합[k].금액 += Number(r['영업금액']); 합[k].수량 += Number(r['영업수량']);
   });
-  var 상위 = Object.keys(합).map(function (k) { return 합[k]; })
-    .sort(function (a, b) { return b.금액 - a.금액; }).slice(0, 8);
+  var 전체 = Object.keys(합).map(function (k) { return 합[k]; })
+    .filter(function (p) { return p.수량 > 0; })
+    .sort(function (a, b) { return b.금액 - a.금액; });
+  var 상위 = 전체.filter(function (p, i) { return i < 8 || /RECLOCK/i.test(p.품명); });
+
+  // 같은 품명이 품번 둘로 갈리면(NovoJet 정품번·잡품번) 품번을 붙여 구별한다
+  var 이름수 = {};
+  상위.forEach(function (p) { 이름수[p.품명] = (이름수[p.품명] || 0) + 1; });
+  상위.forEach(function (p) {
+    p.표시명 = 벗기(p.품명) + (이름수[p.품명] > 1 ? ' <span class="u">' + 벗기(p.품번) + '</span>' : '');
+  });
 
   $('ucHead').innerHTML = ['<th scope="col">품목</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
@@ -1474,7 +1488,7 @@ function 단위원가추이그리기() {
       ? 원(Math.min.apply(null, 있는값)) + ' → ' + 원(Math.max.apply(null, 있는값)) : '—';
     // 마지막 값이 첫 값보다 오르면 빨강 — 원가가 오르는 것은 나쁜 소식이다
     var 오름 = 있는값.length > 1 && 있는값[있는값.length - 1] > 있는값[0];
-    return '<tr class="r-child"><td>' + 벗기(p.품명) + '</td>'
+    return '<tr class="r-child"><td>' + p.표시명 + '</td>'
       + v.map(function (x) {
           return '<td class="num' + (x == null ? ' muted' : '') + '">' + 원(x) + '</td>';
         }).join('')
@@ -1486,7 +1500,9 @@ function 단위원가추이그리기() {
     '<strong>재고자산수불부의 품번 × 월 「출고 – 영업」 ÷ 수량</strong>입니다 — 그 달에 실제로 '
     + '팔려 나간 것의 원가입니다. 이동평균이라 달마다 움직입니다. '
     + '<strong>노즐이 1월 16,478원에서 5월 19,605원으로 19% 올랐습니다.</strong> '
-    + '금액이 큰 8개 품목만 세웠습니다. 「최저→최고」가 <span class="neg">빨강</span>이면 '
+    + '금액이 큰 8개 품목과 RECLOCK 전 품목을 세웠습니다 — 팔린 기록이 없는 품목'
+    + '(SCALP · NMN · Hylua)은 원가도 없어 못 세웁니다. Package 세트는 뺐습니다. '
+    + '「최저→최고」가 <span class="neg">빨강</span>이면 '
     + '마지막 달이 첫 달보다 높다는 뜻입니다 — <strong>원가가 오르는 방향</strong>입니다. '
     + '자동화 효과를 보려면 이 줄이 내려가야 합니다 (TDL ⑭).';
 }
