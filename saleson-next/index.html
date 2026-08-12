@@ -1101,7 +1101,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608120000';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608122141';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1446,13 +1446,38 @@ function show(v) {
   }
 }
 
-/* 로그인 직후 무거운 탭 데이터를 미리 받아둠 — 스윕 전환이 즉시 뜨도록 */
+/* 로그인 직후 무거운 탭 데이터를 미리 받아둠 — 스윕 전환이 즉시 뜨도록.
+   부트가 다섯 조각을 실어 오므로 여기는 빠진 조각만 채운다.
+
+   DB가 원천이면 관문(0.3초대)으로 받는다 (8/13) — GAS 5콜 미리받기가 아침 첫 실행마다
+   나가 GAS 동시 실행(30개 한도)을 잡아먹고 있었다. 「화면이 멈춘다」의 한 갈래.
+   탭 로더(loadDash·loadEvt·loadFlow·loadKpiTab)와 같은 관문·같은 모양이다.
+   실패는 조용히 — 미리받기는 어차피 탭을 열면 로더가 다시 받는다. */
 function prefetch() {
   if (!TOKEN) return;
-  if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
-  if (!EVT) gsrun().withSuccessHandler(function(d) { EVT = d; }).웹_행사현황(TOKEN);
-  if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
-  if (!KPIT) gsrun().withSuccessHandler(function(d) { KPIT = d; }).웹_KPI현황(TOKEN);
+  var 조용 = function() {};
+  if (DATA.dbSrc) {
+    if (!DASH) 관문호출_('/saleson-dash', JSON.stringify({ 토큰: TOKEN, ym: '' }))
+      .then(function(d) { DASH = d; }, 조용);
+    if (!EVT) 관문호출_('/saleson-evt', JSON.stringify({ 토큰: TOKEN }))
+      .then(function(d) {
+        // 열쇠 통일 — loadEvt와 같은 규칙 (관문 목록은 no)
+        (d.events || []).forEach(function(ev) {
+          (ev.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+        });
+        EVT = d;
+      }, 조용);
+    if (!FLOW) 관문호출_('/saleson-flow', JSON.stringify({ 토큰: TOKEN, ym: '' }))
+      .then(function(d) { FLOW = d; FLOWX = {}; }, 조용);
+    if (!KPIT) 관문호출_('/saleson-kpi', JSON.stringify({ 토큰: TOKEN }))
+      .then(function(d) { KPIT = d; }, 조용);
+  } else {
+    if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
+    if (!EVT) gsrun().withSuccessHandler(function(d) { EVT = d; }).웹_행사현황(TOKEN);
+    if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
+    if (!KPIT) gsrun().withSuccessHandler(function(d) { KPIT = d; }).웹_KPI현황(TOKEN);
+  }
+  // 자료는 관문이 없다 (Drive 링크·권한이 GAS 전용 — 감사 2차 결정)
   if (!MATL) gsrun().withSuccessHandler(function(d) { MATL = d; }).웹_영업자료목록(TOKEN);
   if (!NCARE) 관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '목록' }))
     .then(function(d) { NCARE = d; }, function() {});
@@ -4547,11 +4572,20 @@ function dashRep(n) { DASHREP = DASHREP === n ? '' : n; renderDash(); }
 boot();
 
 /* 부팅이 어떤 이유로도 화면을 못 그리면 스플래시가 영원히 남는다 — 흰 화면으로 보인다.
-   onData·showLogin 어느 쪽도 안 불린 채 이 시간이 지나면 강제로 걷고 로그인 화면을 준다. */
+   62초는 아무도 안 기다린다 (8/13 「화면이 멈춘다」 문의) — 6초에 상태 문구, 12초에 로그인
+   화면을 준다. 부트가 그 뒤에 도착하면 onData가 게이트를 걷고 앱을 그린다 — 로그인 화면이
+   잠깐 보였다 앱이 뜨는 쪽이 멈춘 로고보다 낫다. */
 setTimeout(function () {
   var s = document.getElementById('splash');
-  if (s && !s.classList.contains('off')) showLogin('연결이 지연되고 있습니다. 다시 시도해 주세요.');
-}, API_TIMEOUT + 2000);
+  if (s && !s.classList.contains('off')) {
+    var sub = s.querySelector('.sub');
+    if (sub) sub.textContent = '서버 응답을 기다리고 있습니다…';
+  }
+}, 6000);
+setTimeout(function () {
+  var s = document.getElementById('splash');
+  if (s && !s.classList.contains('off')) showLogin('서버 응답이 늦습니다. 잠시 뒤 당겨서 새로고침하거나 다시 로그인해 주세요.');
+}, 12000);
 
 /* GAS(doGet)로 열렸을 때는 sw.js가 없어 실패한다 — 조용히 넘긴다(롤백 경로 보호) */
 if ('serviceWorker' in navigator) {
