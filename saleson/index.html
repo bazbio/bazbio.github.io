@@ -1107,7 +1107,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608122201';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608122234';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1936,19 +1936,21 @@ function renderFlow() {
      세그와 무관하게 같은 표다. 구분은 소스에서 파생된다 — 20_도메인 인바운드소스_와 같은 규칙 */
   if (d.inflow && d.inflow.length) {
     h += kick('리드 유입 — 월별 (인바운드/아웃바운드)');
-    h += '<div class="card"><table class="dt"><thead><tr><th>월</th><th class="c">인바운드</th><th class="c">아웃바운드</th><th class="c">계</th></tr></thead><tbody>';
+    h += '<div class="card"><table class="dt"><thead><tr><th>월</th><th class="c">인바운드 (유입 · 데모)</th><th class="c">아웃바운드</th><th class="c">계</th></tr></thead><tbody>';
     d.inflow.forEach(function(r) {
       var cur = r.ym === d.ym;
       h += '<tr' + (cur ? ' style="background:#f4f8ff;"' : '') + '>'
         + '<td' + (cur ? ' style="font-weight:700;"' : '') + '>' + esc(r.ym) + '</td>'
-        + '<td class="c">' + (r.inb ? '<b class="blue">' + r.inb + '</b>' : '-') + '</td>'
+        + '<td class="c">' + (r.inb ? '<b class="blue">' + r.inb + '</b>' : '-')
+        + (r.indemo ? ' <span style="font-size:11.5px;color:#058652;font-weight:700;">· 데모 ' + r.indemo + '</span>' : '')
+        + '</td>'
         + '<td class="c">' + (r.outb || '-') + '</td>'
         + '<td class="c"><b>' + (r.inb + r.outb || '-') + '</b></td></tr>';
     });
     h += '</tbody></table>'
       + '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
-      + '인바운드 = 문의전화 · Meta DB · C-Labs / 아웃바운드 = 학회·세미나 · 소개 · 기타. '
-      + '리드 소스에서 자동 분류됩니다 — 구분이 틀리면 리드의 소스를 확인해 주세요.</div></div>';
+      + '인바운드 = 문의전화 · Meta DB · C-Labs / 아웃바운드 = 학회·세미나 · 소개 · 기타. 리드 소스에서 자동 분류됩니다.<br>'
+      + '<b style="color:#058652;">데모</b>는 그 달에 첫 데모를 간 인바운드 리드 수 — 유입된 달과 다르면 각자의 달에 잡힙니다. 계는 유입 기준입니다.</div></div>';
   }
 
   // 선택한 단계의 진행 상세 — 같은 화면에서 병원별 리드·최근 기록 표시 (서버 왕복 없음)
