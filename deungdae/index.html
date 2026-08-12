@@ -341,6 +341,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <nav class="tabs" role="tablist" aria-label="화면">
         <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
         <button type="button" role="tab" id="tabBtnBEP" aria-selected="false">BEP</button>
+        <button type="button" role="tab" id="tabBtnCost" aria-selected="false">원가</button>
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
         <button type="button" role="tab" id="tabBtnFIN" aria-selected="false">재무</button>
         <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
@@ -469,7 +470,29 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="trNote"></p>
       </div>
 
-      <!-- 제조원가 구성 (지표 C, TDL ⑬) -->
+    </section>
+
+    <!-- 원가 탭 — 제조업의 손잡이 (2026-08-13 합의). 원가성 카드를 한 화면에 모은다 -->
+    <section id="tab-cost" hidden>
+      <div class="card">
+        <h3 class="ct">원가 한눈에</h3>
+        <div class="tiles" id="costTiles"></div>
+        <p class="note" id="costTilesNote"></p>
+      </div>
+
+      <!-- 원가율과 원가대사 (0039) — 수불부 대 분개장 -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct">월별 원가율 — 그리고 왜 튀나<span class="u">백만원 · 원가율은 %</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cr">
+            <thead><tr id="crHead"></tr></thead>
+            <tbody id="crBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="crNote"></p>
+      </div>
+
+      <!-- 제조원가 구성 (지표 C, TDL ⑬) — BEP 탭에서 이동 (2026-08-13) -->
       <div class="card" id="mcCard" style="margin-top:12px" hidden>
         <h3 class="ct">제조원가 구성<span class="u">백만원 · 구성비는 %</span></h3>
         <div class="scroll">
@@ -481,7 +504,19 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="mcNote"></p>
       </div>
 
-      <!-- 품목별 단위원가 추이 (지표 B, TDL ⑭) -->
+      <!-- 생산과 생산단가 (0039) — 생산 평준화의 근거 자리 -->
+      <div class="card" id="prodCard" style="margin-top:12px" hidden>
+        <h3 class="ct">생산과 생산단가<span class="u">수량 — 개·대 · 단가는 원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="prod">
+            <thead><tr id="prodHead"></tr></thead>
+            <tbody id="prodBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="prodNote"></p>
+      </div>
+
+      <!-- 품목별 단위원가 추이 (지표 B, TDL ⑭) — BEP 탭에서 이동 (2026-08-13) -->
       <div class="card" id="ucCard" style="margin-top:12px" hidden>
         <h3 class="ct">품목별 단위원가 추이<span class="u">원/개·대</span></h3>
         <div class="scroll">
@@ -493,6 +528,17 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="ucNote"></p>
       </div>
 
+      <!-- 국가 × 제품 수익성 (0033) — 매출 탭에서 이동 (2026-08-13) -->
+      <div class="card" style="margin-top:12px">
+        <h3 class="ct" id="cmTitle">국가 × 제품 수익성</h3>
+        <div class="scroll">
+          <table class="pl" id="cm">
+            <thead><tr id="cmHead"></tr></thead>
+            <tbody id="cmBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="cmNote"></p>
+      </div>
     </section>
 
     <!-- 매출 탭 -->
@@ -529,17 +575,6 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           2025년 채널 칸의 N-CARE 등급(제품 속성)은 직판, 기타는 CS·품질·취소·미기재입니다.</p>
       </div>
 
-      <!-- 국가 × 제품 공헌이익 (0033) -->
-      <div class="card" style="margin-top:12px">
-        <h3 class="ct" id="cmTitle">국가 × 제품 수익성</h3>
-        <div class="scroll">
-          <table class="pl" id="cm">
-            <thead><tr id="cmHead"></tr></thead>
-            <tbody id="cmBody"></tbody>
-          </table>
-        </div>
-        <p class="note" id="cmNote"></p>
-      </div>
     </section>
 
     <!-- 재무 탭 — 현금·운전자본·런웨이 (0032). 손익 탭이 P&L, 여기가 BS다 -->
@@ -738,6 +773,7 @@ function 권한적용() {
   var 재무 = 권한 === '재무';
   $('tabBtnPL').hidden = !손익;
   $('tabBtnBEP').hidden = !손익;     // BEP는 판관비·원가가 다 드러난다 — 손익과 같은 권한이다
+  $('tabBtnCost').hidden = !손익;    // 원가도 같다 — 원가율·수익성이 다 드러난다
   $('tabBtnKPI').hidden = !손익;
   $('tabBtnFIN').hidden = !재무;     // 현금 잔고·매출채권은 한 단계 위다
   // 지금 탭이 권한 밖이면 볼 수 있는 곳으로 옮긴다
@@ -746,11 +782,12 @@ function 권한적용() {
   탭설정(갈곳);                       // 탭설정이 그린다 — 여기서 또 그리지 않는다
 }
 
-var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnSales', 'sales'],
-              ['tabBtnFIN', 'fin'], ['tabBtnKPI', 'kpi']];
+var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnCost', 'cost'],
+              ['tabBtnSales', 'sales'], ['tabBtnFIN', 'fin'], ['tabBtnKPI', 'kpi']];
 function 현재탭그리기() {
   if (탭 === 'pl') 그리기();
   else if (탭 === 'bep') BEP탭그리기();
+  else if (탭 === 'cost') 원가탭그리기();
   else if (탭 === 'sales') 매출그리기();
   else if (탭 === 'fin') 재무그리기();
   else 지표그리기();
@@ -765,6 +802,7 @@ $('tabBtnPL').addEventListener('click', function () { 탭설정('pl'); });
 $('tabBtnBEP').addEventListener('click', function () { 탭설정('bep'); });
 // 목표이익은 저장하지 않는다 — 브라우저 안에서만 논다 (BEP 시뮬과 같은 원칙)
 $('yrProfit').addEventListener('input', function () { if (DB && 탭 === 'bep') BEP탭그리기(); });
+$('tabBtnCost').addEventListener('click', function () { 탭설정('cost'); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
 $('tabBtnFIN').addEventListener('click', function () { 탭설정('fin'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
@@ -1093,8 +1131,236 @@ function BEP탭그리기() {
   for (m = 1; m <= 끝; m++) 달.push(m);
   if (!끝) { $('bepCard').hidden = true; return; }
   BEP그리기(행들(), 달);
+}
+
+/* =========================================================================
+   원가 탭 (2026-08-13 합의) — 제조업의 손잡이를 한 화면에 모은다
+
+   답하는 질문 순서대로 카드를 세운다:
+     ① 원가가 지금 어디 있나 (타일) → ② 원가율이 왜 튀나 (원가대사) →
+     ③ 공장 비용의 속 (제조원가 구성) → ④ 생산 평준화 (생산단가) →
+     ⑤ 팔린 것의 단가 (단위원가 추이) → ⑥ 어느 시장·제품이 남나 (수익성)
+   근거 문서: 원가상승_분석과_흑자전환_260810.md · 사월_제조원가_정밀분석_260810.md
+   ========================================================================= */
+function 원가탭그리기() {
+  원가타일그리기();
+  원가율그리기();
   제조원가구성그리기();
+  생산그리기();
   단위원가추이그리기();
+  공헌이익그리기();
+  $('asof').textContent = 연도 + '년 · ' + 마감월() + '월까지';
+}
+
+/** 월별 매출·매출원가 맵 — 손익표와 같은 원천(분개장)이라 손익 탭과 숫자가 같다 */
+function 원가월별() {
+  var 매출 = {}, 원가 = {};
+  (DB['손익매출'] || []).forEach(function (r) {
+    매출[+r['월']] = (매출[+r['월']] || 0) + Number(r['금액']);
+  });
+  (DB['손익비용'] || []).forEach(function (r) {
+    if (r['대분류'] === '원가') 원가[+r['월']] = (원가[+r['월']] || 0) + Number(r['금액']);
+  });
+  return { 매출: 매출, 원가: 원가 };
+}
+
+function 원가타일그리기() {
+  var mc = (DB['제조원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  var 축 = 원가월별(), 끝 = 마감월();
+  var 매출계 = 0, 원가계 = 0, m;
+  for (m = 1; m <= 끝; m++) { 매출계 += 축.매출[m] || 0; 원가계 += 축.원가[m] || 0; }
+
+  var 재료비중 = (DB['원가분해'] || [])[0] ? Number(DB['원가분해'][0]['재료비비중']) : null;
+
+  // 고정 제조원가 = 노무비 + 제조경비 (ADR 0018 — 재료비만 변동)
+  var 고정달 = {};
+  mc.forEach(function (r) {
+    if (r['구분'] === '노무비' || r['구분'] === '제조경비')
+      고정달[+r['월']] = (고정달[+r['월']] || 0) + Number(r['금액']);
+  });
+  var 고정들 = Object.keys(고정달).map(function (k) { return 고정달[k]; });
+  var 고정평균 = 고정들.length ? 고정들.reduce(function (s, v) { return s + v; }, 0) / 고정들.length : null;
+
+  var 타일 = function (k, v, u, d) {
+    return '<div class="tile"><div class="k">' + k + '</div>'
+      + '<div class="v">' + v + '<span class="u">' + u + '</span></div>'
+      + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
+  };
+  $('costTiles').innerHTML =
+    타일('누계 원가율', 매출계 ? (100 * 원가계 / 매출계).toFixed(1) : '—', '%',
+      백만(원가계) + ' / ' + 백만(매출계))
+    + 타일(끝 + '월 원가율', 축.매출[끝] ? (100 * (축.원가[끝] || 0) / 축.매출[끝]).toFixed(1) : '—', '%',
+      백만(축.원가[끝]) + ' / ' + 백만(축.매출[끝]))
+    + 타일('재료비 비중 (변동)', 재료비중 != null ? (100 * 재료비중).toFixed(1) : '—', '%',
+      '매출원가 중 변동 몫 — BEP와 같은 축')
+    + 타일('고정 제조원가', 고정평균 != null ? 백만(고정평균) : '—', '백만/월',
+      '노무비 + 제조경비 — 생산량과 무관하게 나간다');
+
+  $('costTilesNote').innerHTML =
+    '원가율의 분모·분자는 <strong>손익 탭과 같은 분개장</strong>입니다. '
+    + '재료비 비중과 고정 제조원가는 제조원가명세서에서 옵니다 (ADR 0018 — 재료비만 변동, '
+    + '노무비·제조경비는 고정).';
+}
+
+/* ── 월별 원가율과 원가대사 (0039) ────────────────────────────────
+ *
+ * 원가율이 튀는 달은 「판 것이 비싸서」가 아니라 **생산이 없어 미배부 제조원가가
+ * 매출원가로 직행해서**일 수 있다 — 4월 57.8%가 그랬다 (사월_제조원가_정밀분석).
+ * 수불부 영업출고(판 것의 원가)와 분개장 매출원가를 나란히 세워 그걸 드러낸다.
+ */
+function 원가율그리기() {
+  var 축 = 원가월별(), 끝 = 마감월();
+  var 대사 = {};
+  (DB['원가대사'] || []).forEach(function (r) {
+    if (+r['회계연도'] === 연도) 대사[+r['월']] = r;
+  });
+  var 달 = [], m;
+  for (m = 1; m <= 끝; m++) 달.push(m);
+  if (!달.length) return;
+
+  $('crHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+
+  var 값줄 = function (이름, f, 급) {
+    var 누 = 0;
+    var 칸 = 달.map(function (m) {
+      var v = f(m); 누 += v || 0;
+      return '<td class="num">' + (v == null ? '—' : 백만(v)) + '</td>';
+    }).join('');
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
+      + '<td class="num"><strong>' + 백만(누) + '</strong></td></tr>';
+  };
+  var 율줄 = function () {
+    var 매계 = 0, 원계 = 0;
+    var 칸 = 달.map(function (m) {
+      var 매 = 축.매출[m] || 0, 원 = 축.원가[m] || 0;
+      매계 += 매; 원계 += 원;
+      return '<td class="num muted">' + (매 ? (100 * 원 / 매).toFixed(1) + '%' : '—') + '</td>';
+    }).join('');
+    return '<tr class="r-child"><td>　원가율</td>' + 칸
+      + '<td class="num muted">' + (매계 ? (100 * 원계 / 매계).toFixed(1) + '%' : '—') + '</td></tr>';
+  };
+  var 차이줄 = function () {
+    var 누 = 0;
+    var 칸 = 달.map(function (m) {
+      var r = 대사[m];
+      var v = r ? Number(r['차이']) : null; 누 += v || 0;
+      // 크게 음(−)인 달 = 판 것보다 훨씬 많은 원가가 손익에 실린 달 — 미배부 신호다
+      return '<td class="num' + (v != null && v < -50 ? ' neg' : ' muted') + '">'
+        + (v == null ? '—' : 백만(v)) + '</td>';
+    }).join('');
+    return '<tr class="r-child"><td>　차이 (수불부 − 분개장)</td>' + 칸
+      + '<td class="num muted">' + 백만(누) + '</td></tr>';
+  };
+
+  $('crBody').innerHTML =
+    값줄('매출액', function (m) { return 축.매출[m]; }, 'r-total')
+    + 값줄('매출원가 — 분개장', function (m) { return 축.원가[m]; }, 'r-total')
+    + 율줄()
+    + 값줄('수불부 영업출고 — 판 것의 원가', function (m) {
+        var r = 대사[m]; return r ? Number(r['수불부출고']) : null;
+      }, 'r-child')
+    + 차이줄();
+
+  $('crNote').innerHTML =
+    '<strong>원가율이 튀는 달은 「판 것이 비싸서」가 아닐 수 있습니다.</strong> '
+    + '4월 원가율 57.8%는 생산이 0이라 배부되지 못한 제조원가 약 164가 매출원가로 직행한 '
+    + '결과입니다 — 판 것만의 원가율은 27.5%였습니다. 차이가 <span class="neg">빨강</span>이면 '
+    + '그런 달일 수 있으니 아래 「생산과 생산단가」에서 그 달 생산량을 확인하십시오. '
+    + '±25 안쪽의 차이는 상시 잡음이고 (상품매출원가 · 타계정대체 · K-IFRS 수정분개), '
+    + '<strong>분기말 달은 결산조정 몫이 더해집니다</strong> — 분개장 쪽이 손익 탭과 같은 '
+    + '확정 축이라서입니다 (6월 차이의 대부분이 조정 61.6). '
+    + '월별 원가율 하나로 판단하지 말고 누계로 보십시오.';
+}
+
+/* ── 생산과 생산단가 (0039) ──────────────────────────────────────
+ *
+ * 생산단가가 생산량에 따라 2.7배 벌어진다 — 5월 4,400개 @ 40,778원, 6월 16,650개 @ 14,908원.
+ * 고정 제조원가가 월 155~193으로 거의 일정해서, 적게 만든 달은 개당 고정비가 치솟고
+ * **안 만든 달은 그 돈이 어느 제품에도 안 실리고 매출원가로 직행한다** (4월 159.2).
+ * 처방은 생산 평준화다 — 매출을 안 늘리고 원가율을 낮추는 유일한 손잡이.
+ */
+function 생산그리기() {
+  var pc = (DB['품목원가'] || []).filter(function (r) {
+    return +r['회계연도'] === 연도 && r['계정구분'] === '제품';
+  });
+  var 있음 = pc.some(function (r) { return Number(r['생산수량']) > 0; });
+  if (!있음) { $('prodCard').hidden = true; return; }
+  $('prodCard').hidden = false;
+
+  var 달 = [], 끝 = 마감월(), m;
+  for (m = 1; m <= 끝; m++) 달.push(m);
+
+  // 생산금액이 큰 품목 순 — 완제품(계정구분 '제품')만. 반제품 생산은 완제품 단가에 이미 실린다
+  var 합 = {};
+  pc.forEach(function (r) {
+    var k = r['품번'];
+    if (!합[k]) 합[k] = { 품번: k, 품명: r['품명'], 수량: 0, 금액: 0 };
+    합[k].수량 += Number(r['생산수량'] || 0); 합[k].금액 += Number(r['생산금액'] || 0);
+  });
+  var 상위 = Object.keys(합).map(function (k) { return 합[k]; })
+    .filter(function (p) { return p.수량 > 0; })
+    .sort(function (a, b) { return b.금액 - a.금액; }).slice(0, 6);
+
+  $('prodHead').innerHTML = ['<th scope="col">품목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계 · 평균</th>']).join('');
+
+  var 원 = function (v) { return v == null ? '—' : Math.round(v).toLocaleString('ko-KR'); };
+  var 칸값 = function (p, m) {
+    var r = pc.filter(function (x) { return x['품번'] === p.품번 && +x['월'] === m; })[0];
+    return r ? { 수: Number(r['생산수량'] || 0), 액: Number(r['생산금액'] || 0) } : { 수: 0, 액: 0 };
+  };
+
+  var html = '';
+  상위.forEach(function (p) {
+    html += '<tr class="r-total"><td>' + 벗기(p.품명) + ' — 생산량</td>'
+      + 달.map(function (m) {
+          var v = 칸값(p, m);
+          // 0은 「안 만든 달」이다 — 숨기지 않고 빨갛게 세운다. 그 달 고정비가 손익을 때렸다
+          return '<td class="num' + (v.수 ? '' : ' neg') + '">' + (v.수 ? 원(v.수) : '0') + '</td>';
+        }).join('')
+      + '<td class="num"><strong>' + 원(p.수량) + '</strong></td></tr>';
+    html += '<tr class="r-child"><td>　생산단가</td>'
+      + 달.map(function (m) {
+          var v = 칸값(p, m);
+          return '<td class="num muted">' + (v.수 ? 원(v.액 / v.수) : '—') + '</td>';
+        }).join('')
+      + '<td class="num muted">' + (p.수량 ? 원(p.금액 / p.수량) : '—') + '</td></tr>';
+  });
+
+  // 고정 제조원가 줄 — 생산 0인 달이 왜 아픈지 이 줄이 말한다
+  var mc = (DB['제조원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  var 고정달 = {};
+  mc.forEach(function (r) {
+    if (r['구분'] === '노무비' || r['구분'] === '제조경비')
+      고정달[+r['월']] = (고정달[+r['월']] || 0) + Number(r['금액']);
+  });
+  if (Object.keys(고정달).length) {
+    var 전무 = function (m) {
+      return !pc.some(function (r) { return +r['월'] === m && Number(r['생산수량']) > 0; });
+    };
+    var 누 = 0;
+    html += '<tr class="r-child"><td>고정 제조원가 <span class="u">백만원</span></td>'
+      + 달.map(function (m) {
+          var v = 고정달[m]; 누 += v || 0;
+          return '<td class="num' + (v != null && 전무(m) ? ' neg' : ' muted') + '">'
+            + (v == null ? '—' : 백만(v)) + '</td>';
+        }).join('')
+      + '<td class="num muted">' + 백만(누) + '</td></tr>';
+  }
+  $('prodBody').innerHTML = html;
+
+  $('prodNote').innerHTML =
+    '<strong>생산단가는 생산량이 정합니다.</strong> 고정 제조원가(노무비 + 제조경비)가 '
+    + '월 155~193으로 거의 일정해서, 적게 만든 달은 개당 고정비가 치솟습니다 — '
+    + '5월 4,400개 @ 40,778원 대 6월 16,650개 @ 14,908원, <strong>2.7배</strong>입니다. '
+    + '생산량이 <span class="neg">0</span>인 달은 그 달 고정비가 어느 제품에도 안 실리고 '
+    + '<strong>매출원가로 직행합니다</strong> (4월 159.2 — 위 원가대사의 빨간 칸). '
+    + '고정 제조원가 줄이 <span class="neg">빨강</span>이면 그 달 완제품 생산이 없었다는 뜻입니다. '
+    + '재료비·불량·환율이 아니라 <strong>생산 평준화</strong>가 원가율의 손잡이입니다. '
+    + '수불부 「입고 – 생산」 기준이고 반제품 생산은 완제품 단가에 이미 실려 있어 세지 않습니다.';
 }
 
 /* ── 제조원가 구성 (지표 C, TDL ⑬) ───────────────────────────────
@@ -2156,7 +2422,6 @@ function 매출그리기() {
       : '');
 
   채널그리기(달);
-  공헌이익그리기();
 }
 
 /* ── 채널별 (결정_회계사TDL ⑨) — 금액 기준, 연도 토글 연동 ─────── */
@@ -2871,8 +3136,8 @@ function 현금흐름그리기(달) {
  * 아무것도 못 고른다. 공헌이익 열은 BEP와 축을 맞추려고 같이 낸다.
  */
 function 공헌이익그리기() {
-  var 행 = (DB['공헌이익'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
-  var 단위 = (DB['단위원가'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 행 = (DB['공헌이익'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  var 단위 = (DB['단위원가'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
   var 카드 = $('cm').closest('.card');
   if (!행.length) { 카드.hidden = true; return; }
   카드.hidden = false;
