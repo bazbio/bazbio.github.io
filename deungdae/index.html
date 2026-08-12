@@ -492,6 +492,18 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="crNote"></p>
       </div>
 
+      <!-- 무상출고와 비매출 원가 (2026-08-13 사용자 요청) — 매출 없이 나간 원가의 매월 관리 -->
+      <div class="card" id="freeCard" style="margin-top:12px" hidden>
+        <h3 class="ct">무상출고와 비매출 원가 — 매월 관리<span class="u">백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="free">
+            <thead><tr id="freeHead"></tr></thead>
+            <tbody id="freeBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="freeNote"></p>
+      </div>
+
       <!-- 제조원가 구성 (지표 C, TDL ⑬) — BEP 탭에서 이동 (2026-08-13) -->
       <div class="card" id="mcCard" style="margin-top:12px" hidden>
         <h3 class="ct">제조원가 구성<span class="u">백만원 · 구성비는 %</span></h3>
@@ -1145,6 +1157,7 @@ function BEP탭그리기() {
 function 원가탭그리기() {
   원가타일그리기();
   원가율그리기();
+  무상출고그리기();
   제조원가구성그리기();
   생산그리기();
   단위원가추이그리기();
@@ -1253,6 +1266,18 @@ function 원가율그리기() {
     return '<tr class="r-child"><td>　차이 (수불부 − 분개장)</td>' + 칸
       + '<td class="num muted">' + 백만(누) + '</td></tr>';
   };
+  // 차이의 성분 — 뷰(0040)가 가른 것을 그대로 세운다. 셋은 분개장에 더해진 돈이라
+  // 차이를 음으로 끌고, 잔여가 0에 가까우면 그 달의 차이는 설명이 끝난 것이다
+  var 성분줄 = function (이름, 키) {
+    var 값들 = 달.map(function (m) { var r = 대사[m]; return r ? Number(r[키]) : null; });
+    if (!값들.some(function (v) { return v && Math.abs(v) >= 0.05; })) return '';
+    var 누 = 값들.reduce(function (s, v) { return s + (v || 0); }, 0);
+    return '<tr class="r-child"><td>　　ㄴ ' + 이름 + '</td>'
+      + 값들.map(function (v) {
+          return '<td class="num muted">' + (v == null || !v ? '—' : 백만(v)) + '</td>';
+        }).join('')
+      + '<td class="num muted">' + 백만(누) + '</td></tr>';
+  };
 
   $('crBody').innerHTML =
     값줄('매출액', function (m) { return 축.매출[m]; }, 'r-total')
@@ -1261,17 +1286,114 @@ function 원가율그리기() {
     + 값줄('수불부 영업출고 — 판 것의 원가', function (m) {
         var r = 대사[m]; return r ? Number(r['수불부출고']) : null;
       }, 'r-child')
-    + 차이줄();
+    + 차이줄()
+    + 성분줄('미배부 제조원가 (생산 0인 달)', '미배부')
+    + 성분줄('결산조정 (분기말 보정)', '결산조정')
+    + 성분줄('재고 → 매출원가 직접 대체', '재고직접대체')
+    + 성분줄('남은 차이 (미확정)', '잔여');
 
   $('crNote').innerHTML =
     '<strong>원가율이 튀는 달은 「판 것이 비싸서」가 아닐 수 있습니다.</strong> '
-    + '4월 원가율 57.8%는 생산이 0이라 배부되지 못한 제조원가 약 164가 매출원가로 직행한 '
-    + '결과입니다 — 판 것만의 원가율은 27.5%였습니다. 차이가 <span class="neg">빨강</span>이면 '
-    + '그런 달일 수 있으니 아래 「생산과 생산단가」에서 그 달 생산량을 확인하십시오. '
-    + '±25 안쪽의 차이는 상시 잡음이고 (상품매출원가 · 타계정대체 · K-IFRS 수정분개), '
-    + '<strong>분기말 달은 결산조정 몫이 더해집니다</strong> — 분개장 쪽이 손익 탭과 같은 '
-    + '확정 축이라서입니다 (6월 차이의 대부분이 조정 61.6). '
-    + '월별 원가율 하나로 판단하지 말고 누계로 보십시오.';
+    + '차이의 성분 셋(미배부 · 결산조정 · 직접 대체)은 전부 <strong>분개장 쪽에 더해진 돈</strong>이라 '
+    + '차이를 음(−)으로 끌고, 「남은 차이」가 0에 가까우면 그 달은 설명이 끝난 것입니다. '
+    + '<strong>미배부</strong>는 완제품 생산이 0인 달의 공장 비용 전액입니다 — 배부할 생산이 없어 '
+    + '매출원가로 직행했습니다 (4월 159.2 — 판 것만의 원가율은 27.5%였습니다). '
+    + '<strong>결산조정</strong>은 분기말의 관리기준 → 확정 보정(6월 61.6), '
+    + '<strong>직접 대체</strong>는 영업출고를 안 거치고 재고에서 매출원가로 바로 옮겨진 것입니다. '
+    + '1월의 남은 차이 +59.9는 아직 설명이 안 됩니다 — K-IFRS 수정분개(제조간접비)로 보이나 '
+    + '재경팀 확인이 필요합니다. 월별 원가율 하나로 판단하지 말고 누계로 보십시오.';
+}
+
+/* ── 무상출고와 비매출 원가 (2026-08-13 사용자 요청) ──────────────
+ *
+ * 「우리가 중요하게 봐야 하는 지표가 무상출고다」— 매출 없이 나간 원가를 매월 한 표로
+ * 관리한다. 두 축이다:
+ *   ① 무상출고 — ERP 매출건 구분 '무상' × 그 달 단위원가. 매출원가에 실려 있다.
+ *      부서 축은 원천(매출건)에 있는 사업부(국내·일본·해외)까지다 — 팀 단위는 원천에 없다.
+ *   ② 타계정대체 순출고 — 재고에서 견본비·폐기손실·수량조정 등 비용 계정으로 나간 실물
+ *      (출고 − 입고). 수불부 축이라 부서가 없다.
+ */
+function 무상출고그리기() {
+  var 공헌 = (DB['공헌이익'] || []).filter(function (r) {
+    return +r['회계연도'] === 연도 && Number(r['무상수량']) > 0;
+  });
+  var 대체 = DB['타계정대체'] || [];
+  if (!공헌.length && !대체.length) { $('freeCard').hidden = true; return; }
+  $('freeCard').hidden = false;
+
+  var 달 = [], 끝 = 마감월(), m;
+  for (m = 1; m <= 끝; m++) 달.push(m);
+
+  $('freeHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+
+  // ① 무상출고 원가 — 무상수량 × 그 달 단위원가 (공헌이익 뷰가 단위원가의 계산처다)
+  var 무상원가 = function (rs, m) {
+    return 더(rs.filter(function (r) { return +r['월'] === m; }), function (r) {
+      return Number(r['무상수량']) * Number(r['단위원가'] || 0) / 1e6;
+    });
+  };
+  var 무상수량 = function (rs) { return 더(rs, function (r) { return Number(r['무상수량']); }); };
+  var 사업부들 = ['국내', '일본', '해외'].filter(function (d) {
+    return 공헌.some(function (r) { return r['사업부'] === d; });
+  });
+
+  var 줄 = function (이름, 값들, 급, 꼬리) {
+    var 누 = 값들.reduce(function (s, v) { return s + (v || 0); }, 0);
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>'
+      + 값들.map(function (v) {
+          return '<td class="num' + (급 === 'r-total' ? '' : ' muted') + '">'
+            + (v == null || Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
+        }).join('')
+      + '<td class="num"><strong>' + 백만(누) + '</strong>' + (꼬리 || '') + '</td></tr>';
+  };
+
+  var html = 줄('무상출고 원가 — 매출원가에 실림',
+    달.map(function (m) { return 무상원가(공헌, m); }), 'r-total',
+    ' <span class="u">' + 무상수량(공헌).toLocaleString('ko-KR') + '개·대</span>');
+  사업부들.forEach(function (d) {
+    var rs = 공헌.filter(function (r) { return r['사업부'] === d; });
+    html += 줄('　' + d, 달.map(function (m) { return 무상원가(rs, m); }), 'r-child',
+      ' <span class="u">' + 무상수량(rs).toLocaleString('ko-KR') + '</span>');
+  });
+
+  // ② 타계정대체 — 계정과목별 순출고 (출고 − 입고). 견본비·폐기·조정이 여기 있다
+  var 순 = function (rs, m) {
+    return 더(rs.filter(function (r) { return m == null || +r['월'] === m; }), function (r) {
+      return (r['방향'] === '출고' ? 1 : -1) * Number(r['금액']);
+    });
+  };
+  var 과목들 = [], 봤 = {};
+  대체.forEach(function (r) { if (!봤[r['계정과목']]) { 봤[r['계정과목']] = 1; 과목들.push(r['계정과목']); } });
+  과목들.sort(function (a, b) {
+    return Math.abs(순(대체.filter(function (r) { return r['계정과목'] === b; }), null))
+         - Math.abs(순(대체.filter(function (r) { return r['계정과목'] === a; }), null));
+  });
+
+  if (과목들.length) {
+    html += 줄('재고에서 비용으로 — 타계정대체 순출고',
+      달.map(function (m) { return 순(대체, m); }), 'r-total');
+    과목들.forEach(function (과) {
+      var rs = 대체.filter(function (r) { return r['계정과목'] === 과; });
+      html += 줄('　' + 벗기(과 === '매출원가' ? '매출원가 직접 대체' : 과),
+        달.map(function (m) { return 순(rs, m); }), 'r-child');
+    });
+  }
+
+  html += 줄('계 — 매출 없이 나간 원가',
+    달.map(function (m) { return 무상원가(공헌, m) + 순(대체, m); }), 'r-total');
+  $('freeBody').innerHTML = html;
+
+  $('freeNote').innerHTML =
+    '<strong>매출 없이 나간 원가를 매월 관리하는 표입니다.</strong> '
+    + '<strong>무상출고</strong>는 ERP 매출건의 무상 건 수량 × 그 달 단위원가이고, 이미 매출원가에 '
+    + '실려 있습니다. 부서는 원천에 있는 <strong>사업부(국내 · 일본 · 해외)</strong>까지입니다 — '
+    + '팀 단위는 ERP 매출건에 없습니다. 상반기 무상 노즐이 10,400개 — <strong>유상 4개당 1개꼴</strong>인데 '
+    + '이것이 정책인지 관행인지는 자료가 말하지 않습니다. '
+    + '<strong>타계정대체</strong>는 재고에서 견본비 · 폐기손실 · 수량조정 등 비용 계정으로 나간 '
+    + '실물(출고 − 입고 순액, 수불부 축)입니다 — 판관비의 견본비 계정 금액과는 축이 달라 다를 수 '
+    + '있습니다. 두 축은 겹치지 않아 「계」가 그 달 매출 없이 나간 원가의 전부입니다.';
 }
 
 /* ── 생산과 생산단가 (0039) ──────────────────────────────────────
