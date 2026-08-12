@@ -148,11 +148,12 @@
 
   /* 하단 탭 (모바일) */
   .nav { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.94); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid #e5e8eb; display:flex; z-index:20; }
-  /* 모바일은 탭 5개(홈·현황·흐름·리드·더보기)만 — 9개는 아이폰 폭(390px)에 안 들어간다.
-     나머지 5개는 더보기 화면 안으로. PC는 사이드바라 9개를 그대로 펼친다. */
+  /* 모바일은 탭 5개(홈·현황·N-Care·리드·더보기)만 — 9개는 아이폰 폭(390px)에 안 들어간다.
+     나머지는 더보기 화면 안으로. PC는 사이드바라 전부 펼친다.
+     흐름 ↔ N-Care 교체 (2026-08-12 사용자 요청) — 흐름은 더보기 안으로. */
   #nav-more { display:none; }
   @media (max-width: 899px) {
-    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-ncare { display:none; }
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow { display:none; }
     #nav-more { display:block; }
   }
   /* 더보기 화면 메뉴 */
@@ -822,9 +823,9 @@
       <div class="mb2"><div class="mn">KPI</div><div class="ms2">목표 · 달성 관리</div></div>
       <div class="mc">›</div>
     </div>
-    <div class="mrow" id="more-ncare" onclick="show('ncare')">
-      <div class="mi" style="background:#0f9d76;">N</div>
-      <div class="mb2"><div class="mn">N-Care</div><div class="ms2">Pool 단계별 진행현황</div></div>
+    <div class="mrow" id="more-flow" onclick="show('flow')">
+      <div class="mi" style="background:#8E7CF8;">흐</div>
+      <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
@@ -1100,7 +1101,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608112348';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608120000';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1330,7 +1331,7 @@ function onData(d) {
   // Meta DB는 개인 연락처가 있어 조회 전용에게 숨기지만, C-Labs는 그 확인이 업무라 연다
   var mm = document.getElementById('more-meta');
   if (mm) mm.style.display = (vw && !cl) ? 'none' : '';
-  ['nav-dash', 'nav-flow', 'more-kpi', 'nav-ncare', 'more-ncare'].forEach(function(id) {
+  ['nav-dash', 'nav-flow', 'more-kpi', 'more-flow', 'nav-ncare'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && cl) el.style.display = 'none';
   });
@@ -1414,7 +1415,7 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'ncare'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow'];
 function show(v) {
   ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'].forEach(function(k) {
     document.getElementById('view-' + k).classList.toggle('on', k === v);
