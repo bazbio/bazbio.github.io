@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>메아리 — 현장 등록</title>
+<meta name="theme-color" content="#f7f7f8">
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   메아리 등록 화면 — 폰 세로 한 손 기준 (SPEC §5.1)
+   디자인: 혼합안 v2 (2026-08-11 확정) — 흰 캔버스·검정 액션·헤어라인,
+   iOS 큰 제목, 신호색은 벽돌빨강·황토·강청 셋뿐. 초록·그라디언트 없음.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
+  --grouped:#f7f7f8; --card:#f5f5f6; --hair:#e5e7eb; --hair2:#d1d5db;
+  --red:#b42318; --red-bg:#f9f1f0;
+  --r-btn:8px; --r-card:12px; --pill:9999px;
+  --곡선:cubic-bezier(0.16,1,0.3,1);
+  --하단:calc(76px + env(safe-area-inset-bottom));
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--grouped); color:var(--ink);
+  font-family:'Pretendard Variable','Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  font-size:16px; line-height:1.55; letter-spacing:-.01em;
+  word-break:keep-all; overflow-wrap:break-word;
+  font-variant-numeric:tabular-nums;
+  -webkit-tap-highlight-color:transparent;
+}
+button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit}
+:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-btn)}
+
+/* ── 머리 — iOS 큰 제목 ── */
+.머리{padding:calc(var(--s5,20px) + env(safe-area-inset-top) + 8px) 20px 4px}
+.머리 h1{margin:0; font-size:27px; font-weight:600; letter-spacing:-.03em}
+.머리 p{margin:2px 0 0; font-size:13.5px; color:var(--muted)}
+
+/* ── 몸 ── */
+.몸{max-width:560px; margin:0 auto; padding:8px 16px var(--하단)}
+.칸{margin-bottom:20px}
+.표{display:block; font-size:13px; font-weight:600; color:var(--body); margin:0 2px 8px}
+.표 .별{color:var(--red); margin-left:2px}
+
+/* ── 입력 ── */
+.글칸, .고름{
+  width:100%; min-height:50px; padding:12px 14px;
+  background:#fff; border:1px solid var(--hair); border-radius:var(--r-btn);
+  transition:border-color .2s var(--곡선), box-shadow .2s var(--곡선);
+}
+.글칸:focus, .고름:focus{border-color:var(--ink); box-shadow:0 0 0 3px rgba(17,17,17,.06); outline:none}
+textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
+.고름{appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center; padding-right:42px;
+}
+
+/* ── 선택 버튼 무리 — 켬은 검정 ── */
+.무리{display:flex; flex-wrap:wrap; gap:7px}
+.알{
+  min-height:46px; padding:0 18px;
+  background:#fff; color:var(--body);
+  border:1px solid var(--hair2); border-radius:var(--r-btn);
+  font-size:14.5px; font-weight:500; cursor:pointer;
+  transition:transform .18s var(--곡선), background-color .18s var(--곡선), border-color .18s var(--곡선), color .18s var(--곡선);
+}
+.알:active{transform:scale(.97)}
+.알[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600}
+.무리.제품 .알{flex:1 1 calc(33.333% - 7px); padding:0 8px}
+
+/* ── 최근 거래처 ── */
+.최근{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.최근 button{
+  padding:6px 13px; background:var(--card); color:var(--body);
+  border:none; border-radius:var(--pill); font-size:13px; font-weight:500; cursor:pointer;
+  transition:transform .18s var(--곡선);
+}
+.최근 button:active{transform:scale(.96)}
+
+/* ── 사진 ── */
+.사진칸{display:flex; flex-wrap:wrap; gap:8px}
+.사진추가{
+  width:86px; height:86px; flex:0 0 auto;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  background:#fff; border:1px dashed var(--hair2); border-radius:var(--r-btn);
+  color:var(--muted); font-size:12.5px; font-weight:500; cursor:pointer;
+  transition:transform .18s var(--곡선), border-color .18s var(--곡선);
+}
+.사진추가:active{transform:scale(.97)}
+.사진추가:disabled{opacity:.4; cursor:default}
+.한장{position:relative; width:86px; height:86px; flex:0 0 auto}
+.한장 img{width:100%; height:100%; object-fit:cover; border-radius:var(--r-btn); display:block}
+.뺀다{
+  position:absolute; top:-6px; right:-6px; width:25px; height:25px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--ink); color:#fff; border:2px solid var(--grouped);
+  border-radius:50%; font-size:14px; line-height:1; cursor:pointer; padding:0;
+}
+.도움{margin:8px 2px 0; font-size:12.5px; color:var(--faint)}
+
+/* ── 보내기 (하단 고정) ── */
+.바닥{
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(247,247,248,.92); backdrop-filter:blur(16px);
+  border-top:1px solid var(--hair);
+}
+.보내기{
+  display:block; width:100%; max-width:528px; margin:0 auto; min-height:52px;
+  background:var(--ink); color:#fff; border:none; border-radius:var(--r-btn);
+  font-size:16px; font-weight:600; letter-spacing:-.01em; cursor:pointer;
+  transition:transform .18s var(--곡선), opacity .18s var(--곡선);
+}
+.보내기:active:not(:disabled){transform:scale(.985)}
+.보내기:disabled{background:#c6c9cd; cursor:default}
+
+/* ── 상태 ── */
+.알림{
+  margin:0 0 16px; padding:11px 14px;
+  border-radius:var(--r-btn); font-size:13.5px; font-weight:500;
+  background:var(--red-bg); color:var(--red); border:1px solid #e6cfcb;
+}
+.가운데{
+  min-height:60vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; padding:24px;
+}
+.가운데 h2{margin:0 0 6px; font-size:21px; font-weight:600; letter-spacing:-.025em}
+.가운데 p{margin:0; color:var(--muted); font-size:14.5px}
+.동그라미{
+  width:60px; height:60px; margin-bottom:18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--ink); color:#fff;
+}
+.빙글{
+  width:24px; height:24px; border:2.5px solid var(--hair); border-top-color:var(--ink);
+  border-radius:50%; animation:돈다 .7s linear infinite;
+}
+@keyframes 돈다{to{transform:rotate(360deg)}}
+.숨김{display:none !important}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important; transition-duration:.01ms !important}
+}
+@media (min-width:640px){
+  .머리{padding-top:36px}
+  .무리.제품 .알{flex:0 0 auto; padding:0 18px}
+}
+</style>
+</head>
+<body>
+
+<header class="머리">
+  <h1>메아리</h1>
+  <p>현장에서 들은 것을 그대로 남겨 주세요</p>
+</header>
+
+<!-- 불러오는 중 -->
+<div id="로딩" class="가운데">
+  <div class="빙글" role="status" aria-label="불러오는 중"></div>
+</div>
+
+<!-- 못 불러왔을 때 -->
+<div id="죽음" class="가운데 숨김">
+  <h2>연결하지 못했습니다</h2>
+  <p>잠시 뒤 다시 열어 주세요.<br>계속 안 되면 관리자에게 알려 주세요.</p>
+</div>
+
+<!-- 등록 화면 -->
+<main id="본문" class="몸 숨김">
+  <p id="탈" class="알림 숨김" role="alert"></p>
+
+  <div class="칸">
+    <label class="표" for="이름">누구세요<span class="별">*</span></label>
+    <select id="이름" class="고름"></select>
+  </div>
+
+  <div class="칸">
+    <span class="표">어디<span class="별">*</span></span>
+    <div class="무리" id="지역무리"></div>
+  </div>
+
+  <div class="칸">
+    <label class="표" for="거래처">어느 병원·거래처</label>
+    <input id="거래처" class="글칸" type="text" placeholder="부르는 이름 그대로" autocomplete="off">
+    <div class="최근" id="최근"></div>
+  </div>
+
+  <div class="칸">
+    <span class="표">무엇<span class="별">*</span></span>
+    <div class="무리 제품" id="제품무리"></div>
+  </div>
+
+  <div class="칸">
+    <label class="표" for="내용">무슨 일이 있었나요<span class="별">*</span></label>
+    <textarea id="내용" class="글칸" placeholder="고객이 한 말을 그대로 적어도 됩니다"></textarea>
+  </div>
+
+  <div class="칸">
+    <span class="표">사진</span>
+    <div class="사진칸" id="사진칸">
+      <button type="button" class="사진추가" id="사진추가">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 9a2 2 0 0 1 2-2h1.6l1.2-2h8.4l1.2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <circle cx="12" cy="13" r="3.4"/>
+        </svg>
+        찍기
+      </button>
+    </div>
+    <input id="파일" type="file" accept="image/*" capture="environment" multiple hidden>
+    <p class="도움">최대 5장. 올리기 전에 줄여서 보냅니다.</p>
+  </div>
+
+  <div class="칸">
+    <span class="표">동영상</span>
+    <div class="사진칸" id="동영상칸">
+      <button type="button" class="사진추가" id="동영상추가">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="6" width="13" height="12" rx="2"/>
+          <path d="m16 10 5-3v10l-5-3"/>
+        </svg>
+        찍기
+      </button>
+    </div>
+    <input id="동영상파일" type="file" accept="video/*" capture="environment" hidden>
+    <p class="도움">1개 · 30초 이내(최대 50MB). 분사 불량처럼 사진으로 안 보이는 증상에 씁니다.</p>
+  </div>
+</main>
+
+<div id="바닥" class="바닥 숨김">
+  <button type="button" class="보내기" id="보내기">보내기</button>
+</div>
+
+<!-- 다 됐을 때 -->
+<div id="끝" class="가운데 숨김">
+  <div class="동그라미">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5"/>
+    </svg>
+  </div>
+  <h2>올라갔습니다</h2>
+  <p id="끝말"></p>
+  <div style="margin-top:24px">
+    <button type="button" class="알" id="또">하나 더 올리기</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════════
+   관문 세 개를 부른다 (SPEC §5.1 · §7)
+     meari-boot        이름 목록 · 최근 거래처
+     meari-register    건 저장 → 사진 업로드용 서명 URL
+     meari-photo-done  실제로 올라간 사진만 장부에 적는다
+   ═══════════════════════════════════════════════════════════════ */
+var 관문 = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
+var 기억키 = 'meari.이름';
+var 사진최대 = 5;
+var 긴변 = 1600;      // 폰 원본 4~8MB를 200~400KB로 — 안 줄이면 LTE에서 30초가 깨진다
+var 화질 = 0.8;
+
+var 지역들 = ['국내', '일본', '해외'];
+var 제품들 = ['큐어젯', '노보젯', '노즐', '핸드피스', '기타'];
+
+var 사람 = [], 고른지역 = '', 고른제품 = '', 사진 = [], 동영상 = null, 보내는중 = false;
+var 동영상최대 = 50 * 1024 * 1024;   // 무료 티어의 파일당 한계와 같다 — 넘으면 서버도 거절한다
+
+var $ = function (id) { return document.getElementById(id); };
+var 보임 = function (el, 켬) { el.classList.toggle('숨김', !켬); };
+
+function 탈보임(말) {
+  var el = $('탈');
+  el.textContent = 말;
+  보임(el, !!말);
+  if (말) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* ── 알약 무리 그리기 ── */
+function 무리그리기(칸, 값들, 고른값, 누를때) {
+  칸.textContent = '';
+  값들.forEach(function (v) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = '알';
+    b.textContent = v;
+    b.setAttribute('aria-pressed', String(v === 고른값));
+    b.onclick = function () { 누를때(v); };
+    칸.appendChild(b);
+  });
+}
+
+function 지역그리기() {
+  무리그리기($('지역무리'), 지역들, 고른지역, function (v) { 고른지역 = v; 지역그리기(); });
+}
+function 제품그리기() {
+  무리그리기($('제품무리'), 제품들, 고른제품, function (v) { 고른제품 = v; 제품그리기(); });
+}
+
+/* ── 부트 ── */
+function 부트() {
+  fetch(관문 + '/meari-boot', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}'
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) throw new Error('부트');
+      사람 = d.사람 || [];
+      이름칸채우기();
+      최근채우기(d.거래처 || []);
+      지역그리기();
+      제품그리기();
+      보임($('로딩'), false);
+      보임($('본문'), true);
+      보임($('바닥'), true);
+    })
+    .catch(function () {
+      보임($('로딩'), false);
+      보임($('죽음'), true);
+    });
+}
+
+function 이름칸채우기() {
+  var sel = $('이름');
+  sel.textContent = '';
+  var 첫 = document.createElement('option');
+  첫.value = '';
+  첫.textContent = 사람.length ? '이름을 골라 주세요' : '등록자 명단이 아직 비어 있습니다';
+  sel.appendChild(첫);
+
+  사람.forEach(function (p) {
+    var o = document.createElement('option');
+    o.value = p.이름;
+    o.textContent = p.지역 ? p.이름 + ' · ' + p.지역 : p.이름;
+    o.dataset.지역 = p.지역 || '';
+    sel.appendChild(o);
+  });
+
+  // 한 번 고르면 폰이 기억한다 — 두 번째부터는 바로 본론이다
+  var 기억 = '';
+  try { 기억 = localStorage.getItem(기억키) || ''; } catch (e) {}
+  if (기억 && 사람.some(function (p) { return p.이름 === 기억; })) {
+    sel.value = 기억;
+    고른지역 = (사람.find(function (p) { return p.이름 === 기억; }) || {}).지역 || '';
+  }
+
+  sel.onchange = function () {
+    var o = sel.selectedOptions[0];
+    var 지 = o && o.dataset ? o.dataset.지역 : '';
+    if (지) { 고른지역 = 지; 지역그리기(); }   // 이름에서 자동. 다르면 눌러서 바꾼다
+    try { localStorage.setItem(기억키, sel.value); } catch (e) {}
+  };
+}
+
+function 최근채우기(목록) {
+  var 칸 = $('최근');
+  칸.textContent = '';
+  목록.slice(0, 8).forEach(function (r) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = r.표기;
+    b.onclick = function () { $('거래처').value = r.표기; };
+    칸.appendChild(b);
+  });
+}
+
+/* ── 사진: 고르는 즉시 줄인다 ── */
+$('사진추가').onclick = function () { $('파일').click(); };
+
+$('파일').onchange = function (e) {
+  var 파일들 = Array.prototype.slice.call(e.target.files || []);
+  e.target.value = '';
+  파일들.slice(0, 사진최대 - 사진.length).forEach(function (f) {
+    줄이기(f).then(function (blob) {
+      if (사진.length >= 사진최대) return;
+      사진.push(blob);
+      사진그리기();
+    }).catch(function () { 탈보임('사진 하나를 읽지 못했습니다. 다시 찍어 주세요.'); });
+  });
+};
+
+function 줄이기(파일) {
+  return new Promise(function (성공, 실패) {
+    var img = new Image();
+    var url = URL.createObjectURL(파일);
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      var 비율 = Math.min(1, 긴변 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * 비율);
+      c.height = Math.round(img.height * 비율);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(function (b) { b ? 성공(b) : 실패(new Error('blob')); }, 'image/jpeg', 화질);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); 실패(new Error('load')); };
+    img.src = url;
+  });
+}
+
+function 사진그리기() {
+  var 칸 = $('사진칸');
+  Array.prototype.slice.call(칸.querySelectorAll('.한장')).forEach(function (el) { el.remove(); });
+  사진.forEach(function (b, i) {
+    var 감 = document.createElement('div');
+    감.className = '한장';
+    var img = document.createElement('img');
+    img.src = URL.createObjectURL(b);
+    img.alt = (i + 1) + '번째 사진';
+    img.onload = function () { URL.revokeObjectURL(img.src); };
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = '뺀다';
+    x.setAttribute('aria-label', (i + 1) + '번째 사진 빼기');
+    x.textContent = '×';
+    x.onclick = function () { 사진.splice(i, 1); 사진그리기(); };
+    감.appendChild(img);
+    감.appendChild(x);
+    칸.insertBefore(감, $('사진추가'));
+  });
+  $('사진추가').disabled = 사진.length >= 사진최대;
+}
+
+/* ── 동영상: 브라우저 재인코딩이 안 되므로 크기만 확인하고 그대로 올린다 ── */
+$('동영상추가').onclick = function () { $('동영상파일').click(); };
+$('동영상파일').onchange = function (e) {
+  var f = (e.target.files || [])[0];
+  e.target.value = '';
+  if (!f) return;
+  if (f.size > 동영상최대) return 탈보임('동영상이 50MB를 넘습니다. 30초 이내로 잘라서 올려 주세요.');
+  동영상 = f;
+  동영상그리기();
+};
+function 동영상그리기() {
+  var 칸 = $('동영상칸');
+  Array.prototype.slice.call(칸.querySelectorAll('.한장')).forEach(function (el) { el.remove(); });
+  if (동영상) {
+    var 감 = document.createElement('div');
+    감.className = '한장';
+    감.style.cssText = 'display:flex;align-items:center;justify-content:center;background:#111;border-radius:8px;color:#fff;font-size:11px;flex-direction:column;gap:3px';
+    감.innerHTML = '<span>동영상</span><span style="opacity:.7">' + (동영상.size / 1048576).toFixed(1) + 'MB</span>';
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = '뺀다';
+    x.setAttribute('aria-label', '동영상 빼기');
+    x.textContent = '×';
+    x.onclick = function () { 동영상 = null; 동영상그리기(); };
+    감.appendChild(x);
+    칸.insertBefore(감, $('동영상추가'));
+  }
+  $('동영상추가').disabled = !!동영상;
+}
+
+/* ── 보내기 ── */
+$('보내기').onclick = function () {
+  if (보내는중) return;
+
+  var 이름 = $('이름').value;
+  var 내용 = $('내용').value.trim();
+  if (!이름) return 탈보임('이름을 골라 주세요.');
+  if (!고른지역) return 탈보임('어디인지 골라 주세요.');
+  if (!고른제품) return 탈보임('무엇에 대한 것인지 골라 주세요.');
+  if (!내용) return 탈보임('무슨 일이 있었는지 적어 주세요.');
+  탈보임('');
+
+  보내는중 = true;
+  $('보내기').disabled = true;
+  $('보내기').textContent = '보내는 중…';
+
+  fetch(관문 + '/meari-register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      이름: 이름,
+      지역: 고른지역,
+      거래처표기: $('거래처').value.trim(),
+      제품: 고른제품,
+      내용: 내용,
+      사진장수: 사진.length,
+      동영상: !!동영상
+    })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d || !d.ok) throw new Error(d && d.이유 ? d.이유 : '보내지 못했습니다');
+      // 건은 이미 저장됐다. 여기서부터 실패해도 현장 목소리는 남는다 (SPEC §7)
+      return 사진올리기(d.건_id, d.업로드 || []).then(function (올린수) {
+        끝내기(d.건_id, 올린수);
+      });
+    })
+    .catch(function (e) {
+      보내는중 = false;
+      $('보내기').disabled = false;
+      $('보내기').textContent = '보내기';
+      탈보임(e && e.message ? e.message : '보내지 못했습니다. 다시 눌러 주세요.');
+    });
+};
+
+function 사진올리기(건_id, 업로드) {
+  if (!업로드.length) return Promise.resolve(0);
+  var 성공순번 = [];
+  return Promise.all(업로드.map(function (u) {
+    var 동영상인가 = u.순번 === 0;
+    var 몸통 = 동영상인가 ? 동영상 : 사진[u.순번 - 1];
+    if (!몸통) return Promise.resolve();
+    return fetch(u.url, {
+      method: 'PUT',
+      headers: { 'content-type': 동영상인가 ? (동영상.type || 'video/mp4') : 'image/jpeg' },
+      body: 몸통
+    })
+      .then(function (r) { if (r.ok) 성공순번.push(u.순번); })
+      .catch(function () {});   // 한 장 실패가 등록 전체를 무르지 않는다
+  })).then(function () {
+    if (!성공순번.length) return 0;
+    return fetch(관문 + '/meari-photo-done', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ 건_id: 건_id, 순번들: 성공순번 })
+    }).then(function () { return 성공순번.length; })
+      .catch(function () { return 성공순번.length; });
+  });
+}
+
+function 끝내기(건_id, 올린수) {
+  var 말 = '접수번호 ' + 건_id + '번';
+  var 보낼수 = 사진.length + (동영상 ? 1 : 0);
+  if (보낼수) {
+    말 += 올린수 === 보낼수
+      ? ' · 파일 ' + 올린수 + '개'
+      : ' · 파일 ' + 올린수 + '/' + 보낼수 + '개 (일부 실패)';
+  }
+  $('끝말').textContent = 말;
+  보임($('본문'), false);
+  보임($('바닥'), false);
+  보임($('끝'), true);
+  window.scrollTo(0, 0);
+}
+
+$('또').onclick = function () {
+  $('거래처').value = '';
+  $('내용').value = '';
+  고른제품 = '';
+  사진 = [];
+  동영상 = null;
+  사진그리기();
+  동영상그리기();
+  제품그리기();
+  보내는중 = false;
+  $('보내기').disabled = false;
+  $('보내기').textContent = '보내기';
+  보임($('끝'), false);
+  보임($('본문'), true);
+  보임($('바닥'), true);
+  window.scrollTo(0, 0);
+};
+
+부트();
+</script>
+</body>
+</html>

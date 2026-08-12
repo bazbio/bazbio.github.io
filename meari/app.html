@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>메아리</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   메아리 앱 — 로그인 화면들 (SPEC §5.2~5.6)
+   디자인: 혼합안 v2 (2026-08-11 확정). 등록 화면(index.html)과 같은 토큰.
+   역할별 탭: 묶기(품질담당) · 부서 응답(부서담당) · 내 건(등록자) · 주간/월간(대표)
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
+  --canvas:#ffffff; --grouped:#f7f7f8; --card:#f5f5f6; --hair:#e5e7eb; --hair2:#d1d5db;
+  --red:#b42318; --red-bg:#f9f1f0; --amber:#8a6116; --amber-bg:#f9f6ee;
+  --청:#4c6b8a; --청-bg:#f1f4f8;
+  --r-btn:8px; --r-card:12px; --pill:9999px;
+  --곡선:cubic-bezier(0.16,1,0.3,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--canvas); color:var(--ink);
+  font-family:'Pretendard Variable','Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  font-size:15px; line-height:1.55; letter-spacing:-.01em;
+  word-break:keep-all; overflow-wrap:break-word;
+  font-variant-numeric:tabular-nums;
+  -webkit-tap-highlight-color:transparent;
+}
+button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit}
+:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-btn)}
+.숨김{display:none !important}
+
+/* ── 상단바 ── */
+.윗바{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:14px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:rgba(255,255,255,.92); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--hair);
+}
+.윗바 .마크{font-size:16px; font-weight:600; letter-spacing:-.02em}
+.윗바 .사람{margin-left:auto; font-size:12.5px; color:var(--muted); white-space:nowrap}
+.윗바 .사람 b{color:var(--ink); font-weight:600}
+.윗바 .나가기{background:none; border:none; color:var(--faint); font-size:12.5px; cursor:pointer; padding:4px}
+
+/* pill-in-pill 탭 */
+.필그룹{display:flex; gap:2px; background:#ececee; border-radius:var(--pill); padding:3px;
+        overflow-x:auto; scrollbar-width:none}
+.필그룹::-webkit-scrollbar{display:none}
+.필그룹 button{
+  flex:0 0 auto; border:none; background:transparent; cursor:pointer;
+  font-size:13px; font-weight:500; color:var(--muted);
+  padding:7px 15px; border-radius:var(--pill); white-space:nowrap;
+  transition:color .18s var(--곡선);
+}
+.필그룹 button[aria-selected="true"]{background:#fff; color:var(--ink); font-weight:600;
+  box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.필그룹 .수{color:var(--red); font-weight:700; margin-left:3px}
+
+/* ── 몸 ── */
+.몸{max-width:760px; margin:0 auto; padding:16px 16px 80px}
+.구분{font-size:12px; font-weight:600; color:var(--muted); margin:22px 0 8px;
+      display:flex; align-items:center; gap:10px}
+.구분:after{content:''; flex:1; height:1px; background:var(--hair)}
+.카드{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
+      padding:14px 16px; margin-bottom:10px}
+.카드.누름{cursor:pointer; transition:border-color .18s var(--곡선)}
+.카드.누름:active{transform:scale(.995)}
+.카드.요약{background:var(--card); border-color:transparent}
+.메타{font-size:12.5px; color:var(--muted)}
+.제목줄{font-size:15px; font-weight:600; letter-spacing:-.015em; margin:2px 0}
+.빈말{color:var(--muted); text-align:center; padding:44px 0 36px; font-size:14px}
+.빈말 b{display:block; font-size:18px; font-weight:600; letter-spacing:-.02em; color:var(--ink); margin-bottom:5px}
+
+/* 배지 */
+.표식{display:inline-block; font-size:11.5px; font-weight:600; padding:2.5px 10px;
+      border-radius:var(--pill); vertical-align:1px; margin-right:3px}
+.표식.재발{background:var(--red); color:#fff}
+.표식.긴급{background:var(--red-bg); color:var(--red); border:1px solid #e6cfcb}
+.표식.무응답{background:var(--amber-bg); color:var(--amber); border:1px solid #e6dbb8}
+.표식.확인{background:var(--청-bg); color:var(--청); border:1px solid #ccd9e4}
+.표식.회{background:#fff; color:var(--muted); border:1px solid var(--hair)}
+.표식.회면{background:var(--card); color:var(--body); border:1px solid transparent}
+
+/* 숫자 타일 */
+.숫자들{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:4px 0 6px}
+.숫자{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
+      padding:14px 10px 12px; text-align:center}
+.숫자 .값{font-size:30px; font-weight:700; letter-spacing:-.04em; line-height:1.05}
+.숫자 .값.빨{color:var(--red)} .숫자 .값.주{color:var(--amber)}
+.숫자 .이름{font-size:11.5px; color:var(--muted); font-weight:500; margin-top:3px}
+.숫자.경보{background:var(--red-bg); border-color:#e6cfcb}
+
+/* 버튼·입력 */
+.버튼{display:inline-flex; align-items:center; justify-content:center; border-radius:var(--r-btn);
+      font-size:14px; font-weight:600; padding:10px 18px; letter-spacing:-.01em;
+      border:none; cursor:pointer; transition:transform .18s var(--곡선), opacity .18s var(--곡선)}
+.버튼:active:not(:disabled){transform:scale(.97)}
+.버튼:disabled{opacity:.45; cursor:default}
+.버튼.검정{background:var(--ink); color:#fff}
+.버튼.흰{background:#fff; color:var(--ink); border:1px solid var(--hair2)}
+.버튼.빨글{background:#fff; color:var(--red); border:1px solid var(--hair2)}
+.글칸{width:100%; min-height:46px; padding:11px 13px; background:#fff;
+      border:1px solid var(--hair); border-radius:var(--r-btn);
+      transition:border-color .2s var(--곡선), box-shadow .2s var(--곡선)}
+.글칸:focus{border-color:var(--ink); box-shadow:0 0 0 3px rgba(17,17,17,.06); outline:none}
+textarea.글칸{min-height:88px; resize:vertical; line-height:1.6}
+.알약들{display:flex; flex-wrap:wrap; gap:7px}
+.알{min-height:42px; padding:0 15px; background:#fff; color:var(--body);
+    border:1px solid var(--hair2); border-radius:var(--r-btn);
+    font-size:13.5px; font-weight:500; cursor:pointer;
+    transition:transform .18s var(--곡선), background-color .18s var(--곡선), color .18s var(--곡선)}
+.알:active{transform:scale(.97)}
+.알[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600}
+.라벨{display:block; font-size:12.5px; font-weight:600; color:var(--body); margin:14px 2px 6px}
+.안내{font-size:12.5px; color:var(--muted); background:var(--card); border-radius:var(--r-btn);
+      padding:9px 13px; margin-top:10px}
+.탈{margin:0 0 14px; padding:10px 14px; border-radius:var(--r-btn); font-size:13.5px; font-weight:500;
+    background:var(--red-bg); color:var(--red); border:1px solid #e6cfcb}
+
+/* 진행 점 */
+.진행{display:flex; margin:12px 0 2px; font-size:10px; color:var(--muted); font-weight:500}
+.진행 .점{display:flex; flex-direction:column; align-items:center; gap:4px; flex:1}
+.진행 .점 i{width:8px; height:8px; border-radius:50%; background:var(--hair2)}
+.진행 .점.끝 i{background:var(--청)}
+.진행 .점.지금 i{background:var(--ink); box-shadow:0 0 0 4px var(--hair)}
+
+/* 사진 */
+.사진띠{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap}
+.사진띠 img{width:72px; height:72px; object-fit:cover; border-radius:var(--r-btn);
+            border:1px solid var(--hair); cursor:pointer}
+.원문접기{background:var(--card); border-radius:var(--r-btn); padding:9px 13px;
+          font-size:12.5px; color:var(--body); margin-top:8px}
+.원문접기 summary{cursor:pointer; font-weight:600; color:var(--muted); font-size:12px}
+
+/* 상세 겹창 */
+.겹창{position:fixed; inset:0; z-index:50; background:rgba(17,17,17,.32); display:flex;
+      align-items:flex-end; justify-content:center}
+.겹창 .판{background:#fff; border-radius:16px 16px 0 0; width:100%; max-width:760px;
+          max-height:88vh; overflow-y:auto; padding:18px 18px calc(24px + env(safe-area-inset-bottom))}
+.겹창 .닫기줄{display:flex; justify-content:flex-end; margin-bottom:2px}
+.겹창 .닫기줄 button{background:var(--card); border:none; border-radius:50%; width:30px; height:30px;
+                     font-size:15px; color:var(--muted); cursor:pointer}
+@media(min-width:640px){
+  .겹창{align-items:center; padding:24px}
+  .겹창 .판{border-radius:16px; max-height:82vh}
+}
+
+/* 로그인 */
+.로그인판{max-width:360px; margin:0 auto; padding:80px 24px}
+.로그인판 h1{font-size:28px; font-weight:600; letter-spacing:-.03em; margin:0 0 4px}
+.로그인판 .보조{color:var(--muted); font-size:14px; margin:0 0 28px}
+표,table.표{width:100%; border-collapse:collapse; font-size:13px; background:#fff;
+         border:1px solid var(--hair); border-radius:var(--r-card); overflow:hidden}
+table.표 th{font-size:11.5px; color:var(--muted); font-weight:600; text-align:left;
+            padding:8px 10px; border-bottom:1px solid var(--hair); background:#fafafa}
+table.표 td{padding:9px 10px; border-bottom:1px solid var(--hair); vertical-align:top}
+table.표 tr:last-child td{border-bottom:none}
+table.표 td.수{text-align:right; font-weight:600}
+.표감{border-radius:var(--r-card); overflow-x:auto}
+
+.빙글{width:24px; height:24px; margin:80px auto; border:2.5px solid var(--hair);
+      border-top-color:var(--ink); border-radius:50%; animation:돈다 .7s linear infinite}
+@keyframes 돈다{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+
+<!-- ── 로그인 ── -->
+<div id="로그인" class="로그인판 숨김">
+  <h1>메아리</h1>
+  <p class="보조">현장 목소리 장부</p>
+  <p id="로그인탈" class="탈 숨김" role="alert"></p>
+  <label class="라벨" for="이름">이름</label>
+  <input id="이름" class="글칸" type="text" autocomplete="username">
+  <label class="라벨" for="핀">PIN</label>
+  <input id="핀" class="글칸" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">
+  <button id="들어가기" class="버튼 검정" style="width:100%;margin-top:20px;padding:13px">들어가기</button>
+</div>
+
+<!-- ── 앱 ── -->
+<div id="앱" class="숨김">
+  <div class="윗바">
+    <span class="마크">메아리</span>
+    <div class="필그룹" id="탭들" role="tablist"></div>
+    <span class="사람"><b id="내이름"></b></span>
+    <button class="나가기" id="나가기">나가기</button>
+  </div>
+  <main class="몸" id="본문"></main>
+</div>
+
+<div id="로딩" class="빙글" role="status" aria-label="불러오는 중"></div>
+<div id="겹창자리"></div>
+
+<script>
+'use strict';
+var 관문 = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
+var 부서목록 = ['국내영업', '해외영업', '글로벌사업', 'CS'];
+var 제품들 = ['큐어젯', '노보젯', '노즐', '핸드피스', '기타'];
+
+var 세션 = null;   // {토큰, 이름, 역할[], 부서[]}
+var 홈 = null;     // meari-data 홈 payload
+var 지금탭 = '';
+
+var $ = function (id) { return document.getElementById(id); };
+var 보임 = function (el, 켬) { el.classList.toggle('숨김', !켬); };
+var 새기기 = function (s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
+var 날짜 = function (v) { if (!v) return ''; var d = new Date(v); return (d.getMonth()+1) + '/' + d.getDate(); };
+
+function 부르기(길, 몸) {
+  return fetch(관문 + 길, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(몸 || {})
+  }).then(function (r) { return r.json().then(function (d) { d.상태코드 = r.status; return d; }); });
+}
+
+/* ── 세션 ── */
+function 세션저장(s) { try { localStorage.setItem('meari.세션', JSON.stringify(s)); } catch (e) {} }
+function 세션읽기() { try { return JSON.parse(localStorage.getItem('meari.세션')); } catch (e) { return null; } }
+function 나가기() { try { localStorage.removeItem('meari.세션'); } catch (e) {} location.reload(); }
+
+/* ── 로그인 ── */
+$('들어가기').onclick = function () {
+  var 이름 = $('이름').value.trim(), pin = $('핀').value.trim();
+  if (!이름 || !pin) return 로그인탈('이름과 PIN을 넣어 주세요');
+  $('들어가기').disabled = true;
+  부르기('/meari-login', { 이름: 이름, pin: pin }).then(function (d) {
+    $('들어가기').disabled = false;
+    if (!d.ok) return 로그인탈(d.이유 || '들어가지 못했습니다');
+    세션 = { 토큰: d.토큰, 이름: d.이름, 역할: d.역할, 부서: d.부서 };
+    세션저장(세션);
+    시작();
+  }).catch(function () { $('들어가기').disabled = false; 로그인탈('연결하지 못했습니다'); });
+};
+$('핀').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('들어가기').click(); });
+function 로그인탈(말) { var el = $('로그인탈'); el.textContent = 말; 보임(el, true); }
+
+/* ── 탭 구성 (역할별) ── */
+function 탭목록() {
+  var 탭 = [];
+  if (세션.역할.indexOf('품질담당') >= 0) 탭.push(['묶기', '묶기']);
+  if (세션.부서.length) 탭.push(['부서', '부서 응답']);
+  if (세션.역할.indexOf('등록자') >= 0) 탭.push(['내건', '내 건']);
+  if (세션.역할.indexOf('대표') >= 0) { 탭.push(['주간', '주간']); 탭.push(['월간', '월간']); }
+  return 탭;
+}
+
+function 탭그리기() {
+  var 칸 = $('탭들'); 칸.textContent = '';
+  탭목록().forEach(function (t) {
+    var b = document.createElement('button');
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(t[0] === 지금탭));
+    var 수 = 탭수(t[0]);
+    b.innerHTML = 새기기(t[1]) + (수 ? ' <span class="수">' + 수 + '</span>' : '');
+    b.onclick = function () { 지금탭 = t[0]; 탭그리기(); 본문그리기(); };
+    칸.appendChild(b);
+  });
+}
+function 탭수(탭) {
+  if (!홈) return 0;
+  if (탭 === '묶기') return (홈.미분류 || []).length;
+  if (탭 === '부서') return (홈.부서이슈 || []).filter(function (i) { return ['응답대기','조사중','개선안'].indexOf(i.상태) >= 0; }).length;
+  if (탭 === '내건') return (홈.확인요청 || []).length;
+  return 0;
+}
+
+/* ── 시작 ── */
+function 시작() {
+  보임($('로그인'), false); 보임($('로딩'), true);
+  부르기('/meari-data', { 토큰: 세션.토큰 }).then(function (d) {
+    보임($('로딩'), false);
+    if (!d.ok) { if (d.상태코드 === 401) return 나가기(); throw new Error(); }
+    홈 = d;
+    $('내이름').textContent = 세션.이름;
+    보임($('앱'), true);
+    if (!지금탭) 지금탭 = (탭목록()[0] || [''])[0];
+    탭그리기(); 본문그리기();
+  }).catch(function () {
+    보임($('로딩'), false); 보임($('앱'), true);
+    $('본문').innerHTML = '<div class="빈말"><b>연결하지 못했습니다</b>잠시 뒤 다시 열어 주세요</div>';
+  });
+}
+function 다시읽기() {
+  return 부르기('/meari-data', { 토큰: 세션.토큰 }).then(function (d) {
+    if (d.ok) { 홈 = d; 탭그리기(); 본문그리기(); }
+  });
+}
+$('나가기').onclick = 나가기;
+
+/* ── 공용 조각 ── */
+function 이슈배지(i) {
+  var h = '';
+  if (i.재발횟수 > 0) h += '<span class="표식 재발">재발</span>';
+  else if (i.긴급) h += '<span class="표식 긴급">긴급</span>';
+  if (i.무응답) h += '<span class="표식 무응답">' + 새기기(i.담당부서) + ' · ' + i.무응답_일수 + '일째</span>';
+  h += '<span class="표식 회">' + (i.성격 === '고장불량' ? '고장·불량' : '개선 요구') + '</span>';
+  if (i.선개설) h += '<span class="표식 회면">선개설</span>';
+  return h;
+}
+function 이슈줄(i, 부가) {
+  return '<div class="카드 누름" data-이슈="' + i.id + '">' + 이슈배지(i) +
+    '<div class="제목줄">' + 새기기(i.제목) + '</div>' +
+    '<div class="메타">건 ' + i.건수 + (i.담당부서 ? ' · ' + 새기기(i.담당부서) : ' · 부서 미배정') +
+    ' · ' + 새기기(i.상태) + (i.응답기한 && i.상태 === '응답대기' ? ' · 기한 ' + 날짜(i.응답기한) : '') +
+    (부가 || '') + '</div></div>';
+}
+function 이슈줄들걸기(칸) {
+  칸.querySelectorAll('[data-이슈]').forEach(function (el) {
+    el.onclick = function () { 이슈열기(Number(el.dataset.이슈)); };
+  });
+}
+
+/* ── 본문 ── */
+function 본문그리기() {
+  var 몸 = $('본문');
+  if (지금탭 === '묶기') return 묶기그리기(몸);
+  if (지금탭 === '부서') return 부서그리기(몸);
+  if (지금탭 === '내건') return 내건그리기(몸);
+  if (지금탭 === '주간') return 주간그리기(몸);
+  if (지금탭 === '월간') return 월간그리기(몸);
+  몸.innerHTML = '<div class="빈말"><b>보여드릴 화면이 없습니다</b>역할이 아직 배정되지 않았습니다</div>';
+}
+
+/* ── 묶기 (품질담당) ── */
+function 묶기그리기(몸) {
+  var 미 = 홈.미분류 || [];
+  var h = '<div class="구분">미분류 ' + 미.length + '건</div>';
+  if (!미.length) h += '<div class="빈말"><b>미분류 건이 없습니다</b>새 건이 올라오면 여기 쌓입니다</div>';
+  미.forEach(function (g) {
+    h += '<div class="카드 누름" data-건="' + g.id + '">' +
+      '<span class="표식 회">' + 새기기(g.지역) + '</span>' +
+      (g.원문_언어 === 'ja' ? '<span class="표식 회면">' + (g.내용_번역 ? '자동번역' : '번역 대기') + '</span>' : '') +
+      (g.사진수 ? '<span class="표식 회면">사진 ' + g.사진수 + '</span>' : '') +
+      '<div class="제목줄">' + 새기기((g.내용_번역 || g.내용_원문).slice(0, 60)) + '</div>' +
+      '<div class="메타">' + 새기기(g.등록자_이름) + (g.거래처_표기 ? ' · ' + 새기기(g.거래처_표기) : '') +
+      ' · ' + 새기기(g.제품) + ' · ' + 날짜(g.등록일시) + '</div></div>';
+  });
+  h += '<div class="구분">이슈</div>';
+  (홈.이슈들 || []).forEach(function (i) { h += 이슈줄(i); });
+  if (!(홈.이슈들 || []).length) h += '<div class="빈말">아직 이슈가 없습니다</div>';
+  몸.innerHTML = h;
+  몸.querySelectorAll('[data-건]').forEach(function (el) {
+    el.onclick = function () { 건열기(Number(el.dataset.건)); };
+  });
+  이슈줄들걸기(몸);
+}
+
+function 건열기(건_id) {
+  부르기('/meari-data', { 토큰: 세션.토큰, 보기: '건', 건_id: 건_id }).then(function (d) {
+    if (!d.ok) return;
+    var g = d.건;
+    var h = '<span class="표식 회">' + 새기기(g.지역) + ' · ' + 새기기(g.제품) + '</span>';
+    if (g.원문_언어 === 'ja') h += '<span class="표식 회면">' + (g.내용_번역 ? '자동번역' : '번역 대기') + '</span>';
+    h += '<div style="font-size:17px;font-weight:600;letter-spacing:-.02em;margin:6px 0 2px">' +
+      새기기(g.내용_번역 || g.내용_원문) + '</div>' +
+      '<div class="메타">' + 새기기(g.등록자_이름) + (g.거래처_표기 ? ' · ' + 새기기(g.거래처_표기) : '') +
+      ' · ' + 날짜(g.등록일시) + '</div>';
+    if (g.원문_언어 === 'ja' && g.내용_번역) {
+      h += '<details class="원문접기"><summary>원문 보기</summary>' + 새기기(g.내용_원문) + '</details>';
+    }
+    if ((d.사진 || []).length) {
+      h += '<div class="사진띠">' + d.사진.map(function (p) {
+        if (p.동영상) return '<video src="' + p.url + '" controls preload="metadata" style="width:100%;max-width:340px;border-radius:8px;border:1px solid var(--hair)"></video>';
+        return '<a href="' + p.url + '" target="_blank" rel="noopener"><img src="' + p.url + '" alt="사진 ' + p.순번 + '"></a>';
+      }).join('') + '</div>';
+    }
+
+    h += '<div class="구분">기존 이슈에 붙이기</div>';
+    var 열린이슈 = (홈.이슈들 || []);
+    if (열린이슈.length) {
+      h += '<div id="이슈고르기">' + 열린이슈.map(function (i) {
+        return '<div class="카드 누름" data-고름="' + i.id + '">' + 이슈배지(i) +
+          '<div class="제목줄">' + 새기기(i.제목) + '</div>' +
+          '<div class="메타">건 ' + i.건수 + ' · ' + 새기기(i.상태) + (i.상태 === '개선완료' ? ' — 붙이면 재발로 다시 열립니다' : '') + '</div></div>';
+      }).join('') + '</div>';
+    } else h += '<div class="메타">아직 이슈가 없습니다 — 아래에서 새로 엽니다.</div>';
+
+    h += '<div class="구분">또는 새 이슈</div>' +
+      '<input id="새제목" class="글칸" placeholder="이슈 제목" value="' + 새기기((g.내용_번역 || g.내용_원문).slice(0, 40)) + '">' +
+      '<span class="라벨">성격</span><div class="알약들" id="성격무리"></div>' +
+      '<span class="라벨">부서 (비워 두면 배정대기)</span><div class="알약들" id="부서무리"></div>' +
+      '<div style="display:flex;gap:8px;margin-top:16px">' +
+      '<button class="버튼 검정" id="새이슈열기">새 이슈 열기</button></div>' +
+      '<div class="안내">배정하면 응답기한이 자동으로 잡힙니다 — 배정일로부터 이틀 이상 뒤의 첫 수요일.</div>';
+
+    var 판 = 겹창(h);
+    var 성격 = '고장불량', 부서 = '';
+    무리(판.querySelector('#성격무리'), [['고장불량','고장·불량'],['개선요구','개선 요구']], 성격, function (v) { 성격 = v; });
+    무리(판.querySelector('#부서무리'), 부서목록.map(function (d) { return [d, d]; }), 부서, function (v) { 부서 = (부서 === v) ? '' : v; return 부서; });
+
+    판.querySelectorAll('[data-고름]').forEach(function (el) {
+      el.onclick = function () {
+        el.style.opacity = .5;
+        부르기('/meari-act', { 토큰: 세션.토큰, 동작: '묶기', 건_id: g.id, 이슈_id: Number(el.dataset.고름) })
+          .then(function (r) {
+            if (!r.ok) { el.style.opacity = 1; return alert(r.이유 || '묶지 못했습니다'); }
+            겹창닫기(); 다시읽기();
+          });
+      };
+    });
+    판.querySelector('#새이슈열기').onclick = function () {
+      var 제목 = 판.querySelector('#새제목').value.trim();
+      if (!제목) return alert('제목을 적어 주세요');
+      this.disabled = true;
+      부르기('/meari-act', { 토큰: 세션.토큰, 동작: '새이슈', 건_id: g.id, 제목: 제목, 성격: 성격, 부서: 부서 })
+        .then(function (r) {
+          if (!r.ok) return alert(r.이유 || '열지 못했습니다');
+          겹창닫기(); 다시읽기();
+        });
+    };
+  });
+}
+
+/* 알약 무리 — 토글 콜백이 값을 돌려주면 그 값으로 고른 상태를 갱신 */
+function 무리(칸, 값들, 처음, 골랐다) {
+  var 고른 = 처음;
+  function 그리기() {
+    칸.textContent = '';
+    값들.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = '알'; b.textContent = v[1];
+      b.setAttribute('aria-pressed', String(v[0] === 고른));
+      b.onclick = function () {
+        var r = 골랐다(v[0]);
+        고른 = (r === undefined) ? v[0] : r;
+        그리기();
+      };
+      칸.appendChild(b);
+    });
+  }
+  그리기();
+}
+
+/* ── 이슈 상세 (전 역할 공용) ── */
+function 이슈열기(이슈_id) {
+  부르기('/meari-data', { 토큰: 세션.토큰, 보기: '이슈', 이슈_id: 이슈_id }).then(function (d) {
+    if (!d.ok) return alert(d.이유 === '권한' ? '볼 권한이 없습니다' : '불러오지 못했습니다');
+    var i = d.이슈;
+    var 내부서 = 세션.부서.indexOf(i.담당부서) >= 0;
+    var 대표다 = 세션.역할.indexOf('대표') >= 0;
+    var 품질이다 = 세션.역할.indexOf('품질담당') >= 0;
+
+    var h = 이슈배지(i) +
+      '<div style="font-size:18px;font-weight:600;letter-spacing:-.02em;margin:6px 0 2px">' + 새기기(i.제목) + '</div>' +
+      '<div class="메타">건 ' + i.건수 + (i.담당부서 ? ' · ' + 새기기(i.담당부서) : ' · 부서 미배정') +
+      ' · ' + 새기기(i.상태) +
+      (i.응답기한 && i.상태 === '응답대기' ? ' · <b style="color:var(--amber)">기한 ' + 날짜(i.응답기한) + ' 수</b>' : '') + '</div>';
+    if (i.선개설 && i.근거) h += '<div class="안내">근거 — ' + 새기기(i.근거) + '</div>';
+
+    h += '<div class="구분">묶인 건 ' + d.건들.length + '</div>';
+    if (!d.건들.length) h += '<div class="메타">아직 묶인 건이 없습니다.</div>';
+    d.건들.forEach(function (g) {
+      h += '<div class="카드 요약"><div class="메타">' + 날짜(g.등록일시) + ' · ' + 새기기(g.등록자_이름) +
+        (g.거래처_표기 ? ' · ' + 새기기(g.거래처_표기) : '') + '</div>' +
+        '<div style="font-size:13.5px;margin-top:2px">' + 새기기(g.내용_번역 || g.내용_원문) + '</div>' +
+        ((g.사진 || []).length ? '<div class="사진띠">' + g.사진.map(function (p) {
+          if (p.동영상) return '<video src="' + p.url + '" controls preload="metadata" style="width:100%;max-width:340px;border-radius:8px;border:1px solid var(--hair)"></video>';
+          return '<a href="' + p.url + '" target="_blank" rel="noopener"><img src="' + p.url + '" alt=""></a>';
+        }).join('') + '</div>' : '') + '</div>';
+    });
+
+    if (d.응답들.length) {
+      h += '<div class="구분">부서의 답</div>';
+      d.응답들.forEach(function (r) {
+        h += '<div class="카드 요약"><span class="표식 회">' + 새기기(r.종류) + '</span>' +
+          (r.목표일 ? '<span class="표식 회면">목표 ' + 날짜(r.목표일) + '</span>' : '') +
+          '<div style="font-size:13.5px;margin-top:4px">' + 새기기(r.내용) + '</div>' +
+          '<div class="메타" style="margin-top:2px">' + 새기기(r.작성자) + ' · ' + 날짜(r.작성일시) + '</div></div>';
+      });
+    }
+
+    /* 역할별 행동 */
+    if (품질이다 && i.상태 === '배정대기') {
+      h += '<div class="구분">부서 배정</div><div class="알약들" id="배정무리"></div>' +
+        '<button class="버튼 검정" id="배정하기" style="margin-top:12px">배정</button>';
+    }
+    if (내부서 && ['응답대기', '조사중', '개선안'].indexOf(i.상태) >= 0) {
+      h += '<div class="구분">답하기</div><div class="알약들" id="답무리"></div>' +
+        '<textarea id="답내용" class="글칸" style="margin-top:10px" placeholder="내용"></textarea>' +
+        '<div id="목표일칸"><span class="라벨">목표일</span><input id="답목표일" class="글칸" type="date"></div>' +
+        '<button class="버튼 검정" id="답보내기" style="margin-top:12px">답 올리기</button>';
+      if (i.상태 === '개선안') {
+        h += '<div class="구분">실행이 끝났다면</div>' +
+          '<button class="버튼 흰" id="실행완료">실행 완료 — ' +
+          (i.성격 === '고장불량' ? '현장 확인으로 넘어갑니다' : '닫힘 대기로 넘어갑니다') + '</button>';
+      }
+    }
+    if (i.상태 === '현장확인대기' && d.내건묶임) {
+      h += '<div class="구분">현장 확인</div>' +
+        '<div class="메타">부서가 실행을 마쳤습니다. 그 이후 재발이 없었는지 확인해 주세요.</div>' +
+        '<div style="display:flex;gap:8px;margin-top:12px">' +
+        '<button class="버튼 검정" id="재발없음" style="flex:1">재발 없음</button>' +
+        '<a class="버튼 빨글" href="index.html" style="flex:1;text-decoration:none">또 발생 — 새로 등록</a></div>';
+    }
+    if (대표다 && i.상태 === '닫힘대기') {
+      h += '<div class="구분">닫기 — 대표만 할 수 있습니다</div>' +
+        '<button class="버튼 검정" id="닫기하기">개선 완료로 닫기</button>';
+    }
+
+    var 판 = 겹창(h);
+
+    if (판.querySelector('#배정무리')) {
+      var 고른부서 = '';
+      무리(판.querySelector('#배정무리'), 부서목록.map(function (d2) { return [d2, d2]; }), '', function (v) { 고른부서 = v; });
+      판.querySelector('#배정하기').onclick = function () {
+        if (!고른부서) return alert('부서를 골라 주세요');
+        행동({ 동작: '배정', 이슈_id: i.id, 부서: 고른부서 });
+      };
+    }
+    if (판.querySelector('#답무리')) {
+      var 종류 = '개선안';
+      무리(판.querySelector('#답무리'), [['개선안','개선안'],['조사중','조사 중'],['반려','반려']], 종류, function (v) {
+        종류 = v;
+        판.querySelector('#목표일칸').style.display = (v === '반려') ? 'none' : '';
+      });
+      판.querySelector('#답보내기').onclick = function () {
+        행동({ 동작: '응답', 이슈_id: i.id, 종류: 종류,
+               내용: 판.querySelector('#답내용').value.trim(),
+               목표일: 판.querySelector('#답목표일').value });
+      };
+    }
+    if (판.querySelector('#실행완료')) 판.querySelector('#실행완료').onclick = function () { 행동({ 동작: '실행완료', 이슈_id: i.id }); };
+    if (판.querySelector('#재발없음')) 판.querySelector('#재발없음').onclick = function () { 행동({ 동작: '현장확인', 이슈_id: i.id }); };
+    if (판.querySelector('#닫기하기')) 판.querySelector('#닫기하기').onclick = function () { 행동({ 동작: '닫기', 이슈_id: i.id }); };
+
+    function 행동(몸2) {
+      몸2.토큰 = 세션.토큰;
+      부르기('/meari-act', 몸2).then(function (r) {
+        if (!r.ok) return alert(r.이유 || '처리하지 못했습니다');
+        겹창닫기(); 다시읽기();
+      });
+    }
+  });
+}
+
+/* ── 부서 응답 ── */
+function 부서그리기(몸) {
+  var 들 = 홈.부서이슈 || [];
+  var 진행 = 들.filter(function (i) { return i.상태 !== '개선완료'; });
+  var 끝 = 들.filter(function (i) { return i.상태 === '개선완료'; });
+  var h = '<div class="구분">우리 부서 이슈 ' + 진행.length + '</div>';
+  if (!진행.length) h += '<div class="빈말"><b>배정된 이슈가 없습니다</b></div>';
+  진행.forEach(function (i) { h += 이슈줄(i); });
+  if (끝.length) {
+    h += '<div class="구분">닫힌 이슈</div>';
+    끝.forEach(function (i) { h += 이슈줄(i); });
+  }
+  몸.innerHTML = h;
+  이슈줄들걸기(몸);
+}
+
+/* ── 내 건 (등록자) ── */
+function 내건그리기(몸) {
+  var 확인 = 홈.확인요청 || [];
+  var h = '';
+  if (확인.length) {
+    h += '<div class="구분">현장 확인 요청</div>';
+    확인.forEach(function (i) {
+      h += '<div class="카드 누름" data-이슈="' + i.id + '" style="border-color:#ccd9e4">' +
+        '<span class="표식 확인">확인 요청</span>' + 이슈배지(i) +
+        '<div class="제목줄">' + 새기기(i.제목) + '</div>' +
+        '<div class="메타">부서 실행이 끝났습니다 — 재발이 없었는지 눌러서 확인해 주세요.</div></div>';
+    });
+  }
+  h += '<div class="구분">내가 올린 건</div>';
+  var 내건 = 홈.내건 || [];
+  if (!내건.length) h += '<div class="빈말"><b>올린 건이 없습니다</b><a href="index.html" style="color:var(--ink)">등록 화면</a>에서 올립니다</div>';
+  내건.forEach(function (g) {
+    h += '<div class="카드' + (g.이슈_id ? ' 누름" data-이슈="' + g.이슈_id : '') + '">' +
+      '<span class="표식 회">' + 날짜(g.등록일시) + '</span>' +
+      (g.이슈_id ? '<span class="표식 회면">' + 새기기(g.이슈상태) + '</span>' : '<span class="표식 회면">분류 대기</span>') +
+      '<div class="제목줄">' + 새기기(g.내용_원문.slice(0, 50)) + '</div>' +
+      '<div class="메타">' + (g.거래처_표기 ? 새기기(g.거래처_표기) + ' · ' : '') + 새기기(g.제품) +
+      (g.이슈제목 ? ' · 이슈 「' + 새기기(g.이슈제목) + '」' + (g.담당부서 ? ' · ' + 새기기(g.담당부서) : '') : '') +
+      '</div></div>';
+  });
+  몸.innerHTML = h;
+  이슈줄들걸기(몸);
+}
+
+/* ── 대표 주간 ── */
+function 주간그리기(몸) {
+  var 들 = (홈.전체이슈 || []).filter(function (i) { return i.상태 !== '개선완료'; });
+  var 긴급들 = 들.filter(function (i) { return i.긴급; });
+  var 무응답들 = 들.filter(function (i) { return i.무응답; });
+  var 배정대기들 = 들.filter(function (i) { return i.상태 === '배정대기'; });
+  var 확인대기들 = 들.filter(function (i) { return i.상태 === '현장확인대기'; });
+
+  var h = '<div class="숫자들">' +
+    '<div class="숫자' + (긴급들.length ? ' 경보' : '') + '"><div class="값' + (긴급들.length ? ' 빨' : '') + '">' + 긴급들.length + '</div><div class="이름">긴급</div></div>' +
+    '<div class="숫자"><div class="값' + (무응답들.length ? ' 주' : '') + '">' + 무응답들.length + '</div><div class="이름">무응답</div></div>' +
+    '<div class="숫자"><div class="값">' + 배정대기들.length + '</div><div class="이름">배정 대기</div></div>' +
+    '<div class="숫자"><div class="값">' + 확인대기들.length + '</div><div class="이름">현장확인 대기</div></div></div>';
+
+  if (!긴급들.length && !무응답들.length && !배정대기들.length && !확인대기들.length) {
+    h += '<div class="빈말"><b>이번 주는 막힌 것이 없습니다</b>모든 이슈가 기한 안에서 움직이고 있습니다</div>';
+  }
+  if (긴급들.length) { h += '<div class="구분">긴급</div>'; 긴급들.forEach(function (i) { h += 이슈줄(i); }); }
+  if (무응답들.length) { h += '<div class="구분">무응답</div>'; 무응답들.forEach(function (i) { h += 이슈줄(i); }); }
+  if (배정대기들.length) { h += '<div class="구분">배정 대기</div>'; 배정대기들.forEach(function (i) { h += 이슈줄(i); }); }
+  if (확인대기들.length) { h += '<div class="구분">현장확인 대기</div>'; 확인대기들.forEach(function (i) { h += 이슈줄(i); }); }
+  몸.innerHTML = h;
+  이슈줄들걸기(몸);
+}
+
+/* ── 대표 월간 ── */
+function 월간그리기(몸) {
+  var 전체 = 홈.전체이슈 || [];
+  var 닫힘대기들 = 전체.filter(function (i) { return i.상태 === '닫힘대기'; });
+  var 이달닫힘 = 홈.이번달닫힘 || [];
+
+  var h = '<div class="구분">닫힘 대기 — 여기서만 닫힙니다</div>';
+  if (!닫힘대기들.length) h += '<div class="메타" style="margin-bottom:8px">닫힘을 기다리는 이슈가 없습니다.</div>';
+  닫힘대기들.forEach(function (i) { h += 이슈줄(i, ' · 눌러서 심의'); });
+
+  h += '<div class="구분">이슈별 누적</div><div class="표감"><table class="표">' +
+    '<tr><th>이슈</th><th>성격</th><th style="text-align:right">건</th><th>부서 · 상태</th></tr>';
+  전체.forEach(function (i) {
+    h += '<tr data-표이슈="' + i.id + '" style="cursor:pointer"><td>' + 새기기(i.제목) +
+      (i.재발횟수 > 0 ? ' <span class="표식 재발">재발</span>' : (i.긴급 ? ' <span class="표식 긴급">긴급</span>' : '')) + '</td>' +
+      '<td>' + (i.성격 === '고장불량' ? '고장·불량' : '개선 요구') + '</td>' +
+      '<td class="수">' + i.건수 + (i.선개설 && !Number(i.건수) ? '*' : '') + '</td>' +
+      '<td>' + (i.담당부서 ? 새기기(i.담당부서) + ' · ' : '') +
+      (i.무응답 ? '<b style="color:var(--amber)">무응답 ' + i.무응답_일수 + '일</b>' : 새기기(i.상태)) + '</td></tr>';
+  });
+  h += '</table></div>';
+  if (전체.some(function (i) { return i.선개설; })) h += '<div class="메타" style="margin-top:7px">* 선개설 — 근거는 이슈를 열면 보입니다</div>';
+
+  if (이달닫힘.length) {
+    h += '<div class="구분">이번 달 닫힌 것</div>';
+    이달닫힘.forEach(function (i) { h += 이슈줄(i); });
+  }
+  몸.innerHTML = h;
+  이슈줄들걸기(몸);
+  몸.querySelectorAll('[data-표이슈]').forEach(function (el) {
+    el.onclick = function () { 이슈열기(Number(el.dataset.표이슈)); };
+  });
+}
+
+/* ── 겹창 ── */
+function 겹창(html) {
+  var 감 = document.createElement('div');
+  감.className = '겹창';
+  감.innerHTML = '<div class="판"><div class="닫기줄"><button aria-label="닫기">×</button></div>' + html + '</div>';
+  감.onclick = function (e) { if (e.target === 감) 겹창닫기(); };
+  감.querySelector('.닫기줄 button').onclick = 겹창닫기;
+  $('겹창자리').textContent = '';
+  $('겹창자리').appendChild(감);
+  return 감;
+}
+function 겹창닫기() { $('겹창자리').textContent = ''; }
+
+/* ── 진입 ── */
+세션 = 세션읽기();
+보임($('로딩'), false);
+if (세션 && 세션.토큰) { 시작(); } else { 보임($('로그인'), true); }
+</script>
+</body>
+</html>
