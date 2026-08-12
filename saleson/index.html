@@ -780,6 +780,9 @@
     <span style="font-size:13px;color:#6b7684;">내가 입력한 내용을 보고 고칠 수 있습니다</span>
     <button class="refresh" onclick="MINE=null;loadMine()">새로고침</button>
   </div>
+  <!-- 검색 (8/13 요청) — 「테스트 기록을 지우고 싶은데 어디 있는지 모르겠다」 -->
+  <input type="text" id="mineQ" placeholder="병원명·내용으로 검색" autocomplete="off"
+    style="margin:0 0 10px;" oninput="MINEQ=this.value;renderMine()">
   <div class="seg" id="mineSeg"></div>
   <div id="mineBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
@@ -917,6 +920,7 @@ var KPIT = null;
 var MATL = null;
 var MINE = null;        // 내 입력 탭 데이터
 var MINESEG = '방문기록';
+var MINEQ = '';         // 내 입력 검색어 (8/13)
 var EDITKEY = '';       // 빈 값이면 새 기록, 아니면 그 열쇠(열쇠_)의 기록을 수정 중
 var METAQ = null;       // Meta DB 탭 데이터
 var METASEG = '전체';
@@ -924,6 +928,8 @@ var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
 var NCST = 0;           // 단계 필터 (0 = 전체)
+var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [저장]을 눌러야 반영 (8/13)
+var NCSEL_ID = 0;       // 어느 병원의 선택인지
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
 var MATSEG = '전체';
 var LEADSEG = 'open';
@@ -1101,7 +1107,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608122141';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608122201';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1618,23 +1624,33 @@ function renderMonthly(team) {
     + '<div class="card"><table class="dt"><thead><tr>'
     + '<th>월</th><th class="c">방문</th><th class="c">데모처</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">신규 리드</th>'
     + '</tr></thead><tbody>';
-  var tot = { visits: 0, demos: 0, sales: 0, ncare: 0, newLeads: 0 };
+  var tot = { visits: 0, demos: 0, sales: 0, ncare: 0, newLeads: 0, inb: 0, outb: 0 };
+  // 인/아웃 구분 (ADR 0022) — 옛 스냅샷에는 inb가 없다. 하나라도 있으면 표기한다
+  var 유입있음 = rows.some(function(r) { return r.inb != null; });
+  var 유입칸 = function(r, bold) {
+    if (!유입있음) return '';
+    var v = r.newLeads ? '<span style="font-size:11px;color:#8b95a1;">인 ' + (r.inb || 0) + ' · 아웃 ' + (r.outb || 0) + '</span>' : '';
+    return '<div>' + v + '</div>';
+  };
   rows.forEach(function(r) {
     tot.visits += r.visits; tot.demos += r.demos; tot.sales += r.sales;
     tot.ncare += r.ncare; tot.newLeads += r.newLeads;
+    tot.inb += r.inb || 0; tot.outb += r.outb || 0;
     h += '<tr><td><b>' + esc(r.m) + '</b></td>'
       + '<td class="c">' + (r.visits || '-') + '</td>'
       + '<td class="c">' + (r.demos || '-') + '</td>'
       + '<td class="c">' + (r.sales ? '<b class="blue">' + r.sales + '</b>' : '-') + '</td>'
       + '<td class="c">' + (r.ncare ? '<b style="color:#058652;">' + r.ncare + '</b>' : '-') + '</td>'
-      + '<td class="c">' + (r.newLeads || '-') + '</td></tr>';
+      + '<td class="c">' + (r.newLeads || '-') + 유입칸(r) + '</td></tr>';
   });
   h += '<tr style="background:#FAFAFC;"><td><b>누적</b></td>'
     + '<td class="c"><b>' + tot.visits + '</b></td>'
     + '<td class="c"><b>' + tot.demos + '</b></td>'
     + '<td class="c"><b class="blue">' + tot.sales + '</b></td>'
     + '<td class="c"><b style="color:#058652;">' + tot.ncare + '</b></td>'
-    + '<td class="c"><b>' + tot.newLeads + '</b></td></tr>';
+    + '<td class="c"><b>' + tot.newLeads + '</b>'
+    + (유입있음 ? '<div><span style="font-size:11px;color:#8b95a1;">인 ' + tot.inb + ' · 아웃 ' + tot.outb + '</span></div>' : '')
+    + '</td></tr>';
   h += '</tbody></table></div>';
   el.innerHTML = h;
 }
@@ -3342,23 +3358,35 @@ function 내입력만지는중_() {
 function mineSeg(s) { MINESEG = s; renderMine(); }
 function renderMine() {
   var d = MINE || { logs: [], leads: [] };
+  /* 검색 (8/13) — 병원명·내용·유형·담당자에 부분 일치. 공백을 걷어 비교한다
+     (병원명 규칙과 같은 이유 — 「서울 A의원」과 「서울A의원」이 같이 잡혀야 한다) */
+  var q = String(MINEQ || '').replace(/\s/g, '').toLowerCase();
+  var 맞나 = function(값들) {
+    if (!q) return true;
+    return 값들.some(function(v) {
+      return String(v == null ? '' : v).replace(/\s/g, '').toLowerCase().indexOf(q) >= 0;
+    });
+  };
+  var logs = d.logs.filter(function(l) { return 맞나([l.hname, l.note, l.type, l.rep, l.contact]); });
+  var leadRows = d.leads.filter(function(l) { return 맞나([l.hname, l.rep, l.target]); });
   document.getElementById('mineSeg').innerHTML =
-    [['방문기록', d.logs.length], ['계약일', d.leads.length]].map(function(t) {
+    [['방문기록', logs.length], ['계약일', leadRows.length]].map(function(t) {
       return '<div class="chip' + (MINESEG === t[0] ? ' on' : '') + '" onclick="mineSeg(\'' + t[0] + '\')">'
         + t[0] + ' ' + t[1] + '</div>';
     }).join('');
 
   var h = '';
   if (MINESEG === '방문기록') {
-    h += kick('내가 쓴 방문기록' + (d.admin ? ' (관리자 — 전체)' : '') + ' ' + d.logs.length + '건');
-    h += d.logs.length ? d.logs.map(mineLogCard).join('')
-      : '<div class="card empty">아직 입력한 방문기록이 없습니다.</div>';
+    h += kick('내가 쓴 방문기록' + (d.admin ? ' (관리자 — 전체)' : '') + ' ' + logs.length + '건'
+      + (q ? ' — 검색 중' : ''));
+    h += logs.length ? logs.map(mineLogCard).join('')
+      : '<div class="card empty">' + (q ? '검색 결과가 없습니다.' : '아직 입력한 방문기록이 없습니다.') + '</div>';
     h += '<div class="gnote">최근 100건까지 보여줍니다. 병원명은 수정할 수 없습니다 — '
       + '잘못 고른 병원이면 새로 기록하고 관리자에게 알려 주세요.</div>';
   } else {
     // 장비/N-Care를 갈라서 — 퍼널과 같은 판정(달성 목표 우선, 없으면 장비 보유 여부)
-    var eq = d.leads.filter(function(l) { return !l.isN; });
-    var nc = d.leads.filter(function(l) { return l.isN; });
+    var eq = leadRows.filter(function(l) { return !l.isN; });
+    var nc = leadRows.filter(function(l) { return l.isN; });
     h += kick('장비 판매 계약 ' + eq.length + '건');
     h += eq.length ? eq.map(mineLeadCard).join('')
       : '<div class="card empty">장비 계약이 없습니다.</div>';
@@ -3874,16 +3902,23 @@ function ncOpen(id) {
     + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
   if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
 
+  /* 단계 전환은 두 걸음이다 (8/13 요청) — 누르면 「선택」만 되고, [저장]을 눌러야 옮겨진다.
+     한 번 클릭에 바로 옮기던 첫 판은 잘못 눌러도 이력이 남아(4→2→4 같은) 관리감독을 흐렸다. */
+  if (NCSEL_ID !== p.id) { NCSEL = 0; NCSEL_ID = p.id; }
+  var sel = NCSEL;
   h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">진행 단계</div>';
   h += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">'
     + NC_STAGES.map(function(s) {
         var cur = p.stage === s.n;
-        return '<div ' + (canEdit && !cur ? 'onclick="ncStage(' + p.id + ',' + s.n + ')" style="cursor:pointer;"' : 'style="cursor:default;"') + '>'
-          + '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;border:1.5px solid ' + (cur ? NC_COLOR[s.n] : '#f2f4f6') + ';background:' + (cur ? '#fff' : '#fbfcfd') + ';">'
-          + '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:' + (cur ? NC_COLOR[s.n] : '#d5dae0') + ';">' + s.n + '</span>'
-          + '<span style="flex:1;"><span style="font-size:14px;font-weight:' + (cur ? 700 : 600) + ';color:' + (cur ? '#191f28' : '#6b7684') + ';">' + esc(s.name) + '</span>'
+        var picked = sel === s.n;
+        var 테두리 = picked ? '1.5px dashed #1b64da' : ('1.5px solid ' + (cur ? NC_COLOR[s.n] : '#f2f4f6'));
+        return '<div ' + (canEdit && !cur ? 'onclick="ncPick(' + p.id + ',' + s.n + ')" style="cursor:pointer;"' : 'style="cursor:default;"') + '>'
+          + '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;border:' + 테두리 + ';background:' + (cur || picked ? '#fff' : '#fbfcfd') + ';">'
+          + '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:' + (cur ? NC_COLOR[s.n] : (picked ? '#1b64da' : '#d5dae0')) + ';">' + s.n + '</span>'
+          + '<span style="flex:1;"><span style="font-size:14px;font-weight:' + (cur || picked ? 700 : 600) + ';color:' + (cur || picked ? '#191f28' : '#6b7684') + ';">' + esc(s.name) + '</span>'
           + '<span style="display:block;margin-top:1px;font-size:11.5px;color:#8b95a1;">' + esc(s.cond) + '</span></span>'
-          + (cur ? '<span style="font-size:11.5px;font-weight:700;color:' + NC_COLOR[s.n] + ';">현재</span>' : '')
+          + (cur ? '<span style="font-size:11.5px;font-weight:700;color:' + NC_COLOR[s.n] + ';">현재</span>'
+                 : (picked ? '<span style="font-size:11.5px;font-weight:700;color:#1b64da;">선택</span>' : ''))
           + '</div></div>';
       }).join('')
     + '</div>';
@@ -3892,8 +3927,13 @@ function ncOpen(id) {
       + (me.viewer ? '조회 전용 계정은 보기만 할 수 있습니다'
         : p.rep ? '단계는 케어 담당(' + esc(p.rep) + ')과 관리자만 바꿀 수 있습니다' : '담당을 먼저 지정하면 단계를 바꿀 수 있습니다')
       + '</div>';
+  } else if (sel) {
+    h += '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">'
+      + '<button class="btn pri" onclick="ncStage(' + p.id + ',' + sel + ')">' + sel + '단계(' + esc(ncStageName(sel)) + ')로 저장</button>'
+      + '<button class="btn" onclick="NCSEL=0;ncOpen(' + p.id + ')">취소</button>'
+      + '</div>';
   } else {
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">단계를 누르면 그 단계로 옮깁니다 (뒤로도 이동 가능 — 이력이 남습니다)</div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">단계를 누르면 선택되고, [저장]을 눌러야 옮겨집니다 (뒤로도 이동 가능 — 이력이 남습니다)</div>';
   }
 
   h += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
@@ -3954,8 +3994,9 @@ function ncAct_(몸통, 끝) {
     }), function(e) { busy(false); toast(e.message, true); });
 }
 
+function ncPick(id, n) { NCSEL = n; NCSEL_ID = id; ncOpen(id); }
 function ncStage(id, n) {
-  ncAct_({ 토큰: TOKEN, 동작: '단계변경', id: id, stage: n }, function() { ncOpen(id); });
+  ncAct_({ 토큰: TOKEN, 동작: '단계변경', id: id, stage: n }, function() { NCSEL = 0; ncOpen(id); });
 }
 function ncAssign(id) {
   var v = document.getElementById('ncRep').value;
@@ -4245,19 +4286,44 @@ function dupBanner(list) {
 /* 표기가 갈린 것으로 보이는 병원 쌍 경고.
    퍼널은 병원명 완전일치로만 중복을 지워서, 한 글자만 달라도 리드·데모가 두 번 세어진다.
    합치지는 않는다 — 진짜 같은 병원인지는 사람이 봐야 한다. */
+/* 표기 통일 (8/13 요청) — 배너에서 바로 고친다. 버튼은 「남길 이름」을 고르는 것이고,
+   누르면 반대쪽 표기의 리드·방문기록·계획 병원명이 한꺼번에 그 이름으로 바뀐다.
+   이름을 onclick에 박으면 따옴표 병원명에서 깨진다 — 번호로 들고 목록을 전역에 쥔다 */
+var SIMLIST = [];
 function simBanner(list) {
+  SIMLIST = list || [];
   if (!list || !list.length) return '';
+  var 버튼 = function(i, side, name) {
+    return '<button class="btn" style="font-size:11.5px;padding:4px 9px;margin-left:4px;"'
+      + ' onclick="simUnify(' + i + ',\'' + side + '\')">「' + esc(name) + '」로 통일</button>';
+  };
   var h = '<div class="warnbox"><span class="wt">병원명 표기가 갈린 것으로 보입니다 ' + list.length + '쌍</span><ul>';
-  list.slice(0, 12).forEach(function(x) {
-    h += '<li><b>' + esc(x.a) + '</b>' + (x.aRep ? ' <span style="font-weight:400;">' + esc(x.aRep) + '</span>' : '')
+  list.slice(0, 12).forEach(function(x, i) {
+    h += '<li style="margin-top:4px;"><b>' + esc(x.a) + '</b>' + (x.aRep ? ' <span style="font-weight:400;">' + esc(x.aRep) + '</span>' : '')
       + ' ↔ <b>' + esc(x.b) + '</b>' + (x.bRep ? ' <span style="font-weight:400;">' + esc(x.bRep) + '</span>' : '')
+      + (DATA && DATA.dbSrc ? '<span style="white-space:nowrap;">' + 버튼(i, 'a', x.a) + 버튼(i, 'b', x.b) + '</span>' : '')
       + '</li>';
   });
   if (list.length > 12) h += '<li>… 외 ' + (list.length - 12) + '쌍</li>';
   h += '</ul><div class="wf">같은 병원이면 지금 <b>리드·데모 수가 두 번 세어지고</b> 있습니다.'
-    + ' 02_거래처관리에서 병원명을 하나로 통일해 주세요. 다른 병원이면 무시하셔도 됩니다.'
-    + ' (이달 퍼널에 뜬 병원끼리만 봅니다)</div></div>';
+    + ' 남길 이름의 [통일] 버튼을 누르면 리드·방문기록·계획이 한꺼번에 그 이름으로 바뀝니다.'
+    + ' 다른 병원이면 무시하셔도 됩니다. (이달 퍼널에 뜬 병원끼리만 봅니다)'
+    + ' 02_거래처관리에 두 이름이 다 있으면 시트 쪽 정리는 따로 해 주세요.</div></div>';
   return h;
+}
+function simUnify(i, side) {
+  var x = SIMLIST[i];
+  if (!x) return;
+  var 남길 = side === 'a' ? x.a : x.b;
+  var 버릴 = side === 'a' ? x.b : x.a;
+  if (!confirm('「' + 버릴 + '」 표기를 전부 「' + 남길 + '」(으)로 바꿀까요?\n리드·방문기록·계획의 병원명이 한꺼번에 바뀝니다.')) return;
+  busy(true, '표기 통일 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '병원명통일', keep: 남길, drop: 버릴 }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false); toast(r.msg);
+      DASH = null; NCARE = null; MINE = null;
+      loadFlow(document.getElementById('fMonth').value);   // 배너가 그 자리에서 줄어드는 게 확인이다
+    }), function(e) { busy(false); toast(e.message, true); });
 }
 
 function renderDash() {
