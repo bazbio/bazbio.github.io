@@ -2655,23 +2655,32 @@ function 매출그리기() {
   채널그리기(달);
 }
 
-/* ── 채널별 (결정_회계사TDL ⑨) — 금액 기준, 연도 토글 연동 ─────── */
+/* ── 채널별 (결정_회계사TDL ⑨) — 값 모드·연도 토글 연동 ──────────
+   장비·노즐 모드는 **그 제품의 수량만** 더한다 (0042) — 예전엔 뷰에 제품 축이 없어
+   단위 배지만 「수량」으로 바뀌고 값은 금액이 그대로 나갔다 (2026-08-13 사용자 발견). */
 function 채널그리기(달) {
   var 순 = ['직판', '딜러', '대리점', '바즈몰', '기타'];
-  var 행들 = (DB['채널'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 행들 = (DB['채널'] || []).filter(function (r) {
+    if (+r['회계연도'] !== 매출연도) return false;
+    if (매출모드 === '장비') return r['제품'] === '장비';
+    if (매출모드 === '노즐') return r['제품'] === '노즐';
+    return true;
+  });
+  var 값 = function (r) { return Number(매출모드 === '금액' ? r['금액'] : r['수량']) || 0; };
+  var 칸값 = function (v) { return 매출모드 === '금액' ? 백만(v) : 수(v); };
   $('chanHead').innerHTML = ['<th scope="col">채널</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계</th>', '<th scope="col">비중</th>']).join('');
-  var 총 = 더(행들, function (r) { return Number(r['금액']); });
+  var 총 = 더(행들, 값);
   $('chanBody').innerHTML = 순.map(function (ch) {
     var 안 = 행들.filter(function (r) { return r['표준채널'] === ch; });
-    var 계 = 더(안, function (r) { return Number(r['금액']); });
+    var 계 = 더(안, 값);
     if (!안.length && !계) return '';
     return '<tr><td>' + ch + '</td>' + 달.map(function (m) {
-      var v = 더(안.filter(function (r) { return +r['월'] === m; }), function (r) { return Number(r['금액']); });
-      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (v ? 백만(v) : '—') + '</td>';
+      var v = 더(안.filter(function (r) { return +r['월'] === m; }), 값);
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (v ? 칸값(v) : '—') + '</td>';
     }).join('')
-      + '<td class="num"><strong>' + 백만(계) + '</strong></td>'
+      + '<td class="num"><strong>' + 칸값(계) + '</strong></td>'
       + '<td class="num muted">' + (총 ? (100 * 계 / 총).toFixed(1) + '%' : '—') + '</td></tr>';
   }).join('');
 }
