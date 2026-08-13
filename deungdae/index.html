@@ -356,6 +356,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <button type="button" role="tab" id="tabBtnBEP" aria-selected="false">BEP</button>
         <button type="button" role="tab" id="tabBtnCost" aria-selected="false">원가</button>
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
+        <button type="button" role="tab" id="tabBtnJP" aria-selected="false">일본</button>
         <button type="button" role="tab" id="tabBtnFIN" aria-selected="false">재무</button>
         <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
       </nav>
@@ -603,6 +604,56 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
 
     </section>
 
+    <!-- 일본법인 탭 (2026-08-13 합의) — 일본법인 비용을 본사가 관리하는 화면.
+         시산표 계정별·인원수 카드는 월차보고 양식이 적재되면 더한다 (양식 전달됨, 자료 8/17 예정) -->
+    <section id="tab-jp" hidden>
+      <div class="card" id="jpTilesCard" hidden>
+        <h3 class="ct">일본법인 한눈에</h3>
+        <div class="tiles" id="jpTiles"></div>
+        <p class="note" id="jpTilesNote"></p>
+      </div>
+
+      <div class="card" id="jpCard" style="margin-top:12px" hidden>
+        <h3 class="ct">월별 손익 — 실적 대 계획<span class="u">백만원 · 환율은 원/엔</span></h3>
+        <div class="scroll">
+          <table class="pl" id="jp">
+            <thead><tr id="jpHead"></tr></thead>
+            <tbody id="jpBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="jpNote"></p>
+      </div>
+
+      <div class="card" id="jpBillCard" style="margin-top:12px" hidden>
+        <h3 class="ct">코스트플러스 청구 대조<span class="u">백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="jpBill">
+            <thead><tr id="jpBillHead"></tr></thead>
+            <tbody id="jpBillBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="jpBillNote"></p>
+      </div>
+
+      <!-- 쟁점은 정적이다 — ADR 0012의 미확정을 화면이 상기시킨다. 풀리면 지운다 -->
+      <div class="card" id="jpIssueCard" style="margin-top:12px">
+        <h3 class="ct">미확정 쟁점 (ADR 0012)</h3>
+        <div class="mv"><div class="hd"><span class="nm">퇴직자 감액 ¥17.9백만</span>
+          <span class="flag">재제출 요청 대상</span></div>
+          <p class="lead">8월 퇴직자 3명 감액(원화 약 166.7)이 매출 행에만 반영되고 판관비에는
+          안 된 것으로 보입니다. 일본법인 확인·재제출이 필요합니다.</p></div>
+        <div class="mv"><div class="hd"><span class="nm">감축안 △61.9 미반영</span></div>
+          <p class="lead">하반기 판관비 감축안만큼 등대(일본법인 계획)와 사업계획이 다릅니다.
+          어느 쪽이 기준인지 확정되면 계획 축을 갈아 끼웁니다.</p></div>
+        <div class="mv"><div class="hd"><span class="nm">계획환율 9.30의 과소</span></div>
+          <p class="lead">상반기 실측 평균 9.40보다 1.07% 낮아 하반기 판매수수료를 약 22.5
+          과소 추정합니다 (ADR 0012 ③).</p></div>
+        <div class="mv"><div class="hd"><span class="nm">두 매출은 다른 축</span></div>
+          <p class="lead">본사 ERP의 일본 매출(직수출)과 일본법인 PL의 매출(코스트플러스 청구액)은
+          다른 것입니다 — 누계가 비슷해 보여도 우연이며, 맞춰 달라고 요청하지 않습니다.</p></div>
+      </div>
+    </section>
+
     <!-- 재무 탭 — 현금·운전자본·런웨이 (0032). 손익 탭이 P&L, 여기가 BS다 -->
     <section id="tab-fin" hidden>
       <div class="card">
@@ -800,6 +851,7 @@ function 권한적용() {
   $('tabBtnPL').hidden = !손익;
   $('tabBtnBEP').hidden = !손익;     // BEP는 판관비·원가가 다 드러난다 — 손익과 같은 권한이다
   $('tabBtnCost').hidden = !손익;    // 원가도 같다 — 원가율·수익성이 다 드러난다
+  $('tabBtnJP').hidden = !손익;      // 일본법인 비용은 손익의 일부다
   $('tabBtnKPI').hidden = !손익;
   $('tabBtnFIN').hidden = !재무;     // 현금 잔고·매출채권은 한 단계 위다
   // 지금 탭이 권한 밖이면 볼 수 있는 곳으로 옮긴다
@@ -809,12 +861,14 @@ function 권한적용() {
 }
 
 var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnCost', 'cost'],
-              ['tabBtnSales', 'sales'], ['tabBtnFIN', 'fin'], ['tabBtnKPI', 'kpi']];
+              ['tabBtnSales', 'sales'], ['tabBtnJP', 'jp'], ['tabBtnFIN', 'fin'],
+              ['tabBtnKPI', 'kpi']];
 function 현재탭그리기() {
   if (탭 === 'pl') 그리기();
   else if (탭 === 'bep') BEP탭그리기();
   else if (탭 === 'cost') 원가탭그리기();
   else if (탭 === 'sales') 매출그리기();
+  else if (탭 === 'jp') 일본탭그리기();
   else if (탭 === 'fin') 재무그리기();
   else 지표그리기();
 }
@@ -830,6 +884,7 @@ $('tabBtnBEP').addEventListener('click', function () { 탭설정('bep'); });
 $('yrProfit').addEventListener('input', function () { if (DB && 탭 === 'bep') BEP탭그리기(); });
 $('tabBtnCost').addEventListener('click', function () { 탭설정('cost'); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
+$('tabBtnJP').addEventListener('click', function () { 탭설정('jp'); });
 $('tabBtnFIN').addEventListener('click', function () { 탭설정('fin'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
@@ -2683,6 +2738,127 @@ function 채널그리기(달) {
       + '<td class="num"><strong>' + 칸값(계) + '</strong></td>'
       + '<td class="num muted">' + (총 ? (100 * 계 / 총).toFixed(1) + '%' : '—') + '</td></tr>';
   }).join('');
+}
+
+/* =========================================================================
+   일본법인 탭 (2026-08-13 합의) — 일본법인 비용을 본사가 관리하는 화면
+
+   원천은 둘이다: 등대.일본법인_원화_월별(월차 PL — 엔화 원본·실측 역산 환율·원화 환산)과
+   본사 분개장의 판매수수료(그룹내부 — 코스트플러스 청구액 실측). 시산표 계정별·인원수는
+   월차보고 양식이 적재되면 카드를 더한다. 미확정 쟁점 카드는 정적 마크업이다 — 풀리면 지운다.
+   ========================================================================= */
+function 일본지표(지표, 구분, 칸) {
+  var o = {};
+  (DB['일본법인'] || []).forEach(function (r) {
+    if (r['지표'] === 지표 && r['구분'] === 구분 && r[칸] != null) o[+r['월']] = Number(r[칸]);
+  });
+  return o;
+}
+function 일본청구실측() {
+  var o = {};
+  (DB['손익비용'] || []).forEach(function (r) {
+    if (r['대분류'] === '판관비' && r['계정명'] === '판매수수료' && r['비용구분'] === '그룹내부')
+      o[+r['월']] = (o[+r['월']] || 0) + Number(r['금액']);
+  });
+  return o;
+}
+
+function 일본탭그리기() {
+  var 있음 = (DB['일본법인'] || []).length > 0;
+  ['jpTilesCard', 'jpCard', 'jpBillCard'].forEach(function (id) { $(id).hidden = !있음; });
+  $('asof').textContent = 연도 + '년 · 일본법인';
+  if (!있음) return;
+
+  var 실판 = 일본지표('opex', '실적', '백만원'), 계판 = 일본지표('opex', '계획', '백만원');
+  var 실엔 = 일본지표('opex', '실적', '금액_jpy');   // Postgres가 별칭을 소문자로 접는다
+  var 환 = 일본지표('opex', '실적', '환율');
+  var 청구 = 일본청구실측();
+  var 끝 = 0, m;
+  for (m = 1; m <= 12; m++) if (실판[m] != null) 끝 = m;
+
+  // 코스트플러스 배수 — 기준값 (상반기 실측 전부 1.0500, 계약서 확인)
+  var 배수 = 1.05;
+  (DB['기준값'] || []).forEach(function (r) { if (r['키'] === 'cost_plus') 배수 = Number(r['값']) || 배수; });
+
+  // ── 타일 ──
+  var 누청 = 0, 계청 = 0;
+  for (m = 1; m <= 끝; m++) 누청 += 청구[m] || 0;
+  var 그룹하 = 축('sga_commission_jp', '값');
+  for (m = 끝 + 1; m <= 12; m++) 계청 += 그룹하[m] || 0;
+  var 타일 = function (k, v, u, d) {
+    return '<div class="tile"><div class="k">' + k + '</div>'
+      + '<div class="v">' + v + '<span class="u">' + u + '</span></div>'
+      + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
+  };
+  $('jpTiles').innerHTML =
+    타일(끝 + '월 판관비', 실엔[끝] != null ? (실엔[끝] / 1e6).toFixed(1) : '—', '백만엔',
+      '₩' + 백만(실판[끝]) + ' · 환율 ' + (환[끝] || 0).toFixed(2))
+    + 타일(끝 + '월 청구액 (실측)', 백만(청구[끝]), '백만원', '판관비 × ' + 배수.toFixed(2))
+    + 타일('누계 청구 (1~' + 끝 + '월)', 백만(누청), '백만원', '본사 분개장 그룹내부')
+    + 타일('하반기 청구 계획', 백만(계청), '백만원', (끝 + 1) + '~12월 · 일본법인 계획 파생');
+  $('jpTilesNote').innerHTML =
+    '청구액은 매출이 0이어도 나가는 돈입니다 — <strong>일본은 팔수록 좋아지는 구조이지, '
+    + '접어서 좋아지는 구조가 아닙니다</strong> (공헌이익모델 260810). '
+    + '하반기 목표 달성 시 매출 대비 수수료 비율이 92.7% → 30.1%로 떨어집니다.';
+
+  // ── 월별 손익 — 실적 대 계획 ──
+  var 달 = [];
+  for (m = 1; m <= 12; m++) 달.push(m);
+  $('jpHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+  var 줄 = function (이름, 맵, 급, 소수) {
+    var 누 = 0, 있 = false;
+    var 칸 = 달.map(function (m) {
+      var v = 맵[m]; if (v != null) { 누 += v; 있 = true; }
+      return '<td class="num' + (급 === 'r-child' ? ' muted' : '') + '">'
+        + (v == null ? '—' : (소수 ? v.toFixed(2) : 백만(v))) + '</td>';
+    }).join('');
+    if (!있) return '';
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
+      + '<td class="num">' + (소수 ? '' : 백만(누)) + '</td></tr>';
+  };
+  var 지표들 = [['sales', '매출 (청구액 등)'], ['cogs', '매출원가'],
+                ['import_cost', '수입원가'], ['opex', '판관비']];
+  $('jpBody').innerHTML = 지표들.map(function (p) {
+    return 줄(p[1] + ' — 실적', 일본지표(p[0], '실적', '백만원'), p[0] === 'opex' ? 'r-total' : '')
+      + 줄('　계획', 일본지표(p[0], '계획', '백만원'), 'r-child');
+  }).join('') + 줄('환율 (원/엔, 실측 역산)', 환, 'r-child', true);
+  $('jpNote').innerHTML =
+    '원천은 일본법인 월차 PL(J-GAAP · 엔화)이고, 원화 환산은 <strong>본사가 실측 역산 환율로</strong> '
+    + '합니다 — 일본법인에 환산을 요청하지 않습니다 (ADR 0012). 분기 확정 월에는 K-IFRS 조정이 '
+    + '<strong>합산 손익</strong>에 반영됩니다 (이 표는 J-GAAP 그대로). '
+    + '시산표 계정별·인원수는 월차보고 양식이 오면 여기에 추가됩니다.';
+
+  // ── 청구 대조 — 모델(판관비 × 배수) 대 분개장 실측 ──
+  var 대조달 = [];
+  for (m = 1; m <= 끝; m++) 대조달.push(m);
+  $('jpBillHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(대조달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>']).join('');
+  var 모델 = {}, 차이 = {};
+  대조달.forEach(function (m) {
+    모델[m] = (실판[m] || 0) * 배수;
+    차이[m] = (청구[m] || 0) - 모델[m];
+  });
+  var 대조줄 = function (이름, 맵, 급, 경고) {
+    var 누 = 0;
+    var 칸 = 대조달.map(function (m) {
+      var v = 맵[m]; 누 += v || 0;
+      return '<td class="num' + (경고 && Math.abs(v) >= 1 ? ' neg' : (급 === 'r-child' ? ' muted' : ''))
+        + '">' + (v == null ? '—' : 백만(v)) + '</td>';
+    }).join('');
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
+      + '<td class="num">' + 백만(누) + '</td></tr>';
+  };
+  $('jpBillBody').innerHTML =
+    대조줄('모델 — 판관비 × ' + 배수.toFixed(2), 모델, 'r-child')
+    + 대조줄('실측 — 분개장 판매수수료', 청구, 'r-total')
+    + 대조줄('차이 (실측 − 모델)', 차이, 'r-child', true);
+  $('jpBillNote').innerHTML =
+    '차이가 <span class="neg">빨강</span>(±1 이상)이면 일본법인 PL과 본사 분개장이 어긋난 달입니다 — '
+    + '재제출·질의 대상입니다. 상반기 실측 배수는 여섯 달 전부 1.0500이었습니다 (기준값 cost_plus, '
+    + '계약서 확인). 퇴직자 감액처럼 <strong>매출 행에만 반영된 수정이 있으면 이 표가 잡아냅니다.</strong>';
 }
 
 /* =========================================================================
