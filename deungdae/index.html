@@ -358,6 +358,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
         <button type="button" role="tab" id="tabBtnJP" aria-selected="false">일본</button>
         <button type="button" role="tab" id="tabBtnFIN" aria-selected="false">재무</button>
+        <button type="button" role="tab" id="tabBtnCash" aria-selected="false">자금</button>
         <button type="button" role="tab" id="tabBtnKPI" aria-selected="false">지표</button>
       </nav>
       <span class="spacer"></span>
@@ -710,6 +711,36 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       </div>
     </section>
 
+    <!-- 자금 탭 (0043, 결정_자금탭_260813) — 은행 실거래 원장 축. 잔액의 SSOT는 재무 탭이다 -->
+    <section id="tab-cash" hidden>
+      <div class="card" id="cashTilesCard" hidden>
+        <h3 class="ct">자금 한눈에</h3>
+        <div class="tiles" id="cashTiles"></div>
+        <p class="note" id="cashTilesNote"></p>
+      </div>
+      <div class="card" id="cashCard" style="margin-top:12px" hidden>
+        <h3 class="ct">월별 입출금 — 눌러서 세분화<span class="u">백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cash"><thead><tr id="cashHead"></tr></thead><tbody id="cashBody"></tbody></table>
+        </div>
+        <p class="note" id="cashNote"></p>
+      </div>
+      <div class="card" id="cashTrendCard" style="margin-top:12px" hidden>
+        <h3 class="ct">지출 추세 — 무엇이 늘고 줄었나<span class="u">백만원/월</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cashTr"><thead><tr id="cashTrHead"></tr></thead><tbody id="cashTrBody"></tbody></table>
+        </div>
+        <p class="note" id="cashTrNote"></p>
+      </div>
+      <div class="card" id="cashFcCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="cashFcTitle">현금흐름 전망<span class="u">백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cashFc"><thead><tr id="cashFcHead"></tr></thead><tbody id="cashFcBody"></tbody></table>
+        </div>
+        <p class="note" id="cashFcNote"></p>
+      </div>
+    </section>
+
     <!-- 지표 탭 — 나침반에서 이관한 축 (볼륨·인건비·전년비교) -->
     <section id="tab-kpi" hidden>
       <div class="controls">
@@ -854,15 +885,16 @@ function 권한적용() {
   $('tabBtnJP').hidden = !손익;      // 일본법인 비용은 손익의 일부다
   $('tabBtnKPI').hidden = !손익;
   $('tabBtnFIN').hidden = !재무;     // 현금 잔고·매출채권은 한 단계 위다
+  $('tabBtnCash').hidden = !재무;    // 자금(은행 원장)도 같다
   // 지금 탭이 권한 밖이면 볼 수 있는 곳으로 옮긴다
   var 갈곳 = 손익 ? 탭 : 'sales';
-  if (갈곳 === 'fin' && !재무) 갈곳 = 'pl';
+  if ((갈곳 === 'fin' || 갈곳 === 'cash') && !재무) 갈곳 = 'pl';
   탭설정(갈곳);                       // 탭설정이 그린다 — 여기서 또 그리지 않는다
 }
 
 var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnCost', 'cost'],
               ['tabBtnSales', 'sales'], ['tabBtnJP', 'jp'], ['tabBtnFIN', 'fin'],
-              ['tabBtnKPI', 'kpi']];
+              ['tabBtnCash', 'cash'], ['tabBtnKPI', 'kpi']];
 function 현재탭그리기() {
   if (탭 === 'pl') 그리기();
   else if (탭 === 'bep') BEP탭그리기();
@@ -870,6 +902,7 @@ function 현재탭그리기() {
   else if (탭 === 'sales') 매출그리기();
   else if (탭 === 'jp') 일본탭그리기();
   else if (탭 === 'fin') 재무그리기();
+  else if (탭 === 'cash') 자금탭그리기();
   else 지표그리기();
 }
 function 탭설정(t) {
@@ -885,6 +918,7 @@ $('yrProfit').addEventListener('input', function () { if (DB && 탭 === 'bep') B
 $('tabBtnCost').addEventListener('click', function () { 탭설정('cost'); });
 $('tabBtnSales').addEventListener('click', function () { 탭설정('sales'); });
 $('tabBtnJP').addEventListener('click', function () { 탭설정('jp'); });
+$('tabBtnCash').addEventListener('click', function () { 탭설정('cash'); });
 $('tabBtnFIN').addEventListener('click', function () { 탭설정('fin'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
 
@@ -2894,6 +2928,244 @@ function 일본탭그리기() {
     '차이가 <span class="neg">빨강</span>(±1 이상)이면 일본법인 PL과 본사 분개장이 어긋난 달입니다 — '
     + '재제출·질의 대상입니다. 상반기 실측 배수는 여섯 달 전부 1.0500이었습니다 (기준값 cost_plus, '
     + '계약서 확인). 퇴직자 감액처럼 <strong>매출 행에만 반영된 수정이 있으면 이 표가 잡아냅니다.</strong>';
+}
+
+/* =========================================================================
+   자금 탭 (0043, 결정_자금탭_260813) — 은행 실거래 원장 축
+
+   흐름(입출·추세·예측)은 원장, **잔액은 재무 축(운전자본_월별)이 SSOT**다 — 원장 누적이
+   실잔액과 약 20억 어긋난다 (계좌 범위·외화환산평가). 예측은 BEP와 같은 철학의 갈래별
+   분리: 반복 갈래는 최근 3개월 평균 × 계절지수, 일회성(내부거래·금융상품·투자·대출원금·
+   퇴직금·고정자산)은 걸러내고 각주로 밝힌다.
+   ========================================================================= */
+var 자금펼침 = {};
+function 자금이름(s) { return String(s || '').replace(/^\d+\./, ''); }
+
+function 자금탭그리기() {
+  var 행 = (DB['자금'] || []).filter(function (r) { return +r['연도'] >= 2024; });
+  ['cashTilesCard', 'cashCard', 'cashTrendCard', 'cashFcCard'].forEach(function (id) {
+    $(id).hidden = !행.length;
+  });
+  $('asof').textContent = '자금 — 은행 실거래 원장';
+  if (!행.length) return;
+
+  var 끝연 = 0, 끝월 = 0;
+  행.forEach(function (r) {
+    var y = +r['연도'], m = +r['월'];
+    if (y > 끝연 || (y === 끝연 && m > 끝월)) { 끝연 = y; 끝월 = m; }
+  });
+  var 합 = function (f) { return 더(행.filter(f), function (r) { return Number(r['금액']); }); };
+  var 월합 = function (y, m, f) {
+    return 합(function (r) { return +r['연도'] === y && +r['월'] === m && (!f || f(r)); });
+  };
+  // 월 인덱스 축 — 연도 경계를 넘는 「최근 N개월」 계산용
+  var 색인 = function (y, m) { return y * 12 + m; };
+  var 끝색인 = 색인(끝연, 끝월);
+  var 창합 = function (부터, 까지, f) {          // 색인 구간 [부터, 까지]의 월평균
+    var s = 0, n = 0;
+    for (var i = 부터; i <= 까지; i++) {
+      s += 월합(Math.floor((i - 1) / 12), ((i - 1) % 12) + 1, f); n++;
+    }
+    return n ? s / n : 0;
+  };
+
+  // ── 타일 ──
+  var 순끝 = 월합(끝연, 끝월), 순3 = 창합(끝색인 - 2, 끝색인);
+  var wc = DB['운전자본'] || [];
+  var 잔 = wc.length ? Number(wc[wc.length - 1]['현금'] || 0) + Number(wc[wc.length - 1]['정기예적금'] || 0) : null;
+  var 타일 = function (k, v, u, d) {
+    return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v
+      + '<span class="u">' + u + '</span></div>' + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
+  };
+  $('cashTiles').innerHTML =
+    타일(끝연 + '년 ' + 끝월 + '월 순입출', 백만(순끝), '백만', '은행 원장 — ' + 끝월 + '월은 진행 중일 수 있음')
+    + 타일('최근 3개월 월평균', 백만(순3), '백만/월', '음수면 그만큼씩 마르는 중')
+    + 타일('현금 잔액 (재무 축)', 잔 != null ? 백만(잔) : '—', '백만', '재무 탭과 같은 값 — 원장 누적이 아니라 분개 축')
+    + 타일('연말 전망 잔액', '아래 표', '', '갈래별 모델 — 전망 카드 참조');
+  $('cashTilesNote').innerHTML =
+    '원천은 재경팀 자금입출금현황의 <strong>은행 실거래 원장</strong>(2024-01~)입니다. '
+    + '<strong>잔액은 재무 탭(분개 축)이 기준</strong>입니다 — 원장 누적은 전 계좌를 덮지 않고 '
+    + '외화환산평가도 빠져 실잔액과 어긋납니다.';
+
+  // ── 월별 입출 드릴다운 — 2026 월별 + 연 합계 열 ──
+  var 달 = [];
+  for (var m = 1; m <= (끝연 === 2026 ? 끝월 : 12); m++) 달.push(m);
+  $('cashHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">2026 누계</th>', '<th scope="col">2025 연간</th>', '<th scope="col">2024 연간</th>'])
+    .join('');
+  var 줄 = function (이름, f, 급, 키) {
+    var 화살 = 키 ? (자금펼침[키] ? '▾ ' : '▸ ') : '';
+    var 칸 = 달.map(function (m) {
+      var v = 월합(2026, m, f);
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
+    }).join('');
+    var 연합 = function (y) {
+      var v = 합(function (r) { return +r['연도'] === y && (!f || f(r)); });
+      return '<td class="num' + (v < 0 ? ' neg' : ' muted') + '">' + 백만(v) + '</td>';
+    };
+    return '<tr class="' + 급 + '"><td>' + (키
+      ? '<button type="button" class="toggle" data-키="' + 키 + '">' + 화살 + 이름 + '</button>'
+      : 이름) + '</td>' + 칸 + 연합(2026) + 연합(2025) + 연합(2024) + '</tr>';
+  };
+  var 이름들 = function (자료, 칸) {
+    var 봤 = {}, 순서 = [];
+    자료.forEach(function (r) { var k = r[칸] || '(없음)'; if (!봤[k]) { 봤[k] = 1; 순서.push(k); } });
+    return 순서.sort();
+  };
+  var html = '';
+  [['2.입금', '입금'], ['3.출금', '출금']].forEach(function (p) {
+    var 방향 = p[0];
+    var f0 = function (r) { return r['입출'] === 방향; };
+    html += 줄(p[1] + ' 계', f0, 'r-total');
+    이름들(행.filter(f0), '구분').forEach(function (구) {
+      var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
+      var 키1 = 방향 + '|' + 구;
+      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
+      if (!자금펼침[키1]) return;
+      이름들(행.filter(f1), '세부').forEach(function (세) {
+        var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
+        var 키2 = 키1 + '|' + 세;
+        html += 줄('　　' + 자금이름(세), f2, 'r-leaf', 키2);
+        if (!자금펼침[키2]) return;
+        이름들(행.filter(f2), '세세부').forEach(function (세세) {
+          html += 줄('　　　' + 자금이름(세세), function (r) {
+            return f2(r) && (r['세세부'] || '(없음)') === 세세;
+          }, 'r-leaf2');
+        });
+      });
+    });
+  });
+  html += 줄('순증감', null, 'r-op');
+  $('cashBody').innerHTML = html;
+  Array.prototype.forEach.call($('cashBody').querySelectorAll('.toggle'), function (b) {
+    b.addEventListener('click', function () {
+      자금펼침[b.dataset['키']] = !자금펼침[b.dataset['키']]; 자금탭그리기();
+    });
+  });
+  $('cashNote').innerHTML =
+    '구분을 누르면 세부, 세부를 누르면 세세부까지 펼쳐집니다 — 3단 분류는 재경팀이 '
+    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)이고, 내부거래(계좌 간 이체)와 '
+    + '금융상품은 실제 손익이 아니라 자리 이동입니다.';
+
+  자금추세그리기(행, 창합, 끝색인);
+  자금전망그리기(행, 창합, 월합, 끝연, 끝월, 잔);
+}
+
+/* 지출 추세 — 세부 갈래별 최근 3개월 vs 직전 3개월 vs 전년 동기 */
+function 자금추세그리기(행, 창합, 끝색인) {
+  var 그룹 = {};
+  행.forEach(function (r) {
+    if (r['입출'] !== '3.출금') return;
+    if (/내부거래|금융상품/.test(r['구분'] || '')) return;   // 계좌 이체·예치는 지출이 아니다
+    var k = (r['구분'] || '') + '|' + (r['세부'] || '');
+    그룹[k] = 1;
+  });
+  var 줄들 = Object.keys(그룹).map(function (k) {
+    var 짝 = k.split('|');
+    var f = function (r) {
+      return r['입출'] === '3.출금' && (r['구분'] || '') === 짝[0] && (r['세부'] || '') === 짝[1];
+    };
+    return {
+      이름: 자금이름(짝[0]) + (짝[1] && 짝[1] !== 짝[0] ? ' · ' + 자금이름(짝[1]) : ''),
+      최근: -창합(끝색인 - 2, 끝색인, f),
+      직전: -창합(끝색인 - 5, 끝색인 - 3, f),
+      전년: -창합(끝색인 - 14, 끝색인 - 12, f),
+    };
+  }).filter(function (g) { return g.최근 > 0.5 || g.직전 > 0.5; })
+    .sort(function (a, b) { return b.최근 - a.최근; }).slice(0, 12);
+
+  $('cashTrHead').innerHTML = '<th scope="col">지출 갈래</th><th scope="col">최근 3개월</th>'
+    + '<th scope="col">직전 3개월</th><th scope="col">전년 동기</th><th scope="col">증감</th>';
+  $('cashTrBody').innerHTML = 줄들.map(function (g) {
+    var d = g.직전 > 0 ? (g.최근 - g.직전) / g.직전 : null;
+    var 표 = d == null ? '—' : (d >= 0 ? '+' : '△') + Math.abs(100 * d).toFixed(0) + '%';
+    return '<tr class="r-child"><td>' + 벗기(g.이름) + '</td>'
+      + '<td class="num">' + 백만(g.최근) + '</td>'
+      + '<td class="num muted">' + 백만(g.직전) + '</td>'
+      + '<td class="num muted">' + 백만(g.전년) + '</td>'
+      + '<td class="num' + (d != null && d > 0.05 ? ' neg' : ' muted') + '">' + 표 + '</td></tr>';
+  }).join('');
+  $('cashTrNote').innerHTML =
+    '월평균 지출 기준이고 <span class="neg">빨강</span>은 최근 3개월이 직전보다 <strong>5% 이상 '
+    + '늘었다</strong>는 뜻입니다. 일회성이 낀 갈래(고정자산·투자)는 창이 짧아 흔들립니다 — '
+    + '전년 동기 열로 같이 보십시오.';
+}
+
+/* 현금흐름 전망 — 갈래별 분리 (합의 2026-08-13): 반복 갈래만 최근 3개월 평균 × 계절지수 */
+function 자금전망그리기(행, 창합, 월합, 끝연, 끝월, 잔) {
+  var 제외 = function (r) {
+    return /내부거래|금융상품|투자/.test(r['구분'] || '')
+      || /대출금|퇴직금|고정자산|투자금|정기예금/.test(r['세부'] || '');
+  };
+  var 그룹 = {};
+  행.forEach(function (r) {
+    if (제외(r)) return;
+    그룹[r['입출'] + '|' + (r['구분'] || '')] = 1;
+  });
+  var 남달 = [];
+  for (var m = 끝월 + 1; m <= 12; m++) 남달.push(m);
+  if (!남달.length) { $('cashFcCard').hidden = true; return; }
+
+  // 계절지수 — 24·25년 「같은 달 ÷ 그 해 월평균」의 평균, 0.5~1.8로 자른다
+  var 지수 = function (f, m) {
+    var 들 = [];
+    [2024, 2025].forEach(function (y) {
+      var 연평균 = 0, n = 0, mm;
+      for (mm = 1; mm <= 12; mm++) { 연평균 += 월합(y, mm, f); n++; }
+      연평균 /= n;
+      if (Math.abs(연평균) > 0.5) 들.push(월합(y, m, f) / 연평균);
+    });
+    if (!들.length) return 1;
+    var s = 들.reduce(function (a, b) { return a + b; }, 0) / 들.length;
+    return Math.max(0.5, Math.min(1.8, s));
+  };
+
+  var 갈래들 = Object.keys(그룹).map(function (k) {
+    var 짝 = k.split('|');
+    var f = function (r) { return r['입출'] === 짝[0] && (r['구분'] || '') === 짝[1] && !제외(r); };
+    var 기준 = 창합(색인끝(끝연, 끝월) - 2, 색인끝(끝연, 끝월), f);
+    return { 이름: (짝[0] === '2.입금' ? '입금 · ' : '출금 · ') + 자금이름(짝[1]), f: f, 기준: 기준 };
+  }).filter(function (g) { return Math.abs(g.기준) > 0.5; })
+    .sort(function (a, b) { return Math.abs(b.기준) - Math.abs(a.기준); });
+  function 색인끝(y, m) { return y * 12 + m; }
+
+  $('cashFcHead').innerHTML = ['<th scope="col">갈래</th>']
+    .concat(남달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">산출 근거</th>']).join('');
+  var 월전망 = {};
+  var html = 갈래들.map(function (g) {
+    var 칸 = 남달.map(function (m) {
+      var v = g.기준 * 지수(g.f, m);
+      월전망[m] = (월전망[m] || 0) + v;
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 백만(v) + '</td>';
+    }).join('');
+    return '<tr class="r-child"><td>' + 벗기(g.이름) + '</td>' + 칸
+      + '<td class="why">최근 3개월 평균 ' + 백만(g.기준) + ' × 24·25년 계절지수</td></tr>';
+  }).join('');
+  html += '<tr class="r-op"><td>순현금흐름 전망</td>'
+    + 남달.map(function (m) {
+        var v = 월전망[m] || 0;
+        return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 백만(v) + '</td>';
+      }).join('') + '<td class="why">반복 갈래의 합 — 일회성 제외</td></tr>';
+  if (잔 != null) {
+    var 경로 = 잔;
+    html += '<tr class="r-total"><td>잔액 경로 (재무 축 기준)</td>'
+      + 남달.map(function (m) {
+          경로 += 월전망[m] || 0;
+          return '<td class="num' + (경로 < 0 ? ' neg' : '') + '">' + 백만(경로) + '</td>';
+        }).join('')
+      + '<td class="why">재무 탭 현금 ' + 백만(잔) + '에서 출발해 전망 순흐름을 누적</td></tr>';
+  }
+  $('cashFcBody').innerHTML = html;
+  $('cashFcTitle').innerHTML = '현금흐름 전망 — ' + (끝월 + 1) + '~12월 (갈래별 모델)'
+    + '<span class="u">백만원</span>';
+  $('cashFcNote').innerHTML =
+    '<strong>반복 갈래만 전망합니다</strong> — 내부거래 · 금융상품 · 투자 · 대출 원금 · 퇴직금 · '
+    + '고정자산은 일회성이라 걸러냈습니다 (실제로 생기면 이 경로에서 그만큼 벗어납니다). '
+    + '각 갈래 = 최근 3개월 평균 × 계절지수(24·25년 같은 달 ÷ 그 해 월평균, 0.5~1.8 제한). '
+    + '잔액 경로의 출발점은 <strong>재무 탭의 현금(분개 축)</strong>입니다 — 원장 누적이 아닙니다. '
+    + '⚠ ' + 끝월 + '월은 진행 중인 달이라 실적이 아직 반쪽일 수 있습니다.';
 }
 
 /* =========================================================================
