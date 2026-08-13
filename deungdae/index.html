@@ -438,6 +438,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           <div class="sim">
             <label>월 매출<input type="number" id="simRev" step="10" inputmode="decimal"><span class="u">백만</span></label>
             <label>원가율<input type="number" id="simCogs" step="0.5" inputmode="decimal"><span class="u">%</span></label>
+            <label>장비 비중<input type="number" id="simMix" step="1" min="0" max="100" inputmode="decimal"><span class="u">%</span></label>
             <label>변동판관율<input type="number" id="simVar" step="0.5" inputmode="decimal"><span class="u">%</span></label>
             <label>고정비<input type="number" id="simFix" step="10" inputmode="decimal"><span class="u">백만/월</span></label>
           </div>
@@ -1673,8 +1674,16 @@ function BEP그리기(행, 달) {
   // 뷰의 매출·원가는 시계열 축이라 손익표와 몇 십 달라, 섞으면 두 표의 원가가 갈린다.
   // 분해가 아직 없으면(제조원가 미적재) 옛 동작 그대로 전액 변동이다.
   var 재료비중 = (DB['원가분해'] || [])[0] ? Number(DB['원가분해'][0]['재료비비중']) : 1;
-  var 변원f = function (m) { return 원가f(m) * 재료비중; };
-  var 고원f = function (m) { return 원가f(m) * (1 - 재료비중); };
+
+  // 미배부 제조원가 (0040·정교화 8/13) — 생산 0인 달의 공장 비용이 매출원가로 직행한 몫.
+  // 그 달 매출원가에서 걷어내 **전액 고정성**으로 재분류한다 — 결산조정을 걷어내는 것과
+  // 같은 논리다. 합은 안 변한다: 변원 + 고원 = 매출원가 그대로. 4월 변동비율 왜곡이 사라진다.
+  var 미배부 = {};
+  (DB['원가대사'] || []).forEach(function (r) {
+    if (+r['회계연도'] === 연도 && Number(r['미배부'])) 미배부[+r['월']] = Number(r['미배부']);
+  });
+  var 변원f = function (m) { return (원가f(m) - (미배부[m] || 0)) * 재료비중; };
+  var 고원f = function (m) { return (원가f(m) - (미배부[m] || 0)) * (1 - 재료비중) + (미배부[m] || 0); };
 
   var bep = [], 실제 = [], 여유 = [], 원가율들 = [], 변동율들 = [];
   var 누매 = 0, 누원 = 0, 누변 = 0, 누고 = 0;      // 누계 열 — 손익표와 열을 맞춘다
@@ -1746,6 +1755,8 @@ function BEP그리기(행, 달) {
         + ' (' + 분해['개월'] + '개월 누계 기준). 전액 변동으로 보던 옛 방식보다 BEP가 낮게 나옵니다.'
       : '<strong>매출원가를 전액 변동으로 근사</strong>합니다 — 제조원가가 아직 안 들어왔습니다'
         + ' (<code>제조원가적재.mjs</code>).')
+    + ' <strong>생산이 0인 달의 미배부 제조원가는 변동에서 빼고 전액 고정성으로 재분류</strong>했습니다'
+    + ' (4월 159.2 — 원가 탭 원가대사 참조). 재료비 비중도 무생산 달을 뺀 값입니다.'
     + ' 여유가 양수인 달이 손익분기를 넘은 달입니다. '
     + '<strong>「여유」와 손익표의 「영업손익」은 단위가 다릅니다</strong> — 여유는 손익분기까지의'
     + ' 거리를 <strong>매출</strong>로, 영업손익은 <strong>이익</strong>으로 잰 값입니다.'
@@ -1880,6 +1891,30 @@ function 연간BEP그리기(달, f) {
   var 변동누 = 달.reduce(function (s, m) { return s + f.변원f(m) + f.변동f(m); }, 0);
   var 변율 = 매출누 > 0 ? 변동누 / 매출누 : null;
 
+  // 하반기 변동비율 전망 (정교화 8/13) — **딜러 수수료를 요율로 얹는다.** 상반기 실측
+  // 변동판관은 5월 7.3뿐이지만 하반기는 국내 장비의 절반이 딜러 매출로 계획돼 있다.
+  // 요율은 기준값 셋으로 만든다 (사업계획 산식 그대로 — 상수를 코드에 안 박는다, ADR 0011):
+  //   수수료율 = dealer_ratio × dealer_fee_per_unit ÷ equip_price × 국내 장비 매출비중
+  var 값of = function (키, 기본) {
+    var v = 기본;   // 유효시작월 순으로 오므로 마지막 값이 최신이다
+    (DB['기준값'] || []).forEach(function (r) { if (r['키'] === 키) v = Number(r['값']) || v; });
+    return v;
+  };
+  var 국내장비 = 더((DB['공헌이익'] || []).filter(function (r) {
+    return +r['회계연도'] === 연도 && r['사업부'] === '국내'
+      && (r['제품구분'] === 'CUREJET' || r['제품구분'] === 'NOVOJET');
+  }), function (r) { return Number(r['매출액']); });
+  var 국내장비비중 = 매출누 > 0 ? 국내장비 / 매출누 : 0;
+  var 딜러율 = 값of('dealer_ratio', 0.5), 대당수수료 = 값of('dealer_fee_per_unit', 8),
+      장비단가 = 값of('equip_price', 32);
+  var 수수료율 = 딜러율 * 대당수수료 / 장비단가 * 국내장비비중;
+  var 변율하 = 변율 == null ? null : 변율 + 수수료율;
+
+  // **상반기는 이미 벌어진 일이다.** 연간 BEP를 단일 비율로 나누면 상반기까지 하반기
+  // 수수료율로 소급된다 — 상반기 공헌을 고정하고 남은 거리만 하반기 비율로 나눈다:
+  //   연간 BEP = 상반기 매출 + (연간 고정성 − 상반기 공헌) ÷ (1 − 하반기 변동비율)
+  var 상반기공헌 = 매출누 - 변동누;
+
   // 연간 매출 — 마감월까지 실적 + 남은 달 목표 (손익표 「연간목표」와 같은 정의)
   var 목표축 = 축('rev_total', '목표'), 추세축 = 축('rev_total', '추세');
   var 연매출 = function (맵) {
@@ -1912,7 +1947,9 @@ function 연간BEP그리기(달, f) {
   var 고정성 = 칸들.map(function (k) {
     return 상.반복 + 상.비반복 + 상그룹 + 상제조 + 안[k].반복 + 안[k].비반복 + 하그룹 + 하제조;
   });
-  var 나눔 = function (v) { return (변율 != null && 변율 < 1) ? v / (1 - 변율) : null; };
+  var 나눔 = function (v) {
+    return (변율하 != null && 변율하 < 1) ? 매출누 + (v - 상반기공헌) / (1 - 변율하) : null;
+  };
   var bep = 고정성.map(나눔);
   var 매출목 = 연매출(목표축), 매출추 = 연매출(추세축);
 
@@ -1995,11 +2032,18 @@ function 연간BEP그리기(달, f) {
     줄('변동비율 (상반기 누계)', 칸들.map(function () { return 변율; }), '', true,
       '(<strong>변동</strong> 매출원가 ' + 백만(달.reduce(function (s, m) { return s + f.변원f(m); }, 0))
       + ' + 변동판관비 ' + 백만(달.reduce(function (s, m) { return s + f.변동f(m); }, 0))
-      + ') ÷ 매출 ' + 백만(매출누) + '. 매출원가 전액이 아니라 <strong>재료비 몫만</strong> 들어간다') +
+      + ') ÷ 매출 ' + 백만(매출누) + '. 매출원가 전액이 아니라 <strong>재료비 몫만</strong>이고, '
+      + '생산 0인 달의 미배부 제조원가는 걷어내 고정성으로 보냈다') +
+    줄('변동비율 (하반기 전망)', 칸들.map(function () { return 변율하; }), '', true,
+      '상반기 비율 + <strong>딜러 수수료율 ' + (100 * 수수료율).toFixed(1) + '%</strong> = 딜러 비중 '
+      + (100 * 딜러율).toFixed(0) + '% × 대당 ' + 대당수수료.toFixed(1) + ' ÷ 장비단가 ' + 장비단가.toFixed(1)
+      + ' × 국내 장비 매출비중 ' + (100 * 국내장비비중).toFixed(1) + '%(상반기 실측). '
+      + '전부 <strong>기준값 표</strong>에서 온다 (dealer_ratio · dealer_fee_per_unit · equip_price)') +
     줄('연간 BEP 매출', bep, 'r-op', 0,
-      '<strong>연간 고정성 ÷ (1 − 변동비율)</strong>. 이만큼 팔아야 영업손익 0이 된다') +
+      '<strong>상반기 매출 + (연간 고정성 − 상반기 공헌 ' + 백만(상반기공헌) + ') ÷ (1 − 하반기 변동비율)</strong>. '
+      + '상반기는 이미 벌어진 일이라 고정하고, 남은 거리만 하반기 비율로 나눈다') +
     줄('연간 현금 BEP 매출', 현금bep, 'r-total', 0,
-      '<strong>현금 고정성 ÷ (1 − 변동비율)</strong>. 감가상각처럼 돈이 안 나가는 비용을 뺀 것이라, '
+      '같은 산식에서 고정성만 <strong>현금 고정성</strong>으로. 감가상각처럼 돈이 안 나가는 비용을 뺀 것이라, '
       + '<strong>「현금이 마르지 않으려면 얼마 팔아야 하나」</strong>의 답이다. 적자 구간에서는 이쪽이 먼저 온다') +
     줄('연간 매출 — 목표 기준', 칸들.map(function () { return 매출목; }), 'r-child', 0,
       '1~' + 끝 + '월 실적 + ' + (끝 + 1) + '~12월 <strong>목표</strong> (손익표 연간목표와 같은 정의)') +
@@ -2013,7 +2057,7 @@ function 연간BEP그리기(달, f) {
       '지금 속도가 그대로 갔을 때') +
     줄('안전한계율 (추세 기준)', 안전(매출추), 'r-child', true, '지금 속도 기준') +
     줄('영업이익 ' + 백만(목표이익) + ' 필요 매출', 목표매출, 'r-op', 0,
-      '<strong>(연간 고정성 + 목표이익) ÷ (1 − 변동비율)</strong>. BEP는 이익 0 기준이라, '
+      '같은 산식에서 고정성에 <strong>목표이익을 더한 것</strong>. BEP는 이익 0 기준이라, '
       + '「얼마를 벌려면 얼마 팔아야 하나」는 이 줄이다. 목표이익은 표 위 칸에서 바꾼다');
 
   // ── 계정별 갈래 — 곳간이 뭐라 했고 실측은 어떤가 ──
@@ -2291,13 +2335,34 @@ function 시뮬차리기(달, f) {
   var 대당 = 32.0;
   (DB['기준값'] || []).forEach(function (r) { if (r['키'] === 'equip_price') 대당 = Number(r['값']) || 대당; });
 
+  // 제품 믹스 감도 (정교화 8/13) — 장비(큐어젯·노보젯)와 비장비(노즐·기타)의 실측 원가율 차.
+  // 큐어젯 총이익률 89% 대 노즐 36.5%라, 믹스가 원가율을 크게 움직인다. 레버를 만지면
+  // 원가율 칸을 다시 채운다 — 원가율을 직접 고치는 것도 여전히 된다.
+  var 공 = (DB['공헌이익'] || []).filter(function (r) { return +r['회계연도'] === 연도; });
+  var 몫 = function (장비냐) {
+    var rs = 공.filter(function (r) {
+      var 장 = r['제품구분'] === 'CUREJET' || r['제품구분'] === 'NOVOJET';
+      return 장비냐 ? 장 : !장;
+    });
+    var 매 = 더(rs, function (r) { return Number(r['매출액']); });
+    var 총 = 더(rs, function (r) { return Number(r['매출총이익']); });
+    return { 매: 매, 원가율: 매 > 0 ? 1 - 총 / 매 : null };
+  };
+  var 장비쪽 = 몫(true), 비장비쪽 = 몫(false);
+  var 믹스실측 = (장비쪽.매 + 비장비쪽.매) > 0 ? 장비쪽.매 / (장비쪽.매 + 비장비쪽.매) : null;
+  var 믹스감도 = (장비쪽.원가율 != null && 비장비쪽.원가율 != null)
+    ? 장비쪽.원가율 - 비장비쪽.원가율 : null;
+  var 마감매출 = f.매출f(끝);
+  var 원가율기본 = 마감매출 > 0 ? f.원가f(끝) / 마감매출 : 0;
+
   if (!시뮬만짐) {
     $('simRev').value = Math.round(f.매출f(끝));
-    var 매 = f.매출f(끝);
-    $('simCogs').value = 매 > 0 ? (100 * f.원가f(끝) / 매).toFixed(1) : '';
+    $('simCogs').value = 마감매출 > 0 ? (100 * 원가율기본).toFixed(1) : '';
+    $('simMix').value = 믹스실측 != null ? Math.round(100 * 믹스실측) : '';
     $('simVar').value = (100 * 변동판관율).toFixed(1);      // 올해 누계 실측 — 고칠 수 있다
     $('simFix').value = Math.round(f.고정f(끝));
   }
+  $('simMix').disabled = 믹스감도 == null;
 
   var 계산 = function () {
     var 매출 = Number($('simRev').value) || 0;
@@ -2320,12 +2385,27 @@ function 시뮬차리기(달, f) {
           : ' · 부족 <span class="bad">' + 백만(거리) + '</span> — 장비 약 <strong>' + 대수 + '대</strong>분')
       + '<br><span class="muted">변동판관율 기본값 ' + (100 * 변동판관율).toFixed(1) + '%는 올해 누계 실측 —'
       + ' 하반기엔 딜러 수수료(대당 8.0)로 높아질 수 있어 고칠 수 있게 열어 뒀습니다.'
+      + (믹스감도 != null
+        ? ' 장비 비중을 만지면 원가율 칸이 다시 채워집니다 — 장비 원가율 '
+          + (100 * 장비쪽.원가율).toFixed(1) + '% · 비장비 ' + (100 * 비장비쪽.원가율).toFixed(1)
+          + '% (상반기 실측, 3제품+기타 축).'
+        : '')
       + (범위 === 'HQ' ? ' 자동: 그룹내부 ' + 백만(그룹) + ' (마감월)' : '')
       + ' · 장비 환산 대당 ' + 대당.toFixed(1) + '</span>';
   };
   ['simRev', 'simCogs', 'simVar', 'simFix'].forEach(function (id) {
     $(id).oninput = function () { 시뮬만짐 = true; 계산(); };
   });
+  // 믹스 레버 — 원가율 칸을 「마감월 원가율 + (새 믹스 − 실측 믹스) × 감도」로 다시 채운다.
+  // 기준점이 상수라 몇 번을 움직여도 같은 믹스면 같은 원가율이다
+  $('simMix').oninput = function () {
+    시뮬만짐 = true;
+    if (믹스감도 != null && 믹스실측 != null) {
+      var mx = (Number($('simMix').value) || 0) / 100;
+      $('simCogs').value = Math.max(0, 100 * (원가율기본 + (mx - 믹스실측) * 믹스감도)).toFixed(1);
+    }
+    계산();
+  };
   계산();
 }
 
