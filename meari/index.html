@@ -332,6 +332,13 @@ function 이름칸채우기() {
   첫.textContent = 사람.length ? '이름을 골라 주세요' : '등록자 명단이 아직 비어 있습니다';
   sel.appendChild(첫);
 
+  // 이름 없이도 받는다 (2026-08-13). 서버의 '익명' 계정으로 접수된다.
+  // 대신 그 건에는 원 등록자가 없어 현장 확인을 품질 담당이 대신한다.
+  var 익명 = document.createElement('option');
+  익명.value = '익명';
+  익명.textContent = '이름 없이 올리기';
+  sel.appendChild(익명);
+
   사람.forEach(function (p) {
     var o = document.createElement('option');
     o.value = p.이름;
