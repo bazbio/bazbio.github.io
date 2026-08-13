@@ -94,6 +94,9 @@
     border:1px solid #e5e8eb; background:#fff; color:#191f28; border-radius:12px; -webkit-appearance:none; appearance:none;
   }
   input:focus, select:focus, textarea:focus { outline:none; border-color:#3182f6; box-shadow:0 0 0 3px rgba(49,130,246,.16); }
+  /* 검증이 지목한 칸 (8/5 감사 U7). 포커스가 같이 걸리므로 `:focus`보다 이겨야 붉게 남는다 */
+  .fldbad { border-radius:12px; box-shadow:0 0 0 3px rgba(240,68,82,.28); }
+  input.fldbad:focus, select.fldbad:focus, textarea.fldbad:focus { border-color:#f04452; box-shadow:0 0 0 3px rgba(240,68,82,.28); }
   textarea { min-height:100px; resize:vertical; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { font-size:14px; font-weight:500; padding:9px 15px; border:none; background:#f2f4f6; color:#4e5968; border-radius:999px; cursor:pointer; }
@@ -1109,7 +1112,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608131217';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608132210';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1509,6 +1512,32 @@ function busy(on, msg) {
   // 저장하는 동안 「불러오는 중」이라고 말하면 저장이 진행 중이라는 신호가 없다 (8/5 감사)
   document.getElementById('loadMsg').textContent = (on && msg) || '불러오는 중…';
 }
+/* 검증 실패 — 문구만 띄우면 그 칸이 화면 밖일 때 무엇을 고쳐야 하는지 못 찾는다 (8/5 감사 U7).
+   계획 폼은 칸이 열다섯이라 「판매 구분을 선택해 주세요」가 떠도 그 칸이 한참 위에 있다.
+   토스트에 더해 칸으로 굴러가 붉게 표시하고, 입력칸이면 포커스까지 준다.
+   칩 묶음(div)에는 포커스를 안 준다 — 폰에서 키보드가 뜰 자리가 아니다. */
+function 검증실패_(문구, 칸id) {
+  toast(문구, true);
+  var el = 칸id && document.getElementById(칸id);
+  if (!el) return;
+  /* 부드러운 스크롤은 안 쓴다 — 바로 뒤의 focus()가 굴러가던 것을 끊을 수 있고,
+     오류를 알리는 자리에서 칸이 굴러가는 모습을 보여 줄 이유가 없다. 즉시 데려간다. */
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('fldbad');
+  setTimeout(function() { el.classList.remove('fldbad'); }, 2600);
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) el.focus({ preventScroll: true });
+}
+/* 탭 목록을 못 받았을 때 (8/5 감사 U8) — 문구만 남기면 사용자가 할 수 있는 일이 앱을 다시
+   여는 것뿐이다. 대시보드는 캐시가 빈 채로 남아 탭을 다시 눌러도 안 돌아왔다.
+   실패한 그 자리에 [다시 시도]를 둔다. 인라인 onclick 대신 붙이는 이유는 오류 문구를
+   따옴표째 속성에 끼워 넣지 않기 위해서다. */
+function 실패카드_(칸id, e, 다시) {
+  var el = document.getElementById(칸id);
+  if (!el) return;
+  el.innerHTML = '<div class="card empty">' + esc((e && e.message) || e || '목록을 받지 못했습니다')
+    + '<br><br><button class="btn pri">다시 시도</button></div>';
+  el.querySelector('button').onclick = 다시;
+}
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
 
 /* ── 홈 ── */
@@ -1709,7 +1738,7 @@ function loadKpiTab() {
   var 끝 = function(d) { KPIT = d; busy(false); renderKpiTab(); };
   var 실패 = function(e) {
     busy(false);
-    document.getElementById('kpiBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('kpiBody', e, function() { loadKpiTab(); });
   };
   // 집계는 관문(0.3초대) — GAS와 같은 코드(_공유/kpi집계.mjs)라 숫자가 갈릴 수 없다
   if (DATA.dbSrc) {
@@ -1839,7 +1868,7 @@ function loadFlow(ym) {
   };
   var 실패 = function(e) {
     busy(false);
-    document.getElementById('flowBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('flowBody', e, function() { loadFlow(ym); });
   };
   // 퍼널은 관문(0.3초대) — 도메인.gen.mjs로 GAS와 같은 코드라 숫자가 갈릴 수 없다
   if (DATA.dbSrc) {
@@ -2081,6 +2110,18 @@ function renderFlow() {
 function payToggle(row, clear) {
   if (clear && !confirm('입금 표시를 지울까요?')) return;
   busy(true);
+  /* 원천이 DB고 열쇠(no)가 있으면 관문 직접 — GAS 중계(1.8초)를 건너뛴다 (planStatus와 같은 꼴).
+     GAS를 거치던 마지막 두 경로 중 하나였다 (8/14, 쓰기 이관 마무리) */
+  var no = 키_(row).no;
+  if (DATA.dbSrc && no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '입금', no: no, clear: !!clear }))
+      .then(화면갱신감싸기_(function(r) {
+        busy(false); toast(r.msg);
+        loadFlow(document.getElementById('fMonth').value);
+      }),
+      function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
     loadFlow(document.getElementById('fMonth').value);
@@ -2103,8 +2144,8 @@ function evtRegSave(code) {
     target: document.getElementById('erTgt').value,
     due: document.getElementById('erDue').value,
   };
-  if (!f.hname) return toast('병원명을 입력해 주세요', true);
-  if (!f.target) return toast('달성 목표를 선택해 주세요', true);
+  if (!f.hname) return 검증실패_('병원명을 입력해 주세요', 'erHosp');
+  if (!f.target) return 검증실패_('달성 목표를 선택해 주세요', 'erTgt');
   busy(true);
   gsrun().withSuccessHandler(function(r) {
     EVTREG = null; busy(false); toast(r.msg);
@@ -2123,9 +2164,15 @@ function evtEditSave(row) {
     due: document.getElementById('eeDue').value,
   };
   busy(true);
-  gsrun().withSuccessHandler(function() {
-    EVTEDIT = null; EVT = null; busy(false); loadEvt(); toast('수정했습니다');
-  }).withFailureHandler(function(e) {
+  // GAS를 거치던 마지막 두 경로 중 하나였다 (8/14) — payToggle과 같은 꼴
+  var no = 키_(row).no;
+  var 끝 = function() { EVTEDIT = null; EVT = null; busy(false); loadEvt(); toast('수정했습니다'); };
+  if (DATA.dbSrc && no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '정보수정', no: no, f: f }))
+      .then(화면갱신감싸기_(끝), function(e) { busy(false); toast(e.message, true); });
+    return;
+  }
+  gsrun().withSuccessHandler(끝).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
   }).웹_리드정보수정(TOKEN, 키_(row).row, f, 키_(row).no);
 }
@@ -2145,7 +2192,7 @@ function loadEvt(조용히) {
   var 실패 = function(e) {
     busy(false);
     if (조용히) { console.warn('[행사 뒤따라 받기]', (e && e.message) || e); return; }
-    document.getElementById('evtBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('evtBody', e, function() { loadEvt(); });
   };
   if (DATA.dbSrc) {
     관문호출_('/saleson-evt', JSON.stringify({ 토큰: TOKEN })).then(화면갱신감싸기_(끝), 실패);
@@ -2427,20 +2474,21 @@ function saveEvt() {
     date: document.getElementById('eDate').value,
     cost: document.getElementById('eCost').value.replace(/[^0-9]/g, ''),
   };
-  if (!f.type) return toast('구분을 선택해 주세요', true);
-  if (!f.name.trim()) return toast('행사명을 입력해 주세요', true);
+  if (!f.type) return 검증실패_('구분을 선택해 주세요', 'eType');
+  if (!f.name.trim()) return 검증실패_('행사명을 입력해 주세요', 'eName');
   // 자료 요청 수집 — 새 행사 등록일 때만 (수정 시에는 메일이 안 나가므로 제외)
   if (!editCode) {
     var reqs = [];
     var reqErr = '';
+    var reqErrId = '';
     ['CLabs', 'MA'].forEach(function(k) {
       if (!document.getElementById('rq_' + k).checked) return;
       var items = document.getElementById('rqItems_' + k).value.trim();
       var teamName = k === 'CLabs' ? 'C-Labs' : 'MA';
-      if (!items) { reqErr = teamName + ' 요청 자료 내용을 입력해 주세요'; return; }
+      if (!items) { reqErr = teamName + ' 요청 자료 내용을 입력해 주세요'; reqErrId = 'rqItems_' + k; return; }
       reqs.push({ team: teamName, items: items, due: document.getElementById('rqDue_' + k).value });
     });
-    if (reqErr) return toast(reqErr, true);
+    if (reqErr) return 검증실패_(reqErr, reqErrId);
     f.reqs = reqs;
   }
   document.getElementById('eSave').disabled = true;
@@ -2559,15 +2607,17 @@ function savePlan() {
     metaExtId: META_PREFILL ? META_PREFILL.extId : '',
   };
   f.cat = selPCat;
-  if (!f.hname) return toast('병원명을 입력해 주세요', true);
-  if (!f.cat) return toast('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', true);
-  if (!f.date) return toast('방문 예정일을 선택해 주세요', true);
-  if (!f.type) return toast(selPType === '__etc' ? '방문 목적을 직접 입력해 주세요' : '방문 목적을 선택해 주세요', true);
+  if (!f.hname) return 검증실패_('병원명을 입력해 주세요', 'pHosp');
+  if (!f.cat) return 검증실패_('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', 'pCat');
+  if (!f.date) return 검증실패_('방문 예정일을 선택해 주세요', 'pDate');
+  if (!f.type) return selPType === '__etc'
+    ? 검증실패_('방문 목적을 직접 입력해 주세요', 'pTypeEtc')
+    : 검증실패_('방문 목적을 선택해 주세요', 'pType');
   if (document.getElementById('pLeadSec').style.display !== 'none') {
-    if (!selPCh) return toast('판매 구분(직판/딜러)을 선택해 주세요', true);
-    if (selPCh === '딜러' && !document.getElementById('pDealer').value.trim()) return toast('딜러명을 입력해 주세요', true);
-    if (!selPSrc) return toast('리드 소스를 선택해 주세요', true);
-    if (selPSrc === '학회/세미나' && !document.getElementById('pEvt').value) return toast('행사를 선택해 주세요', true);
+    if (!selPCh) return 검증실패_('판매 구분(직판/딜러)을 선택해 주세요', 'pCh');
+    if (selPCh === '딜러' && !document.getElementById('pDealer').value.trim()) return 검증실패_('딜러명을 입력해 주세요', 'pDealer');
+    if (!selPSrc) return 검증실패_('리드 소스를 선택해 주세요', 'pSrc');
+    if (selPSrc === '학회/세미나' && !document.getElementById('pEvt').value) return 검증실패_('행사를 선택해 주세요', 'pEvt');
     f.lead = {
       channel: selPCh, source: selPSrc,
       ecode: document.getElementById('pEvt').value,
@@ -2689,10 +2739,10 @@ function saveLog() {
     mats: selMats.slice(),
     matDetails: matDetails,
   };
-  if (!f.hname) return toast('병원명을 입력해 주세요', true);
-  if (!f.cat) return toast('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', true);
-  if (!f.type) return toast('활동 유형을 선택해 주세요', true);
-  if (!f.note.trim()) return toast('논의 내용을 입력해 주세요', true);
+  if (!f.hname) return 검증실패_('병원명을 입력해 주세요', 'fHosp');
+  if (!f.cat) return 검증실패_('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', 'fCat');
+  if (!f.type) return 검증실패_('활동 유형을 선택해 주세요', selType === '__etc' ? 'fTypeEtc' : 'fType');
+  if (!f.note.trim()) return 검증실패_('논의 내용을 입력해 주세요', 'fNote');
   document.getElementById('fSave').disabled = true;
   busy(true, '저장 중…');
   if (EDITKEY) {
@@ -2877,7 +2927,7 @@ function loadMeta() {
     METAQ = d; busy(false); renderMeta();
   }, '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
     busy(false);
-    document.getElementById('metaBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('metaBody', e, function() { loadMeta(); });
   });
 }
 
@@ -3093,8 +3143,8 @@ function metaAssign(id) {
   var q = 문의찾기_(id);
   if (!q) return toast('목록이 바뀌었습니다. 새로고침 후 다시 시도해 주세요.', true);
   var hname = (document.getElementById('mxHosp') || {}).value || '';
-  if (!hname.trim()) return toast('병원명을 입력해 주세요', true);
-  if (!METAREP) return toast('리드 담당자를 선택해 주세요', true);
+  if (!hname.trim()) return 검증실패_('병원명을 입력해 주세요', 'mxHosp');
+  if (!METAREP) return 검증실패_('리드 담당자를 선택해 주세요', 'mxReps');
   var cat = (document.getElementById('mxCat') || {}).value || '';
   busy(true);
   gsrun().withSuccessHandler(function(r) {
@@ -3390,8 +3440,7 @@ function loadMine() {
       MINE = d; busy(false); renderMine();
     }, function(e) {
       busy(false);
-      document.getElementById('mineBody').innerHTML =
-        '<div class="card empty">' + esc((e && e.message) || e || '목록을 받지 못했습니다') + '</div>';
+      실패카드_('mineBody', e, function() { loadMine(); });
     });
     return;
   }
@@ -3407,7 +3456,7 @@ function loadMine() {
   }).withFailureHandler(function(e) {
     busy(false);
     if (관문이그림) return;         // 관문이 이미 그렸다 — 오류로 그 화면을 덮지 않는다
-    document.getElementById('mineBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('mineBody', e, function() { loadMine(); });
   }).웹_내입력(TOKEN);
 }
 function 내입력만지는중_() {
@@ -3482,9 +3531,12 @@ function mineLogCard(l) {
 function deleteLog(열쇠) {
   var 대상 = 열쇠찾기_((MINE || {}).logs, 열쇠) || {};
   if (!대상.no) return toast('이 기록은 새로고침 뒤에 지울 수 있어요', true);
+  /* 문구가 실제보다 파괴적으로 들리면 지워도 되는 것을 못 지운다 (8/5 감사 U10).
+     이 삭제는 행을 숨기는 것이라 잘못 눌러도 관리자가 되살릴 수 있다 — 그 사실을 적는다. */
   if (!confirm('이 방문기록을 지울까요?\n\n'
     + (대상.hname || '') + ' · ' + (대상.date || '') + '\n'
-    + (대상.note || '').slice(0, 40) + '\n\n목록과 집계에서 사라집니다.')) return;
+    + (대상.note || '').slice(0, 40) + '\n\n목록과 집계에서 사라집니다.'
+    + '\n완전히 없어지는 것은 아니라, 잘못 지웠으면 관리자가 되살릴 수 있습니다.')) return;
   busy(true, '저장 중…');
   관문호출_('/saleson-visit-act', JSON.stringify({
     토큰: TOKEN, 동작: '삭제', no: 대상.no,
@@ -3724,7 +3776,7 @@ function openFail(row) {
 function closeFail() { document.getElementById('failModal').style.display = 'none'; }
 function submitFail() {
   var why = document.getElementById('failWhy').value.trim();
-  if (!why) return toast('실패 요인을 입력해 주세요', true);
+  if (!why) return 검증실패_('실패 요인을 입력해 주세요', 'failWhy');
   busy(true, '저장 중…');
   var 대상 = DATA.leads.filter(function(x) { return x.k === FAILROW; })[0];
   if (DATA.dbSrc && 대상 && 대상.no) {
@@ -3867,7 +3919,7 @@ function loadNcare() {
       '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
     function(e) {
       busy(false);
-      document.getElementById('ncBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+      실패카드_('ncBody', e, function() { loadNcare(); });
     });
 }
 
@@ -4059,7 +4111,7 @@ function ncStage(id, n) {
 }
 function ncAssign(id) {
   var v = document.getElementById('ncRep').value;
-  if (!v) { toast('담당자를 선택해 주세요', true); return; }
+  if (!v) { 검증실패_('담당자를 선택해 주세요', 'ncRep'); return; }
   ncAct_({ 토큰: TOKEN, 동작: '담당지정', id: id, rep: v }, function() { ncOpen(id); });
 }
 function ncGradeSave(id) {
@@ -4099,7 +4151,7 @@ function ncAddOpen() {
 }
 function ncAddSave() {
   var name = document.getElementById('ncAddName').value.trim();
-  if (!name) { toast('병원명을 입력해 주세요', true); return; }
+  if (!name) { 검증실패_('병원명을 입력해 주세요', 'ncAddName'); return; }
   ncAct_({ 토큰: TOKEN, 동작: '추가', f: {
     hname: name,
     rep: document.getElementById('ncAddRep').value,
@@ -4118,7 +4170,7 @@ function loadMat() {
   gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); })
     .withFailureHandler(function(e) {
       busy(false);
-      document.getElementById('matList').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+      실패카드_('matList', e, function() { loadMat(); });
     }).웹_영업자료목록(TOKEN);
 }
 function renderMat() {
@@ -4171,11 +4223,11 @@ function submitMat() {
     desc: document.getElementById('mDesc').value.trim(),
     link: document.getElementById('mLink').value.trim(),
   };
-  if (!f.cat) return toast('카테고리를 선택해 주세요', true);
-  if (!f.title) return toast('자료명을 입력해 주세요', true);
+  if (!f.cat) return 검증실패_('카테고리를 선택해 주세요', 'mCat');
+  if (!f.title) return 검증실패_('자료명을 입력해 주세요', 'mTitle');
   var file = document.getElementById('mFile').files[0];
-  if (!file && !f.link) return toast('파일을 첨부하거나 링크를 입력해 주세요', true);
-  if (file && file.size > 20 * 1024 * 1024) return toast('파일은 20MB 이하만 업로드할 수 있습니다', true);
+  if (!file && !f.link) return 검증실패_('파일을 첨부하거나 링크를 입력해 주세요', 'mFile');
+  if (file && file.size > 20 * 1024 * 1024) return 검증실패_('파일은 20MB 이하만 업로드할 수 있습니다', 'mFile');
   var send = function() {
     busy(true, '저장 중…');
     document.getElementById('mSave').disabled = true;
@@ -4227,7 +4279,7 @@ function loadDash(ym) {
   var 끝 = function(d) { DASH = d; busy(false); renderDash(); };
   var 실패 = function(e) {
     busy(false);
-    document.getElementById('dashBody').innerHTML = '<div class="card empty">' + esc(e.message || e) + '</div>';
+    실패카드_('dashBody', e, function() { loadDash(ym); });
   };
   // 집계는 관문(0.3초대) — GAS와 값 대조 테스트(dashread)로 묶여 숫자가 갈릴 수 없다
   if (DATA.dbSrc) {
