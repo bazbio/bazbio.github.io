@@ -1112,7 +1112,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608132210';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608132233';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2150,8 +2150,18 @@ function evtRegSave(code) {
   gsrun().withSuccessHandler(function(r) {
     EVTREG = null; busy(false); toast(r.msg);
     // 쓰기 응답이 행사현황과 초기데이터를 같이 실어 온다 — 예전에는 각각 다시 받아 왕복이 셋이었다
-    if (r.init) { DATA = r.init; renderHome(); renderLeads(); }   // 내 리드·홈 KPI
-    if (r.evt) { EVT = r.evt; renderEvt(); } else { EVT = null; loadEvt(); }
+    if (r.init) {
+      DATA = r.init;
+      // onData를 안 거치므로 열쇠를 여기서 매긴다 — 없으면 리드 카드가 남의 행을 집는다
+      (DATA.plans || []).forEach(function(p) { p.k = p.row || -(p.no || 0); });
+      (DATA.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+      renderHome(); renderLeads();   // 내 리드·홈 KPI
+    }
+    /* ⚠ 원천이 DB면 `r.evt`(GAS 모양)를 **쓰지 않는다** (2026-08-14).
+       관문은 리드를 `no`로, GAS는 `row`로 준다. GAS 모양을 넣으면 열쇠가 양수가 되어
+       그 뒤 [정보수정]이 관문이 아니라 GAS로 샌다 — 이 탭은 뒤따르는 관문 갱신이 없어서
+       탭을 떠나기 전까지 그 상태로 남는다. 왕복 하나를 더 쓰고 모양을 맞춘다. */
+    if (r.evt && !DATA.dbSrc) { EVT = r.evt; renderEvt(); } else { EVT = null; loadEvt(); }
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
   }).웹_행사리드등록(TOKEN, f);
