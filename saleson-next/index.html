@@ -1107,7 +1107,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608122234';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608130933';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1951,6 +1951,31 @@ function renderFlow() {
       + '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
       + '인바운드 = 문의전화 · Meta DB · C-Labs / 아웃바운드 = 학회·세미나 · 소개 · 기타. 리드 소스에서 자동 분류됩니다.<br>'
       + '<b style="color:#058652;">데모</b>는 그 달에 첫 데모를 간 인바운드 리드 수 — 유입된 달과 다르면 각자의 달에 잡힙니다. 계는 유입 기준입니다.</div></div>';
+  }
+
+  /* 데모 성공률 — 첫 데모 월 코호트 (ADR 0023). 분자·분모가 같은 병원 집단이라
+     "그 달 데모가 결국 얼마나 계약이 됐나"를 답한다. 진행이 남은 달은 아직 자라는 숫자다 */
+  if (d.demoCohort && d.demoCohort.length) {
+    h += kick('데모 성공률 — 월별 코호트 (장비)');
+    h += '<div class="card"><table class="dt"><thead><tr><th>첫 데모 월</th><th class="c">데모</th><th class="c">계약</th><th class="c">실패</th><th class="c">진행</th><th class="c">성공률</th></tr></thead><tbody>';
+    d.demoCohort.forEach(function(r) {
+      var cur = r.ym === d.ym;
+      var rate = r.demo ? Math.round(r.deal / r.demo * 100) : null;
+      h += '<tr' + (cur ? ' style="background:#f4f8ff;"' : '') + '>'
+        + '<td' + (cur ? ' style="font-weight:700;"' : '') + '>' + esc(r.ym) + '</td>'
+        + '<td class="c">' + (r.demo || '-') + '</td>'
+        + '<td class="c">' + (r.deal ? '<b class="blue">' + r.deal + '</b>' : '-') + '</td>'
+        + '<td class="c">' + (r.fail ? '<b class="red">' + r.fail + '</b>' : '-') + '</td>'
+        + '<td class="c">' + (r.open || '-') + '</td>'
+        + '<td class="c">' + (rate === null ? '-'
+          : '<b' + (rate >= 50 ? ' style="color:#058652;"' : '') + '>' + rate + '%</b>'
+            + (r.open ? '<span style="font-size:11px;color:#8b95a1;"> +진행 ' + r.open + '</span>' : ''))
+        + '</td></tr>';
+    });
+    h += '</tbody></table>'
+      + '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+      + '그 달에 <b>첫 데모</b>를 한 병원(병원당 한 번)이 지금까지 계약에 이른 비율입니다 — 데모한 달 기준이라 계약이 늦게 나도 그 달 성공률이 올라갑니다.<br>'
+      + '진행이 남아 있으면 아직 자라는 숫자입니다. 실패는 그 병원의 장비 리드가 전부 실패 처리된 경우만, N-Care(노즐) 데모는 여기서 제외 — Pool 단계가 따로 추적합니다.</div></div>';
   }
 
   // 선택한 단계의 진행 상세 — 같은 화면에서 병원별 리드·최근 기록 표시 (서버 왕복 없음)
