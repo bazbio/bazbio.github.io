@@ -4,24 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>등대 — 경영 현황</title>
-<meta name="theme-color" content="#0E7490">
+<meta name="theme-color" content="#0A0B0D">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* ===== 토큰 — Toss 톤 (결정_매출탭_260806 ⑥: 등대 전체 통일) ===== */
+/* ===== 토큰 — Coinbase 톤 (결정_원가탭_260813: Toss 톤(결정_매출탭_260806 ⑥)을 대체) =====
+   흰 캔버스 + 잉크 + 블루 하나(절제) + 헤어라인 카드 + 모노 숫자. 등락색은 글자색으로만. */
 :root{
-  --bg:#F9FAFB; --surface:#FFFFFF;
-  --ink:#191F28; --ink-2:#4E5968; --ink-3:#8B95A1;
-  --blue:#3182F6; --blue-bg:#EBF3FE;
-  --sig-green:#008A50; --sig-amber:#C77D0A; --sig-red:#E0333C;
+  --bg:#FFFFFF; --surface:#FFFFFF; --soft:#F7F7F7;
+  --ink:#0A0B0D; --ink-2:#5B616E; --ink-3:#7C828A;
+  --blue:#0052FF; --blue-bg:#EBF0FF;
+  --dark:#0A0B0D; --dark-2:#16181C; --on-dark:#FFFFFF; --on-dark-soft:#A8ACB3;
+  --sig-green:#05B169; --sig-amber:#C77D0A; --sig-red:#CF202F;
   --sig-green-bg:#E6F5EE; --sig-amber-bg:#FBF1E1; --sig-red-bg:#FCEBEC;
-  --hairline:#F2F4F6; --line:#E5E8EB;
-  --r-sm:10px; --r-md:16px; --r-pill:999px;
-  --shadow:0 20px 60px -15px rgba(25,31,40,.06);
+  --hairline:#EEF0F3; --line:#DEE1E6;
+  --r-sm:12px; --r-md:24px; --r-pill:100px;
+  --shadow:0 4px 12px rgba(0,0,0,.04);
   --ease:cubic-bezier(0.16,1,0.3,1);
+  --mono:'JetBrains Mono','Cascadia Code','SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -32,29 +35,36 @@ body{
   font-size:14px; line-height:1.5; letter-spacing:-0.01em;
   -webkit-font-smoothing:antialiased;
 }
-.num{font-variant-numeric:tabular-nums}
+/* 숫자는 전부 모노스페이스 — Coinbase의 「every number in mono」 규칙 */
+.num,.tile .v,.tile .d,.mv .dt,.mv li .v,.sim input{
+  font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;
+}
 
 /* ===== 껍데기 ===== */
 .wrap{max-width:1280px;margin:0 auto;padding:16px}
-header.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-header.top h1{font-size:19px;font-weight:700;margin:0;letter-spacing:-0.02em}
+header.top{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--hairline);
+}
+header.top h1{font-size:19px;font-weight:600;margin:0;letter-spacing:-0.02em}
+/* 워드마크 점 — 화면 전체에서 블루는 이 점, 로그인 버튼, 포커스 링뿐이다 */
+header.top h1::before{
+  content:'';display:inline-block;width:9px;height:9px;border-radius:var(--r-pill);
+  background:var(--blue);margin-right:8px;vertical-align:baseline;
+}
 header.top .sub{color:var(--ink-3);font-size:12.5px}
 header.top .spacer{flex:1}
 
-/* 탭 — 밑줄형 */
-.tabs{display:flex;gap:2px;margin-left:6px}
+/* 탭 — 필형 (Coinbase nav) */
+.tabs{display:flex;gap:4px;margin-left:6px;flex-wrap:wrap}
 .tabs button{
-  position:relative;border:0;background:none;font:inherit;
-  font-size:15px;font-weight:600;color:var(--ink-3);
-  padding:8px 12px;min-height:44px;cursor:pointer;border-radius:var(--r-sm);
-  transition:color .2s var(--ease);
+  border:0;background:none;font:inherit;
+  font-size:14px;font-weight:500;color:var(--ink-2);
+  padding:8px 16px;min-height:40px;cursor:pointer;border-radius:var(--r-pill);
+  transition:color .2s var(--ease),background .2s var(--ease);
 }
-.tabs button:hover{color:var(--ink-2)}
-.tabs button[aria-selected="true"]{color:var(--ink)}
-.tabs button[aria-selected="true"]::after{
-  content:'';position:absolute;left:12px;right:12px;bottom:4px;height:2px;
-  border-radius:2px;background:var(--blue);
-}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{background:var(--soft);color:var(--ink);font-weight:600}
 .tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .seg{display:inline-flex;background:var(--hairline);border-radius:var(--r-pill);padding:3px;gap:2px}
@@ -64,25 +74,28 @@ header.top .spacer{flex:1}
   padding:6px 14px;border-radius:var(--r-pill);cursor:pointer;
   min-height:34px;transition:background .2s var(--ease),color .2s var(--ease),transform .2s var(--ease);
 }
-.seg button[aria-pressed="true"]{background:var(--surface);color:var(--blue);box-shadow:0 1px 3px rgba(25,31,40,.10)}
+/* 활성은 흰 필 + 잉크 — 블루를 아낀다 (Coinbase: 블루는 밴드당 한두 번) */
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(10,11,13,.10)}
 .seg button:active{transform:scale(.98)}
 .seg button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .controls .cspacer{flex:1}
+/* 보조 버튼 — Coinbase button-secondary-light: 회색 필, 테두리 없음 */
 .ghost{
-  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  border:0;background:var(--hairline);color:var(--ink);
   font:inherit;font-size:13px;font-weight:600;
-  padding:6px 14px;min-height:34px;border-radius:var(--r-pill);cursor:pointer;
-  transition:color .2s var(--ease),border-color .2s var(--ease),transform .2s var(--ease);
+  padding:6px 16px;min-height:34px;border-radius:var(--r-pill);cursor:pointer;
+  transition:background .2s var(--ease),transform .2s var(--ease);
 }
-.ghost:hover{color:var(--blue);border-color:var(--blue)}
+.ghost:hover{background:var(--line)}
 .ghost:active{transform:scale(.98)}
 .ghost:disabled{opacity:.5;cursor:default}
 .ghost:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
-.card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow);padding:14px}
-h3.ct{font-size:14.5px;font-weight:700;margin:0 0 10px;letter-spacing:-0.02em}
+/* 카드 — 헤어라인 테두리 + 24px 반경, 그림자는 없다 (Coinbase: 표면의 80%가 플랫) */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:18px}
+h3.ct{font-size:15px;font-weight:600;margin:0 0 10px;letter-spacing:-0.02em}
 
 /* ===== 이달의 변동 ===== */
 .mv{padding:12px 0;border-top:1px solid var(--hairline)}
@@ -186,13 +199,13 @@ table.pl td:first-child,table.pl th:first-child{
   min-width:150px;box-shadow:1px 0 0 var(--hairline);
 }
 table.pl td{text-align:right}
-table.pl tbody tr:hover td{background:var(--bg)}
-table.pl tbody tr:hover td:first-child{background:var(--bg)}
+table.pl tbody tr:hover td{background:var(--soft)}
+table.pl tbody tr:hover td:first-child{background:var(--soft)}
 
-.r-total>td{font-weight:700;background:#F7F9FB}
-.r-total>td:first-child{background:#F7F9FB}
-.r-op>td{font-weight:700;border-top:2px solid var(--ink);background:#F7F9FB}
-.r-op>td:first-child{background:#F7F9FB}
+.r-total>td{font-weight:700;background:var(--soft)}
+.r-total>td:first-child{background:var(--soft)}
+.r-op>td{font-weight:700;border-top:2px solid var(--ink);background:var(--soft)}
+.r-op>td:first-child{background:var(--soft)}
 .r-child>td:first-child{padding-left:26px;color:var(--ink-2)}
 .r-leaf>td{color:var(--ink-2);font-size:12.5px}
 .r-leaf>td:first-child{padding-left:40px}
@@ -246,11 +259,12 @@ input[type=password]{
 }
 input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;border-color:transparent}
 .btn{
-  width:100%;padding:11px 16px;min-height:44px;
-  border:0;border-radius:var(--r-sm);background:var(--blue);color:#fff;
+  width:100%;padding:11px 20px;min-height:44px;
+  border:0;border-radius:var(--r-pill);background:var(--blue);color:#fff;
   font:inherit;font-weight:600;cursor:pointer;
-  transition:transform .2s var(--ease),opacity .2s var(--ease);
+  transition:transform .2s var(--ease),opacity .2s var(--ease),background .2s var(--ease);
 }
+.btn:active{background:#003ECC}
 .btn:hover{transform:scale(1.02)} .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.5;cursor:default;transform:none}
 .btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
@@ -286,16 +300,18 @@ input[type=password]:focus{outline:2px solid var(--blue);outline-offset:-1px;bor
 .unitbar{margin:0 0 8px}
 th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter-spacing:0}
 
-/* ===== 런웨이 타일 (0032) — 분자·분모를 항상 같이 보인다 ===== */
+/* ===== 타일 (0032) — 분자·분모를 항상 같이 보인다.
+   다크 카드가 이 화면의 코인베이스 시그니처다 (플로팅 product-UI 카드의 번역).
+   신호색은 배경이 아니라 값의 글자색으로 — 다크 위에서 읽히게 밝은 변형을 쓴다. ===== */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-.tile{background:var(--hairline);border-radius:var(--r-md);padding:14px 16px}
-.tile .k{font-size:12.5px;color:var(--ink-3);margin-bottom:6px}
-.tile .v{font-size:26px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
-.tile .u{font-size:14px;font-weight:600;margin-left:2px}
-.tile .d{font-size:12px;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
-.tile.red{background:var(--sig-red-bg)}    .tile.red .v{color:var(--sig-red)}
-.tile.amber{background:var(--sig-amber-bg)} .tile.amber .v{color:var(--sig-amber)}
-.tile.green{background:var(--sig-green-bg)} .tile.green .v{color:var(--sig-green)}
+.tile{background:var(--dark-2);border-radius:var(--r-md);padding:16px 18px}
+.tile .k{font-size:12.5px;color:var(--on-dark-soft);margin-bottom:6px}
+.tile .v{font-size:26px;font-weight:500;letter-spacing:-0.02em;color:var(--on-dark)}
+.tile .u{font-size:13px;font-weight:500;margin-left:2px;color:var(--on-dark-soft)}
+.tile .d{font-size:12px;color:var(--on-dark-soft);margin-top:4px}
+.tile.red .v{color:#FF5C6B}
+.tile.amber .v{color:#F4B000}
+.tile.green .v{color:#27C98A}
 </style>
 </head>
 <body>
