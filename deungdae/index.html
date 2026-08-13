@@ -24,7 +24,6 @@
   --r-sm:12px; --r-md:24px; --r-pill:100px;
   --shadow:0 4px 12px rgba(0,0,0,.04);
   --ease:cubic-bezier(0.16,1,0.3,1);
-  --mono:'JetBrains Mono','Cascadia Code','SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -35,10 +34,8 @@ body{
   font-size:14px; line-height:1.5; letter-spacing:-0.01em;
   -webkit-font-smoothing:antialiased;
 }
-/* 숫자는 전부 모노스페이스 — Coinbase의 「every number in mono」 규칙 */
-.num,.tile .v,.tile .d,.mv .dt,.mv li .v,.sim input{
-  font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;
-}
+/* 숫자는 고정폭 — Pretendard tabular-nums (모노 서체는 안 쓰기로, 2026-08-13 사용자 선택) */
+.num,.tile .v,.tile .d,.mv .dt,.mv li .v,.sim input{font-variant-numeric:tabular-nums}
 
 /* ===== 껍데기 ===== */
 .wrap{max-width:1280px;margin:0 auto;padding:16px}
@@ -306,7 +303,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 .tile{background:var(--dark-2);border-radius:var(--r-md);padding:16px 18px}
 .tile .k{font-size:12.5px;color:var(--on-dark-soft);margin-bottom:6px}
-.tile .v{font-size:26px;font-weight:500;letter-spacing:-0.02em;color:var(--on-dark)}
+.tile .v{font-size:26px;font-weight:600;letter-spacing:-0.02em;color:var(--on-dark)}
 .tile .u{font-size:13px;font-weight:500;margin-left:2px;color:var(--on-dark-soft)}
 .tile .d{font-size:12px;color:var(--on-dark-soft);margin-top:4px}
 .tile.red .v{color:#FF5C6B}
