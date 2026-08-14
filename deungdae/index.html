@@ -2774,7 +2774,7 @@ function 매출그리기() {
   var 전체누계 = 달.reduce(function (s, m) { return s + (행[0].값(m) || 0); }, 0);
   var 형식 = 매출모드 === '금액' ? 백만 : 수;
 
-  var html = 행.filter(function (r) { return 보임[r.키]; }).map(function (r) {
+  var 행칸들 = 행.filter(function (r) { return 보임[r.키]; }).map(function (r) {
     var 값들 = 달.map(function (m) { return r.값(m); });
     var 누계 = null;
     값들.forEach(function (v) { if (v != null) 누계 = (누계 || 0) + v; });
@@ -2804,7 +2804,38 @@ function 매출그리기() {
       + '<td class="num' + (누계 != null && 누계 < 0 ? ' neg' : '') + '">' + 형식(누계) + 비중 + '</td>'
       + 누적칸
       + '</tr>';
-  }).join('');
+  });
+
+  // ── 목표·달성률 (2026-08-14 사용자 요청) — 금액 모드 · 선택 연도에 목표가 있을 때만.
+  // 목표는 시계열 뷰(최신 기준일 — 지금은 260814 하반기 램프업)에서 온다. 달성률 색은
+  // 램프업 목표 그 자체가 그 달의 기대치이므로 경과율 보정 없이 ≥95 녹 / 80~95 황 / <80 적.
+  // 누계 칸이 **하반기 누적 달성률**이다 — 7월~마감월 실적 합 ÷ 같은 기간 목표 합.
+  if (매출모드 === '금액' && 매출연도 === 연도) {
+    var 목표축 = 축('rev_total', '목표');
+    var 목표달 = 달.filter(function (m) { return 목표축[m] != null; });
+    if (목표달.length) {
+      var 실적합 = 0, 목표합 = 0;
+      목표달.forEach(function (m) { 실적합 += 행[0].값(m) || 0; 목표합 += 목표축[m] || 0; });
+      var 하반기달성 = 목표합 > 0 ? 100 * 실적합 / 목표합 : null;
+      var 급f = function (pct) { return pct == null ? '' : (pct >= 95 ? ' g' : (pct >= 80 ? ' a' : ' r')); };
+      var 목표행 = '<tr class="r-child"><td>목표 <span class="muted">(램프업 8/14)</span></td>'
+        + 달.map(function (m) {
+          return '<td class="num muted">' + (목표축[m] == null ? '—' : 백만(목표축[m])) + '</td>';
+        }).join('')
+        + '<td class="num muted">' + 백만(목표합) + '</td>' + (누적열 ? '<td></td>' : '') + '</tr>';
+      var 달성행 = '<tr class="r-child"><td>달성률</td>'
+        + 달.map(function (m) {
+          if (목표축[m] == null || !목표축[m]) return '<td class="num">—</td>';
+          var pct = 100 * (행[0].값(m) || 0) / 목표축[m];
+          return '<td class="num rate' + 급f(pct) + '">' + pct.toFixed(1) + '%</td>';
+        }).join('')
+        + '<td class="num rate' + 급f(하반기달성) + '"><strong>'
+        + (하반기달성 == null ? '—' : 하반기달성.toFixed(1) + '%') + '</strong>'
+        + '<span class="muted"> 하반기 누적</span></td>' + (누적열 ? '<td></td>' : '') + '</tr>';
+      행칸들.splice(1, 0, 목표행 + 달성행);        // 매출액 계 바로 아래
+    }
+  }
+  var html = 행칸들.join('');
 
   $('salesBody').innerHTML = html;
   Array.prototype.forEach.call($('salesBody').querySelectorAll('.toggle'), function (b) {
@@ -2839,6 +2870,11 @@ function 매출그리기() {
     + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.'
     + (매출모드 === '금액'
       ? ' 누계 옆 괄호는 <strong>매출액 계 대비 비중</strong>입니다 — 국가별과 제품별이 각각 100%로 닫힙니다.'
+        + (매출연도 === 연도
+          ? ' <strong>목표는 하반기 램프업</strong>(흑자전환 목표 8/14 — 8월 17억에서 12월 39.5억까지)이고,'
+            + ' 달성률 색은 그 달 목표 대비 ≥95% 녹 · 80~95% 황 · &lt;80% 적입니다.'
+            + ' 달성률의 누계 칸은 <strong>하반기 누적</strong>(7월~마감월 실적 ÷ 같은 기간 목표)입니다.'
+          : '')
       : '');
 
   // 노즐 수량 모드는 채널별 대신 국가별 유상·무상을 그린다 (0045, 2026-08-14) —
