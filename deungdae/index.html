@@ -208,6 +208,12 @@ table.pl tbody tr:hover td:first-child{background:var(--soft)}
 .r-leaf>td:first-child{padding-left:40px}
 .r-leaf2>td{color:var(--ink-2);font-size:12.5px}
 .r-leaf2>td:first-child{padding-left:54px}
+/* 노즐 유상·무상 (0046) — 쌍이 한눈에 갈리게: 배지 + 무상 행 옅은 호박색 */
+.nz-pill{display:inline-block;padding:1px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:700;vertical-align:1px;margin-left:6px}
+.nz-pill.paid{color:var(--blue);background:var(--blue-bg)}
+.nz-pill.free{color:var(--sig-amber);background:var(--sig-amber-bg);margin-left:0}
+#nz tr.nz-grp>td{border-top:1px solid var(--line)}
+#nz tr.nz-free>td{background:#FFFdF6}
 
 /* 펼침 단추 — 행 제목 자리를 통째로 쓴다 */
 .toggle{
@@ -614,6 +620,15 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           </table>
         </div>
         <p class="note" id="nzNote"></p>
+        <h3 class="ct" style="margin-top:18px">제품별 평균단가<span class="u">원/개 — 유상 판매 기준</span></h3>
+        <div class="scroll">
+          <table class="pl" id="nzp">
+            <thead><tr id="nzpHead"></tr></thead>
+            <tbody id="nzpBody"></tbody>
+          </table>
+        </div>
+        <p class="note">평균단가 = 그 달 유상 매출액 ÷ 유상 수량입니다. 무상·취소는 단가에 안 들어갑니다.
+          국가 구분 없는 전체 평균이라 국가 믹스가 바뀌면 단가가 움직일 수 있습니다 — 국가별 차이는 위 표의 개당 단가로 보십시오.</p>
       </div>
 
     </section>
@@ -2797,32 +2812,25 @@ function 매출그리기() {
   if (노즐모드) 노즐유무상그리기(달); else 채널그리기(달);
 }
 
-/* ── 국가별 노즐 유상·무상 (0045, 2026-08-14) ────────────────────
-   행: 노즐 계(유상·무상) → 한국 · 일본 → 해외 국가들(유상 매출액 큰 순, 미상 맨 뒤).
-   각 국가는 유상 행 + 무상 행 한 쌍이다. 칸은 월별 수량, 오른쪽에 누계 수량 ·
-   매출액(누계) · 개당 단가(= 유상 매출액 ÷ 유상 수량). 무상 행의 매출액은 보통 0이라
-   「—」로 두고, 0이 아니면(무상인데 공급가가 붙은 건) 각주로 밝힌다. */
+/* ── 국가별 노즐 유상·무상 (0045 → 0046, 2026-08-14) ─────────────
+   행: 노즐 계 → 한국 · 일본 → 해외(소계, 펼치면 국가별 — 매출 탭과 같은 토글).
+   각 행은 유상 + 무상 한 쌍이고 배지(파랑 유상 · 호박 무상)와 행 색조로 가른다.
+   칸은 월별 수량, 오른쪽에 누계 수량 · 매출액(누계) · 개당 단가(= 유상 매출액 ÷ 유상 수량).
+   무상 행의 매출액은 보통 0이라 「—」, 0이 아니면(무상인데 공급가가 붙은 건) 각주로 밝힌다.
+   아래 두 번째 표가 제품별(표준명) 평균단가다 — 국가 평균은 4,500S·9,000S가 섞인 값이라서다. */
+var 노즐해외펼침 = false;
 function 노즐유무상그리기(달) {
   var 행들 = (DB['노즐유무상'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
-  var 국들 = {};
-  행들.forEach(function (r) {
-    var t = (국들[r['국가']] = 국들[r['국가']] || { 유상금액: 0 });
-    t.유상금액 += Number(r['유상금액']) || 0;
-  });
-  var 순 = Object.keys(국들).sort(function (a, b) {
-    var g = function (국) { return 국 === '한국' ? 0 : 국 === '일본' ? 1 : 국 === '미상' ? 9 : 2; };
-    return g(a) - g(b) || 국들[b].유상금액 - 국들[a].유상금액;
-  });
 
   $('nzHead').innerHTML = ['<th scope="col">국가</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계</th>', '<th scope="col">매출액</th>', '<th scope="col">개당 단가</th>']).join('');
 
-  // (국가들 | null=전체) × (유상|무상) → 월별 수량 · 누계 금액
-  var 모으기 = function (국, 축) {
+  // 걸러 모으기 — f(r)가 참인 행들의 (유상|무상) 월별 수량 · 누계 금액
+  var 모으기 = function (f, 축) {
     var 월수량 = {}, 금액 = 0, 있음 = false;
     행들.forEach(function (r) {
-      if (국 && r['국가'] !== 국) return;
+      if (f && !f(r)) return;
       var q = Number(r[축 + '수량']), a = Number(r[축 + '금액']) || 0;
       if (!q && !a) return;
       있음 = true;
@@ -2831,38 +2839,97 @@ function 노즐유무상그리기(달) {
     });
     return { 월수량: 월수량, 금액: 금액, 있음: 있음 };
   };
+  var 국f = function (국) { return function (r) { return r['국가'] === 국; }; };
+  var 해외f = function (r) { return r['사업부'] === '해외'; };
 
   var 무상금액계 = 모으기(null, '무상').금액;
-  var 줄 = function (이름, 급, d, 단가냐) {
-    if (!d.있음) return '';
-    var 누계 = 0;
-    var 칸 = 달.map(function (m) {
-      var v = d.월수량[m];
-      if (v == null) return '<td class="num">—</td>';
-      누계 += v;
-      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 수(v) + '</td>';
-    }).join('');
-    var 단가 = 단가냐 && 누계 > 0 && d.금액 > 0
-      ? Math.round(d.금액 * 1e6 / 누계).toLocaleString('ko-KR') : '—';
-    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
-      + '<td class="num"><strong>' + 수(누계) + '</strong></td>'
-      + '<td class="num">' + (d.금액 ? 백만(d.금액) : '—') + '</td>'
-      + '<td class="num muted">' + 단가 + '</td></tr>';
+
+  // 쌍 — 유상 행(그룹 경계선) + 무상 행(호박 색조). 이름은 유상 행에만 적는다
+  var 쌍 = function (이름, 급, f, 옵) {
+    var 유 = 모으기(f, '유상'), 무 = 모으기(f, '무상');
+    if (!유.있음 && !무.있음) return '';
+    var 행 = function (d, 유냐) {
+      var 누계 = 0;
+      var 칸 = 달.map(function (m) {
+        var v = d.월수량[m];
+        if (v == null) return '<td class="num">—</td>';
+        누계 += v;
+        return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 수(v) + '</td>';
+      }).join('');
+      var 단가 = 유냐 && 누계 > 0 && d.금액 > 0
+        ? Math.round(d.금액 * 1e6 / 누계).toLocaleString('ko-KR') : '—';
+      var 제목 = 유냐
+        ? (옵 && 옵.토글
+          ? '<button class="toggle" type="button" id="nzMore" aria-expanded="' + (노즐해외펼침 ? 'true' : 'false') + '">'
+            + '<svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            + '<span>' + 이름 + '</span></button>'
+          : 이름) + '<span class="nz-pill paid">유상</span>'
+        : '<span class="nz-pill free">무상</span>';
+      return '<tr class="' + 급 + (유냐 ? ' nz-grp' : ' nz-free') + '">'
+        + '<td>' + 제목 + '</td>' + 칸
+        + '<td class="num"><strong>' + 수(누계) + '</strong></td>'
+        + '<td class="num">' + (d.금액 ? 백만(d.금액) : '—') + '</td>'
+        + '<td class="num muted">' + 단가 + '</td></tr>';
+    };
+    return (유.있음 ? 행(유, true) : '') + (무.있음 ? 행(무, false) : '');
   };
 
-  var html = 줄('노즐 계 · 유상', 'r-total', 모으기(null, '유상'), true)
-    + 줄('무상', 'r-child', 모으기(null, '무상'), false);
-  순.forEach(function (국) {
-    html += 줄(국, 'r-child', 모으기(국, '유상'), true)
-      + 줄('└ 무상', 'r-leaf', 모으기(국, '무상'), false);
-  });
+  var html = 쌍('노즐 계', 'r-total', null)
+    + 쌍('한국', 'r-child', 국f('한국'))
+    + 쌍('일본', 'r-child', 국f('일본'))
+    + 쌍('해외', 'r-child', 해외f, { 토글: true });
+  if (노즐해외펼침) {
+    var 해외국들 = {};
+    행들.forEach(function (r) {
+      if (r['사업부'] !== '해외') return;
+      해외국들[r['국가']] = (해외국들[r['국가']] || 0) + (Number(r['유상금액']) || 0);
+    });
+    Object.keys(해외국들).sort(function (a, b) {
+      if (a === '미상') return 1;
+      if (b === '미상') return -1;
+      return 해외국들[b] - 해외국들[a];
+    }).forEach(function (국) {
+      html += 쌍(국, 'r-leaf', 국f(국));
+    });
+  }
   $('nzBody').innerHTML = html;
+  var 더보기 = $('nzMore');
+  if (더보기) 더보기.addEventListener('click', function () { 노즐해외펼침 = !노즐해외펼침; 매출그리기(); });
 
-  $('nzNote').innerHTML = '<strong>유상</strong>은 무상·취소 제외 순판매(반품 음수 포함), '
-    + '<strong>무상</strong>은 ERP 구분 「무상」입니다. 매출액은 누계이고 '
+  $('nzNote').innerHTML = '<span class="nz-pill paid" style="margin-left:0">유상</span> 무상·취소 제외 순판매(반품 음수 포함) · '
+    + '<span class="nz-pill free">무상</span> ERP 구분 「무상」. 매출액은 누계이고 '
     + '<strong>개당 단가 = 유상 매출액 ÷ 유상 수량</strong>입니다 — 국가 간 단가 차이가 그대로 보입니다. '
-    + '채널별 표는 금액·장비 대수 모드에서 보입니다.'
+    + '해외를 펼치면 국가별로 보입니다. 채널별 표는 금액·장비 대수 모드에서 보입니다.'
     + (무상금액계 > 0.05 ? ' ⚠ 무상 행에 공급가 ' + 백만(무상금액계) + '이 붙어 있습니다 — 원천 확인 대상입니다.' : '');
+
+  // ── 제품별 평균단가 — 표준명 축, 유상만. 칸은 그 달 평균단가(원) ──
+  $('nzpHead').innerHTML = ['<th scope="col">제품</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계 단가</th>', '<th scope="col">수량</th>', '<th scope="col">매출액</th>']).join('');
+  var 제품들 = {};
+  행들.forEach(function (r) {
+    var p = (제품들[r['표준명']] = 제품들[r['표준명']] || { 월수량: {}, 월금액: {}, 수량: 0, 금액: 0 });
+    var q = Number(r['유상수량']) || 0, a = Number(r['유상금액']) || 0;
+    if (!q && !a) return;
+    var m = +r['월'];
+    p.월수량[m] = (p.월수량[m] || 0) + q;
+    p.월금액[m] = (p.월금액[m] || 0) + a;
+    p.수량 += q; p.금액 += a;
+  });
+  var 원 = function (금액, 수량) {
+    return (수량 > 0 && 금액 > 0) ? Math.round(금액 * 1e6 / 수량).toLocaleString('ko-KR') : '—';
+  };
+  $('nzpBody').innerHTML = Object.keys(제품들)
+    .filter(function (n) { return 제품들[n].수량 > 0 || 제품들[n].금액 > 0; })
+    .sort(function (a, b) { return 제품들[b].금액 - 제품들[a].금액; })
+    .map(function (n) {
+      var p = 제품들[n];
+      return '<tr><td>' + n + '</td>'
+        + 달.map(function (m) { return '<td class="num muted">' + 원(p.월금액[m] || 0, p.월수량[m] || 0) + '</td>'; }).join('')
+        + '<td class="num"><strong>' + 원(p.금액, p.수량) + '</strong></td>'
+        + '<td class="num">' + 수(p.수량) + '</td>'
+        + '<td class="num">' + (p.금액 ? 백만(p.금액) : '—') + '</td></tr>';
+    }).join('');
 }
 
 /* ── 채널별 (결정_회계사TDL ⑨) — 값 모드·연도 토글 연동 ──────────
