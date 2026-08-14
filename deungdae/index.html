@@ -214,6 +214,8 @@ table.pl tbody tr:hover td:first-child{background:var(--soft)}
 .nz-pill.free{color:var(--sig-amber);background:var(--sig-amber-bg);margin-left:0}
 #nz tr.nz-grp>td{border-top:1px solid var(--line)}
 #nz tr.nz-free>td{background:#FFFdF6}
+/* 칸 아래 보조 숫자 — 노즐 유상 칸의 그 달 개당 단가 (2026-08-14) */
+.csub{display:block;font-size:.8em;font-weight:400;color:var(--ink-3);line-height:1.3}
 
 /* 펼침 단추 — 행 제목 자리를 통째로 쓴다 */
 .toggle{
@@ -591,7 +593,6 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
             <tbody id="salesBody"></tbody>
           </table>
         </div>
-        <p class="note" id="salesNote"></p>
       </div>
 
       <!-- 채널별 — 결정_회계사TDL ⑨. 노즐 수량 모드에서는 아래 유상·무상 카드로 바뀐다 (2026-08-14) -->
@@ -620,15 +621,6 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           </table>
         </div>
         <p class="note" id="nzNote"></p>
-        <h3 class="ct" style="margin-top:18px">제품별 평균단가<span class="u">원/개 — 유상 판매 기준</span></h3>
-        <div class="scroll">
-          <table class="pl" id="nzp">
-            <thead><tr id="nzpHead"></tr></thead>
-            <tbody id="nzpBody"></tbody>
-          </table>
-        </div>
-        <p class="note">평균단가 = 그 달 유상 매출액 ÷ 유상 수량입니다. 무상·취소는 단가에 안 들어갑니다.
-          국가 구분 없는 전체 평균이라 국가 믹스가 바뀌면 단가가 움직일 수 있습니다 — 국가별 차이는 위 표의 개당 단가로 보십시오.</p>
       </div>
 
       <!-- 장비 평균 판매단가 (0047, 2026-08-14) — 장비 대수 모드 전용. 채널별 아래에 선다 -->
@@ -2758,9 +2750,14 @@ function 매출그리기() {
   var chanU = $('chanUnit'); if (chanU) chanU.textContent = 매출모드 === '금액' ? '백만원' : '수량';
 
   var 누적열 = 매출모드 === '장비';                 // 2024~선택 연도 전체 누적 대수
+  // 평균판가 열 (2026-08-14 사용자 요청) — 금액 모드 전용, 유무상 뷰에 그 연도 자료가 있을 때만.
+  // 장비·노즐 행에만 값이 선다. 유상 기준이라 무상이 평균을 왜곡하지 않는다 (0047과 같은 축).
+  var 평판열 = 매출모드 === '금액'
+    && (DB['유무상'] || []).some(function (r) { return +r['회계연도'] === 매출연도; });
   $('salesHead').innerHTML = ['<th scope="col">항목</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">' + (부분 ? '누계' : '연간') + '</th>'])
+    .concat(평판열 ? ['<th scope="col">평균판가 (유상)</th>'] : [])
     .concat(누적열 ? ['<th scope="col">누적(24~)</th>'] : [])
     .join('');
 
@@ -2773,6 +2770,71 @@ function 매출그리기() {
 
   var 전체누계 = 달.reduce(function (s, m) { return s + (행[0].값(m) || 0); }, 0);
   var 형식 = 매출모드 === '금액' ? 백만 : 수;
+
+  // 그 행의 평균판가 칸 — 국가별 장비·노즐 제품 행에만 값이 선다 (한국·일본·해외 국가별)
+  var 평판칸 = function (r) {
+    if (!평판열) return '';
+    var 쪽 = r.키.split('/');                        // 'b:국내/장비' → ['b:국내','장비']
+    var 제 = 쪽.length === 2 && (쪽[1] === '장비' || 쪽[1] === '노즐') ? 쪽[1] : null;
+    var 국 = null;
+    if (제) {
+      if (쪽[0] === 'b:국내') 국 = '한국';
+      else if (쪽[0] === 'b:일본') 국 = '일본';
+      else if (쪽[0].slice(0, 2) === 'c:') 국 = 쪽[0].slice(2);
+    }
+    if (!제 || !국) return '<td class="num"></td>';
+    var 돈 = 0, 개 = 0;
+    (DB['유무상'] || []).forEach(function (u) {
+      if (+u['회계연도'] !== 매출연도 || u['제품군'] !== 제 || u['국가'] !== 국) return;
+      돈 += Number(u['유상금액']) || 0; 개 += Number(u['유상수량']) || 0;
+    });
+    if (!(개 > 0 && 돈 > 0)) return '<td class="num muted">—</td>';
+    return '<td class="num muted">' + (제 === '장비'
+      ? 백만(돈 / 개) + '<span class="csub">백만원/대</span>'
+      : Math.round(돈 * 1e6 / 개).toLocaleString('ko-KR') + '<span class="csub">원/개</span>') + '</td>';
+  };
+
+  // ── 목표·달성률 (2026-08-14 · 국가별 2026-08-14 사용자 요청) — 금액 모드 · 선택 연도에
+  // 목표가 있을 때만. 목표는 시계열 뷰(최신 기준일 — 지금은 260814 하반기 램프업)에서 온다.
+  // 달성률 색은 램프업 목표 그 자체가 그 달의 기대치이므로 경과율 보정 없이
+  // ≥95 녹 / 80~95 황 / <80 적. 누계 칸이 **하반기 누적 달성률**이다 —
+  // 7월~마감월 실적 합 ÷ 같은 기간 목표 합. 목표 숫자 행은 계에만 두고,
+  // 국가 달성률 칸의 그 달 목표는 마우스오버(title)로 보인다.
+  var 목표들 = null;
+  if (매출모드 === '금액' && 매출연도 === 연도) {
+    var 목표지표 = { '전체': 'rev_total', 'b:국내': 'rev_domestic', 'b:일본': 'rev_japan', 'b:해외': 'rev_overseas' };
+    Object.keys(목표지표).forEach(function (k) {
+      var 맵 = 축(목표지표[k], '목표');
+      if (Object.keys(맵).length) (목표들 = 목표들 || {})[k] = 맵;
+    });
+  }
+  var 급f = function (pct) { return pct == null ? '' : (pct >= 95 ? ' g' : (pct >= 80 ? ' a' : ' r')); };
+  var 빈꼬리 = (평판열 ? '<td></td>' : '') + (누적열 ? '<td></td>' : '');
+  var 목표행f = function (목표축) {
+    var 목표합 = 0;
+    달.forEach(function (m) { 목표합 += 목표축[m] || 0; });
+    return '<tr class="r-child"><td>목표 <span class="muted">(램프업 8/14)</span></td>'
+      + 달.map(function (m) {
+        return '<td class="num muted">' + (목표축[m] == null ? '—' : 백만(목표축[m])) + '</td>';
+      }).join('')
+      + '<td class="num muted">' + 백만(목표합) + '</td>' + 빈꼬리 + '</tr>';
+  };
+  var 달성행f = function (r, 목표축) {
+    var 실적합 = 0, 목표합 = 0;
+    달.forEach(function (m) {
+      if (목표축[m] != null) { 실적합 += r.값(m) || 0; 목표합 += 목표축[m] || 0; }
+    });
+    var 누적달성 = 목표합 > 0 ? 100 * 실적합 / 목표합 : null;
+    return '<tr class="r-child"><td>' + (r.키 === '전체' ? '달성률' : '　달성률') + '</td>'
+      + 달.map(function (m) {
+        if (목표축[m] == null || !목표축[m]) return '<td class="num">—</td>';
+        var pct = 100 * (r.값(m) || 0) / 목표축[m];
+        return '<td class="num rate' + 급f(pct) + '" title="목표 ' + 백만(목표축[m]) + '">' + pct.toFixed(1) + '%</td>';
+      }).join('')
+      + '<td class="num rate' + 급f(누적달성) + '"><strong>'
+      + (누적달성 == null ? '—' : 누적달성.toFixed(1) + '%') + '</strong>'
+      + '<span class="muted"> 하반기 누적</span></td>' + 빈꼬리 + '</tr>';
+  };
 
   var 행칸들 = 행.filter(function (r) { return 보임[r.키]; }).map(function (r) {
     var 값들 = 달.map(function (m) { return r.값(m); });
@@ -2799,42 +2861,19 @@ function 매출그리기() {
       누적칸 = '<td class="num"><strong>' + 수(누적) + '</strong></td>';
     }
 
-    return '<tr class="r-' + r.급 + '">'
+    var 줄 = '<tr class="r-' + r.급 + '">'
       + '<td>' + 제목 + '</td>' + 칸
       + '<td class="num' + (누계 != null && 누계 < 0 ? ' neg' : '') + '">' + 형식(누계) + 비중 + '</td>'
+      + 평판칸(r)
       + 누적칸
       + '</tr>';
-  });
-
-  // ── 목표·달성률 (2026-08-14 사용자 요청) — 금액 모드 · 선택 연도에 목표가 있을 때만.
-  // 목표는 시계열 뷰(최신 기준일 — 지금은 260814 하반기 램프업)에서 온다. 달성률 색은
-  // 램프업 목표 그 자체가 그 달의 기대치이므로 경과율 보정 없이 ≥95 녹 / 80~95 황 / <80 적.
-  // 누계 칸이 **하반기 누적 달성률**이다 — 7월~마감월 실적 합 ÷ 같은 기간 목표 합.
-  if (매출모드 === '금액' && 매출연도 === 연도) {
-    var 목표축 = 축('rev_total', '목표');
-    var 목표달 = 달.filter(function (m) { return 목표축[m] != null; });
-    if (목표달.length) {
-      var 실적합 = 0, 목표합 = 0;
-      목표달.forEach(function (m) { 실적합 += 행[0].값(m) || 0; 목표합 += 목표축[m] || 0; });
-      var 하반기달성 = 목표합 > 0 ? 100 * 실적합 / 목표합 : null;
-      var 급f = function (pct) { return pct == null ? '' : (pct >= 95 ? ' g' : (pct >= 80 ? ' a' : ' r')); };
-      var 목표행 = '<tr class="r-child"><td>목표 <span class="muted">(램프업 8/14)</span></td>'
-        + 달.map(function (m) {
-          return '<td class="num muted">' + (목표축[m] == null ? '—' : 백만(목표축[m])) + '</td>';
-        }).join('')
-        + '<td class="num muted">' + 백만(목표합) + '</td>' + (누적열 ? '<td></td>' : '') + '</tr>';
-      var 달성행 = '<tr class="r-child"><td>달성률</td>'
-        + 달.map(function (m) {
-          if (목표축[m] == null || !목표축[m]) return '<td class="num">—</td>';
-          var pct = 100 * (행[0].값(m) || 0) / 목표축[m];
-          return '<td class="num rate' + 급f(pct) + '">' + pct.toFixed(1) + '%</td>';
-        }).join('')
-        + '<td class="num rate' + 급f(하반기달성) + '"><strong>'
-        + (하반기달성 == null ? '—' : 하반기달성.toFixed(1) + '%') + '</strong>'
-        + '<span class="muted"> 하반기 누적</span></td>' + (누적열 ? '<td></td>' : '') + '</tr>';
-      행칸들.splice(1, 0, 목표행 + 달성행);        // 매출액 계 바로 아래
+    // 계에는 목표 + 달성률 두 줄, 국가(한국·일본·해외)에는 달성률 한 줄이 바로 아래에 선다
+    if (목표들 && 목표들[r.키]) {
+      if (r.키 === '전체') 줄 += 목표행f(목표들[r.키]);
+      줄 += 달성행f(r, 목표들[r.키]);
     }
-  }
+    return 줄;
+  });
   var html = 행칸들.join('');
 
   $('salesBody').innerHTML = html;
@@ -2859,23 +2898,8 @@ function 매출그리기() {
   var 단위 = 매출모드 === '금액' ? '단위 백만원' : (매출모드 === '장비' ? '단위 대' : '단위 개');
   $('asof').textContent = 매출연도 + '년 · ' + 달.length + '개월 · ' + 단위;
 
-  $('salesNote').innerHTML = (매출모드 === '금액'
-    ? '금액은 <strong>무상·취소 포함 전 건</strong>입니다 — 24년은 FY24 결산명세서, 25년은 FY2025 분개장, '
-      + '26년 상반기는 별도·연결정산표와 원 단위로 맞습니다. '
-      + '25년 9~12월에는 회계 인식 차이 보정 2건이 금액에만 들어 있습니다 '
-      + '(제이메디칼 cut-off +134.2 · 아도바이오 로열티 △21.5 — 수량 미반영). '
-    : '수량은 <strong>무상·취소 제외 순판매</strong>입니다(반품 음수 포함). 기타 제품군은 수량을 세지 않습니다. '
-      + '24년 원천엔 무상 행 자체가 없습니다(유상 판매 리스트). '
-      + (매출모드 === '장비' ? '<strong>누적(24~)</strong>는 2024년부터 선택 연도 마감월까지의 총 누적 판매 대수입니다. ' : ''))
-    + '해외를 펼치면 국가별로 보입니다. 26년 해외 「미상」 7.5백만(5월, Odoreu Holdings)은 국가 확인 중입니다.'
-    + (매출모드 === '금액'
-      ? ' 누계 옆 괄호는 <strong>매출액 계 대비 비중</strong>입니다 — 국가별과 제품별이 각각 100%로 닫힙니다.'
-        + (매출연도 === 연도
-          ? ' <strong>목표는 하반기 램프업</strong>(흑자전환 목표 8/14 — 8월 17억에서 12월 39.5억까지)이고,'
-            + ' 달성률 색은 그 달 목표 대비 ≥95% 녹 · 80~95% 황 · &lt;80% 적입니다.'
-            + ' 달성률의 누계 칸은 <strong>하반기 누적</strong>(7월~마감월 실적 ÷ 같은 기간 목표)입니다.'
-          : '')
-      : '');
+  // 표 밑 주석은 2026-08-14 사용자 지시로 지웠다 — 원천·보정 각주는 결정 문서
+  // (결정_매출탭_260806 등)에 있다. 되살릴 일이 있으면 git 이력에서 꺼낸다.
 
   // 노즐 수량 모드는 채널별 대신 국가별 유상·무상을 그린다 (0045, 2026-08-14) —
   // 노즐은 거의 전부 직판·총판이라 채널 축이 답하는 질문이 없다.
@@ -2947,18 +2971,19 @@ function 노즐유무상그리기(달) {
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계</th>', '<th scope="col">매출액</th>', '<th scope="col">개당 단가</th>']).join('');
 
-  // 걸러 모으기 — f(r)가 참인 행들의 (유상|무상) 월별 수량 · 누계 금액
+  // 걸러 모으기 — f(r)가 참인 행들의 (유상|무상) 월별 수량·금액 · 누계 금액
   var 모으기 = function (f, 축) {
-    var 월수량 = {}, 금액 = 0, 있음 = false;
+    var 월수량 = {}, 월금액 = {}, 금액 = 0, 있음 = false;
     행들.forEach(function (r) {
       if (f && !f(r)) return;
       var q = Number(r[축 + '수량']), a = Number(r[축 + '금액']) || 0;
       if (!q && !a) return;
       있음 = true;
       월수량[+r['월']] = (월수량[+r['월']] || 0) + (q || 0);
+      월금액[+r['월']] = (월금액[+r['월']] || 0) + a;
       금액 += a;
     });
-    return { 월수량: 월수량, 금액: 금액, 있음: 있음 };
+    return { 월수량: 월수량, 월금액: 월금액, 금액: 금액, 있음: 있음 };
   };
   var 국f = function (국) { return function (r) { return r['국가'] === 국; }; };
   var 해외f = function (r) { return r['사업부'] === '해외'; };
@@ -2975,7 +3000,11 @@ function 노즐유무상그리기(달) {
         var v = d.월수량[m];
         if (v == null) return '<td class="num">—</td>';
         누계 += v;
-        return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 수(v) + '</td>';
+        // 유상 칸 두 줄 — 수량 아래 작은 글씨로 그 달 개당 단가(원). 제품별 표를 지우고
+        // 월별 단가 추세를 여기로 옮겼다 (2026-08-14 사용자 합의)
+        var 월단가 = 유냐 && v > 0 && (d.월금액[m] || 0) > 0
+          ? '<span class="csub">' + Math.round(d.월금액[m] * 1e6 / v).toLocaleString('ko-KR') + '</span>' : '';
+        return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 수(v) + 월단가 + '</td>';
       }).join('');
       var 단가 = 유냐 && 누계 > 0 && d.금액 > 0
         ? Math.round(d.금액 * 1e6 / 누계).toLocaleString('ko-KR') : '—';
@@ -3020,37 +3049,11 @@ function 노즐유무상그리기(달) {
   $('nzNote').innerHTML = '<span class="nz-pill paid" style="margin-left:0">유상</span> 무상·취소 제외 순판매(반품 음수 포함) · '
     + '<span class="nz-pill free">무상</span> ERP 구분 「무상」. 매출액은 누계이고 '
     + '<strong>개당 단가 = 유상 매출액 ÷ 유상 수량</strong>입니다 — 국가 간 단가 차이가 그대로 보입니다. '
+    + '유상 칸 아래 작은 숫자는 <strong>그 달 개당 단가(원)</strong>입니다 — 4,500S·9,000S가 섞인 국가 평균이라 제품 믹스가 바뀌면 단가가 움직일 수 있습니다. '
     + '해외를 펼치면 국가별로 보입니다. 채널별 표는 금액·장비 대수 모드에서 보입니다.'
     + (무상금액계 > 0.05 ? ' ⚠ 무상 행에 공급가 ' + 백만(무상금액계) + '이 붙어 있습니다 — 원천 확인 대상입니다.' : '');
-
-  // ── 제품별 평균단가 — 표준명 축, 유상만. 칸은 그 달 평균단가(원) ──
-  $('nzpHead').innerHTML = ['<th scope="col">제품</th>']
-    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
-    .concat(['<th scope="col">누계 단가</th>', '<th scope="col">수량</th>', '<th scope="col">매출액</th>']).join('');
-  var 제품들 = {};
-  행들.forEach(function (r) {
-    var p = (제품들[r['표준명']] = 제품들[r['표준명']] || { 월수량: {}, 월금액: {}, 수량: 0, 금액: 0 });
-    var q = Number(r['유상수량']) || 0, a = Number(r['유상금액']) || 0;
-    if (!q && !a) return;
-    var m = +r['월'];
-    p.월수량[m] = (p.월수량[m] || 0) + q;
-    p.월금액[m] = (p.월금액[m] || 0) + a;
-    p.수량 += q; p.금액 += a;
-  });
-  var 원 = function (금액, 수량) {
-    return (수량 > 0 && 금액 > 0) ? Math.round(금액 * 1e6 / 수량).toLocaleString('ko-KR') : '—';
-  };
-  $('nzpBody').innerHTML = Object.keys(제품들)
-    .filter(function (n) { return 제품들[n].수량 > 0 || 제품들[n].금액 > 0; })
-    .sort(function (a, b) { return 제품들[b].금액 - 제품들[a].금액; })
-    .map(function (n) {
-      var p = 제품들[n];
-      return '<tr><td>' + n + '</td>'
-        + 달.map(function (m) { return '<td class="num muted">' + 원(p.월금액[m] || 0, p.월수량[m] || 0) + '</td>'; }).join('')
-        + '<td class="num"><strong>' + 원(p.금액, p.수량) + '</strong></td>'
-        + '<td class="num">' + 수(p.수량) + '</td>'
-        + '<td class="num">' + (p.금액 ? 백만(p.금액) : '—') + '</td></tr>';
-    }).join('');
+  // 제품별 평균단가 표는 2026-08-14 사용자 지시로 지웠다 — 월별 단가는 위 유상 칸 두 줄로 옮겼다.
+  // 제품별(표준명) 관찰이 다시 필요하면 git 이력(0046)에서 꺼낸다.
 }
 
 /* ── 채널별 (결정_회계사TDL ⑨) — 값 모드·연도 토글 연동 ──────────
@@ -3161,16 +3164,29 @@ function 일본탭그리기() {
     return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
       + '<td class="num">' + (소수 ? '' : 백만(누)) + '</td></tr>';
   };
-  var 지표들 = [['sales', '매출 (청구액 등)'], ['cogs', '매출원가'],
-                ['import_cost', '수입원가'], ['opex', '판관비']];
-  $('jpBody').innerHTML = 지표들.map(function (p) {
-    return 줄(p[1] + ' — 실적', 일본지표(p[0], '실적', '백만원'), p[0] === 'opex' ? 'r-total' : '')
-      + 줄('　계획', 일본지표(p[0], '계획', '백만원'), 'r-child');
-  }).join('') + 줄('환율 (원/엔, 실측 역산)', 환, 'r-child', true);
+  // 매출 행은 본사 ERP 축이다 (2026-08-14 사용자 합의) — 월차보고 표지의 「매출은 본사
+  // ERP에서 산출한다」 그대로. 매출 탭 일본과 같은 숫자라 두 화면이 갈리지 않는다 (ADR 0007).
+  // 일본법인 자체 PL 매출(청구액 등)은 이 표에서 뺐다 — 청구액은 위 타일·아래 대조 표가 정본이다.
+  var 본사매출 = {};
+  (DB['매출탭'] || []).forEach(function (r) {
+    if (+r['회계연도'] !== 연도 || r['사업부'] !== '일본') return;
+    본사매출[+r['월']] = (본사매출[+r['월']] || 0) + (Number(r['금액']) || 0);
+  });
+  var 지표들 = [['cogs', '매출원가'], ['import_cost', '수입원가'], ['opex', '판관비']];
+  $('jpBody').innerHTML =
+    줄('매출 (본사 ERP·일본향) — 실적', 본사매출, '')
+    + 줄('　목표 (램프업 8/14)', 축('rev_japan', '목표'), 'r-child')
+    + 지표들.map(function (p) {
+      return 줄(p[1] + ' — 실적', 일본지표(p[0], '실적', '백만원'), p[0] === 'opex' ? 'r-total' : '')
+        + 줄('　계획', 일본지표(p[0], '계획', '백만원'), 'r-child');
+    }).join('') + 줄('환율 (원/엔, 실측 역산)', 환, 'r-child', true);
   $('jpNote').innerHTML =
-    '원천은 일본법인 월차 PL(J-GAAP · 엔화)이고, 원화 환산은 <strong>본사가 실측 역산 환율로</strong> '
-    + '합니다 — 일본법인에 환산을 요청하지 않습니다 (ADR 0012). 분기 확정 월에는 K-IFRS 조정이 '
-    + '<strong>합산 손익</strong>에 반영됩니다 (이 표는 J-GAAP 그대로). '
+    '<strong>매출 행은 본사 ERP</strong>입니다 — 매출 탭의 일본과 같은 숫자이고, 목표는 하반기 '
+    + '램프업(8/14)입니다. 월차보고 표지의 「매출은 본사 ERP에서 산출한다」 그대로이며, 일본법인 '
+    + '자체 수취액(청구액)은 아래 청구 대조 표가 정본입니다. '
+    + '비용 행의 원천은 일본법인 월차 PL(J-GAAP · 엔화)이고, 원화 환산은 <strong>본사가 실측 역산 '
+    + '환율로</strong> 합니다 — 일본법인에 환산을 요청하지 않습니다 (ADR 0012). 분기 확정 월에는 '
+    + 'K-IFRS 조정이 <strong>합산 손익</strong>에 반영됩니다 (이 표는 J-GAAP 그대로). '
     + '월차보고가 적재된 달부터는 판관비 실적이 <strong>시산표 합</strong>이고, 그 달의 실측 '
     + '환율은 본사 분개장 확정 후 역산됩니다 (그 전에는 계획 환율로 환산).';
 
@@ -3215,36 +3231,83 @@ function 일본탭그리기() {
   $('jpTBCard').hidden = !시산.length;
   $('jpHCCard').hidden = !인원표.length;
   if (시산.length) {
-    var 시월 = Math.max.apply(null, 시산.map(function (r) { return +r['월']; }));
-    var 그달 = 시산.filter(function (r) { return +r['월'] === 시월; });
-    var fx = 환[시월];      // 실측 역산이 아직 없으면 undefined — 원화 병기를 생략한다
-    $('jpTBTitle').innerHTML = '시산표 계정별 — ' + 시월 + '월 (월차보고)<span class="u">엔 · MoneyForward J-GAAP</span>';
-    $('jpTBHead').innerHTML = '<th scope="col">계정</th><th scope="col">당월 (¥)</th>'
-      + '<th scope="col">누계 (¥)</th><th scope="col">당월 비중</th>';
+    // 월별 추적 (2026-08-14 사용자 합의) — 계정명은 한국어로, 칸은 월별 당월 금액.
+    // 1~6월 월별은 원천(월차보고: 당월·누계뿐)에 없다 — 7월 행의 누계 − 당월로
+    // 「1~6월 계」 한 칸만 파생한다. 월차보고가 쌓일수록 7~12월 칸이 채워진다.
+    var 계정한 = {
+      '役員報酬': '임원보수', '給料手当': '급여', '賞与': '상여', '退職給付費用': '퇴직급여',
+      '法定福利費': '법정복리비', '福利厚生費': '복리후생비', '旅費交通費': '여비교통비',
+      '通信費': '통신비', '交際費': '접대비', '会議費': '회의비', '広告宣伝費': '광고선전비',
+      '支払手数料': '지급수수료', '人材派遣費': '인재파견비', '地代家賃': '사무실 임차료',
+      '賃借料': '임차료(비품 등)', '車両費': '차량유지비', '消耗品費': '소모품비',
+      '保険料': '보험료', '管理諸費': '관리제비', '減価償却費': '감가상각비',
+      '荷造運賃': '포장운반비', '租税公課': '세금과공과', '研修費': '교육훈련비',
+      '新聞図書費': '도서인쇄비', '修繕費': '수선비', '雑費': '잡비',
+      '法人税・住民税及び事業税': '법인세 등', '固定資産除却損': '고정자산제각손실',
+      '雑収入': '잡수익', '受取利息': '이자수익', '雑損失': '잡손실'
+    };
+    var 시월들 = [];
+    시산.forEach(function (r) { if (시월들.indexOf(+r['월']) < 0) 시월들.push(+r['월']); });
+    시월들.sort(function (a, b) { return a - b; });
+    var 시월 = 시월들[시월들.length - 1];
+    var fx = 환[시월];      // 실측 역산이 아직 없으면 undefined — 각주에서 밝힌다
+    var 시색인 = {};
+    시산.forEach(function (r) { 시색인[r['구분'] + '|' + r['계정'] + '|' + (+r['월'])] = r; });
+    var 뒷달 = [7, 8, 9, 10, 11, 12];
+    $('jpTBTitle').innerHTML = '시산표 계정별 — 월별 추적<span class="u">엔 · MoneyForward J-GAAP · 월차보고</span>';
+    $('jpTBHead').innerHTML = '<th scope="col">계정</th><th scope="col">1~6월 계</th>'
+      + 뒷달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }).join('')
+      + '<th scope="col">누계</th>';
     var 엔수 = function (v) {
       return v ? (v < 0 ? '△' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR') : '—';
     };
+    var 칸엔 = function (v) { return v == null ? '—' : (v === 0 ? '0' : 엔수(v)); };
     var 그리기묶음 = function (구분, 제목) {
-      var 안 = 그달.filter(function (r) { return r['구분'] === 구분; })
-        .sort(function (a, b) { return Math.abs(b['당월_jpy']) - Math.abs(a['당월_jpy']) || Math.abs(b['누계_jpy']) - Math.abs(a['누계_jpy']); });
-      if (!안.length) return '';
-      var 당합 = 안.reduce(function (s, r) { return s + Number(r['당월_jpy']); }, 0);
-      var 누합 = 안.reduce(function (s, r) { return s + Number(r['누계_jpy']); }, 0);
-      return '<tr class="r-total"><td>' + 제목 + '</td>'
-        + '<td class="num">' + 엔수(당합) + '</td><td class="num">' + 엔수(누합) + '</td>'
-        + '<td class="num muted">' + (구분 === '판관비' ? '100%' : '—') + '</td></tr>'
-        + 안.map(function (r) {
-          var 당 = Number(r['당월_jpy']);
-          return '<tr class="r-child"><td>' + r['계정'] + '</td>'
-            + '<td class="num">' + 엔수(당) + '</td>'
-            + '<td class="num muted">' + 엔수(Number(r['누계_jpy'])) + '</td>'
-            + '<td class="num muted">' + (구분 === '판관비' && 당합 && 당 ? (100 * 당 / 당합).toFixed(1) + '%' : '—') + '</td></tr>';
+      var 본 = {};
+      시산.forEach(function (r) { if (r['구분'] === 구분) 본[r['계정']] = true; });
+      var 계정들 = Object.keys(본);
+      if (!계정들.length) return '';
+      var 값 = function (계정, m) {
+        var r = 시색인[구분 + '|' + 계정 + '|' + m];
+        return r ? Number(r['당월_jpy']) : null;
+      };
+      var 상반 = function (계정) {
+        var r = 시색인[구분 + '|' + 계정 + '|7'];
+        return r ? Number(r['누계_jpy']) - Number(r['당월_jpy']) : null;
+      };
+      var 끝누계 = function (계정) {
+        var r = 시색인[구분 + '|' + 계정 + '|' + 시월];
+        return r ? Number(r['누계_jpy']) : null;
+      };
+      계정들.sort(function (a, b) { return Math.abs(끝누계(b) || 0) - Math.abs(끝누계(a) || 0); });
+      var 합 = function (f) {
+        var s = 0, 있 = false;
+        계정들.forEach(function (계정) { var v = f(계정); if (v != null) { s += v; 있 = true; } });
+        return 있 ? s : null;
+      };
+      var 행html = function (이름, 원문, f상반, f월, f누계, 급) {
+        return '<tr class="' + 급 + '"><td' + (원문 ? ' title="' + 원문 + '"' : '') + '>' + 이름 + '</td>'
+          + '<td class="num muted">' + 칸엔(f상반()) + '</td>'
+          + 뒷달.map(function (m) { return '<td class="num">' + 칸엔(f월(m)) + '</td>'; }).join('')
+          + '<td class="num"><strong>' + 칸엔(f누계()) + '</strong></td></tr>';
+      };
+      return 행html(제목, null,
+          function () { return 합(상반); },
+          function (m) { return 시월들.indexOf(m) < 0 ? null : 합(function (계정) { return 값(계정, m); }); },
+          function () { return 합(끝누계); }, 'r-total')
+        + 계정들.map(function (계정) {
+          return 행html(계정한[계정] || 계정, 계정한[계정] ? 계정 : null,
+            function () { return 상반(계정); },
+            function (m) { return 값(계정, m); },
+            function () { return 끝누계(계정); }, 'r-child');
         }).join('');
     };
     $('jpTBBody').innerHTML = 그리기묶음('판관비', '판관비 계') + 그리기묶음('영업외', '영업외 (참고)');
-    $('jpTBNote').innerHTML = 'MoneyForward 월차 시산표 그대로(세전·엔)입니다. <strong>판관비 계가 위 손익 표의 '
-      + 시월 + '월 판관비 실적</strong>이고, 청구액은 여기에 × ' + 배수.toFixed(2) + '입니다. '
-      + (fx ? '' : '이 달 원화 환산은 본사 분개장 확정 후 실측 환율로 확정됩니다 (그 전에는 계획 환율). ')
+    $('jpTBNote').innerHTML = '계정명은 한국어로 옮겼습니다 — 원문(J-GAAP)은 마우스를 올리면 보입니다. '
+      + '<strong>1~6월 계는 파생값</strong>(7월 월차보고의 누계 − 당월)입니다 — 상반기는 월별 시산표를 받지 않았습니다. '
+      + '월 칸은 월차보고가 적재된 달만 채워집니다. <strong>판관비 계가 위 손익 표의 판관비 실적</strong>이고, '
+      + '청구액은 여기에 × ' + 배수.toFixed(2) + '입니다. '
+      + (fx ? '' : '최신 월 원화 환산은 본사 분개장 확정 후 실측 환율로 확정됩니다 (그 전에는 계획 환율). ')
       + '영업외는 청구 대상이 아니라 참고로만 둡니다.';
   }
   if (인원표.length) {
