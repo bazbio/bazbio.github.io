@@ -1112,7 +1112,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608132233';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608140048';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1949,6 +1949,54 @@ function 퍼널기준문구_(d) {
 }
 
 function flowStage(s) { FLOWSTAGE = FLOWSTAGE === s ? '' : s; renderFlow(); }
+/* 딜러 미배정 재고 (8/14) — 계약 숫자에서 뺀 대수를 바로 그 자리에 남긴다.
+   지우지 않는 이유는 그 대수가 곧 영업 기회이기 때문이다: 딜러 창고의 15대를
+   아무도 안 보면 안 붙는다. N-Care 탭에는 안 띄운다 — 재고는 장비 이야기다.
+   칩은 `.tag-blue`를 쓴다. 맨 `.tag`는 `.plan` 안에서만 먹어서 여기서는 글자만 나온다. */
+function 재고카드_(s) {
+  if (!s || !s.total) return '';
+  return kick('딜러 미배정 재고')
+    + '<div class="card">'
+    + '<div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;">'
+    + '<div style="font-size:26px;font-weight:800;color:#191f28;line-height:1;">' + s.total
+    + '<span style="font-size:15px;font-weight:700;color:#6b7684;margin-left:2px;">대</span></div>'
+    + '<div style="font-size:12.5px;color:#8b95a1;">병원이 정해지지 않은 딜러 재고</div></div>'
+    + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;">'
+    + s.dealers.map(function(d) {
+        return '<span class="tag-blue">' + esc(d.name) + ' <b>' + d.count + '</b>대</span>'
+          + (DATA.me.admin
+            ? ' <button class="btn" style="padding:4px 10px;font-size:11.5px;" data-d="' + esc(d.name)
+              + '" onclick="재고배정(this.getAttribute(\'data-d\'))">병원 배정</button>'
+            : '');
+      }).join('')
+    + '</div>'
+    + '<div style="margin-top:13px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+    + '매출은 딜러가 매입한 시점에 <b>회계가 이미 인식</b>했습니다 — 위 계약 숫자에는 넣지 않습니다.<br>'
+    + (DATA.me.admin
+      ? '병원이 정해지면 <b>[병원 배정]</b>을 누르세요 — 재고 1대가 그 병원 계약으로 바뀝니다. '
+        + '리드를 새로 만들면 회계가 이미 인식한 대수를 또 세게 됩니다.'
+      : '병원이 정해지면 관리자가 배정합니다 — 리드를 새로 만들지 마세요(이중 집계).')
+    + '</div></div>';
+}
+/* 딜러 재고 1대를 병원에 배정한다 (8/14) — ADR 0024의 「배정 시 새 리드를 만들지 않는다」를
+   사람이 직접 실행하는 자리다. 여태 이 일은 Claude가 스크립트로 했다(HANDOFF 「Claude가 할 일 0」).
+   병원명을 prompt로 받는 이유: 재고 카드는 목록이 아니라 요약이라 폼을 놓을 자리가 없고,
+   관리자가 드물게(대수만큼) 쓰는 동작이다. */
+function 재고배정(딜러) {
+  var 병원 = prompt('「' + 딜러 + '」 재고 1대를 어느 병원에 배정할까요?\n\n병원 이름을 정확히 적어 주세요 — 이 리드가 그 병원 계약이 됩니다.');
+  if (병원 == null) return;
+  병원 = 병원.trim();
+  if (!병원) return toast('병원명을 입력해 주세요', true);
+  busy(true, '배정 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원 }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false); toast(r.msg);
+      // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
+      FLOW = null; DASH = null; KPIT = null; NCARE = null;
+      홈받기_();
+      loadFlow(document.getElementById('fMonth').value);
+    }), function(e) { busy(false); toast(e.message, true); });
+}
 function renderFlow() {
   var d = FLOW;
   var nc = FLOWSEG === 'N-Care';
@@ -1986,10 +2034,11 @@ function renderFlow() {
       : '장비 영업 퍼널 — <b>달성 목표가 N-care인 리드와 장비 보유(유저) 병원 리드는 N-Care 탭</b>으로 분류됩니다'
         + (d.excluded ? ' (이달 ' + d.excluded + '곳)' : '') + '. 분류가 틀리면 리드 탭에서 달성 목표를 바꿔 주세요.<br>'
         + 퍼널기준문구_(d)
-        + '<b>계약은 대수(리드 건), 나머지 단계는 병원 수(곳)입니다</b> — 계약 리드 1건 = 장비 1대라 선매입 여러 대도 대수만큼 셉니다. 같은 병원에 장비 리드와 N-Care 리드가 따로 있으면 양쪽 탭에 각각 뜹니다.<br>'
+        + '<b>계약은 대수(리드 건), 나머지 단계는 병원 수(곳)입니다</b> — 계약 리드 1건 = 장비 1대라 한 병원이 2대를 사면 2로 셉니다. <b>딜러 선매입은 이 숫자에 없습니다</b> — 병원이 정해진 계약만 셉니다(아래 재고 카드). 같은 병원에 장비 리드와 N-Care 리드가 따로 있으면 양쪽 탭에 각각 뜹니다.<br>'
         + 인식캡션_(st.deal, d.ym)
         + '방문기록을 넣으면 리드 단계가 자동으로 오릅니다 — 방문/데모는 \'데모중\', 방문/제안은 \'협의중\'. 낮추는 것만 리드 탭에서 직접 하세요.') + '</div>';
 
+  h += 재고카드_(nc ? null : d.dealerStock);
   h += dupBanner(d.dup);
   h += simBanner(d.similar);
 
@@ -3658,7 +3707,10 @@ function ioBadge(source) {
 
 function renderLeads() {
   var isAdmin = DATA.me.admin;
-  var pool = DATA.leads;
+  /* 딜러 재고는 리드 목록에 안 띄운다 (8/14) — 병원이 없어 영업할 대상이 아니고,
+     담당자도 비어 있어 「미배정 24건」으로 타일 하나를 통째로 차지했다.
+     대수와 배정은 흐름 탭 「딜러 미배정 재고」 카드가 맡는다. */
+  var pool = (DATA.leads || []).filter(function(l) { return !/\s선매입\s*$/.test(String(l.hname || '')); });
   var title = document.getElementById('leadTitle');
 
   // 관리자: 담당자 타일 목록 → 클릭 시 해당 담당자 리드
