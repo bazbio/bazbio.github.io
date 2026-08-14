@@ -588,8 +588,8 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="salesNote"></p>
       </div>
 
-      <!-- 채널별 — 결정_회계사TDL ⑨ -->
-      <div class="card" style="margin-top:12px">
+      <!-- 채널별 — 결정_회계사TDL ⑨. 노즐 수량 모드에서는 아래 유상·무상 카드로 바뀐다 (2026-08-14) -->
+      <div class="card" style="margin-top:12px" id="chanCard">
         <h3 class="ct">채널별<span class="u" id="chanUnit"></span></h3>
         <div class="scroll">
           <table class="pl" id="chan">
@@ -601,6 +601,19 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           (매출성격 딜러 · 담당자 칸의 「대리점」 · 24년의 국내 대리점) 다 접었습니다.
           <strong>대리점</strong>은 해외 총판만 남습니다. 직접판매·직접·직접매출과
           2025년 채널 칸의 N-CARE 등급(제품 속성)은 직판, 기타는 CS·품질·취소·미기재입니다.</p>
+      </div>
+
+      <!-- 국가별 노즐 유상·무상 (0045, 2026-08-14) — 노즐 수량 모드 전용. 노즐은 거의 전부
+           직판·총판이라 채널 축이 의미가 없다 — 실제 질문은 「어느 나라에 유상 얼마, 무상 얼마」다 -->
+      <div class="card" style="margin-top:12px" id="nzCard" hidden>
+        <h3 class="ct">국가별 노즐 유상·무상<span class="u">수량 — 개 · 매출액 백만원</span></h3>
+        <div class="scroll">
+          <table class="pl" id="nz">
+            <thead><tr id="nzHead"></tr></thead>
+            <tbody id="nzBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="nzNote"></p>
       </div>
 
     </section>
@@ -2776,7 +2789,80 @@ function 매출그리기() {
       ? ' 누계 옆 괄호는 <strong>매출액 계 대비 비중</strong>입니다 — 국가별과 제품별이 각각 100%로 닫힙니다.'
       : '');
 
-  채널그리기(달);
+  // 노즐 수량 모드는 채널별 대신 국가별 유상·무상을 그린다 (0045, 2026-08-14) —
+  // 노즐은 거의 전부 직판·총판이라 채널 축이 답하는 질문이 없다
+  var 노즐모드 = 매출모드 === '노즐';
+  $('chanCard').hidden = 노즐모드;
+  $('nzCard').hidden = !노즐모드;
+  if (노즐모드) 노즐유무상그리기(달); else 채널그리기(달);
+}
+
+/* ── 국가별 노즐 유상·무상 (0045, 2026-08-14) ────────────────────
+   행: 노즐 계(유상·무상) → 한국 · 일본 → 해외 국가들(유상 매출액 큰 순, 미상 맨 뒤).
+   각 국가는 유상 행 + 무상 행 한 쌍이다. 칸은 월별 수량, 오른쪽에 누계 수량 ·
+   매출액(누계) · 개당 단가(= 유상 매출액 ÷ 유상 수량). 무상 행의 매출액은 보통 0이라
+   「—」로 두고, 0이 아니면(무상인데 공급가가 붙은 건) 각주로 밝힌다. */
+function 노즐유무상그리기(달) {
+  var 행들 = (DB['노즐유무상'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 국들 = {};
+  행들.forEach(function (r) {
+    var t = (국들[r['국가']] = 국들[r['국가']] || { 유상금액: 0 });
+    t.유상금액 += Number(r['유상금액']) || 0;
+  });
+  var 순 = Object.keys(국들).sort(function (a, b) {
+    var g = function (국) { return 국 === '한국' ? 0 : 국 === '일본' ? 1 : 국 === '미상' ? 9 : 2; };
+    return g(a) - g(b) || 국들[b].유상금액 - 국들[a].유상금액;
+  });
+
+  $('nzHead').innerHTML = ['<th scope="col">국가</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계</th>', '<th scope="col">매출액</th>', '<th scope="col">개당 단가</th>']).join('');
+
+  // (국가들 | null=전체) × (유상|무상) → 월별 수량 · 누계 금액
+  var 모으기 = function (국, 축) {
+    var 월수량 = {}, 금액 = 0, 있음 = false;
+    행들.forEach(function (r) {
+      if (국 && r['국가'] !== 국) return;
+      var q = Number(r[축 + '수량']), a = Number(r[축 + '금액']) || 0;
+      if (!q && !a) return;
+      있음 = true;
+      월수량[+r['월']] = (월수량[+r['월']] || 0) + (q || 0);
+      금액 += a;
+    });
+    return { 월수량: 월수량, 금액: 금액, 있음: 있음 };
+  };
+
+  var 무상금액계 = 모으기(null, '무상').금액;
+  var 줄 = function (이름, 급, d, 단가냐) {
+    if (!d.있음) return '';
+    var 누계 = 0;
+    var 칸 = 달.map(function (m) {
+      var v = d.월수량[m];
+      if (v == null) return '<td class="num">—</td>';
+      누계 += v;
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 수(v) + '</td>';
+    }).join('');
+    var 단가 = 단가냐 && 누계 > 0 && d.금액 > 0
+      ? Math.round(d.금액 * 1e6 / 누계).toLocaleString('ko-KR') : '—';
+    return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
+      + '<td class="num"><strong>' + 수(누계) + '</strong></td>'
+      + '<td class="num">' + (d.금액 ? 백만(d.금액) : '—') + '</td>'
+      + '<td class="num muted">' + 단가 + '</td></tr>';
+  };
+
+  var html = 줄('노즐 계 · 유상', 'r-total', 모으기(null, '유상'), true)
+    + 줄('무상', 'r-child', 모으기(null, '무상'), false);
+  순.forEach(function (국) {
+    html += 줄(국, 'r-child', 모으기(국, '유상'), true)
+      + 줄('└ 무상', 'r-leaf', 모으기(국, '무상'), false);
+  });
+  $('nzBody').innerHTML = html;
+
+  $('nzNote').innerHTML = '<strong>유상</strong>은 무상·취소 제외 순판매(반품 음수 포함), '
+    + '<strong>무상</strong>은 ERP 구분 「무상」입니다. 매출액은 누계이고 '
+    + '<strong>개당 단가 = 유상 매출액 ÷ 유상 수량</strong>입니다 — 국가 간 단가 차이가 그대로 보입니다. '
+    + '채널별 표는 금액·장비 대수 모드에서 보입니다.'
+    + (무상금액계 > 0.05 ? ' ⚠ 무상 행에 공급가 ' + 백만(무상금액계) + '이 붙어 있습니다 — 원천 확인 대상입니다.' : '');
 }
 
 /* ── 채널별 (결정_회계사TDL ⑨) — 값 모드·연도 토글 연동 ──────────
