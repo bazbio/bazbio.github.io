@@ -631,6 +631,18 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           국가 구분 없는 전체 평균이라 국가 믹스가 바뀌면 단가가 움직일 수 있습니다 — 국가별 차이는 위 표의 개당 단가로 보십시오.</p>
       </div>
 
+      <!-- 장비 평균 판매단가 (0047, 2026-08-14) — 장비 대수 모드 전용. 채널별 아래에 선다 -->
+      <div class="card" style="margin-top:12px" id="eqCard" hidden>
+        <h3 class="ct">장비 평균 판매단가<span class="u">백만원/대 — 유상 판매 기준</span></h3>
+        <div class="scroll">
+          <table class="pl" id="eq">
+            <thead><tr id="eqHead"></tr></thead>
+            <tbody id="eqBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="eqNote"></p>
+      </div>
+
     </section>
 
     <!-- 일본법인 탭 (2026-08-13 합의) — 일본법인 비용을 본사가 관리하는 화면.
@@ -662,6 +674,31 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
           </table>
         </div>
         <p class="note" id="jpBillNote"></p>
+      </div>
+
+      <!-- 시산표 계정별 (0048, 2026-08-14) — 월차보고 양식 첫 수령(7월분)으로 생겼다 -->
+      <div class="card" id="jpTBCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="jpTBTitle">시산표 계정별</h3>
+        <div class="scroll">
+          <table class="pl" id="jpTB">
+            <thead><tr id="jpTBHead"></tr></thead>
+            <tbody id="jpTBBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="jpTBNote"></p>
+      </div>
+
+      <!-- 기능별 인원 (0048) -->
+      <div class="card" id="jpHCCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="jpHCTitle">기능별 인원</h3>
+        <div class="scroll">
+          <table class="pl" id="jpHC">
+            <thead><tr id="jpHCHead"></tr></thead>
+            <tbody id="jpHCBody"></tbody>
+          </table>
+        </div>
+        <p class="note">본사와 같은 5구분(생산품질·연구개발·영업·관리·기타), 월말 재적 기준.
+          겸무는 주 업무 구분에 1명으로 셉니다.</p>
       </div>
 
       <!-- 쟁점은 정적이다 — ADR 0012의 미확정을 화면이 상기시킨다. 풀리면 지운다 -->
@@ -2805,11 +2842,57 @@ function 매출그리기() {
       : '');
 
   // 노즐 수량 모드는 채널별 대신 국가별 유상·무상을 그린다 (0045, 2026-08-14) —
-  // 노즐은 거의 전부 직판·총판이라 채널 축이 답하는 질문이 없다
-  var 노즐모드 = 매출모드 === '노즐';
+  // 노즐은 거의 전부 직판·총판이라 채널 축이 답하는 질문이 없다.
+  // 장비 대수 모드는 채널별을 두고(딜러 축이 살아 있다) 평균 판매단가를 아래에 더한다 (0047)
+  var 노즐모드 = 매출모드 === '노즐', 장비모드 = 매출모드 === '장비';
   $('chanCard').hidden = 노즐모드;
   $('nzCard').hidden = !노즐모드;
+  $('eqCard').hidden = !장비모드;
   if (노즐모드) 노즐유무상그리기(달); else 채널그리기(달);
+  if (장비모드) 장비단가그리기(달);
+}
+
+/* ── 장비 평균 판매단가 (0047, 2026-08-14) — 장비 대수 모드 전용 ──
+   행: 장비 계 → 제품(표준명, 유상 매출액 큰 순). 칸은 그 달 평균단가(백만원/대, 유상만),
+   오른쪽에 누계 단가 · 유상 수량 · 매출액. 무상·취소는 단가에 안 들어간다 —
+   무상에 공급가가 붙은 건(5월 트루메디컬 실사례)이 평균을 왜곡하는 것을 막는 축이다. */
+function 장비단가그리기(달) {
+  var 행들 = (DB['유무상'] || []).filter(function (r) {
+    return +r['회계연도'] === 매출연도 && r['제품군'] === '장비';
+  });
+  $('eqHead').innerHTML = ['<th scope="col">제품</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">누계 단가</th>', '<th scope="col">수량</th>', '<th scope="col">매출액</th>']).join('');
+  var 제품들 = {};
+  행들.forEach(function (r) {
+    var q = Number(r['유상수량']) || 0, a = Number(r['유상금액']) || 0;
+    if (!q && !a) return;
+    [r['표준명'], '장비 계'].forEach(function (키) {
+      var p = (제품들[키] = 제품들[키] || { 월수량: {}, 월금액: {}, 수량: 0, 금액: 0 });
+      var m = +r['월'];
+      p.월수량[m] = (p.월수량[m] || 0) + q;
+      p.월금액[m] = (p.월금액[m] || 0) + a;
+      p.수량 += q; p.금액 += a;
+    });
+  });
+  var 단가 = function (금액, 수량) { return (수량 > 0 && 금액 > 0) ? 백만(금액 / 수량) : '—'; };
+  $('eqBody').innerHTML = Object.keys(제품들)
+    .sort(function (a, b) {
+      if (a === '장비 계') return -1;
+      if (b === '장비 계') return 1;
+      return 제품들[b].금액 - 제품들[a].금액;
+    })
+    .map(function (n) {
+      var p = 제품들[n];
+      return '<tr' + (n === '장비 계' ? ' class="r-total"' : '') + '><td>' + n + '</td>'
+        + 달.map(function (m) { return '<td class="num muted">' + 단가(p.월금액[m] || 0, p.월수량[m] || 0) + '</td>'; }).join('')
+        + '<td class="num"><strong>' + 단가(p.금액, p.수량) + '</strong></td>'
+        + '<td class="num">' + 수(p.수량) + '</td>'
+        + '<td class="num">' + (p.금액 ? 백만(p.금액) : '—') + '</td></tr>';
+    }).join('');
+  $('eqNote').innerHTML = '평균단가 = 그 달 <strong>유상</strong> 매출액 ÷ 유상 수량 (백만원/대). '
+    + '무상·취소는 단가에 안 들어갑니다. 국가 구분 없는 전체 평균이라 국가 믹스가 바뀌면 단가가 움직입니다 — '
+    + '국가별 장비 수익성은 원가 탭의 <strong>국가 × 제품 수익성</strong> 표에 있습니다.';
 }
 
 /* ── 국가별 노즐 유상·무상 (0045 → 0046, 2026-08-14) ─────────────
@@ -2820,7 +2903,9 @@ function 매출그리기() {
    아래 두 번째 표가 제품별(표준명) 평균단가다 — 국가 평균은 4,500S·9,000S가 섞인 값이라서다. */
 var 노즐해외펼침 = false;
 function 노즐유무상그리기(달) {
-  var 행들 = (DB['노즐유무상'] || []).filter(function (r) { return +r['회계연도'] === 매출연도; });
+  var 행들 = (DB['유무상'] || []).filter(function (r) {
+    return +r['회계연도'] === 매출연도 && r['제품군'] === '노즐';
+  });
 
   $('nzHead').innerHTML = ['<th scope="col">국가</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
@@ -3050,7 +3135,8 @@ function 일본탭그리기() {
     '원천은 일본법인 월차 PL(J-GAAP · 엔화)이고, 원화 환산은 <strong>본사가 실측 역산 환율로</strong> '
     + '합니다 — 일본법인에 환산을 요청하지 않습니다 (ADR 0012). 분기 확정 월에는 K-IFRS 조정이 '
     + '<strong>합산 손익</strong>에 반영됩니다 (이 표는 J-GAAP 그대로). '
-    + '시산표 계정별·인원수는 월차보고 양식이 오면 여기에 추가됩니다.';
+    + '월차보고가 적재된 달부터는 판관비 실적이 <strong>시산표 합</strong>이고, 그 달의 실측 '
+    + '환율은 본사 분개장 확정 후 역산됩니다 (그 전에는 계획 환율로 환산).';
 
   // ── 청구 대조 — 모델(판관비 × 배수) 대 분개장 실측 ──
   var 대조달 = [];
@@ -3058,10 +3144,13 @@ function 일본탭그리기() {
   $('jpBillHead').innerHTML = ['<th scope="col">항목</th>']
     .concat(대조달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계</th>']).join('');
-  var 모델 = {}, 차이 = {};
+  // 분개장이 아직 없는 달(월차보고가 먼저 온 달)은 실측·차이를 비워 둔다 —
+  // 0을 실측으로 치면 「전액 어긋남」으로 빨갛게 뜬다 (7월에 실제로 그랬다)
+  var 모델 = {}, 차이 = {}, 실측없는달 = [];
   대조달.forEach(function (m) {
     모델[m] = (실판[m] || 0) * 배수;
-    차이[m] = (청구[m] || 0) - 모델[m];
+    if (청구[m] == null) { 실측없는달.push(m); return; }
+    차이[m] = 청구[m] - 모델[m];
   });
   var 대조줄 = function (이름, 맵, 급, 경고) {
     var 누 = 0;
@@ -3080,7 +3169,60 @@ function 일본탭그리기() {
   $('jpBillNote').innerHTML =
     '차이가 <span class="neg">빨강</span>(±1 이상)이면 일본법인 PL과 본사 분개장이 어긋난 달입니다 — '
     + '재제출·질의 대상입니다. 상반기 실측 배수는 여섯 달 전부 1.0500이었습니다 (기준값 cost_plus, '
-    + '계약서 확인). 퇴직자 감액처럼 <strong>매출 행에만 반영된 수정이 있으면 이 표가 잡아냅니다.</strong>';
+    + '계약서 확인). 퇴직자 감액처럼 <strong>매출 행에만 반영된 수정이 있으면 이 표가 잡아냅니다.</strong>'
+    + (실측없는달.length
+      ? ' ' + 실측없는달.join('·') + '월은 본사 분개장이 아직 없어(가결산·미적재) 실측 칸을 비워 뒀습니다 — 확정 분개장이 오면 채워집니다.'
+      : '');
+
+  // ── 시산표 계정별 + 기능별 인원 (0048) — 월차보고가 적재된 달만 ──
+  var 시산 = DB['일본시산표'] || [], 인원표 = DB['일본인원'] || [];
+  $('jpTBCard').hidden = !시산.length;
+  $('jpHCCard').hidden = !인원표.length;
+  if (시산.length) {
+    var 시월 = Math.max.apply(null, 시산.map(function (r) { return +r['월']; }));
+    var 그달 = 시산.filter(function (r) { return +r['월'] === 시월; });
+    var fx = 환[시월];      // 실측 역산이 아직 없으면 undefined — 원화 병기를 생략한다
+    $('jpTBTitle').innerHTML = '시산표 계정별 — ' + 시월 + '월 (월차보고)<span class="u">엔 · MoneyForward J-GAAP</span>';
+    $('jpTBHead').innerHTML = '<th scope="col">계정</th><th scope="col">당월 (¥)</th>'
+      + '<th scope="col">누계 (¥)</th><th scope="col">당월 비중</th>';
+    var 엔수 = function (v) {
+      return v ? (v < 0 ? '△' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR') : '—';
+    };
+    var 그리기묶음 = function (구분, 제목) {
+      var 안 = 그달.filter(function (r) { return r['구분'] === 구분; })
+        .sort(function (a, b) { return Math.abs(b['당월_jpy']) - Math.abs(a['당월_jpy']) || Math.abs(b['누계_jpy']) - Math.abs(a['누계_jpy']); });
+      if (!안.length) return '';
+      var 당합 = 안.reduce(function (s, r) { return s + Number(r['당월_jpy']); }, 0);
+      var 누합 = 안.reduce(function (s, r) { return s + Number(r['누계_jpy']); }, 0);
+      return '<tr class="r-total"><td>' + 제목 + '</td>'
+        + '<td class="num">' + 엔수(당합) + '</td><td class="num">' + 엔수(누합) + '</td>'
+        + '<td class="num muted">' + (구분 === '판관비' ? '100%' : '—') + '</td></tr>'
+        + 안.map(function (r) {
+          var 당 = Number(r['당월_jpy']);
+          return '<tr class="r-child"><td>' + r['계정'] + '</td>'
+            + '<td class="num">' + 엔수(당) + '</td>'
+            + '<td class="num muted">' + 엔수(Number(r['누계_jpy'])) + '</td>'
+            + '<td class="num muted">' + (구분 === '판관비' && 당합 && 당 ? (100 * 당 / 당합).toFixed(1) + '%' : '—') + '</td></tr>';
+        }).join('');
+    };
+    $('jpTBBody').innerHTML = 그리기묶음('판관비', '판관비 계') + 그리기묶음('영업외', '영업외 (참고)');
+    $('jpTBNote').innerHTML = 'MoneyForward 월차 시산표 그대로(세전·엔)입니다. <strong>판관비 계가 위 손익 표의 '
+      + 시월 + '월 판관비 실적</strong>이고, 청구액은 여기에 × ' + 배수.toFixed(2) + '입니다. '
+      + (fx ? '' : '이 달 원화 환산은 본사 분개장 확정 후 실측 환율로 확정됩니다 (그 전에는 계획 환율). ')
+      + '영업외는 청구 대상이 아니라 참고로만 둡니다.';
+  }
+  if (인원표.length) {
+    var 인월 = Math.max.apply(null, 인원표.map(function (r) { return +r['월']; }));
+    var 인그달 = 인원표.filter(function (r) { return +r['월'] === 인월; });
+    var 인합 = 인그달.reduce(function (s, r) { return s + Number(r['인원']); }, 0);
+    $('jpHCTitle').innerHTML = '기능별 인원 — ' + 인월 + '월 말<span class="u">명</span>';
+    $('jpHCHead').innerHTML = '<th scope="col">구분</th><th scope="col">인원</th><th scope="col">비고</th>';
+    $('jpHCBody').innerHTML = 인그달.map(function (r) {
+      return '<tr><td>' + r['구분'] + '</td><td class="num">' + (Number(r['인원']) || '—') + '</td>'
+        + '<td class="muted">' + (r['비고'] || '') + '</td></tr>';
+    }).join('')
+      + '<tr class="r-total"><td>계</td><td class="num">' + 인합 + '</td><td></td></tr>';
+  }
 }
 
 /* =========================================================================
