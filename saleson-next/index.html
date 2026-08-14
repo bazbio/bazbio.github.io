@@ -940,6 +940,7 @@ var MATSEG = '전체';
 var LEADSEG = 'open';
 var LEADREP = '';
 var FAILROW = 0;
+var FAILNO = 0;   // 실패 모달을 연 리드의 no — 목록이 갈려도 놓치지 않는다 (8/14)
 var DASHTEAM = '전체';
 var DASHM = '';
 var DASHW = '';
@@ -1112,7 +1113,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608140048';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608140122';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1276,6 +1277,23 @@ function onBoot(b) {
    둘로 갈라 넘기고, 서버 어댑터(행찾기_)가 no를 행으로 푼다. */
 function 키_(k) { k = Number(k) || 0; return k > 0 ? { row: k, no: 0 } : { row: 0, no: -k }; }
 
+/* 리드·계획에 열쇠를 매긴다 — **`no`가 있으면 언제나 음수 no**다 (2026-08-14 고침).
+   여태 규칙이 두 갈래로 복제돼 있었다: GAS 목록은 `row || -no`(양수), 관문 목록은 `-no`.
+   같은 리드가 출처에 따라 다른 열쇠를 갖는다는 뜻이라, 화면이 열쇠를 **쥐고 있는 동안**
+   목록이 갈리면 그 열쇠가 아무것도 못 찾는다. 부팅 뒤 `홈받기_`가 정확히 그렇게 갈아끼운다.
+
+   실제 사고 (8/14, 이정국): 실패 처리 모달을 열고 사유를 세 줄 쓰는 사이 `홈받기_`가 도착해
+   `DATA.leads`가 관문 것으로 바뀌었다. 제출할 때 옛 열쇠(양수 row)로 찾으니 리드가 없고,
+   `대상.no`가 비어 GAS 폴백으로 샌 뒤 `DB원천이면멈춤_` 가드에 걸렸다 —
+   화면에는 「앱이 옛 화면을 쥐고 있습니다」만 떴다.
+
+   `초기데이터_`가 8/14부터 `no`를 실으므로 두 출처가 같은 열쇠를 쓸 수 있다.
+   no가 없는 옛 데이터는 예전처럼 row로 눕는다 (GAS 폴백이 행으로 받는다). */
+function 열쇠매기기_(arr) {
+  (arr || []).forEach(function(x) { x.k = -(Number(x.no) || 0) || (Number(x.row) || 0); });
+  return arr;
+}
+
 /* 홈 「내 계획」·리드 탭을 관문(DB)에서 받는다 — DB가 원천 흉내가 아니라, 쓰기 직후
    밀기(시트원천밀기_) 덕에 DB가 시트를 초 단위로 따라오기 때문에 가능해진 읽기다.
    GAS 초기데이터_(1.8초)보다 먼저·빠르게(0.3초대) 홈을 최신으로 만든다. */
@@ -1290,8 +1308,7 @@ function 홈받기_() {
   관문호출_('/saleson-home', JSON.stringify({ 토큰: TOKEN })).then(화면갱신감싸기_(function(d) {
     홈받는중_ = false;
     if (!d || !d.plans) return;
-    d.plans.forEach(function(p) { p.k = -(p.no || 0); });
-    d.leads.forEach(function(l) { l.k = -(l.no || 0); });
+    열쇠매기기_(d.plans); 열쇠매기기_(d.leads);
     DATA.plans = d.plans;
     DATA.leads = d.leads;
     if (d.leadNames && d.leadNames.length) DATA.leadNames = d.leadNames;
@@ -1317,8 +1334,7 @@ function 홈받기_() {
 function onData(d) {
   DATA = d;
   // 열쇠 통일 — GAS 목록은 row가 있다
-  (DATA.plans || []).forEach(function(p) { p.k = p.row || -(p.no || 0); });
-  (DATA.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+  열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads);
   스플래시끄기_();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('gate').style.display = 'none';
@@ -1474,7 +1490,7 @@ function prefetch() {
       .then(function(d) {
         // 열쇠 통일 — loadEvt와 같은 규칙 (관문 목록은 no)
         (d.events || []).forEach(function(ev) {
-          (ev.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+          열쇠매기기_(ev.leads);
         });
         EVT = d;
       }, 조용);
@@ -2202,8 +2218,7 @@ function evtRegSave(code) {
     if (r.init) {
       DATA = r.init;
       // onData를 안 거치므로 열쇠를 여기서 매긴다 — 없으면 리드 카드가 남의 행을 집는다
-      (DATA.plans || []).forEach(function(p) { p.k = p.row || -(p.no || 0); });
-      (DATA.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+      열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads);
       renderHome(); renderLeads();   // 내 리드·홈 KPI
     }
     /* ⚠ 원천이 DB면 `r.evt`(GAS 모양)를 **쓰지 않는다** (2026-08-14).
@@ -2244,7 +2259,7 @@ function loadEvt(조용히) {
   var 끝 = function(d) {
     // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙)
     (d.events || []).forEach(function(ev) {
-      (ev.leads || []).forEach(function(l) { l.k = l.row || -(l.no || 0); });
+      열쇠매기기_(ev.leads);
     });
     EVT = d; busy(false); renderEvt();
   };
@@ -3829,6 +3844,8 @@ function retryLead(row) {
 function openFail(row) {
   FAILROW = row;
   var l = DATA.leads.filter(function(x) { return x.k === row; })[0];
+  // 열 때 no를 붙잡아 둔다 — 사유를 쓰는 동안 목록이 갈려도 이 리드를 놓치지 않는다 (8/14)
+  FAILNO = (l && l.no) || 0;
   document.getElementById('failHosp').textContent = l ? l.hname + (l.contact ? ' · ' + l.contact : '') : '';
   document.getElementById('failWhy').value = (l && l.failWhy) || '';
   document.getElementById('failFix').value = (l && l.failFix) || '';
@@ -3840,9 +3857,18 @@ function submitFail() {
   var why = document.getElementById('failWhy').value.trim();
   if (!why) return 검증실패_('실패 요인을 입력해 주세요', 'failWhy');
   busy(true, '저장 중…');
+  /* 이 모달은 사유를 여러 줄 쓰느라 **오래 열려 있다.** 그 사이 목록이 갈리면 열쇠로는
+     못 찾는다 — 그래서 열 때 붙잡아 둔 `FAILNO`를 먼저 쓴다 (8/14 이정국 사고).
+     열쇠 규칙 자체는 `열쇠매기기_`로 통일해 고쳤으니 목록 조회도 이제는 맞는다. 둘 다 쓴다. */
   var 대상 = DATA.leads.filter(function(x) { return x.k === FAILROW; })[0];
-  if (DATA.dbSrc && 대상 && 대상.no) {
-    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '실패', no: 대상.no, f: {
+  var no = FAILNO || (대상 && 대상.no) || 0;
+  if (DATA.dbSrc && !no) {
+    // GAS로 보내면 `DB원천이면멈춤_`에 걸려 「앱이 옛 화면을 쥐고 있습니다」만 뜬다. 사람에게 말한다
+    busy(false);
+    return toast('이 리드를 다시 찾지 못했습니다 — 쓰신 내용을 복사해 두고 새로고침 후 다시 넣어 주세요.', true);
+  }
+  if (DATA.dbSrc && no) {
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '실패', no: no, f: {
       why: why, fix: document.getElementById('failFix').value.trim(), retry: document.getElementById('failRetry').value } }))
       .then(화면갱신감싸기_(function(r) { closeFail(); LEADSEG = 'fail'; busy(false); toast('실패 처리했습니다 — 실패 탭에서 계속 추적됩니다'); 홈받기_(); show('lead'); }),
       function(e) { busy(false); toast(e.message, true); });
