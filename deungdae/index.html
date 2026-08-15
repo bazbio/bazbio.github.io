@@ -361,9 +361,9 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <h1>등대</h1>
       <nav class="tabs" role="tablist" aria-label="화면">
         <button type="button" role="tab" id="tabBtnPL" aria-selected="true">손익</button>
+        <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
         <button type="button" role="tab" id="tabBtnBEP" aria-selected="false">BEP</button>
         <button type="button" role="tab" id="tabBtnCost" aria-selected="false">원가</button>
-        <button type="button" role="tab" id="tabBtnSales" aria-selected="false">매출</button>
         <button type="button" role="tab" id="tabBtnJP" aria-selected="false">일본</button>
         <button type="button" role="tab" id="tabBtnFIN" aria-selected="false">재무</button>
         <button type="button" role="tab" id="tabBtnCash" aria-selected="false">자금</button>
@@ -623,9 +623,10 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="nzNote"></p>
       </div>
 
-      <!-- 장비 평균 판매단가 (0047, 2026-08-14) — 장비 대수 모드 전용. 채널별 아래에 선다 -->
+      <!-- 국가별 장비 평균 판매단가 (0047, 2026-08-14 → 국가 축 2026-08-15) — 장비 대수 모드 전용.
+           채널별 아래에 선다 -->
       <div class="card" style="margin-top:12px" id="eqCard" hidden>
-        <h3 class="ct">장비 평균 판매단가<span class="u">백만원/대 — 유상 판매 기준</span></h3>
+        <h3 class="ct">국가별 장비 평균 판매단가<span class="u">백만원/대 — 유상 판매 기준</span></h3>
         <div class="scroll">
           <table class="pl" id="eq">
             <thead><tr id="eqHead"></tr></thead>
@@ -2912,47 +2913,88 @@ function 매출그리기() {
   if (장비모드) 장비단가그리기(달);
 }
 
-/* ── 장비 평균 판매단가 (0047, 2026-08-14) — 장비 대수 모드 전용 ──
-   행: 장비 계 → 제품(표준명, 유상 매출액 큰 순). 칸은 그 달 평균단가(백만원/대, 유상만),
-   오른쪽에 누계 단가 · 유상 수량 · 매출액. 무상·취소는 단가에 안 들어간다 —
-   무상에 공급가가 붙은 건(5월 트루메디컬 실사례)이 평균을 왜곡하는 것을 막는 축이다. */
+/* ── 국가별 장비 평균 판매단가 (0047, 2026-08-14 → 국가 축 2026-08-15) — 장비 대수 모드 전용 ──
+   행: 장비 계 → 한국 · 일본 → 해외(소계, 펼치면 국가별 — 노즐 카드와 같은 토글).
+   제품(표준명)은 국가 이름 아래 작은 글씨로 병기한다 — 국가당 제품이 대개 하나라
+   행을 나누지 않고도 믹스가 보인다 (둘 이상이면 대수를 같이 적는다).
+   칸은 그 달 평균단가(백만원/대, 유상만), 오른쪽에 누계 단가 · 유상 수량 · 매출액.
+   무상·취소는 단가에 안 들어간다 — 무상에 공급가가 붙은 건(5월 트루메디컬 실사례)이
+   평균을 왜곡하는 것을 막는 축이다. */
+var 장비해외펼침 = false;
 function 장비단가그리기(달) {
   var 행들 = (DB['유무상'] || []).filter(function (r) {
     return +r['회계연도'] === 매출연도 && r['제품군'] === '장비';
   });
-  $('eqHead').innerHTML = ['<th scope="col">제품</th>']
+  $('eqHead').innerHTML = ['<th scope="col">국가</th>']
     .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
     .concat(['<th scope="col">누계 단가</th>', '<th scope="col">수량</th>', '<th scope="col">매출액</th>']).join('');
-  var 제품들 = {};
-  행들.forEach(function (r) {
-    var q = Number(r['유상수량']) || 0, a = Number(r['유상금액']) || 0;
-    if (!q && !a) return;
-    [r['표준명'], '장비 계'].forEach(function (키) {
-      var p = (제품들[키] = 제품들[키] || { 월수량: {}, 월금액: {}, 수량: 0, 금액: 0 });
+
+  // 걸러 모으기 — f(r)가 참인 행들의 유상 월별 수량·금액 · 누계 · 제품 구성
+  var 모으기 = function (f) {
+    var d = { 월수량: {}, 월금액: {}, 수량: 0, 금액: 0, 제품: {}, 있음: false };
+    행들.forEach(function (r) {
+      if (f && !f(r)) return;
+      var q = Number(r['유상수량']) || 0, a = Number(r['유상금액']) || 0;
+      if (!q && !a) return;
+      d.있음 = true;
       var m = +r['월'];
-      p.월수량[m] = (p.월수량[m] || 0) + q;
-      p.월금액[m] = (p.월금액[m] || 0) + a;
-      p.수량 += q; p.금액 += a;
+      d.월수량[m] = (d.월수량[m] || 0) + q;
+      d.월금액[m] = (d.월금액[m] || 0) + a;
+      d.수량 += q; d.금액 += a;
+      d.제품[r['표준명']] = (d.제품[r['표준명']] || 0) + q;
     });
-  });
+    return d;
+  };
+  var 국f = function (국) { return function (r) { return r['국가'] === 국; }; };
+  var 해외f = function (r) { return r['사업부'] === '해외'; };
   var 단가 = function (금액, 수량) { return (수량 > 0 && 금액 > 0) ? 백만(금액 / 수량) : '—'; };
-  $('eqBody').innerHTML = Object.keys(제품들)
-    .sort(function (a, b) {
-      if (a === '장비 계') return -1;
-      if (b === '장비 계') return 1;
-      return 제품들[b].금액 - 제품들[a].금액;
-    })
-    .map(function (n) {
-      var p = 제품들[n];
-      return '<tr' + (n === '장비 계' ? ' class="r-total"' : '') + '><td>' + n + '</td>'
-        + 달.map(function (m) { return '<td class="num muted">' + 단가(p.월금액[m] || 0, p.월수량[m] || 0) + '</td>'; }).join('')
-        + '<td class="num"><strong>' + 단가(p.금액, p.수량) + '</strong></td>'
-        + '<td class="num">' + 수(p.수량) + '</td>'
-        + '<td class="num">' + (p.금액 ? 백만(p.금액) : '—') + '</td></tr>';
-    }).join('');
+
+  var 행 = function (이름, 급, f, 옵) {
+    var d = 모으기(f);
+    if (!d.있음) return '';
+    var 제품들 = Object.keys(d.제품).sort(function (a, b) { return d.제품[b] - d.제품[a]; });
+    var 병기 = 제품들.map(function (p) {
+      return 제품들.length > 1 ? p + ' ' + 수(d.제품[p]) : p;
+    }).join(' · ');
+    var 제목 = 옵 && 옵.토글
+      ? '<button class="toggle" type="button" id="eqMore" aria-expanded="' + (장비해외펼침 ? 'true' : 'false') + '">'
+        + '<svg class="chev" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + '<span>' + 이름 + '</span></button>'
+      : 이름;
+    return '<tr class="' + 급 + '"><td>' + 제목 + '<span class="csub">' + 병기 + '</span></td>'
+      + 달.map(function (m) { return '<td class="num muted">' + 단가(d.월금액[m] || 0, d.월수량[m] || 0) + '</td>'; }).join('')
+      + '<td class="num"><strong>' + 단가(d.금액, d.수량) + '</strong></td>'
+      + '<td class="num">' + 수(d.수량) + '</td>'
+      + '<td class="num">' + (d.금액 ? 백만(d.금액) : '—') + '</td></tr>';
+  };
+
+  var html = 행('장비 계', 'r-total', null)
+    + 행('한국', 'r-child', 국f('한국'))
+    + 행('일본', 'r-child', 국f('일본'))
+    + 행('해외', 'r-child', 해외f, { 토글: true });
+  if (장비해외펼침) {
+    var 해외국들 = {};
+    행들.forEach(function (r) {
+      if (r['사업부'] !== '해외') return;
+      해외국들[r['국가']] = (해외국들[r['국가']] || 0) + (Number(r['유상금액']) || 0);
+    });
+    Object.keys(해외국들).sort(function (a, b) {
+      if (a === '미상') return 1;
+      if (b === '미상') return -1;
+      return 해외국들[b] - 해외국들[a];
+    }).forEach(function (국) {
+      html += 행(국, 'r-leaf', 국f(국));
+    });
+  }
+  $('eqBody').innerHTML = html;
+  var 더보기 = $('eqMore');
+  if (더보기) 더보기.addEventListener('click', function () { 장비해외펼침 = !장비해외펼침; 매출그리기(); });
+
   $('eqNote').innerHTML = '평균단가 = 그 달 <strong>유상</strong> 매출액 ÷ 유상 수량 (백만원/대). '
-    + '무상·취소는 단가에 안 들어갑니다. 국가 구분 없는 전체 평균이라 국가 믹스가 바뀌면 단가가 움직입니다 — '
-    + '국가별 장비 수익성은 원가 탭의 <strong>국가 × 제품 수익성</strong> 표에 있습니다.';
+    + '무상·취소는 단가에 안 들어갑니다. 국가 이름 아래 작은 글씨는 그 국가가 판 <strong>제품</strong>입니다 — '
+    + '둘 이상이면 대수를 같이 적었습니다. 해외를 펼치면 국가별로 보입니다. '
+    + '장비 계·해외 소계는 제품·국가가 섞인 평균이라 믹스가 바뀌면 단가가 움직입니다 — '
+    + '국가별 장비 수익성(원가까지)은 원가 탭의 <strong>국가 × 제품 수익성</strong> 표에 있습니다.';
 }
 
 /* ── 국가별 노즐 유상·무상 (0045 → 0046, 2026-08-14) ─────────────
