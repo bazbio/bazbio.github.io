@@ -1113,7 +1113,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608150204';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608150220';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3448,6 +3448,10 @@ function 계획임시저장복구_() {
   el.querySelector('.dtxt').textContent =
     '저장하지 않은 계획이 있습니다 — ' + (d.hname || '(병원 미입력)');
   el.querySelector('.dload').onclick = function() {
+    /* ⚠ 임시저장은 Meta 문의에서 온 계획을 담지 않지만(계획임시저장_ 가드), **복구하는 시점에**
+       연결이 서 있을 수 있다 — 문의에서 넘어온 뒤 저장하지 않고 이 배너를 누르는 경우다.
+       그대로 두면 복구한 남의 병원 계획이 그 문의를 승격시킨다. */
+    META_PREFILL = null;
     var 넣기 = function(id, v) { var e2 = document.getElementById(id); if (e2) e2.value = v || ''; };
     넣기('pHosp', d.hname);
     /* 병원명을 넣은 **뒤에** 부른다 — 리드 블록(#pLeadSec)을 여는 것이 이 함수다.
@@ -4211,6 +4215,10 @@ function ncPlan(id) {
   var p = ncRow_(id);
   if (!p) return;
   document.getElementById('hospModal').style.display = 'none';
+  /* ⚠ 앞서 Meta 문의에서 넘어온 연결이 서 있으면 지운다 — 안 지우면 이 N-Care 병원명으로
+     저장했을 때 **엉뚱한 문의가 '리드 전환'으로 승격된다**(savePlan이 metaExtId를 무조건 싣는다).
+     위 주석의 「승격 연결만 없다」가 이 한 줄이 있어야 사실이 된다. */
+  META_PREFILL = null;
   show('plan');
   document.getElementById('pHosp').value = p.hname;
   checkNewHosp();
