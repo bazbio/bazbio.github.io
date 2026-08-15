@@ -2,6 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<!-- PWA 머리 (ADR 0008) — 예전에는 셸(iframe 바깥)이 들고 있었다. 화면이 Pages로 오면서
+     셸이 없어졌으므로 여기가 곧 홈 화면 앱의 머리다.
+     ⚠ viewport는 GAS doGet이 addMetaTag로 붙여 주던 것이다. Pages에는 붙여 줄 사람이
+     없으니 여기 있어야 한다 — 빠지면 휴대폰에서 화면이 데스크톱 폭으로 뜬다. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>브리지</title>
 <meta name="theme-color" content="#1C69D4">
@@ -13,65 +17,1651 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { height:100%; overflow:hidden; background:#F5F5F7; }
-  #app { position:fixed; inset:0; width:100%; height:100%; border:0; }
-
-  /* ── 스플래시: 워드마크가 선명해지며 아래로 다리(선)가 놓이는 인트로 ── */
-  #load { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-          background:#FFFFFF; z-index:10; transition:opacity .5s ease; }
-
-  .wm { font-family:-apple-system,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
-        font-size:min(19vw,96px); font-weight:800; line-height:1;
-        background:linear-gradient(120deg,#1C69D4 25%,#1A2129 90%);
-        -webkit-background-clip:text; background-clip:text;
-        -webkit-text-fill-color:transparent; color:#1C69D4;
-        animation:focusin 1.8s cubic-bezier(.16,1,.3,1) both; }
-
-  .bridge-line { margin-top:20px; width:min(52vw,270px); height:4px; border-radius:99px; position:relative;
-                 background:linear-gradient(90deg,#1C69D4,#1A2129);
-                 transform:scaleX(0); transform-origin:center;
-                 animation:span 1s cubic-bezier(.16,1,.3,1) 1.35s both; }
-  .bridge-line::before, .bridge-line::after {
-    content:''; position:absolute; top:-3px; width:10px; height:10px; border-radius:50%;
-    opacity:0; animation:pier .4s ease 2.15s forwards; }
-  .bridge-line::before { left:-3px;  background:#1C69D4; }
-  .bridge-line::after  { right:-3px; background:#1A2129; }
-
-  .sub { margin-top:22px; font-family:-apple-system,'Malgun Gothic',sans-serif;
-         font-size:14px; font-weight:600; color:#B9B9C0; letter-spacing:.42em; text-indent:.42em;
-         opacity:0; animation:subin 1.1s ease 1.5s forwards; }
-
-  @keyframes focusin {
-    0%   { opacity:0; letter-spacing:.34em; filter:blur(14px); transform:scale(1.06); }
-    55%  { opacity:1; }
-    100% { opacity:1; letter-spacing:-.02em; filter:blur(0); transform:scale(1); }
+  :root{
+    --bg:#F5F5F7; --card:#FFFFFF; --ink:#1D1D1F; --sub:#6E6E73;
+    --line:rgba(0,0,0,.08); --field:#F2F2F7;
+    --accent:#0071E3; --accent-ink:#FFFFFF;
+    --ok:#34C759; --warn:#FF9500; --bad:#FF3B30;
+    --shadow:0 8px 30px rgba(0,0,0,.08);
   }
-  @keyframes span { from { transform:scaleX(0); } to { transform:scaleX(1); } }
-  @keyframes pier { from { opacity:0; transform:scale(0); } to { opacity:1; transform:scale(1); } }
-  @keyframes subin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#161617; --card:#1D1D1F; --ink:#F5F5F7; --sub:#98989D;
+      --line:rgba(255,255,255,.12); --field:#2C2C2E;
+      --accent:#0A84FF; --shadow:0 8px 30px rgba(0,0,0,.45);
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Segoe UI","Malgun Gothic",sans-serif;
+    font-size:17px; line-height:1.47; min-height:100vh;
+  }
+  button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
+  input,textarea,select{font:inherit; color:var(--ink)}
+  button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+
+  .hide{display:none !important}
+  .wrap{max-width:720px; margin:0 auto; padding:0 16px 90px}
+
+  /* 상단 바 */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    backdrop-filter:saturate(180%) blur(20px); -webkit-backdrop-filter:saturate(180%) blur(20px);
+    background:color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-in{max-width:720px; margin:0 auto; padding:0 16px; height:52px; display:flex; align-items:center; justify-content:space-between}
+  .brand{font-weight:700; font-size:17px; letter-spacing:-.01em}
+  .brand small{font-weight:500; font-size:12px; color:var(--sub); margin-left:7px}
+  .topbar .who{font-size:13px; color:var(--sub); display:flex; align-items:center; gap:10px}
+  .topbar .who button{color:var(--accent); font-size:13px; font-weight:600}
+
+  .page-head{display:flex; align-items:baseline; justify-content:space-between; padding:22px 2px 4px}
+  .page-head h1{margin:0; font-size:28px; font-weight:600; letter-spacing:-.02em}
+  .page-head time{font-size:13px; color:var(--sub); font-weight:500}
+
+  .card{background:var(--card); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-top:14px}
+  .card h3{margin:0 0 12px; font-size:13px; font-weight:600; color:var(--sub); letter-spacing:.02em}
+
+  textarea,input[type=date],input[type=datetime-local],input[type=text],input[type=tel],input[type=number],input[type=password]{
+    width:100%; border:0; background:var(--field); border-radius:12px;
+    padding:12px 14px; font-size:15px;
+  }
+  textarea{resize:none; min-height:64px}
+  ::placeholder{color:var(--sub); opacity:1}
+
+  .row-label{font-size:12px; font-weight:600; color:var(--sub); margin:12px 0 6px}
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{
+    padding:7px 14px; border-radius:999px; background:var(--field);
+    font-size:13px; font-weight:600; transition:background .15s,color .15s;
+  }
+  .chip.on{background:var(--accent); color:var(--accent-ink)}
+
+  .seg{display:flex; background:var(--field); border-radius:10px; padding:3px}
+  .seg button{flex:1; padding:8px 0; border-radius:8px; font-size:13px; font-weight:600; color:var(--sub); transition:background .15s,color .15s}
+  .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.12)}
+
+  /* 10분 단위 일시 선택: 날짜 + 시 + 분 */
+  .dtrow{display:flex; gap:8px; margin-top:8px}
+  .dtrow input[type=date]{flex:1.5; min-width:0}
+  .dtrow select{flex:1; min-width:0; border:0; background:var(--field); border-radius:12px; padding:12px 8px; font-size:15px; text-align:center}
+
+  .btn-primary{
+    background:var(--accent); color:var(--accent-ink); border-radius:999px;
+    padding:14px 0; font-size:16px; font-weight:600; width:100%; margin-top:14px; transition:transform .15s;
+  }
+  .btn-primary:disabled{opacity:.5; cursor:default}
+  .btn-quiet{background:var(--field); color:var(--accent); border-radius:999px; padding:11px 0; font-size:14px; font-weight:600; width:100%; transition:transform .15s}
+  .btn-mini{background:var(--field); color:var(--accent); border-radius:999px; padding:6px 14px; font-size:12px; font-weight:700; transition:transform .15s}
+  .btn-primary:active,.btn-quiet:active,.btn-mini:active,.chip:active{transform:scale(.95)}
+
+  /* 통계 타일 */
+  .tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px}
+  .tile{background:var(--card); border-radius:14px; padding:13px 14px; box-shadow:var(--shadow)}
+  .tile .k{font-size:11px; font-weight:600; color:var(--sub)}
+  .tile .v{font-size:25px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:2px}
+  .tile.warn .v{color:var(--warn)} .tile.bad .v{color:var(--bad)} .tile.ok .v{color:var(--ok)}
+  @media (max-width:480px){ .tiles{grid-template-columns:repeat(2,1fr)} }
+
+  /* 검색 */
+  .searchbar{margin-top:14px}
+  .searchbar input{
+    background:var(--card); box-shadow:var(--shadow); border-radius:14px;
+  }
+
+  /* 임원별 현황 — 카드 그리드 */
+  .mgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+  @media (min-width:700px){ .mgrid{grid-template-columns:repeat(3,1fr)} }
+  .mcard{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 13px 12px;
+    text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .mcard:hover{box-shadow:var(--shadow)}
+  .mcard:active{transform:scale(.97)}
+  .mcard b{font-size:15.5px; letter-spacing:-.01em}
+  .mcard .mbar{width:100%; height:4px; border-radius:99px; background:var(--field); overflow:hidden}
+  .mcard .mbar i{display:block; height:100%; border-radius:99px; background:var(--ok)}
+  .mcard .mstats{display:flex; gap:5px; flex-wrap:wrap}
+  .mcard .mstats span{font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; background:var(--field); color:var(--sub); white-space:nowrap}
+  .mcard .mstats span.bad{color:var(--bad); background:color-mix(in srgb, var(--bad) 12%, transparent)}
+  .mcard .mstats span.ok{color:var(--ok); background:color-mix(in srgb, var(--ok) 12%, transparent)}
+  .mcard .mdue{font-size:11px; font-weight:600; color:var(--sub)}
+  .mcard .mdue.soon{color:var(--warn)}
+  .mcard .mdue.near{color:var(--bad)}
+  .mcard.on{outline:2px solid var(--accent); outline-offset:-1px}
+
+  .chip.danger{color:var(--bad)}
+
+  /* 지시 목록 */
+  .dlist{display:flex; flex-direction:column}
+  .dgroup{display:flex; align-items:center; gap:8px; padding:16px 2px 5px; border-top:1px solid var(--line); margin-top:4px}
+  .dgroup:first-child{border-top:0; margin-top:0; padding-top:4px}
+  .dgroup b{font-size:13.5px}
+  .dgroup .cnt{font-size:11.5px; color:var(--sub); margin-left:auto}
+  .dgroup + .ditem{border-top:0}
+
+  /* 부문 하이라이트 칩 */
+  .dept{font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px; flex:none; letter-spacing:.01em; white-space:nowrap;
+    background:color-mix(in srgb, var(--accent) 11%, transparent); color:var(--accent)}
+  .ditem{display:flex; align-items:center; gap:10px; padding:13px 2px; border-top:1px solid var(--line); width:100%; text-align:left}
+  .ditem:first-child{border-top:0}
+  .ditem .txt{flex:1; min-width:0}
+  .ditem .txt b{display:block; font-size:15px; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .ditem .txt span{font-size:12px; color:var(--sub)}
+  .ditem .side{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none}
+  .dday{font-size:11px; font-weight:800; font-style:normal; color:var(--sub); letter-spacing:.02em}
+  .dday.soon{color:var(--warn)}
+  .dday.near,.dday.over{color:var(--bad)}
+  .pill{font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; flex:none}
+  .pill.wait{color:var(--warn); background:color-mix(in srgb, var(--warn) 14%, transparent)}
+  .pill.done{color:var(--ok); background:color-mix(in srgb, var(--ok) 14%, transparent)}
+  .pill.late{color:var(--bad); background:color-mix(in srgb, var(--bad) 14%, transparent)}
+  .pill.meet{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  .pill.gray{color:var(--sub); background:var(--field)}
+  .empty{padding:26px 0; text-align:center; font-size:14px; color:var(--sub)}
+
+  /* 보고 일정 캘린더 */
+  .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+  .cal-head h3{margin:0}
+  .cal-nav{display:flex; align-items:center; gap:2px}
+  .cal-nav b{font-size:13px; min-width:88px; text-align:center; letter-spacing:-.01em}
+  .cal-nav button{width:30px; height:30px; border-radius:8px; font-size:17px; color:var(--accent); font-weight:700}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px}
+  .cal-w{font-size:10.5px; font-weight:700; color:var(--sub); text-align:center; padding:3px 0}
+  .cal-w.sun{color:var(--bad)}
+  .cal-d{min-height:56px; border-radius:9px; padding:3px 2px 4px; background:var(--field); display:flex; flex-direction:column; gap:2px; overflow:hidden}
+  .cal-d.off{background:transparent; min-height:0}
+  .cal-d .n{font-size:10.5px; font-weight:700; color:var(--sub); padding:1px 0 0 4px}
+  .cal-d .n.sun{color:var(--bad)}
+  .cal-d.today{outline:2px solid var(--accent); outline-offset:-2px}
+  .cal-d.today .n{color:var(--accent)}
+  .cal-i{display:block; width:100%; font-size:9.5px; font-weight:700; line-height:1.3; padding:2px 4px; border-radius:5px;
+    text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--accent); background:color-mix(in srgb, var(--accent) 11%, transparent)}
+  .cal-i.past{opacity:.55}
+  .cal-i.done{opacity:.5; color:var(--sub); background:var(--field)}
+  .cal-i.meet{color:var(--ok); background:color-mix(in srgb, var(--ok) 12%, transparent)}
+  .cal-more{font-size:9px; font-weight:700; color:var(--sub); padding-left:4px}
+
+  /* 데스크톱: 현황판을 목록 + 캘린더 2단으로 */
+  @media (min-width:1080px){
+    .wrap{max-width:1104px}
+    .topbar-in{max-width:1104px}
+    .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
+    #tabNew{max-width:720px; margin:0 auto}
+    .cal-d{min-height:64px}
+  }
+
+  /* 탭 (대표용) */
+  .bigseg{display:flex; background:var(--field); border-radius:12px; padding:3px; margin-top:16px}
+  .bigseg button{flex:1; padding:11px 0; border-radius:10px; font-size:14px; font-weight:600; color:var(--sub)}
+  .bigseg button.on{background:var(--accent); color:#fff; box-shadow:0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent)}
+
+  /* 상세 시트 */
+  .sheet-back{
+    position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.35);
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  @media (min-width:640px){ .sheet-back{align-items:center; padding:24px} }
+  .sheet{
+    background:var(--bg); width:100%; max-width:640px; max-height:92vh; overflow-y:auto;
+    border-radius:22px 22px 0 0; padding:10px 16px 34px;
+  }
+  @media (min-width:640px){ .sheet{border-radius:22px; padding:10px 22px 30px} }
+  .grip{width:38px; height:5px; border-radius:99px; background:var(--line); margin:6px auto 4px}
+  .sheet-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 2px 2px}
+  .sheet-head h2{margin:0; font-size:21px; font-weight:600; letter-spacing:-.02em; line-height:1.3}
+  .sheet-head .close{color:var(--sub); font-size:15px; font-weight:600; flex:none; padding:4px 2px}
+  .sheet-meta{font-size:13px; color:var(--sub); padding:4px 2px 0}
+  .sheet-meta b{color:var(--ink); font-weight:600}
+  .detail-body{font-size:14.5px; white-space:pre-wrap; padding:10px 2px 0}
+
+  /* 대화 스레드 */
+  .thread{display:flex; flex-direction:column; gap:10px; margin-top:8px}
+  .msg{background:var(--card); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow)}
+  .msg .m-head{display:flex; align-items:center; gap:8px; margin-bottom:5px}
+  .msg .m-head b{font-size:13px}
+  .msg .m-head time{font-size:11px; color:var(--sub); margin-left:auto; white-space:nowrap}
+  .msg .m-body{font-size:14px; white-space:pre-wrap}
+  .msg .files{display:flex; flex-direction:column; gap:6px; margin-top:8px}
+  .msg .files a{
+    display:flex; align-items:center; gap:7px; background:var(--field); border-radius:10px;
+    padding:8px 12px; font-size:13px; font-weight:600; color:var(--accent); text-decoration:none;
+  }
+  .msg .act{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap}
+  .tagline{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--accent)}
+  .hint{font-size:12px; color:var(--sub); margin-top:6px; line-height:1.5}
+  .proxy{font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; background:var(--field); color:var(--sub)}
+  .optline{display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px; font-weight:600}
+  .optline .tag{flex:none; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:color-mix(in srgb, var(--accent) 12%, transparent); color:var(--accent)}
+
+  .file-chip{
+    display:inline-flex; align-items:center; gap:6px; background:var(--field);
+    border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; max-width:100%;
+  }
+  .file-chip span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .file-chip .x{color:var(--bad); font-weight:800; padding:0 2px}
+
+  /* 로그인 */
+  .login{max-width:360px; margin:0 auto; padding:12vh 24px 40px; text-align:center}
+  .login .mark{
+    width:74px; height:74px; border-radius:22px; background:var(--accent); color:#fff;
+    font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    margin:0 auto 18px; letter-spacing:-.02em;
+  }
+  .login h1{font-size:26px; font-weight:600; letter-spacing:-.02em; margin:0 0 4px}
+  .login p{color:var(--sub); font-size:14px; margin:0 0 26px}
+  .login input{
+    text-align:center; margin-top:12px; background:var(--card);
+    border:1.5px solid var(--line); border-radius:14px;
+    padding:15px 14px; font-size:17px;
+  }
+  .login input:focus{border-color:var(--accent); outline:none}
+  .login .msg-err{color:var(--bad); font-size:13px; font-weight:600; min-height:20px; margin-top:12px}
+  .login .otp-note{font-size:13px; color:var(--sub); margin-top:14px; white-space:pre-line}
+
+  /* 토스트 · 로딩 */
+  .toast{
+    position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(8px); z-index:60;
+    background:var(--ink); color:var(--bg); font-size:13.5px; font-weight:600;
+    padding:10px 18px; border-radius:999px; opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; max-width:88vw; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  .spin{
+    width:22px; height:22px; border:3px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; animation:sp .8s linear infinite; margin:0 auto;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .loading-full{padding:16vh 0; text-align:center}
+  .loading-full p{color:var(--sub); font-size:14px; margin-top:14px}
+  .busy{position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.15); display:flex; align-items:center; justify-content:center}
+  .busy .box{background:var(--card); border-radius:16px; padding:22px 30px; box-shadow:var(--shadow); text-align:center}
+  .busy p{margin:12px 0 0; font-size:13px; color:var(--sub)}
 </style>
 </head>
 <body>
-<div id="load">
-  <div class="wm">브리지</div>
-  <div class="bridge-line"></div>
-  <div class="sub">BAZ BIOMEDIC</div>
+
+<!-- 로그인 -->
+<div id="vLogin" class="login hide">
+  <div class="mark">B</div>
+  <h1>브리지</h1>
+  <p>바즈바이오메딕 업무지시 플랫폼</p>
+  <div id="loginStep1">
+    <input type="text" id="inName" placeholder="이름" autocomplete="off">
+    <input type="password" id="inPin" placeholder="PIN" inputmode="numeric" autocomplete="off">
+    <button class="btn-primary" id="btnLogin">로그인</button>
+  </div>
+  <div id="loginStep2" class="hide">
+    <input type="text" id="inOtp" placeholder="인증번호 6자리" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+    <button class="btn-primary" id="btnOtp">확인</button>
+    <div class="otp-note" id="otpNote"></div>
+  </div>
+  <div class="msg-err" id="loginErr"></div>
 </div>
-<iframe id="app" src="https://script.google.com/macros/s/AKfycbx9Y99D3BdLucPbmYVb14Go7fOhtnIXQ7namenu9zRe0BWXL6rV4vCD2eCuWx4He21fqw/exec"
-        allow="clipboard-write" onload="appReady()"></iframe>
+
+<!-- 메인 -->
+<div id="vMain" class="hide">
+  <div class="topbar"><div class="topbar-in">
+    <div class="brand">브리지 <small>바즈바이오메딕</small></div>
+    <div class="who"><span id="whoName"></span><button id="btnLogout">로그아웃</button></div>
+  </div></div>
+
+  <div class="wrap">
+    <div class="page-head">
+      <h1 id="pageTitle">업무지시</h1>
+      <time id="todayLabel"></time>
+    </div>
+
+    <div class="bigseg hide" id="mainTabs">
+      <button class="on" data-tab="board">현황판</button>
+      <button data-tab="new">새 지시</button>
+    </div>
+
+    <!-- 현황판 / 내 지시 -->
+    <div id="tabBoard">
+      <div class="tiles" id="tiles"></div>
+      <div class="searchbar"><input type="text" id="q" placeholder="검색 · 제목 · 내용 · 이름" autocomplete="off"></div>
+      <div class="board-cols">
+        <div class="board-main">
+          <div class="card" id="cardMeet">
+            <h3 id="meetHead">미팅</h3>
+            <div class="dlist" id="meetList"></div>
+            <button class="btn-quiet hide" id="btnMeetNew" style="margin-top:12px">대표님께 미팅 요청</button>
+            <div class="hint hide" id="meetHint"></div>
+          </div>
+          <div class="card hide" id="cardMembers">
+            <h3>임원별 현황 <span style="font-weight:400">· 카드를 누르면 상세가 열립니다</span></h3>
+            <div id="memRows"></div>
+          </div>
+          <div class="card">
+            <h3 id="listLabel">진행 중인 지시</h3>
+            <div class="dlist" id="listOpen"></div>
+          </div>
+          <div class="card">
+            <h3>완료 · 보류</h3>
+            <div class="dlist" id="listClosed"></div>
+          </div>
+        </div>
+        <aside class="board-side">
+          <div class="card">
+            <div class="cal-head">
+              <h3>보고 일정</h3>
+              <div class="cal-nav">
+                <button id="calPrev" aria-label="이전 달">&#8249;</button>
+                <b id="calTitle"></b>
+                <button id="calNext" aria-label="다음 달">&#8250;</button>
+              </div>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- 새 지시 (대표/관리자) -->
+    <div id="tabNew" class="hide">
+      <div class="card">
+        <h3 id="formHead">새 지시</h3>
+        <div id="newAsWrap" class="hide">
+          <div class="row-label">지시 명의</div>
+          <div class="seg" id="newAsSeg">
+            <button class="on" data-v="">내 이름으로</button><button data-v="boss" id="newAsBoss">대표님 대신</button>
+          </div>
+          <div class="hint hide" id="newAsHint"></div>
+        </div>
+        <textarea id="newTitle" placeholder="지시 내용을 입력하세요" rows="2"></textarea>
+        <div class="row-label">상세 설명 (선택)</div>
+        <textarea id="newDetail" placeholder="배경이나 참고사항이 있으면 적어주세요" rows="2"></textarea>
+        <div class="row-label" id="whoLabel">담당 임원</div>
+        <div class="chips" id="newWho"></div>
+        <div class="row-label">기한</div>
+        <div class="seg" id="newDueQuick">
+          <button data-days="1">내일</button>
+          <button data-days="3" class="on">3일 뒤</button>
+          <button data-days="7">1주 뒤</button>
+          <button data-days="">직접 선택</button>
+        </div>
+        <input type="date" id="newDue" style="margin-top:8px" class="hide">
+        <div class="row-label">중요도</div>
+        <div class="seg" id="newPri">
+          <button class="on">보통</button><button>중요</button><button>긴급</button>
+        </div>
+        <div id="newMeetWrap" class="hide">
+          <div class="row-label">미팅 (선택)</div>
+          <div class="seg" id="newMeetSeg">
+            <button class="on" data-v="">미팅 없음</button><button data-v="set">일시 지정</button>
+          </div>
+          <div id="newMeetBox" class="hide"></div>
+        </div>
+        <div class="row-label">첨부 자료 (선택)</div>
+        <div class="chips" id="nFiles"><button class="chip" id="nAddFile">+ 파일 추가</button></div>
+        <input type="file" id="nFileInput" multiple class="hide">
+        <button class="btn-primary" id="btnNewSend">지시 보내기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 지시 상세 시트 -->
+<div id="sheetBack" class="sheet-back hide">
+  <div class="sheet" id="sheetBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="busy hide" id="busy"><div class="box"><div class="spin"></div><p id="busyMsg">처리 중...</p></div></div>
+<div class="loading-full hide" id="vLoading"><div class="spin"></div><p>불러오는 중...</p></div>
+
 <script>
-  var T0 = Date.now();
-  function appReady() {
-    // 애니메이션이 최소 3.2초는 보이도록, 로딩이 오래 걸리면 즉시 전환
-    var wait = Math.max(0, 3200 - (Date.now() - T0));
-    setTimeout(function () {
-      var l = document.getElementById('load');
-      l.style.opacity = 0;
-      setTimeout(function () { l.style.display = 'none'; }, 450);
-    }, wait);
+  /* 딥링크 — 알림 메일의 「지시 보기」가 `?d=123`으로 온다.
+     예전에는 GAS doGet이 템플릿 스크립틀릿으로 심어 줬다. 화면이 Pages로 오면서
+     ⚠ 그 스크립틀릿 문법을 이 파일 어디에도(주석에도) 다시 적지 마라. 이 파일은 롤백 경로에서
+     여전히 GAS 템플릿으로 평가되고, 주석 안이라도 GAS는 그것을 실행하려 든다 —
+     `boot` 변수가 이제 없으므로 화면이 통째로 안 뜬다.
+     심어 줄 사람이 없어졌고, 대신 주소를 직접 읽는다. GAS는 화면을 샌드박스 iframe에 넣어
+     쿼리가 안 실렸으므로 예전에는 이 길이 아예 없었다. */
+  const BOOT = { d: (function () {
+    const v = new URLSearchParams(location.search).get('d');
+    return v && isFinite(Number(v)) ? Number(v) : null;
+  })() };
+
+  /* 배포 시각 도장. `브리지배포.js`가 이 자리를 실제 값으로 바꿔 넣는다 — 저장소 원본은 dev.
+     낡은 화면이 붙었는지 사람이 알아볼 근거다. */
+  var 빌드버전_ = '202608112323';
+
+  /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
+   * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
+   *
+   * **한 파일이 두 곳에 배포된다.**
+   *   bazbio.github.io/bridge/       임원들이 쓴다.    → 운영 배포(@32, 고정 ID)
+   *   bazbio.github.io/bridge-next/  여기서 검증한다.  → 검증 배포(@33)
+   *
+   * ⚠ 검증용으로 `@HEAD` 배포를 쓰면 안 된다. 그 배포는 익명 접근이 막혀 있어 화면이 부르면
+   *   Google 로그인 HTML이 401로 돌아온다(2026-08-12 확인). 코드를 고칠 때마다
+   *   `clasp deploy`로 검증 배포를 새로 만들거나, 같은 ID에 `clasp redeploy`한다.
+   *
+   * 그래서 주소를 경로로 가른다. 손으로 바꿔 넣으면 승격할 때마다 빠뜨릴 자리가 생기고,
+   * 그 실수는 **임원들이 검증용 배포를 부르는 것**이라 조용히 위험하다. 파일 하나가 어디에
+   * 놓였는지 보고 스스로 정하게 둔다. `-next`가 아닌 모든 경로는 운영이다 — GAS doGet으로
+   * 열리는 롤백 경로도 여기 걸린다.
+   *
+   * ⚠ 배포 ID를 바꾸면 여기도 바꾼다. 운영 쪽을 잘못 건드리면 임원 전원이 멈춘다.
+   *   `clasp redeploy`로 같은 ID를 유지하는 한 운영 ID는 안 바뀐다(새 배포 금지). */
+  const API_URL = 'https://script.google.com/macros/s/'
+    + (location.pathname.indexOf('-next') >= 0
+        ? 'AKfycbxI6OHqfezvQ3a8lvIdH3lUqQJR_Hep6JUruARDgXoBcbF4vVRVs9tyBmm4qKNH_GyKMg'  // 검증용 @33
+        : 'AKfycbx9Y99D3BdLucPbmYVb14Go7fOhtnIXQ7namenu9zRe0BWXL6rV4vCD2eCuWx4He21fqw') // 운영 @32
+    + '/exec';
+  // 관문(Supabase 엣지 펑션) — Code.js CONFIG.GATE_URL과 같다
+  const GATE_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  let TOKEN = localStorage.getItem('brg_token') || '';
+  let DEV = '';             // 기기 식별자 — 메일 인증을 마친 기기는 서버가 기억해 인증번호 생략 (6개월)
+  try {
+    DEV = localStorage.getItem('brg_device') || '';
+    if (!DEV) {
+      if (window.crypto && crypto.getRandomValues) {
+        const a = new Uint8Array(16); crypto.getRandomValues(a);
+        DEV = Array.prototype.map.call(a, b => ('0' + b.toString(16)).slice(-2)).join('');
+      } else {
+        DEV = String(Date.now()) + Math.random().toString(16).slice(2);
+      }
+      localStorage.setItem('brg_device', DEV);
+    }
+  } catch (e) {}
+  let DATA = null;          // 웹_초기데이터 결과
+  let pendingLogin = null;  // {name, pin}
+  let newFiles = [];        // 답변 첨부 대기 목록
+  let LASTD = null;         // 상세 시트에 열려 있는 지시
+  const FILTER = { q: '', member: '' };
+  const PRIS = ['보통','중요','긴급'];
+
+  /* 서버 호출 통로 (ADR 0008). 호출부 24곳은 한 줄도 안 바뀐다 — 이 함수만 갈아끼웠다.
+   *
+   * ⚠ 여기서 가장 중요한 것은 **오류 문구를 잃지 않는 것**이다. `google.script.run`은
+   *   withFailureHandler에 서버 예외를 그대로 줬고, 화면 여러 곳이 그 문구를 토스트로
+   *   띄운다("이미 처리된 요청입니다" 같은 말). 디스패처가 {ok:false,error}로 실어 보낸
+   *   문구를 여기서 Error로 되살려야 그 문구가 산다.
+   *
+   * 본문을 percent-encoding해서 순수 ASCII로 보낸다. text/plain이라야 CORS 사전요청이
+   * 붙지 않는데(왕복 하나가 준다), GAS가 그 본문의 문자셋을 UTF-8로 안 읽어 한글이 깨지기
+   * 때문이다. Code.js doPost가 decodeURIComponent로 되돌린다. */
+  function gs(fn){
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((res, rej) => {
+      const 실패 = msg => rej(new Error(String(msg || '오류가 발생했습니다').replace(/^Error: ?/,'')));
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: encodeURIComponent(JSON.stringify({ fn: fn, args: args })),
+      }).then(r => r.text()).then(t => {
+        let r;
+        // 본문이 JSON이 아니면 GAS가 HTML 오류 페이지를 낸 것이다 (배포 만료·권한 등).
+        // 그 HTML을 그대로 토스트에 띄우면 아무도 못 읽으므로 여기서 사람 말로 바꾼다.
+        try { r = JSON.parse(t); } catch (e) { return 실패('서버에 연결하지 못했습니다'); }
+        if (r && r.ok) res(r.data); else 실패(r && r.error);
+      }).catch(e => 실패(e && e.message));
+    });
   }
-  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+  function busy(on, msg){
+    $('busy').classList.toggle('hide', !on);
+    if (msg) $('busyMsg').textContent = msg;
+  }
+  function show(view){
+    ['vLogin','vMain','vLoading'].forEach(v => $(v).classList.add('hide'));
+    $(view).classList.remove('hide');
+  }
+
+  // ── 세그먼트/칩 공통 ──
+  function segInit(id, onChange){
+    const box = $(id);
+    box.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        box.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        if (onChange) onChange(btn);
+      });
+    });
+  }
+  const segVal = id => { const b = $(id).querySelector('button.on'); return b ? (b.dataset.v !== undefined ? b.dataset.v : b.textContent.trim()) : ''; };
+
+  // ── 10분 단위 일시 선택 (날짜 + 시 + 분) ──
+  function dtPickHtml(id){
+    let hs = '', ms = '';
+    for (let h = 7; h <= 21; h++)
+      hs += '<option value="' + String(h).padStart(2, '0') + '"' + (h === 10 ? ' selected' : '') + '>' + h + '시</option>';
+    for (let m = 0; m < 60; m += 10)
+      ms += '<option value="' + String(m).padStart(2, '0') + '">' + String(m).padStart(2, '0') + '분</option>';
+    return '<div class="dtrow"><input type="date" id="' + id + 'D">'
+      + '<select id="' + id + 'H">' + hs + '</select>'
+      + '<select id="' + id + 'M">' + ms + '</select></div>';
+  }
+  // 'yyyy-MM-ddTHH:mm' 반환, 날짜 미선택 시 ''
+  const dtPickVal = id => $(id + 'D').value ? $(id + 'D').value + 'T' + $(id + 'H').value + ':' + $(id + 'M').value : '';
+
+  // ── 로그인 ──
+  $('btnLogin').addEventListener('click', async () => {
+    const name = $('inName').value.trim(), pin = $('inPin').value.trim();
+    if (!name || !pin) { $('loginErr').textContent = '이름과 PIN을 입력해 주세요.'; return; }
+    $('loginErr').textContent = '';
+    busy(true, '확인 중...');
+    try {
+      const r = await gs('웹_로그인', name, pin, DEV);
+      if (r && r.token) {   // 신뢰 기기 — 인증번호 없이 바로 로그인
+        TOKEN = r.token;
+        localStorage.setItem('brg_token', TOKEN);
+        busy(false);
+        await init();
+        return;
+      }
+      pendingLogin = { name, pin };
+      $('loginStep1').classList.add('hide');
+      $('loginStep2').classList.remove('hide');
+      $('otpNote').textContent = r.hint + ' 주소로 인증번호를 보냈습니다.\n인증 후 이 기기에서는 6개월간 인증번호 없이 로그인됩니다.';
+      $('inOtp').focus();
+    } catch (e) { $('loginErr').textContent = e.message; }
+    busy(false);
+  });
+
+  $('btnOtp').addEventListener('click', async () => {
+    if (!pendingLogin) return;
+    busy(true, '확인 중...');
+    try {
+      const r = await gs('웹_인증확인', pendingLogin.name, pendingLogin.pin, $('inOtp').value.trim(), DEV);
+      TOKEN = r.token;
+      localStorage.setItem('brg_token', TOKEN);
+      await init();
+    } catch (e) { $('loginErr').textContent = e.message; }
+    busy(false);
+  });
+
+  ['inPin','inOtp'].forEach(id => $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') (id === 'inPin' ? $('btnLogin') : $('btnOtp')).click();
+  }));
+
+  $('btnLogout').addEventListener('click', () => {
+    localStorage.removeItem('brg_token'); TOKEN = ''; location.reload();
+  });
+
+  // ── 초기화 ──
+  let 그린부트_ = false;      // 스냅샷으로 이미 화면을 열었는가 (PLAN.md 2b)
+
+  /* 관문과 GAS를 **동시에** 부른다 (ADR 0004 3-b).
+   * 관문의 지난번 스냅샷이 0.2초쯤에 와서 화면을 즉시 열고, 1.5초 뒤 도착한 GAS 응답이
+   * 조용히 덮는다. 덮어도 안전한 이유: renderMain은 폼 값·탭·선택한 칩을 건드리지 않는다
+   * (renderWhoChips가 picked를 보존한다).
+   * 낡음 예산을 정할 필요가 없는 구조다 — 낡은 것을 잠깐 보여주고 곧 진짜로 덮는다. */
+  async function init(){
+    show('vLoading');
+    스냅샷받기_();            // 기다리지 않는다. 먼저 온 쪽이 먼저 그린다
+    try {
+      DATA = await gs('웹_초기데이터', TOKEN);
+    } catch (e) {
+      /* 스냅샷으로 이미 앱이 떠 있으면 로그인 화면으로 내쫓지 않는다 — 잠깐 끊긴 네트워크로
+         쓰던 화면을 날리는 것이 더 나쁘다. 토큰이 죽은 경우라면 관문도 같은 규칙으로 401을
+         내므로 스냅샷이 애초에 안 그려졌고, 그러면 여기서 로그인으로 간다. */
+      if (!그린부트_) { localStorage.removeItem('brg_token'); TOKEN = ''; show('vLogin'); }
+      return;
+    }
+    그리기_();
+  }
+
+  function 그리기_(){
+    renderMain();
+    show('vMain');
+    if (BOOT.d) { openDetail(BOOT.d); BOOT.d = null; }
+  }
+
+  /* 관문을 직접 부르는 유일한 자리. `gs()`는 GAS 디스패처 전용이라 다른 주소를 태울 수 없고,
+     이 호출은 GAS 호출을 **대체**하는 게 아니라 나란히 나가는 것이라 그 안에 낄 자리가 없다. */
+  function 스냅샷받기_(){
+    fetch(GATE_URL + '/bridge-boot', {
+      method: 'POST',
+      // text/plain이라야 CORS 사전요청이 없다. 토큰 안의 한글은 본문이라 그대로 실린다
+      // (헤더였다면 ASCII 제한에 걸린다 — 관문이 토큰을 본문으로 받는 이유가 그것이다)
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ 토큰: TOKEN }),
+    }).then(r => r.ok ? r.json() : null)   // 404 = 아직 안 구워졌다. 오류가 아니다
+      .then(r => {
+        if (!r || !r.payload) return;
+        if (DATA) return;                  // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
+        // 모양이 어긋난 스냅샷은 아예 안 쓴다. 관문이 이중 인코딩된 문자열을 저장하면
+        // 여기가 undefined로 터지는데, 아래 catch가 삼켜 조용히 느려지기만 한다
+        if (!r.payload.me) throw new Error('스냅샷 모양이 아닙니다');
+        DATA = r.payload;
+        // 그리다 실패하면 DATA를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 응답이 「이미 그렸다」로
+        // 착각할 여지가 생긴다
+        try { 그리기_(); 그린부트_ = true; } catch (e) { DATA = null; throw e; }
+      })
+      .catch(e => console.warn('스냅샷 건너뜀:', e && e.message));
+  }
+
+  function renderMain(){
+    const me = DATA.me;
+    $('whoName').textContent = me.name + (me.title ? ' · ' + me.title : '');
+    $('todayLabel').textContent = DATA.today;
+    $('pageTitle').textContent = me.manage ? '업무지시' : '내 지시';
+    $('mainTabs').classList.remove('hide');
+    $('mainTabs').querySelector('[data-tab=new]').textContent = me.manage ? '새 지시' : '새 요청';
+    $('formHead').textContent = me.manage ? '새 지시' : '새 요청 (대표님께)';
+    $('whoLabel').textContent = me.manage ? '담당 임원' : '받는 사람';
+    $('newTitle').placeholder = me.manage ? '지시 내용을 입력하세요' : '요청 내용을 입력하세요';
+    $('btnNewSend').textContent = me.manage ? '지시 보내기' : '요청 보내기';
+    $('newMeetWrap').classList.toggle('hide', !me.manage);   // 미팅 일시 지정은 대표/관리자만
+    $('listLabel').textContent = '진행 중';
+
+    // 통계 타일
+    const s = DATA.stats;
+    $('tiles').innerHTML =
+      tile('진행 중', s.open, '') + tile('기한 임박', s.late, s.late ? 'bad' : '') +
+      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('최근 완료', s.doneWeek, 'ok');
+
+    // 미팅 + 임원별 현황 + 목록 + 캘린더
+    renderMeet();
+    renderMembers();
+    renderLists();
+    renderCal();
+
+    // 지시 명의 — 관리자만, 01_구성원에 '대표' 역할이 있을 때
+    const boss = DATA.boss;
+    $('newAsWrap').classList.toggle('hide', !boss);
+    if (boss) {
+      $('newAsBoss').textContent = boss.name + ' 대표님 대신';
+      $('newAsHint').textContent = boss.name + '님 명의로 발송되어 받는 분에게는 대표님 지시로 표시됩니다. '
+        + boss.name + '님께는 대리 발송 알림 메일이 갑니다.';
+    }
+
+    renderWhoChips();
+  }
+
+  // 받는 사람 칩 — '대표님 대신' 모드에서는 대표님 본인을 빼고, 관리자 본인을 추가
+  // (대표님이 관리자에게 지시하는 경우도 대리 등록할 수 있어야 하므로)
+  function renderWhoChips(){
+    const me = DATA.me;
+    const asBoss = onBehalf();
+    const picked = [...$('newWho').querySelectorAll('.chip.on')].map(c => c.dataset.name);
+    const list = DATA.members.filter(m => !(asBoss && DATA.boss && m.name === DATA.boss.name));
+    if (asBoss) list.push({ name: me.name, title: me.title });
+    $('newWho').innerHTML = list.map(m =>
+      '<button class="chip' + (picked.indexOf(m.name) >= 0 ? ' on' : '') + '" data-name="' + esc(m.name) + '">'
+      + esc(m.name) + (m.title ? ' · ' + esc(m.title) : '') + '</button>').join('')
+      || '<span class="empty">' + (me.manage ? '01_구성원 시트에 임원을 등록해 주세요' : '01_구성원 시트에 대표님이 등록되어 있어야 합니다') + '</span>';
+    $('newWho').querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('on')));
+    if (!me.manage && list.length === 1) $('newWho').querySelector('.chip').classList.add('on');
+    $('newAsHint').classList.toggle('hide', !asBoss);
+    $('whoLabel').textContent = !me.manage ? '받는 사람' : (asBoss ? '담당 임원 · 대표님 명의로 발송' : '담당 임원');
+  }
+  const onBehalf = () => !!DATA.boss && segVal('newAsSeg') === 'boss';
+
+  // 부문 칩 — 화면 전체에서 액센트 파랑 단일 톤으로 통일
+  const deptChip = t => t ? '<span class="dept">' + esc(t) + '</span>' : '';
+
+  // ── 미팅 요청 카드 (04_미팅) — 지시와 무관한 독립 요청 ──
+  const MEETS = () => DATA.meetings || [];
+  const meetPendingMine = () => MEETS().some(t => t.from === DATA.me.name && (t.status === '대기' || t.status === '역제안'));
+  // 미래 확정 여부 — whenIso 'yyyy-MM-dd HH:mm'
+  const meetUpcoming = t => t.status === '확정' && t.whenIso && new Date(t.whenIso.replace(' ', 'T')) >= new Date();
+
+  function renderMeet(){
+    const me = DATA.me;
+    const isCeo = me.role === '대표';
+    const ceoName = DATA.ceo ? DATA.ceo.name : '';
+    $('meetHead').textContent = isCeo ? '미팅 요청' : (ceoName ? ceoName + ' 대표님과 미팅' : '대표님과 미팅');
+
+    // 진행 중(대기·역제안) 전부 + 다가오는 확정 미팅 + (요청자 본인) 최근 거절 1건
+    const rows = MEETS().filter(t => t.status === '대기' || t.status === '역제안' || meetUpcoming(t));
+    const lastRejected = MEETS().find(t => t.from === me.name && t.status === '거절');
+    if (lastRejected && rows.indexOf(lastRejected) < 0) rows.push(lastRejected);
+
+    $('meetList').innerHTML = rows.length ? rows.map(meetItemHtml).join('')
+      : '<div class="empty">' + (isCeo ? '들어온 미팅 요청이 없습니다' : '요청한 미팅이 없습니다') + '</div>';
+    $('meetList').querySelectorAll('.ditem').forEach(el =>
+      el.addEventListener('click', () => openMeetSheet(Number(el.dataset.mid))));
+
+    // 요청 버튼 — 대표는 받는 쪽이라 없음. 미처리 요청이 있으면 새 요청 대신 안내
+    const pending = meetPendingMine();
+    $('btnMeetNew').classList.toggle('hide', isCeo || pending);
+    $('meetHint').classList.toggle('hide', isCeo || !pending);
+    if (!isCeo && pending) $('meetHint').textContent = '처리 대기 중인 요청이 있습니다. 새 요청은 확정되거나 취소한 뒤 할 수 있습니다.';
+  }
+
+  function meetPill(t){
+    if (t.status === '대기') return '<span class="pill wait">대기</span>';
+    if (t.status === '역제안') return '<span class="pill meet">역제안</span>';
+    if (t.status === '확정') return '<span class="pill done">확정</span>';
+    return '<span class="pill gray">' + esc(t.status) + '</span>';
+  }
+
+  function meetItemHtml(t){
+    const me = DATA.me;
+    const mine = t.from === me.name;
+    const sub = (me.manage && !mine ? t.from + ' · ' : '')
+      + (t.status === '확정' ? t.when
+        : t.status === '역제안' ? '역제안 ' + t.copt1 + ' / ' + t.copt2
+        : t.status === '거절' ? (t.note || '이번에는 진행하지 않기로 함')
+        : '후보 ' + t.opt1 + (t.opt2 ? ' / ' + t.opt2 : ''));
+    return '<button class="ditem" data-mid="' + t.id + '">'
+      + '<div class="txt"><b>' + esc(t.topic) + '</b><span>' + esc(sub) + '</span></div>'
+      + '<div class="side">' + meetPill(t) + '</div></button>';
+  }
+
+  // 미팅 요청 폼 (임원·관리자) — prefill = { topic, ref } (후속 미팅용, 선택)
+  window.openMeetForm = (prefill) => {
+    const ceoName = DATA.ceo ? DATA.ceo.name + ' 대표님' : '대표님';
+    const ref = prefill && prefill.ref ? prefill.ref : 0;
+    let h = '<div class="grip"></div>'
+      + '<div class="sheet-head"><h2>' + esc(ceoName) + '께 ' + (ref ? '후속 미팅 요청' : '미팅 요청') + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
+      + '<div class="card">'
+      + '<div class="row-label">용건</div>'
+      + '<textarea id="mtTopic" placeholder="논의할 내용을 입력하세요" rows="2">' + esc(prefill && prefill.topic ? prefill.topic : '') + '</textarea>'
+      + '<div class="row-label">희망 일시 · 후보 1</div>' + dtPickHtml('mtO1')
+      + '<div class="row-label">후보 2 (선택)</div>'
+      + '<div class="seg" id="mtO2Seg"><button class="on" data-v="">없음</button><button data-v="set">후보 추가</button></div>'
+      + '<div id="mtO2Box" class="hide">' + dtPickHtml('mtO2') + '</div>'
+      + '<div class="hint">대표님이 후보 중 하나를 선택하면 캘린더 초대가 발송됩니다. 일정이 안 맞으면 다른 일정 2개가 역제안됩니다.</div>'
+      + '<button class="btn-primary" id="mtSend">미팅 요청 보내기</button>'
+      + '</div>';
+    $('sheetBack').classList.remove('hide');
+    $('sheetBody').innerHTML = h;
+    segInit('mtO2Seg', btn => $('mtO2Box').classList.toggle('hide', btn.dataset.v !== 'set'));
+    $('mtSend').addEventListener('click', async () => {
+      const topic = $('mtTopic').value.trim();
+      if (!topic) { toast('용건을 입력해 주세요'); return; }
+      const opt1 = dtPickVal('mtO1');
+      if (!opt1) { toast('희망 일시를 선택해 주세요'); return; }
+      if (new Date(opt1) < new Date()) { toast('지나간 시각은 선택할 수 없습니다'); return; }
+      let opt2 = '';
+      if (segVal('mtO2Seg') === 'set') {
+        opt2 = dtPickVal('mtO2');
+        if (!opt2) { toast('후보 2 날짜를 선택하거나 \'없음\'으로 바꿔 주세요'); return; }
+        if (opt2 === opt1) { toast('두 후보가 같은 시각입니다'); return; }
+      }
+      busy(true, '요청 전송 중...');
+      try {
+        await gs('웹_미팅요청등록', TOKEN, { topic, opt1, opt2, ref });
+        toast('미팅 요청이 전송되었습니다. 대표님께 알림이 갑니다.');
+        closeSheet();
+        await refresh();
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+  };
+
+  // 미팅 요청 상세 — 요청자는 취소·역제안 선택, 대표(관리자 대리)는 확정·역제안·거절
+  window.openMeetSheet = (id) => {
+    const t = MEETS().find(x => x.id === id);
+    if (!t) return;
+    const me = DATA.me;
+    const mine = t.from === me.name;
+    const canProc = me.manage && !mine && (t.status === '대기' || t.status === '역제안');
+
+    const org = t.ref ? MEETS().find(x => x.id === t.ref) : null;
+
+    let h = '<div class="grip"></div>'
+      + '<div class="sheet-head"><h2>' + esc(t.topic) + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
+      + '<div class="sheet-meta"><b>' + esc(t.from) + '</b> 요청 · ' + esc(t.ts.slice(0, 16)) + ' ' + meetPill(t)
+      + (t.ref ? ' · <button class="chip" style="padding:2px 10px;font-size:11px" onclick="openMeetSheet(' + t.ref + ')">원본 미팅' + (org ? ' · ' + esc(org.topic.slice(0, 14)) : '') + '</button>' : '')
+      + '</div>';
+
+    h += '<div class="card"><h3>일정</h3>'
+      + '<div class="optline"><span class="tag">후보 1</span>' + esc(t.opt1 || '-') + '</div>'
+      + (t.opt2 ? '<div class="optline"><span class="tag">후보 2</span>' + esc(t.opt2) + '</div>' : '');
+    if (t.copt1) h += '<div class="optline"><span class="tag">역제안 1</span>' + esc(t.copt1) + '</div>'
+      + '<div class="optline"><span class="tag">역제안 2</span>' + esc(t.copt2) + '</div>';
+    if (t.status === '확정') h += '<div class="tagline" style="margin-top:10px">미팅 확정 · ' + esc(t.when) + (t.by ? ' — ' + esc(t.by) + ' 확정' : '') + '</div>';
+    if (t.status === '거절') h += '<div class="m-body" style="margin-top:10px;font-size:14px">' + esc(t.by ? t.by + '님이 ' : '') + '이번 요청은 진행하지 않기로 했습니다.' + (t.note ? '<br>' + esc(t.note) : '') + '</div>';
+    if (t.note && t.status !== '거절') h += '<div class="hint">' + esc(t.note) + '</div>';
+    h += '</div>';
+
+    // 대표(또는 관리자 대리) 처리
+    if (canProc && t.status === '대기') {
+      h += '<div class="card"><h3>요청 처리' + (me.role === '관리자' ? ' <span style="font-weight:400">· 대표님 대신 처리 — 대표님께 알림 메일이 갑니다</span>' : '') + '</h3>'
+        + '<div class="chips">'
+        + '<button class="chip" onclick="meetPick(' + t.id + ',1)">후보 1로 확정</button>'
+        + (t.opt2 ? '<button class="chip" onclick="meetPick(' + t.id + ',2)">후보 2로 확정</button>' : '')
+        + '</div>'
+        + '<div class="row-label">일정이 안 맞으면 · 역제안 옵션 2개</div>'
+        + dtPickHtml('mcO1') + dtPickHtml('mcO2')
+        + '<input type="text" id="mcNote" placeholder="메모 (선택)" style="margin-top:8px">'
+        + '<button class="btn-quiet" id="mcSend" style="margin-top:12px">역제안 보내기</button>'
+        + '<div class="row-label">진행하지 않기</div>'
+        + '<input type="text" id="mrNote" placeholder="사유 (선택)">'
+        + '<button class="chip danger" id="mrBtn" style="margin-top:8px">거절</button>'
+        + '</div>';
+    }
+    if (canProc && t.status === '역제안') {
+      h += '<div class="card"><h3>요청 처리</h3>'
+        + '<div class="hint">' + esc(t.from) + '님이 역제안 옵션을 선택하면 확정됩니다.</div>'
+        + '<div class="row-label">진행하지 않기</div>'
+        + '<input type="text" id="mrNote" placeholder="사유 (선택)">'
+        + '<button class="chip danger" id="mrBtn" style="margin-top:8px">거절</button>'
+        + '</div>';
+    }
+
+    // 요청자 — 역제안 선택 · 취소
+    if (mine && t.status === '역제안') {
+      h += '<div class="card"><h3>역제안 일정 선택</h3>'
+        + '<div class="chips">'
+        + '<button class="chip" onclick="meetChoose(' + t.id + ',1)">옵션 1 · ' + esc(t.copt1) + '</button>'
+        + '<button class="chip" onclick="meetChoose(' + t.id + ',2)">옵션 2 · ' + esc(t.copt2) + '</button>'
+        + '</div><div class="hint">선택하면 바로 확정되고 캘린더 초대가 발송됩니다.</div></div>';
+    }
+    if (mine && (t.status === '대기' || t.status === '역제안')) {
+      h += '<div class="card"><h3>요청 관리</h3><div class="chips">'
+        + '<button class="chip danger" onclick="meetCancel(' + t.id + ', this)">요청 취소</button>'
+        + '</div></div>';
+    }
+
+    // 후속 미팅 — 확정된 미팅에서 이어 잡기 (요청자는 후속 요청, 대표·관리자는 일시 직접 지정)
+    if (t.status === '확정') {
+      if (mine) {
+        h += '<div class="card"><h3>후속 미팅</h3>'
+          + (meetPendingMine()
+            ? '<div class="hint">처리 대기 중인 미팅 요청이 있습니다. 확정되거나 취소한 뒤 후속 요청을 할 수 있습니다.</div>'
+            : '<div class="chips"><button class="chip" onclick="meetFollowReq(' + t.id + ')">후속 미팅 요청</button></div>'
+              + '<div class="hint">이 미팅에 이어지는 새 요청이 용건이 채워진 채로 열립니다.</div>')
+          + '</div>';
+      } else if (me.manage) {
+        h += '<div class="card"><h3>후속 미팅 잡기' + (me.role === '관리자' ? ' <span style="font-weight:400">· 대표님 대신 확정</span>' : '') + '</h3>'
+          + '<div class="row-label">일시</div>' + dtPickHtml('fuDt')
+          + '<div class="row-label">용건</div>'
+          + '<input type="text" id="fuTopic" value="' + esc(followTopic(t.topic)) + '">'
+          + '<button class="btn-quiet" id="fuSend" style="margin-top:12px">후속 미팅 확정 (캘린더 초대)</button>'
+          + '<div class="hint">' + esc(t.from) + '님과의 후속 미팅이 바로 확정되고 캘린더 초대가 발송됩니다.</div>'
+          + '</div>';
+      }
+    }
+
+    $('sheetBack').classList.remove('hide');
+    $('sheetBody').innerHTML = h;
+
+    const fuSend = $('fuSend');
+    if (fuSend) fuSend.addEventListener('click', async () => {
+      const when = dtPickVal('fuDt');
+      if (!when) { toast('후속 미팅 일시를 선택해 주세요'); return; }
+      if (new Date(when) < new Date()) { toast('지나간 시각으로 미팅을 지정할 수 없습니다'); return; }
+      busy(true, '캘린더 등록 중...');
+      try {
+        const r = await gs('웹_후속미팅확정', TOKEN, { ref: t.id, when: when, topic: $('fuTopic').value.trim() });
+        toast('후속 미팅 확정 · ' + r.when + ' 캘린더 초대가 발송되었습니다');
+        closeSheet();
+        await refresh();
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+
+    const mcSend = $('mcSend');
+    if (mcSend) mcSend.addEventListener('click', async () => {
+      const copt1 = dtPickVal('mcO1'), copt2 = dtPickVal('mcO2');
+      if (!copt1 || !copt2) { toast('역제안 옵션 2개를 모두 선택해 주세요'); return; }
+      if (copt1 === copt2) { toast('두 옵션이 같은 시각입니다'); return; }
+      busy(true, '역제안 전송 중...');
+      try {
+        await gs('웹_미팅요청처리', TOKEN, { id: t.id, action: 'counter', copt1, copt2, note: $('mcNote').value.trim() });
+        toast('역제안이 전송되었습니다. ' + t.from + '님이 선택하면 확정됩니다.');
+        closeSheet();
+        await refresh();
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+    const mrBtn = $('mrBtn');
+    if (mrBtn) mrBtn.addEventListener('click', async () => {
+      if (!mrBtn.dataset.arm) {
+        mrBtn.dataset.arm = '1';
+        mrBtn.textContent = '한 번 더 누르면 거절';
+        setTimeout(() => { mrBtn.dataset.arm = ''; mrBtn.textContent = '거절'; }, 4000);
+        return;
+      }
+      busy(true, '처리 중...');
+      try {
+        await gs('웹_미팅요청처리', TOKEN, { id: t.id, action: 'reject', note: $('mrNote').value.trim() });
+        toast('거절 처리되었습니다. ' + t.from + '님께 알림이 갑니다.');
+        closeSheet();
+        await refresh();
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+  };
+
+  // 후속 용건 — 후속의 후속이어도 접두어는 한 번만
+  const followTopic = topic => topic.indexOf('[후속]') === 0 ? topic : '[후속] ' + topic;
+
+  // 확정 미팅에서 후속 요청 — 용건을 채운 요청 폼 열기
+  window.meetFollowReq = (id) => {
+    const t = MEETS().find(x => x.id === id);
+    if (!t) return;
+    openMeetForm({ topic: followTopic(t.topic), ref: t.id });
+  };
+
+  window.meetPick = async (id, choice) => {
+    busy(true, '캘린더 등록 중...');
+    try {
+      const r = await gs('웹_미팅요청처리', TOKEN, { id, action: 'pick', choice });
+      toast('미팅 확정 · ' + r.when + ' 캘린더 초대가 발송되었습니다');
+      closeSheet();
+      await refresh();
+    } catch (e) { toast(e.message); }
+    busy(false);
+  };
+  window.meetChoose = async (id, choice) => {
+    busy(true, '미팅 확정 중...');
+    try {
+      const r = await gs('웹_미팅역제안선택', TOKEN, id, choice);
+      toast('미팅 확정 · ' + r.when + ' 캘린더 초대가 발송되었습니다');
+      closeSheet();
+      await refresh();
+    } catch (e) { toast(e.message); }
+    busy(false);
+  };
+  window.meetCancel = async (id, btn) => {
+    if (!btn.dataset.arm) {
+      btn.dataset.arm = '1';
+      btn.textContent = '한 번 더 누르면 취소';
+      setTimeout(() => { btn.dataset.arm = ''; btn.textContent = '요청 취소'; }, 4000);
+      return;
+    }
+    busy(true, '취소 중...');
+    try {
+      await gs('웹_미팅취소', TOKEN, id);
+      toast('미팅 요청이 취소되었습니다');
+      closeSheet();
+      await refresh();
+    } catch (e) { toast(e.message); }
+    busy(false);
+  };
+
+  // 임원별 현황 (대표/관리자) — 곳간식 카드 그리드, 부문·이름 순 정렬
+  function renderMembers(){
+    const list = (DATA.byMember || []).slice().sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '', 'ko') || a.name.localeCompare(b.name, 'ko'));
+    if (!list.length) { $('cardMembers').classList.add('hide'); return; }
+    if (FILTER.member && !list.some(m => m.name === FILTER.member)) FILTER.member = '';
+    $('cardMembers').classList.remove('hide');
+    $('memRows').innerHTML = '<div class="mgrid">' + list.map(m => {
+      const total = m.open + m.done30;
+      const rate = total ? Math.round(m.done30 / total * 100) : 0;   // 최근 30일 처리율
+      const nd = nextDueOf(m.name);
+      return '<button class="mcard' + (FILTER.member === m.name ? ' on' : '') + '" data-name="' + esc(m.name) + '">'
+        + deptChip(m.title)
+        + '<b>' + esc(m.name) + '</b>'
+        + '<div class="mbar"><i style="width:' + rate + '%"></i></div>'
+        + (nd ? '<span class="mdue' + (nd.dday <= 1 ? ' near' : nd.dday <= 3 ? ' soon' : '') + '">'
+            + '다음 기한 ' + esc(nd.dueKo) + ' · ' + nd.ddayLabel + '</span>'
+          : '<span class="mdue">예정된 기한 없음</span>')
+        + '<div class="mstats"><span>진행 ' + m.open + '</span>'
+        + '<span class="' + (m.late ? 'bad' : '') + '">연체 ' + m.late + '</span>'
+        + '<span class="ok">완료 ' + m.done30 + '</span></div></button>';
+    }).join('') + '</div>';
+    $('memRows').querySelectorAll('.mcard').forEach(el =>
+      el.addEventListener('click', () => openMember(el.dataset.name)));
+  }
+
+  // 해당 임원의 진행 중 지시 가운데 가장 임박한 기한
+  function nextDueOf(name){
+    const list = DATA.directives.filter(d => d.who.indexOf(name) >= 0
+      && (d.status === '답변 대기' || d.status === '답변 완료') && d.dday != null);
+    return list.length ? list.reduce((a, b) => (a.dday <= b.dday ? a : b)) : null;
+  }
+
+  // 임원 상세 시트 — 통계 + 진행 중 + 최근 완료
+  function openMember(name){
+    const m = (DATA.byMember || []).find(x => x.name === name);
+    const mine = DATA.directives.filter(d => d.who.indexOf(name) >= 0);
+    const open = mine.filter(d => d.status === '답변 대기' || d.status === '답변 완료')
+      .sort((a, b) => (a.dday == null ? 999 : a.dday) - (b.dday == null ? 999 : b.dday));
+    const done = mine.filter(d => d.status === '완료').slice(0, 5);
+
+    let h = '<div class="grip"></div>'
+      + '<div class="sheet-head"><h2>' + esc(name)
+      + (m && m.title ? ' <span style="font-size:13px;font-weight:500;color:var(--sub)">' + esc(m.title) + '</span>' : '')
+      + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
+      + '<div class="tiles" style="grid-template-columns:repeat(3,1fr)">'
+      + tile('진행 중', m ? m.open : open.length, '')
+      + tile('연체', m ? m.late : 0, m && m.late ? 'bad' : '')
+      + tile('최근 30일 완료', m ? m.done30 : 0, 'ok')
+      + '</div>'
+      + '<div class="card"><h3>진행 중 · 기한 순</h3><div class="dlist">'
+      + (open.length ? open.map(itemHtml).join('') : '<div class="empty">진행 중인 지시가 없습니다</div>')
+      + '</div></div>'
+      + '<div class="card"><h3>최근 완료</h3><div class="dlist">'
+      + (done.length ? done.map(itemHtml).join('') : '<div class="empty">아직 없습니다</div>')
+      + '</div></div>'
+      + '<button class="btn-quiet" id="mbFilter" style="margin-top:12px">현황판에서 이 임원 지시만 보기</button>';
+
+    $('sheetBack').classList.remove('hide');
+    $('sheetBody').innerHTML = h;
+    $('sheetBody').querySelectorAll('.ditem').forEach(el =>
+      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+    $('mbFilter').addEventListener('click', () => {
+      FILTER.member = name;
+      renderMembers(); renderLists();
+      closeSheet();
+      $('cardMembers').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // 지시 목록 (검색·필터 반영)
+  function matchFilter(d){
+    if (FILTER.member && d.who.indexOf(FILTER.member) < 0) return false;
+    if (!FILTER.q) return true;
+    const hay = (d.title + ' ' + (d.detail || '') + ' ' + d.owner + ' ' + d.who.join(' ')).toLowerCase();
+    return hay.indexOf(FILTER.q) >= 0;
+  }
+
+  const titleOf = n => {
+    const m = (DATA.byMember || []).find(x => x.name === n) || (DATA.members || []).find(x => x.name === n);
+    return m && m.title ? m.title : '';
+  };
+
+  function renderLists(){
+    const filtered = DATA.directives.filter(matchFilter);
+    const filtering = FILTER.q || FILTER.member;
+    const open = filtered.filter(d => d.status === '답변 대기' || d.status === '답변 완료');
+    const closed = filtered.filter(d => d.status === '완료' || d.status === '보류');
+    $('listLabel').innerHTML = '진행 중' + (FILTER.member
+      ? ' · ' + esc(FILTER.member) + ' <button class="chip" id="clearMf" style="margin-left:4px;padding:2px 10px;font-size:11px">해제</button>' : '');
+    const clearMf = $('clearMf');
+    if (clearMf) clearMf.addEventListener('click', () => { FILTER.member = ''; renderMembers(); renderLists(); });
+
+    let openHtml = '';
+    if (open.length && DATA.me.manage && !FILTER.member) {
+      // 대표/관리자 화면: 담당자별로 묶어서 구분 표시
+      const groups = {}, order = [];
+      open.forEach(d => {
+        const k = d.who.join(', ') || d.owner;
+        if (!groups[k]) { groups[k] = []; order.push(k); }
+        groups[k].push(d);
+      });
+      order.sort((a, b) =>
+        (titleOf(a) || '').localeCompare(titleOf(b) || '', 'ko') || a.localeCompare(b, 'ko'));
+      openHtml = order.map(k => {
+        const t = k.indexOf(',') < 0 ? titleOf(k) : '';
+        return '<div class="dgroup">' + deptChip(t) + '<b>' + esc(k) + '</b>'
+          + '<span class="cnt">' + groups[k].length + '건</span></div>'
+          + groups[k].map(itemHtml).join('');
+      }).join('');
+    } else if (open.length) {
+      openHtml = open.map(itemHtml).join('');
+    }
+    $('listOpen').innerHTML = openHtml
+      || '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '진행 중인 지시가 없습니다') + '</div>';
+    $('listClosed').innerHTML = closed.length ? (filtering ? closed : closed.slice(0, 15)).map(itemHtml).join('')
+      : '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '아직 없습니다') + '</div>';
+    // #meetList도 .dlist라서 전체 선택하면 미팅 항목에 openDetail이 중복 바인딩된다 — 지시 목록 두 곳만
+    document.querySelectorAll('#listOpen .ditem, #listClosed .ditem').forEach(el =>
+      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+  }
+
+  $('q').addEventListener('input', () => {
+    FILTER.q = $('q').value.trim().toLowerCase();
+    if (DATA) renderLists();
+  });
+
+  // ── 보고 일정 캘린더 — 진행 중인 지시의 기한을 월 단위로 표시 ──
+  let CAL = null;   // 표시 중인 달 {y, m}
+  function renderCal(){
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (!CAL) CAL = { y: today.getFullYear(), m: today.getMonth() };
+    $('calTitle').textContent = CAL.y + '년 ' + (CAL.m + 1) + '월';
+
+    const byDay = {};
+    DATA.directives
+      .filter(d => d.due && (d.status === '답변 대기' || d.status === '답변 완료' || d.status === '완료'))
+      .forEach(d => {
+        const dt = new Date(d.due + 'T00:00:00');
+        if (dt.getFullYear() === CAL.y && dt.getMonth() === CAL.m)
+          (byDay[dt.getDate()] = byDay[dt.getDate()] || []).push(d);
+      });
+    // 진행 중을 먼저, 완료는 뒤로 (칸당 3건 표시 제한에서 진행 건이 밀리지 않게)
+    Object.keys(byDay).forEach(k => byDay[k].sort((a, b) =>
+      (a.status === '완료' ? 1 : 0) - (b.status === '완료' ? 1 : 0)));
+
+    // 확정된 미팅 — 지시 기한과 구분되는 칩(초록)으로 함께 표시
+    const meetByDay = {};
+    MEETS().filter(t => t.status === '확정' && t.whenIso).forEach(t => {
+      const dt = new Date(t.whenIso.replace(' ', 'T'));
+      if (dt.getFullYear() === CAL.y && dt.getMonth() === CAL.m)
+        (meetByDay[dt.getDate()] = meetByDay[dt.getDate()] || []).push(t);
+    });
+    Object.keys(meetByDay).forEach(k => meetByDay[k].sort((a, b) => a.whenIso < b.whenIso ? -1 : 1));
+
+    const start = new Date(CAL.y, CAL.m, 1).getDay();
+    const days = new Date(CAL.y, CAL.m + 1, 0).getDate();
+    let h = ['일','월','화','수','목','금','토'].map((w, i) =>
+      '<div class="cal-w' + (i === 0 ? ' sun' : '') + '">' + w + '</div>').join('');
+    for (let i = 0; i < start; i++) h += '<div class="cal-d off"></div>';
+    for (let day = 1; day <= days; day++) {
+      const cur = new Date(CAL.y, CAL.m, day);
+      const list = byDay[day] || [];
+      const mlist = meetByDay[day] || [];
+      // 시각이 정해진 미팅을 먼저, 남는 칸에 지시 기한 (합쳐서 3건 제한)
+      const mshow = mlist.slice(0, 3);
+      const dshow = list.slice(0, Math.max(0, 3 - mshow.length));
+      const over = mlist.length + list.length - mshow.length - dshow.length;
+      h += '<div class="cal-d' + (cur.getTime() === today.getTime() ? ' today' : '') + '">'
+        + '<span class="n' + (cur.getDay() === 0 ? ' sun' : '') + '">' + day + '</span>'
+        + mshow.map(t => {
+            const label = t.whenIso.slice(11, 16) + ' ' + (DATA.me.manage ? t.from : '대표님 미팅');
+            return '<button class="cal-i meet' + (cur < today ? ' past' : '') + '" data-mid="' + t.id + '"'
+              + ' title="미팅 · ' + esc(t.topic) + ' · ' + esc(t.from) + '">' + esc(label) + '</button>';
+          }).join('')
+        + dshow.map(d => {
+            // 대표/관리자는 담당 이름, 임원 본인 화면은 제목이 더 읽기 좋다
+            const label = DATA.me.manage ? d.who.join(', ') : d.title;
+            const done = d.status === '완료';
+            return '<button class="cal-i' + (done ? ' done' : cur < today ? ' past' : '') + '" data-id="' + d.id + '"'
+              + ' title="' + esc(d.title) + ' · ' + esc(d.who.join(', ')) + (done ? ' · 완료' : '') + '">' + esc(label) + '</button>';
+          }).join('')
+        + (over > 0 ? '<span class="cal-more">+' + over + '</span>' : '')
+        + '</div>';
+    }
+    $('calGrid').innerHTML = h;
+    $('calGrid').querySelectorAll('.cal-i').forEach(el =>
+      el.addEventListener('click', () => el.dataset.mid
+        ? openMeetSheet(Number(el.dataset.mid))
+        : openDetail(Number(el.dataset.id))));
+  }
+  $('calPrev').addEventListener('click', () => { CAL.m--; if (CAL.m < 0) { CAL.m = 11; CAL.y--; } renderCal(); });
+  $('calNext').addEventListener('click', () => { CAL.m++; if (CAL.m > 11) { CAL.m = 0; CAL.y++; } renderCal(); });
+
+  const tile = (k, v, cls) => '<div class="tile ' + cls + '"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+
+  function pillOf(d){
+    if (d.status === '완료') return '<span class="pill done">완료</span>';
+    if (d.status === '보류') return '<span class="pill gray">보류</span>';
+    if (d.meetPending || d.duePending) return '<span class="pill meet">' + (d.meetPending ? '미팅 요청' : '기한 조정') + '</span>';
+    if (d.status === '답변 완료') return '<span class="pill done">답변 완료</span>';
+    if (d.dday != null && d.dday <= 1) return '<span class="pill late">기한 임박</span>';
+    return '<span class="pill wait">답변 대기</span>';
+  }
+
+  // 진행 중인 지시의 남은 기한 배지 (D-3 · D-DAY · D+2)
+  function ddayBadge(d){
+    if (d.dday == null || (d.status !== '답변 대기' && d.status !== '답변 완료')) return '';
+    const cls = d.dday < 0 ? 'over' : d.dday <= 1 ? 'near' : d.dday <= 3 ? 'soon' : '';
+    return '<i class="dday ' + cls + '">' + d.ddayLabel + '</i>';
+  }
+
+  function itemHtml(d){
+    const other = d.owner === DATA.me.name ? d.who.join(', ') : d.owner;
+    const sub = (d.kind === '요청' ? '요청 · ' : '') + other + (d.by ? ' (' + d.by + ' 대리)' : '') +
+      (d.dueKo ? ' · 기한 ' + d.dueKo : '') + (d.replyCount ? ' · 답변 ' + d.replyCount : '');
+    return '<button class="ditem" data-id="' + d.id + '">' +
+      '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(sub) + '</span></div>' +
+      '<div class="side">' + pillOf(d) + ddayBadge(d) + '</div></button>';
+  }
+
+  // ── 대표용 탭 ──
+  $('mainTabs').querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+    $('mainTabs').querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    $('tabBoard').classList.toggle('hide', btn.dataset.tab !== 'board');
+    $('tabNew').classList.toggle('hide', btn.dataset.tab !== 'new');
+  }));
+
+  $('btnMeetNew').addEventListener('click', () => openMeetForm());
+
+  segInit('newDueQuick', btn => $('newDue').classList.toggle('hide', btn.dataset.days !== ''));
+  segInit('newPri');
+  segInit('newMeetSeg', btn => $('newMeetBox').classList.toggle('hide', btn.dataset.v !== 'set'));
+  segInit('newAsSeg', () => renderWhoChips());
+  $('newMeetBox').innerHTML = dtPickHtml('nMeet')
+    + '<div class="hint">지시 등록과 동시에 미팅이 확정되고 담당 임원에게 캘린더 초대가 발송됩니다</div>';
+
+  // ── 새 지시 첨부 ──
+  let newDirFiles = [];
+  $('nAddFile').addEventListener('click', () => $('nFileInput').click());
+  $('nFileInput').addEventListener('change', async e => {
+    for (const f of e.target.files) {
+      if (f.size > 20 * 1024 * 1024) { toast(f.name + ' — 20MB 이하만 업로드할 수 있습니다'); continue; }
+      const data = await fileToB64(f);
+      newDirFiles.push({ name: f.name, mime: f.type, data });
+    }
+    e.target.value = '';
+    renderNFileChips();
+  });
+  function renderNFileChips(){
+    const box = $('nFiles');
+    box.querySelectorAll('.file-chip').forEach(el => el.remove());
+    newDirFiles.forEach((f, i) => {
+      const el = document.createElement('span');
+      el.className = 'file-chip';
+      el.innerHTML = '<span>' + esc(f.name) + '</span><button class="x">&times;</button>';
+      el.querySelector('.x').addEventListener('click', () => { newDirFiles.splice(i, 1); renderNFileChips(); });
+      $('nAddFile').before(el);
+    });
+  }
+
+  // ── 지시 등록 ──
+  $('btnNewSend').addEventListener('click', async () => {
+    const title = $('newTitle').value.trim();
+    const who = [...$('newWho').querySelectorAll('.chip.on')].map(c => c.dataset.name);
+    if (!title) { toast('내용을 입력해 주세요'); return; }
+    if (!who.length) { toast('받는 사람을 선택해 주세요'); return; }
+    let due = '';
+    const quick = $('newDueQuick').querySelector('button.on').dataset.days;
+    if (quick !== '') {
+      const d = new Date(); d.setDate(d.getDate() + Number(quick));
+      due = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    } else due = $('newDue').value;
+
+    let meetAt = '';
+    if (DATA.me.manage && segVal('newMeetSeg') === 'set') {
+      meetAt = dtPickVal('nMeet');
+      if (!meetAt) { toast('미팅 날짜를 선택해 주세요'); return; }
+      if (new Date(meetAt) < new Date()) { toast('지나간 시각으로 미팅을 지정할 수 없습니다'); return; }
+    }
+
+    busy(true, newDirFiles.length ? '파일 업로드 중...' : '지시를 보내는 중...');
+    try {
+      const asBoss = onBehalf();
+      await gs('웹_지시등록', TOKEN, { title, detail: $('newDetail').value.trim(), who, due, pri: segVal('newPri'), files: newDirFiles, meetAt, onBehalf: asBoss });
+      $('newTitle').value = ''; $('newDetail').value = '';
+      newDirFiles = []; renderNFileChips();
+      $('newWho').querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
+      $('nMeetD').value = '';
+      $('newMeetSeg').querySelector('[data-v=""]').click();
+      if (DATA.boss) $('newAsSeg').querySelector('[data-v=""]').click();
+      const roles = who.map(n => (DATA.members.find(m => m.name === n) || {}).role);
+      const isReq = !DATA.me.manage || roles.every(r => r === '대표');
+      toast((asBoss ? DATA.boss.name + '님 명의로 지시가 전송되었습니다. 대표님께 알림 메일이 갑니다.'
+        : isReq ? '요청이 전송되었습니다. 알림이 발송됩니다.'
+        : who.length > 1 ? '임원별로 지시가 각각 전송되었습니다. (서로의 답변은 보이지 않습니다)'
+        : '지시가 전송되었습니다. 담당 임원에게 알림이 발송됩니다.')
+        + (meetAt ? ' 미팅 캘린더 초대도 발송되었습니다.' : ''));
+      await refresh();
+      $('mainTabs').querySelector('[data-tab=board]').click();
+    } catch (e) { toast(e.message); }
+    busy(false);
+  });
+
+  async function refresh(){
+    try { DATA = await gs('웹_초기데이터', TOKEN); renderMain(); } catch (e) {}
+  }
+
+  // ── 상세 시트 ──
+  async function openDetail(id){
+    $('sheetBack').classList.remove('hide');
+    $('sheetBody').innerHTML = '<div class="grip"></div><div class="loading-full"><div class="spin"></div></div>';
+    let r;
+    try { r = await gs('웹_지시상세', TOKEN, id); }
+    catch (e) { toast(e.message); closeSheet(); return; }
+    renderDetail(r.dir, r.convs);
+  }
+
+  function closeSheet(){ $('sheetBack').classList.add('hide'); newFiles = []; }
+  $('sheetBack').addEventListener('click', e => { if (e.target === $('sheetBack')) closeSheet(); });
+
+  function renderDetail(d, convs){
+    LASTD = d;
+    const me = DATA.me;
+    const isAssignee = d.who.indexOf(me.name) >= 0;
+    const openStatus = d.status === '답변 대기' || d.status === '답변 완료';
+
+    let h = '<div class="grip"></div>'
+      + '<div class="sheet-head"><h2>' + esc(d.title) + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
+      + '<div class="sheet-meta"><b>' + esc(d.owner) + '</b>' + (d.by ? ' <span class="proxy">' + esc(d.by) + ' 대리</span>' : '')
+      + ' ' + (d.kind === '요청' ? '요청 · 받는 사람' : '지시 · 담당') + ' <b>' + esc(d.who.join(', ')) + '</b>'
+      + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
+      + ' · ' + esc(d.pri) + '</div>'
+      + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '');
+
+    // 스레드
+    h += '<div class="thread">';
+    if (!convs.length) h += '<div class="empty">아직 답변이 없습니다</div>';
+    convs.forEach(c => {
+      h += '<div class="msg"><div class="m-head"><b>' + esc(c.author) + '</b>'
+        + typePill(c) + '<time>' + c.ts.slice(5, 16) + '</time></div>';
+      if (c.type === '미팅 요청') {
+        h += '<div class="tagline">미팅 요청' + (c.when ? ' · ' + esc(c.when) : '') + '</div>';
+        if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
+        if (!c.handled && me.manage) {
+          // 구버전(일시 포함) 요청은 바로 확정, 새 요청은 일정 옵션 2개 제안
+          if (c.when) h += '<div class="act"><button class="btn-mini" onclick="confirmMeet(' + c.id + ',' + d.id + ')">미팅 확정 (캘린더 초대)</button></div>';
+          else h += '<div class="act"><button class="btn-mini" onclick="proposeMeet(' + c.id + ')">일정 제안하기 (옵션 2개)</button></div>';
+        }
+        if (!c.handled && !me.manage) h += '<div class="hint">대표님이 일정 옵션 2개를 제안하면 선택할 수 있습니다</div>';
+        if (c.handled) h += '<div class="m-body" style="color:var(--ok);font-weight:600;font-size:13px">' + (c.handled === '제안됨' ? '일정 제안됨 — 아래에서 선택 대기' : '확정됨') + '</div>';
+      } else if (c.type === '미팅 제안') {
+        h += '<div class="tagline">미팅 일정 제안 · 하나를 선택해 주세요</div>'
+          + '<div class="optline"><span class="tag">옵션 1</span>' + esc(c.when) + '</div>'
+          + '<div class="optline"><span class="tag">옵션 2</span>' + esc(c.when2) + '</div>';
+        if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
+        if (!c.handled && c.author !== me.name)
+          h += '<div class="act"><button class="btn-mini" onclick="chooseMeet(' + c.id + ',' + d.id + ',1)">옵션 1 선택</button>'
+            + '<button class="btn-mini" onclick="chooseMeet(' + c.id + ',' + d.id + ',2)">옵션 2 선택</button></div>';
+        if (!c.handled && c.author === me.name) h += '<div class="hint">상대방이 옵션을 선택하면 캘린더 초대가 발송됩니다</div>';
+        if (c.handled) h += '<div class="m-body" style="color:var(--ok);font-weight:600;font-size:13px">확정됨</div>';
+      } else if (c.type === '기한 조정') {
+        h += '<div class="tagline">기한 조정 요청 · ' + esc(c.when) + '</div>';
+        if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
+        if (!c.handled && me.manage) h += '<div class="act"><button class="btn-mini" onclick="approveDue(' + c.id + ',' + d.id + ')">기한 변경 승인</button></div>';
+        if (c.handled) h += '<div class="m-body" style="color:var(--ok);font-weight:600;font-size:13px">반영됨</div>';
+      } else {
+        if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
+        if (c.files && c.files.length) h += '<div class="files">' + c.files.map(f =>
+          '<a href="' + esc(f.url) + '" target="_blank" rel="noopener">&#128206; ' + esc(f.name) + '</a>').join('') + '</div>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // 입력 영역
+    if (isAssignee && openStatus) h += replyFormHtml(d);
+    else if (openStatus || me.manage) h += commentFormHtml(d);
+    if (me.manage && openStatus) h += meetFormHtml(d);   // 대표도 미팅 제안 가능
+    if (me.manage || isAssignee) h += ccFormHtml(d);     // 참조 공유 — 관련 직원에게 메일로만 전달
+    if (me.manage || d.owner === me.name) h += manageBtnsHtml(d);
+
+    $('sheetBody').innerHTML = h;
+    bindDetail(d);
+  }
+
+  const typePill = c =>
+    c.type === '답변' ? '<span class="pill done">답변</span>' :
+    c.type === '코멘트' ? '<span class="pill gray">코멘트</span>' :
+    '<span class="pill meet">' + c.type + '</span>';
+
+  function replyFormHtml(d){
+    return '<div class="card"><h3>답변하기</h3>'
+      + '<textarea id="rBody" placeholder="답변을 입력하세요" rows="3"></textarea>'
+      + '<div class="row-label">첨부 자료</div>'
+      + '<div class="chips" id="rFiles"><button class="chip" id="rAddFile">+ 파일 추가</button></div>'
+      + '<input type="file" id="rFileInput" multiple class="hide">'
+      + '<div class="row-label">기한 회신</div>'
+      + '<div class="seg" id="rDueSeg"><button class="on" data-v="ok">기한 내 가능</button><button data-v="change">조정 요청</button></div>'
+      + '<div id="rDueBox" class="hide"><input type="date" id="rDueDate" style="margin-top:8px">'
+      + '<input type="text" id="rDueNote" placeholder="조정 사유 (선택)" style="margin-top:8px"></div>'
+      + (DATA.me.manage ? ''
+        : '<div class="row-label">미팅</div>'
+        + '<div class="seg" id="rMeetSeg"><button class="on" data-v="">필요 없음</button><button data-v="meet">미팅 요청</button></div>'
+        + '<div id="rMeetBox" class="hide"><input type="text" id="rMeetNote" placeholder="논의할 내용 (선택)" style="margin-top:8px">'
+        + '<div class="hint">일정은 대표님이 옵션 2개를 제안하면 그중에서 선택하게 됩니다</div></div>')
+      + '<button class="btn-primary" id="rSend">답변 보내기</button></div>';
+  }
+
+  // 미팅 일정 제안 (대표/관리자) — 옵션 2개 중 상대방이 선택
+  function meetFormHtml(d){
+    return '<div class="card" id="meetCard"><h3>미팅 제안 <span style="font-weight:400">· 일정 옵션 2개 중 상대방이 선택</span></h3>'
+      + '<div class="row-label">옵션 1</div>' + dtPickHtml('mOpt1')
+      + '<div class="row-label">옵션 2</div>' + dtPickHtml('mOpt2')
+      + '<input type="text" id="mNote" placeholder="논의할 내용 (선택)" style="margin-top:12px">'
+      + '<button class="btn-quiet" id="mSend" style="margin-top:12px">미팅 제안 보내기</button></div>';
+  }
+
+  // 참조 공유 — 플랫폼 계정이 없는 관련 직원에게 지시 내용·대표님 코멘트를 메일로만 전달
+  function ccFormHtml(d){
+    return '<div class="card"><h3>참조 공유 <span style="font-weight:400">· 관련 직원에게 메일로만 전달</span></h3>'
+      + '<div class="chips" id="ccChips"></div>'
+      + '<input type="text" id="ccInput" placeholder="직원 이메일 (예: hong@bazbiomedic.com)" inputmode="email" autocomplete="off" style="margin-top:8px">'
+      + '<button class="btn-quiet" id="ccAdd" style="margin-top:8px">참조 추가</button>'
+      + '<div class="hint">등록한 주소로 지시 내용과 대표님 코멘트가 메일로 공유됩니다. '
+      + '플랫폼 접속 권한은 생기지 않으며, 임원 답변은 공유되지 않습니다.</div>'
+      + '</div>';
+  }
+
+  function renderCcChips(d){
+    const box = $('ccChips');
+    if (!box) return;
+    box.innerHTML = (d.cc || []).map(e =>
+      '<span class="file-chip"><span>' + esc(e) + '</span><button class="x" data-e="' + esc(e) + '">&times;</button></span>').join('')
+      || '<span class="empty" style="padding:4px 0">아직 참조가 없습니다</span>';
+    box.querySelectorAll('.x').forEach(btn => btn.addEventListener('click', () => saveCc(d, (d.cc || []).filter(e => e !== btn.dataset.e))));
+  }
+
+  async function saveCc(d, emails){
+    busy(true, '참조 저장 중...');
+    try {
+      const r = await gs('웹_참조설정', TOKEN, { id: d.id, emails });
+      const grew = r.cc.length > (d.cc || []).length;
+      d.cc = r.cc;
+      renderCcChips(d);
+      toast(grew ? '참조가 추가되었습니다. 지시 내용이 메일로 공유됩니다.' : '참조가 해제되었습니다.');
+    } catch (e) { toast(e.message); }
+    busy(false);
+  }
+
+  function commentFormHtml(d){
+    return '<div class="card"><h3>코멘트</h3>'
+      + '<textarea id="cBody" placeholder="코멘트를 입력하세요" rows="2"></textarea>'
+      + '<button class="btn-primary" id="cSend">코멘트 남기기</button></div>';
+  }
+
+  function manageBtnsHtml(d){
+    let b = '<div class="card"><h3>지시 관리</h3><div class="chips">';
+    if (DATA.me.manage) {   // 완료·보류 등 상태 변경은 대표님만
+      if (d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'완료\')">완료 처리</button>';
+      if (d.status !== '보류' && d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'보류\')">보류</button>';
+      if (d.status === '완료' || d.status === '보류') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'답변 대기\')">다시 진행</button>';
+    }
+    b += '<button class="chip" onclick="editDir()">수정</button>';
+    if (DATA.me.manage) b += '<button class="chip" onclick="followUp()">후속 지시</button>';
+    b += '<button class="chip danger" onclick="delDir(' + d.id + ', this)">삭제</button>';
+    return b + '</div></div>';
+  }
+
+  // ── 지시 수정 ──
+  window.editDir = () => {
+    const d = LASTD;
+    if (!d) return;
+    let h = '<div class="grip"></div>'
+      + '<div class="sheet-head"><h2>지시 수정</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
+      + '<div class="card">'
+      + '<div class="row-label">제목</div><textarea id="eTitle" rows="2">' + esc(d.title) + '</textarea>'
+      + '<div class="row-label">상세 설명</div><textarea id="eDetail" rows="3">' + esc(d.detail || '') + '</textarea>'
+      + '<div class="row-label">기한</div><input type="date" id="eDue" value="' + esc(d.due || '') + '">'
+      + '<div class="row-label">중요도</div><div class="seg" id="ePri">'
+      + PRIS.map(p => '<button class="' + (d.pri === p ? 'on' : '') + '">' + p + '</button>').join('')
+      + '</div>'
+      + '<button class="btn-primary" id="eSave">저장</button>'
+      + '<button class="btn-quiet" id="eCancel" style="margin-top:10px">취소</button>'
+      + '</div>';
+    $('sheetBody').innerHTML = h;
+    segInit('ePri');
+    $('eCancel').addEventListener('click', () => openDetail(d.id));
+    $('eSave').addEventListener('click', async () => {
+      const title = $('eTitle').value.trim();
+      if (!title) { toast('제목을 입력해 주세요'); return; }
+      busy(true, '저장 중...');
+      try {
+        const r = await gs('웹_지시수정', TOKEN, {
+          id: d.id, title, detail: $('eDetail').value.trim(),
+          due: $('eDue').value, pri: segVal('ePri'),
+        });
+        toast(r.changed ? '수정되었습니다. 담당자에게 알림이 갑니다.' : '변경된 내용이 없습니다');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+  };
+
+  // ── 지시 삭제 (두 번 눌러 확인) ──
+  window.delDir = async (id, btn) => {
+    if (!btn.dataset.arm) {
+      btn.dataset.arm = '1';
+      btn.textContent = '한 번 더 누르면 삭제';
+      setTimeout(() => { btn.dataset.arm = ''; btn.textContent = '삭제'; }, 4000);
+      return;
+    }
+    busy(true, '삭제 중...');
+    try {
+      await gs('웹_지시삭제', TOKEN, id);
+      toast('지시가 삭제되었습니다');
+      closeSheet();
+      await refresh();
+    } catch (e) { toast(e.message); }
+    busy(false);
+  };
+
+  // ── 후속 지시 (내용·담당 미리 채움) ──
+  window.followUp = () => {
+    const d = LASTD;
+    if (!d) return;
+    closeSheet();
+    $('mainTabs').querySelector('[data-tab=new]').click();
+    $('newTitle').value = '[후속] ' + d.title;
+    $('newDetail').value = '';
+    $('newWho').querySelectorAll('.chip').forEach(c =>
+      c.classList.toggle('on', d.who.indexOf(c.dataset.name) >= 0));
+    window.scrollTo({ top: 0 });
+    $('newTitle').focus();
+  };
+
+  let MEET_NEED = null;   // '일정 제안하기'로 응답 중인 미팅 요청 대화 ID
+
+  function bindDetail(d){
+    newFiles = [];
+    MEET_NEED = null;
+    const add = $('rAddFile');
+    if (add) {
+      segInit('rDueSeg', btn => $('rDueBox').classList.toggle('hide', btn.dataset.v !== 'change'));
+      if ($('rMeetSeg')) segInit('rMeetSeg', btn => $('rMeetBox').classList.toggle('hide', btn.dataset.v !== 'meet'));
+      add.addEventListener('click', () => $('rFileInput').click());
+      $('rFileInput').addEventListener('change', async e => {
+        for (const f of e.target.files) {
+          if (f.size > 20 * 1024 * 1024) { toast(f.name + ' — 20MB 이하만 업로드할 수 있습니다'); continue; }
+          const data = await fileToB64(f);
+          newFiles.push({ name: f.name, mime: f.type, data });
+        }
+        e.target.value = '';
+        renderFileChips();
+      });
+      $('rSend').addEventListener('click', () => sendReply(d));
+    }
+    const cSend = $('cSend');
+    if (cSend) cSend.addEventListener('click', async () => {
+      const body = $('cBody').value.trim();
+      if (!body) { toast('내용을 입력해 주세요'); return; }
+      busy(true, '저장 중...');
+      try { await gs('웹_코멘트등록', TOKEN, { id: d.id, body }); toast('코멘트가 등록되었습니다'); await reopen(d.id); }
+      catch (e) { toast(e.message); }
+      busy(false);
+    });
+    // 참조 공유 — 칩 렌더 + 추가 버튼
+    if ($('ccChips')) {
+      renderCcChips(d);
+      const addCc = () => {
+        const v = $('ccInput').value.trim().toLowerCase();
+        if (!v) { toast('이메일을 입력해 주세요'); return; }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) { toast('이메일 형식이 올바르지 않습니다'); return; }
+        if ((d.cc || []).indexOf(v) >= 0) { toast('이미 등록된 주소입니다'); return; }
+        $('ccInput').value = '';
+        saveCc(d, (d.cc || []).concat(v));
+      };
+      $('ccAdd').addEventListener('click', addCc);
+      $('ccInput').addEventListener('keydown', e => { if (e.key === 'Enter') addCc(); });
+    }
+    const mSend = $('mSend');
+    if (mSend) {
+      mSend.addEventListener('click', async () => {
+        const opt1 = dtPickVal('mOpt1'), opt2 = dtPickVal('mOpt2');
+        if (!opt1 || !opt2) { toast('일정 옵션 2개를 모두 선택해 주세요'); return; }
+        if (opt1 === opt2) { toast('두 옵션이 같은 시각입니다'); return; }
+        busy(true, '미팅 제안 전송 중...');
+        try {
+          await gs('웹_미팅제안', TOKEN, { id: d.id, opt1, opt2, note: $('mNote').value.trim(), needId: MEET_NEED });
+          toast('미팅 제안이 전송되었습니다. 상대방이 옵션을 선택하면 확정됩니다.');
+          await reopen(d.id);
+        } catch (e) { toast(e.message); }
+        busy(false);
+      });
+    }
+  }
+
+  function renderFileChips(){
+    const box = $('rFiles');
+    box.querySelectorAll('.file-chip').forEach(el => el.remove());
+    newFiles.forEach((f, i) => {
+      const el = document.createElement('span');
+      el.className = 'file-chip';
+      el.innerHTML = '<span>' + esc(f.name) + '</span><button class="x" data-i="' + i + '">&times;</button>';
+      el.querySelector('.x').addEventListener('click', () => { newFiles.splice(i, 1); renderFileChips(); });
+      $('rAddFile').before(el);
+    });
+  }
+
+  const fileToB64 = f => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(f);
+  });
+
+  async function sendReply(d){
+    const body = $('rBody').value.trim();
+    if (!body && !newFiles.length) { toast('답변 내용을 입력해 주세요'); return; }
+    const f = { id: d.id, body, files: newFiles };
+    if (segVal('rDueSeg') === 'change') {
+      if (!$('rDueDate').value) { toast('조정할 기한을 선택해 주세요'); return; }
+      f.dueProposed = $('rDueDate').value; f.dueNote = $('rDueNote').value.trim();
+    }
+    if ($('rMeetSeg') && segVal('rMeetSeg') === 'meet') {
+      f.meetNeed = true; f.meetNote = $('rMeetNote').value.trim();
+    }
+    busy(true, newFiles.length ? '파일 업로드 중...' : '답변 전송 중...');
+    try {
+      await gs('웹_답변등록', TOKEN, f);
+      toast('답변이 전송되었습니다. ' + d.owner + '님께 알림이 갑니다.');
+      await reopen(d.id);
+    } catch (e) { toast(e.message); }
+    busy(false);
+  }
+
+  async function reopen(id){ await refresh(); openDetail(id); }
+
+  window.closeSheet = closeSheet;
+  window.setStatus = async (id, status) => {
+    busy(true, '변경 중...');
+    try { await gs('웹_상태변경', TOKEN, { id, status }); toast('상태가 변경되었습니다'); await reopen(id); }
+    catch (e) { toast(e.message); }
+    busy(false);
+  };
+  window.confirmMeet = async (convId, dirId) => {
+    busy(true, '캘린더 등록 중...');
+    try { const r = await gs('웹_미팅확정', TOKEN, convId); toast('미팅 확정 · ' + r.when + ' 초대가 발송되었습니다'); await reopen(dirId); }
+    catch (e) { toast(e.message); }
+    busy(false);
+  };
+  // 미팅 요청에 '일정 제안하기' — 아래 미팅 제안 카드로 이동
+  window.proposeMeet = (needId) => {
+    MEET_NEED = needId;
+    const card = $('meetCard');
+    if (!card) { toast('미팅 제안 카드를 찾을 수 없습니다'); return; }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.outline = '2px solid var(--accent)';
+    setTimeout(() => { card.style.outline = ''; }, 1600);
+    const o1 = $('mOpt1D');
+    if (o1) o1.focus();
+  };
+  // 제안받은 옵션 선택 → 미팅 확정
+  window.chooseMeet = async (convId, dirId, choice) => {
+    busy(true, '미팅 확정 중...');
+    try { const r = await gs('웹_미팅선택', TOKEN, convId, choice); toast('미팅 확정 · ' + r.when + ' 캘린더 초대가 발송되었습니다'); await reopen(dirId); }
+    catch (e) { toast(e.message); }
+    busy(false);
+  };
+  window.approveDue = async (convId, dirId) => {
+    busy(true, '반영 중...');
+    try { await gs('웹_기한승인', TOKEN, convId); toast('기한이 변경되었습니다'); await reopen(dirId); }
+    catch (e) { toast(e.message); }
+    busy(false);
+  };
+
+  // ── 시작 ──
+  if (TOKEN) init(); else show('vLogin');
 </script>
 </body>
 </html>
