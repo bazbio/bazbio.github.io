@@ -177,6 +177,13 @@
   #gate { display:none; }
   .spin { width:32px; height:32px; border:3px solid #e5e8eb; border-top-color:#3182f6; border-radius:50%; animation:sp 0.8s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
+  /* 갱신 알약 · 뼈대 (2026-08-15, 설계 D2) — 읽기는 화면을 지우지 않는다.
+     캐시가 있으면 지난 화면을 그대로 두고 이 알약만 뜨고, 첫 로드는 뼈대를 깔아 둔다.
+     `#loading`(z-index 70)보다 아래다 — 쓰기 오버레이가 뜨면 알약은 그 밑으로 숨는 게 맞다 */
+  #refreshBar { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:60; display:none; align-items:center; gap:8px; background:#fff; border:1px solid #e5e8eb; border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:600; color:#4e5968; box-shadow:0 4px 14px rgba(0,0,0,.08); white-space:nowrap; }
+  #refreshBar .spin { width:13px; height:13px; border-width:2px; }
+  .skel i { display:block; height:13px; margin-top:11px; border-radius:7px; background:#eef1f4; animation:skb 1.2s ease-in-out infinite; }
+  @keyframes skb { 0%,100% { opacity:1; } 50% { opacity:.45; } }
   #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:80; display:none; max-width:88%; }
   #toast.err { background:#f04452; }
   .pconly { display:none; }
@@ -441,6 +448,11 @@
   <div id="pDraftBar" class="warnbox" style="display:none;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
     <span class="dtxt"></span>
     <span style="display:flex;gap:7px;"><button class="btn dload">이어서 쓰기</button><button class="btn ghost ddrop">버리기</button></span>
+  </div>
+  <!-- Meta 문의 연결 표시 (8/15) — 이 폼이 어느 문의에 묶여 있는지 계속 보인다 -->
+  <div id="metaBar" class="warnbox" style="display:none;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;">
+    <span class="mtxt"></span>
+    <span style="display:flex;gap:7px;"><button class="btn ghost mdrop">연결 끊기</button></span>
   </div>
   <div style="text-align:right;margin-bottom:8px;">
     <button class="btn" onclick="toggleEvtReg()">＋ 행사 등록</button>
@@ -884,6 +896,8 @@
 </div>
 
 <div id="loading"><div class="spin"></div><div id="loadMsg" style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
+<!-- 갱신 알약 (8/15, 설계 D2) — 지난 숫자를 보고 있다는 것을 화면을 지우지 않고 알린다 -->
+<div id="refreshBar"><div class="spin"></div>갱신 중…</div>
 <div id="ptr" style="display:none;position:fixed;top:0;left:50%;transform:translate(-50%,-54px);z-index:90;background:#fff;border:1px solid #e5e8eb;border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:600;color:#4e5968;box-shadow:0 4px 14px rgba(0,0,0,.08);white-space:nowrap;">아래로 당겨서 새로고침</div>
 <div id="gate">
   <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
@@ -1113,7 +1127,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608150854-e3b9c92';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608151414-abc5b56';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1366,6 +1380,9 @@ function onData(d) {
   계획폼바인딩_(); 계획임시저장복구_();
   if (DATA.dbSrc) 홈받기_();   // 관문 읽기가 도착하면 홈·리드가 그걸로 다시 그려진다
   if (vw) show(cl ? 'meta' : 'dash');
+  /* 첫 항목을 여기서 놓는다 (8/15, 설계 D3) — 일반 계정은 홈이 처음부터 켜져 있어
+     show()를 한 번도 안 거친다. 없으면 첫 탭 이동이 replaceState로 먹혀 뒤로가기가 한 칸 모자란다 */
+  화면이력_(현재뷰_);
   setTimeout(prefetch, 1200);
 }
 function doLogout() {
@@ -1443,8 +1460,11 @@ function doOtp() {
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
 var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'];
+var 현재뷰_ = 'home';
 function show(v) {
-  ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'].forEach(function(k) {
+  현재뷰_ = v;
+  화면목록_.forEach(function(k) {
     document.getElementById('view-' + k).classList.toggle('on', k === v);
     var nb = document.getElementById('nav-' + k);
     if (nb) nb.classList.toggle('on', k === v);
@@ -1459,19 +1479,84 @@ function show(v) {
      기록 저장 → 내 입력 → 홈 → 다른 계획 [기록 쓰기]에서 매번 났다.
      그리기는 메모리에 있는 것을 다시 칠할 뿐이라 서버 왕복이 없다. */
   if (v === 'home' && DATA && DATA.plans) renderHome();
+  /* 그려 둔 것을 먼저 보이고 뒤에서 다시 받는다 (8/15, 설계 D2) — 여태 행사 탭만 이랬다.
+     나머지는 캐시가 있으면 **아예 다시 안 받아** 남이 넣은 것이 탭을 떠났다 올 때까지 안 보였고,
+     캐시가 없으면 앱 전체가 오버레이로 덮였다. 이제 지난 화면 + [갱신 중] 알약이다.
+     ⚠ **자료만 뒤따라 받기를 안 건다** — 이 탭은 관문이 없어(Drive 링크·권한이 GAS 전용,
+     감사 2차 결정) 방문할 때마다 1.8초짜리 GAS 왕복이 하나씩 는다. 바뀌는 일도 드물다 */
   if (v === 'mat') { MATL ? renderMat() : loadMat(); }
-  if (v === 'dash') { DASH ? renderDash() : loadDash(); }
-  // 행사는 여럿이 같이 넣는 탭이다 — 그려 둔 것을 먼저 보이고 뒤에서 다시 받는다
+  // 지난 달을 보고 있었으면 그 달로 다시 받는다 — 빈 ym은 이달이라 화면이 슬쩍 바뀐다
+  if (v === 'dash') { if (DASH) { renderDash(); loadDash(DASH.past ? DASH.ym : '', true); } else loadDash(); }
   if (v === 'evt') { if (EVT) { renderEvt(); loadEvt(true); } else loadEvt(); }
-  if (v === 'kpi') { KPIT ? renderKpiTab() : loadKpiTab(); }
-  if (v === 'mine') { MINE ? renderMine() : loadMine(); }
-  if (v === 'meta') { METAQ ? renderMeta() : loadMeta(); }
-  if (v === 'ncare') { NCARE ? renderNcare() : loadNcare(); }
+  if (v === 'kpi') { if (KPIT) { renderKpiTab(); loadKpiTab(true); } else loadKpiTab(); }
+  if (v === 'mine') { if (MINE) { renderMine(); loadMine(true); } else loadMine(); }
+  if (v === 'meta') { if (METAQ) { renderMeta(); loadMeta(true); } else loadMeta(); }
+  if (v === 'ncare') { if (NCARE) { renderNcare(); loadNcare(true); } else loadNcare(); }
   if (v === 'flow') {
-    if (FLOW) { document.getElementById('fMonth').value = FLOW.ym; renderFlow(); }
-    else loadFlow('');
+    if (FLOW) {
+      document.getElementById('fMonth').value = FLOW.ym;
+      renderFlow(); loadFlow(FLOW.ym, true);
+    } else loadFlow('');
   }
+  화면이력_(v);
 }
+
+/* 뒤로가기 (2026-08-15, 설계 D3) ────────────────────────────────────
+ *
+ * history를 아예 안 쓰고 있었다. PWA로 담아 쓰는 사람에게 안드로이드 시스템 뒤로가기는
+ * 「앞 화면」이 아니라 **앱 종료**였다 — 계획 폼에서 잘못 눌러 쓰던 것이 통째로 날아가는
+ * 자리다(임시저장이 그걸 받아 주지만, 눌러서 앱이 꺼지는 것 자체가 놀라운 일이다).
+ *
+ * ⚠ **모달은 항목을 만들지 않는다.** 대신 뒤로가기가 왔을 때 「모달이 열려 있으면 닫고
+ * 되민다」로 처리한다 — 닫기 다섯 곳을 안 고쳐도 되고, 모달을 여는 새 길이 생겨도 공짜다.
+ * ⚠ **첫 항목은 replaceState다.** pushState로 시작하면 홈에서 뒤로가기를 눌러도 앱이 안
+ * 닫히는 「뒤로가기 감옥」이 된다.
+ * ⚠ **hash로 우회 진입이 되면 안 된다.** 조회 전용 계정에게 탭을 숨긴 벽과 같은 벽을
+ * 복원에도 세운다(`갈수있나_`) — 안 그러면 `#plan`을 손으로 쳐 입력 화면이 열린다.
+ * ⚠ pushState는 반드시 try/catch — GAS 샌드박스 iframe·사파리 한도에서 던진다.
+ * 던져도 화면은 멀쩡하고 뒤로가기만 예전처럼 동작한다.
+ */
+var 화면복원중_ = false;
+function 화면이력_(v) {
+  if (화면복원중_) return;   // popstate가 부른 show가 되짚은 자리를 다시 쌓지 않게
+  try {
+    var st = history.state;
+    if (!st || !st.v) history.replaceState({ v: v }, '', '#' + v);
+    else if (st.v !== v) history.pushState({ v: v }, '', '#' + v);
+  } catch (e) { /* 못 쌓아도 그만이다 — 뒤로가기만 예전처럼 동작한다 */ }
+}
+function 모달닫기_() {
+  ['hospModal', 'failModal'].forEach(function(id) {
+    var m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+  });
+}
+/* 조회 전용 계정이 갈 수 있는 화면인가 — onData의 탭 숨김과 같은 규칙이다.
+   여기가 어긋나면 숨긴 탭이 hash로 열린다 */
+function 갈수있나_(v) {
+  if (화면목록_.indexOf(v) < 0) return false;
+  if (!DATA || !DATA.me || !DATA.me.viewer) return !!DATA;
+  var cl = String(DATA.me.team || '').trim() === 'C-Labs';
+  var 막힘 = ['home', 'plan', 'log', 'lead', 'mine'].concat(
+    cl ? ['dash', 'flow', 'kpi', 'ncare'] : ['meta']);
+  return 막힘.indexOf(v) < 0;
+}
+function 기본화면_() {
+  if (!DATA || !DATA.me || !DATA.me.viewer) return 'home';
+  return String(DATA.me.team || '').trim() === 'C-Labs' ? 'meta' : 'dash';
+}
+window.addEventListener('popstate', function(e) {
+  // 모달이 먼저다 — 항목을 안 만들었으니 그 자리를 되밀어 깊이를 되돌린다
+  if (모달열림_()) {
+    모달닫기_();
+    try { history.pushState({ v: 현재뷰_ }, '', '#' + 현재뷰_); } catch (e2) {}
+    return;
+  }
+  var v = (e.state && e.state.v) || String(location.hash || '').replace(/^#/, '') || 'home';
+  if (!갈수있나_(v)) v = 기본화면_();
+  화면복원중_ = true;
+  try { show(v); } finally { 화면복원중_ = false; }
+});
 
 /* 로그인 직후 무거운 탭 데이터를 미리 받아둠 — 스윕 전환이 즉시 뜨도록.
    부트가 다섯 조각을 실어 오므로 여기는 빠진 조각만 채운다.
@@ -1527,6 +1612,41 @@ function busy(on, msg) {
   document.getElementById('loading').style.display = on ? 'flex' : 'none';
   // 저장하는 동안 「불러오는 중」이라고 말하면 저장이 진행 중이라는 신호가 없다 (8/5 감사)
   document.getElementById('loadMsg').textContent = (on && msg) || '불러오는 중…';
+}
+/* 로딩 세 갈래 (2026-08-15, 설계 D2 / 평3) ─────────────────────────
+ *
+ * `busy()`의 전면 불투명 오버레이는 **쓰기 것이다.** 여태 읽기도 같은 것을 썼다 —
+ * 탭을 열 때마다 앱 전체가 덮이고, 이미 그려 둔 화면까지 지워졌다. 「1~2초간 지난 숫자가
+ * 보이는 것을 받아들이되 '갱신 중'을 표시한다」는 합의를 따르던 곳은 행사 탭 하나였다.
+ *
+ *   쓰기            → busy()  (그대로 — 저장 중에는 못 만지게 하는 것이 맞다)
+ *   캐시 있는 읽기  → 갱신배너_  (지난 화면을 그대로 두고 알약만)
+ *   첫 읽기         → 스켈레톤_  (그 탭 자리에만 뼈대 — 다른 탭은 계속 쓸 수 있다)
+ *
+ * ⚠ 조용히 갱신의 **실패는 조용하다**(console.warn). 지난 화면이 그대로 남아 있고,
+ * 탭을 다시 열면 로더가 또 받는다. 사람이 [새로고침]을 눌렀거나 첫 로드면 조용하지
+ * 않다 — 그쪽은 캐시를 비우고 오므로 `실패카드_`가 [다시 시도]와 함께 뜬다.
+ */
+var 갱신중_ = 0;
+function 갱신배너_(on) {
+  // 셈으로 여닫는다 — 탭을 빠르게 옮기면 갱신 둘이 겹치고, 먼저 끝난 쪽이 알약을 내려 버린다
+  갱신중_ = Math.max(0, 갱신중_ + (on ? 1 : -1));
+  var el = document.getElementById('refreshBar');
+  if (el) el.style.display = 갱신중_ ? 'flex' : 'none';
+}
+function 스켈레톤_(칸id) {
+  var el = document.getElementById(칸id);
+  if (!el) return;
+  var 줄 = function(w) { return '<i style="width:' + w + '%;"></i>'; };
+  el.innerHTML = '<div class="card skel">' + 줄(46) + 줄(88) + 줄(70) + '</div>'
+    + '<div class="card skel">' + 줄(38) + 줄(82) + '</div>'
+    + '<div class="card skel">' + 줄(52) + 줄(90) + 줄(64) + '</div>';
+}
+function 읽기시작_(조용히, 칸id) {
+  if (조용히) 갱신배너_(true); else 스켈레톤_(칸id);
+}
+function 읽기끝_(조용히) {
+  if (조용히) 갱신배너_(false);
 }
 /* 검증 실패 — 문구만 띄우면 그 칸이 화면 밖일 때 무엇을 고쳐야 하는지 못 찾는다 (8/5 감사 U7).
    계획 폼은 칸이 열다섯이라 「판매 구분을 선택해 주세요」가 떠도 그 칸이 한참 위에 있다.
@@ -1749,11 +1869,12 @@ function renderKpi() {
 
 /* ── 학회/세미나 탭 ── */
 /* ── KPI 탭 (내 KPI 확인 · 팀 KPI 관리) ── */
-function loadKpiTab() {
-  busy(true);
-  var 끝 = function(d) { KPIT = d; busy(false); renderKpiTab(); };
+function loadKpiTab(조용히) {
+  읽기시작_(조용히, 'kpiBody');
+  var 끝 = function(d) { KPIT = d; 읽기끝_(조용히); renderKpiTab(); };
   var 실패 = function(e) {
-    busy(false);
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[KPI 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('kpiBody', e, function() { loadKpiTab(); });
   };
   // 집계는 관문(0.3초대) — GAS와 같은 코드(_공유/kpi집계.mjs)라 숫자가 갈릴 수 없다
@@ -1875,15 +1996,16 @@ function saveKpiTargets() {
 }
 
 /* ── 흐름 탭 (월별 영업 퍼널) ── */
-function loadFlow(ym) {
-  busy(true);
+function loadFlow(ym, 조용히) {
+  읽기시작_(조용히, 'flowBody');
   var 끝 = function(d) {
-    FLOW = d; FLOWX = {}; busy(false);
+    FLOW = d; FLOWX = {}; 읽기끝_(조용히);
     document.getElementById('fMonth').value = d.ym;
     renderFlow();
   };
   var 실패 = function(e) {
-    busy(false);
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[흐름 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('flowBody', e, function() { loadFlow(ym); });
   };
   // 퍼널은 관문(0.3초대) — 도메인.gen.mjs로 GAS와 같은 코드라 숫자가 갈릴 수 없다
@@ -2255,16 +2377,16 @@ function evtEditSave(row) {
    앱을 다시 열기 전까지 안 보였고, 안 보이니 이름을 바꿔 또 등록했다
    (`레픽의원`·`레픽의원2`가 같은 행사에 이틀 연속 들어와 있다). 관문이라 0.3초다. */
 function loadEvt(조용히) {
-  if (!조용히) busy(true);
+  읽기시작_(조용히, 'evtBody');
   var 끝 = function(d) {
     // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙)
     (d.events || []).forEach(function(ev) {
       열쇠매기기_(ev.leads);
     });
-    EVT = d; busy(false); renderEvt();
+    EVT = d; 읽기끝_(조용히); renderEvt();
   };
   var 실패 = function(e) {
-    busy(false);
+    읽기끝_(조용히);
     if (조용히) { console.warn('[행사 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('evtBody', e, function() { loadEvt(); });
   };
@@ -2731,6 +2853,7 @@ function resetPlanForm(keepDate) {
   document.getElementById('pDate').value = keepDate || DATA.today;
   document.getElementById('pEvt').value = '';
   selPType = ''; selPCh = ''; selPSrc = ''; selPCat = ''; META_PREFILL = null; METAQ = null;
+  메타배너갱신_();   // 연결을 끊었으면 배너도 같이 내린다 — 남으면 안 묶인 폼이 묶인 것처럼 보인다
   document.querySelectorAll('#pType .chip, #pCh .chip, #pSrc .chip, #pCat .chip').forEach(function(c) { c.classList.remove('on'); });
   document.getElementById('pTypeEtc').value = '';
   document.getElementById('pTypeEtc').style.display = 'none';
@@ -2994,13 +3117,14 @@ function 관문호출_(경로, 몸통) {
   });
 }
 
-function loadMeta() {
-  busy(true);
+function loadMeta(조용히) {
+  읽기시작_(조용히, 'metaBody');
   // 목록 관문만 토큰을 본문에 **날것으로** 받는다 (saleson-inquiries). 쓰기 쪽은 JSON이다
   관문호출_('/saleson-inquiries', TOKEN).then(화면갱신감싸기_(function(d) {
-    METAQ = d; busy(false); renderMeta();
+    METAQ = d; 읽기끝_(조용히); renderMeta();
   }, '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
-    busy(false);
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[문의 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('metaBody', e, function() { loadMeta(); });
   });
 }
@@ -3300,10 +3424,12 @@ function metaPlan(id) {
   var q = 문의찾기_(id);
   if (!q) return;
   // 시트 행 번호가 아니라 문의ID를 들고 간다 — 관문 목록은 시트 행을 모른다
-  META_PREFILL = { id: id, extId: q.extId };
+  // hname은 표시 전용이다 (8/15) — 배너가 「어느 문의와 연결됐는지」를 보여 주는 데만 쓴다
+  META_PREFILL = { id: id, extId: q.extId, hname: q.hname2 || q.company || '' };
   show('plan');
   document.getElementById('pHosp').value = q.hname2 || q.company || '';
   document.getElementById('pContact').value = q.name + (q.title ? ' (' + q.title + ')' : '');
+  메타배너갱신_();
   checkNewHosp();
   if (document.getElementById('pLeadSec').style.display !== 'none') {
     document.querySelectorAll('#pSrc .chip').forEach(function(c) {
@@ -3426,6 +3552,38 @@ function 계획임시저장지우기_() {
   var el = document.getElementById('pDraftBar');
   if (el) el.style.display = 'none';
 }
+/* Meta 문의 연결 배너 (2026-08-15, 설계 D1)
+ *
+ * 여태 연결은 **눈에 보이지 않았다.** 문의에서 계획 폼으로 넘어온 뒤 병원명만 다른 곳으로
+ * 고쳐 저장하면 엉뚱한 문의가 '리드 전환'으로 승격됐고, 팀 공용 문의함에 틀린 병원명이
+ * 찍힌 채 아무도 다시 안 집었다. 이제 묶여 있는 동안 계속 보인다.
+ *
+ * ⚠ **이름이 달라져도 자동으로 끊지 않는다** (결정①, 8/15). `metaPlan`은 병원명 수정을
+ * 정규 흐름으로 설계했다 — 광고 폼 업체명이 실제 병원명과 다른 것이 정상이다. 자동 해제는
+ * 제대로 고쳐 저장한 사람의 문의를 승격 안 된 채 남기는 **반대편 사고**를 만든다.
+ * 문구만 경고로 바꾸고, 끊는 것은 사람이 [연결 끊기]로 한다.
+ */
+function 메타배너갱신_() {
+  var el = document.getElementById('metaBar');
+  if (!el) return;
+  if (!META_PREFILL) { el.style.display = 'none'; return; }
+  var 적힌 = String(META_PREFILL.hname || '');
+  var 지금 = String((document.getElementById('pHosp') || {}).value || '');
+  el.style.display = 'flex';
+  /* ⚠ 병원명 **뒤에 조사를 붙이지 마라** — 「의원와」·「의원로」처럼 틀린다(받침이 이름마다 다르다).
+     이름 뒤는 「건」·「입니다」처럼 조사가 고정되는 말로 받는다 */
+  el.querySelector('.mtxt').innerHTML = norm(적힌) === norm(지금)
+    ? '문의 <b>' + esc(적힌) + '</b> 건과 연결돼 있습니다 — 저장하면 리드로 전환됩니다.'
+    : '문의 <b>' + esc(적힌) + '</b> 건과 연결돼 있는데, 지금 적은 병원명은 <b>'
+      + esc(지금 || '(비어 있음)') + '</b>입니다. 같은 곳이면 그대로 저장하세요 — 아니면 [연결 끊기]를 누르세요.';
+  el.querySelector('.mdrop').onclick = 메타연결해제_;
+}
+function 메타연결해제_() {
+  META_PREFILL = null;
+  메타배너갱신_();
+  toast('문의 연결을 끊었습니다 — 저장해도 문의는 승격되지 않습니다');
+}
+
 /* 입력할 때마다 담는다. 칩은 `pickP*`가 직접 부른다 — 칩만 누르고 앱을 닫아도 남아야 한다.
    `dataset.draft` 가드는 renderForm과 같다: onData는 부트마다 도는데 핸들러가 쌓이면 안 된다 */
 function 계획폼바인딩_() {
@@ -3436,6 +3594,9 @@ function 계획폼바인딩_() {
   });
   var ev = document.getElementById('pEvt');
   if (ev && !ev.dataset.draft) { ev.dataset.draft = '1'; ev.addEventListener('change', 계획임시저장_); }
+  // 병원명이 바뀌면 배너 문구가 따라간다 — 연결은 그대로 두고 경고만 켠다 (8/15, 결정①)
+  var hp = document.getElementById('pHosp');
+  if (hp && !hp.dataset.metabar) { hp.dataset.metabar = '1'; hp.addEventListener('input', 메타배너갱신_); }
 }
 function 계획임시저장복구_() {
   var d = null;
@@ -3452,6 +3613,7 @@ function 계획임시저장복구_() {
        연결이 서 있을 수 있다 — 문의에서 넘어온 뒤 저장하지 않고 이 배너를 누르는 경우다.
        그대로 두면 복구한 남의 병원 계획이 그 문의를 승격시킨다. */
     META_PREFILL = null;
+    메타배너갱신_();
     var 넣기 = function(id, v) { var e2 = document.getElementById(id); if (e2) e2.value = v || ''; };
     넣기('pHosp', d.hname);
     /* 병원명을 넣은 **뒤에** 부른다 — 리드 블록(#pLeadSec)을 여는 것이 이 함수다.
@@ -3506,34 +3668,46 @@ function 내입력받기_(onOk, onFail) {
    쓰기가 DB로 넘어가면 이 GAS 호출을 뺀다. */
 /* 방금 저장한 직후 한 번은 관문을 건너뛴다 — 관문 목록에는 오늘 쓴 기록이 없다 */
 var 내입력_GAS만 = false;
-function loadMine() {
-  busy(true);
+function loadMine(조용히) {
+  읽기시작_(조용히, 'mineBody');
   var 관문이그림 = false;
   var GAS만 = 내입력_GAS만; 내입력_GAS만 = false;
+  /* 조용히 갱신은 **만지는 중이면 통째로 건너뛴다** (8/15, 설계 D2) — 아래 GAS 갈래가
+     `관문이그림`일 때 지키던 것과 같은 이유다. 탭을 다시 열기만 해도 갱신이 도는데,
+     계약일을 고르던 중에 renderMine이 돌면 그 칸이 사라진다. MINE도 같이 안 바꾼다:
+     화면과 데이터가 어긋나면 카드가 남의 행을 집는다. */
+  var 만지는중 = function() { return 조용히 && 내입력만지는중_(); };
   /* DB가 원천이면 **관문만 본다.** 위 주석이 예고한 자리다 — 쓰기가 DB로 넘어가면
      시트는 새벽 4시에 DB를 받아 적는 사본이라 오늘 쓴 것이 없다. 그대로 두면 GAS 응답이
      방금 저장한 기록을 덮어 지운다. 폴백은 없다(문의 탭과 같은 대가). */
   if (DATA.dbSrc) {
     내입력받기_(function(d) {
-      MINE = d; busy(false); renderMine();
+      읽기끝_(조용히);
+      if (만지는중()) return;
+      MINE = d; renderMine();
     }, function(e) {
-      busy(false);
+      읽기끝_(조용히);
+      if (조용히) { console.warn('[내 입력 뒤따라 받기]', (e && e.message) || e); return; }
       실패카드_('mineBody', e, function() { loadMine(); });
     });
     return;
   }
+  /* ⚠ 알약은 **GAS 쪽만 여닫는다** — 여기까지 같이 내리면 한 번 켠 것을 둘이 내려,
+     뒤이어 도는 다른 탭 갱신의 알약이 먼저 꺼진다. 이 갈래에서 마지막 말은 GAS가 한다 */
   if (!GAS만) 내입력받기_(function(d) {
     if (MINE) return;              // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
-    MINE = d; 관문이그림 = true; busy(false); renderMine();
+    MINE = d; 관문이그림 = true; renderMine();
   });
   gsrun().withSuccessHandler(function(d) {
     /* 관문이 그려 둔 화면을 만지는 중이면 갈아엎지 않는다 — 계약일을 고르던 칸이 사라진다.
        MINE도 같이 안 바꾼다: 화면과 데이터가 어긋나면 카드가 남의 행을 집는다. */
-    if (관문이그림 && 내입력만지는중_()) { busy(false); return; }
-    MINE = d; busy(false); renderMine();
+    읽기끝_(조용히);
+    if ((관문이그림 || 조용히) && 내입력만지는중_()) return;
+    MINE = d; renderMine();
   }).withFailureHandler(function(e) {
-    busy(false);
+    읽기끝_(조용히);
     if (관문이그림) return;         // 관문이 이미 그렸다 — 오류로 그 화면을 덮지 않는다
+    if (조용히) { console.warn('[내 입력 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('mineBody', e, function() { loadMine(); });
   }).웹_내입력(TOKEN);
 }
@@ -4004,13 +4178,14 @@ function ncStageBadge(n) {
   return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:' + (NC_COLOR[n] || '#6b7684') + ';">' + n + ' ' + esc(ncStageName(n)) + '</span>';
 }
 
-function loadNcare() {
-  busy(true);
+function loadNcare(조용히) {
+  읽기시작_(조용히, 'ncBody');
   관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '목록' }))
-    .then(화면갱신감싸기_(function(d) { NCARE = d; busy(false); renderNcare(); },
+    .then(화면갱신감싸기_(function(d) { NCARE = d; 읽기끝_(조용히); renderNcare(); },
       '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
     function(e) {
-      busy(false);
+      읽기끝_(조용히);
+      if (조용히) { console.warn('[N-Care 뒤따라 받기]', (e && e.message) || e); return; }
       실패카드_('ncBody', e, function() { loadNcare(); });
     });
 }
@@ -4219,6 +4394,7 @@ function ncPlan(id) {
      저장했을 때 **엉뚱한 문의가 '리드 전환'으로 승격된다**(savePlan이 metaExtId를 무조건 싣는다).
      위 주석의 「승격 연결만 없다」가 이 한 줄이 있어야 사실이 된다. */
   META_PREFILL = null;
+  메타배너갱신_();
   show('plan');
   document.getElementById('pHosp').value = p.hname;
   checkNewHosp();
@@ -4261,11 +4437,12 @@ function ncAddSave() {
 
 /* ── 영업자료 탭 (MA·C-Labs 공식 자료) ── */
 var MATCOLOR = { '마케팅': ['#1b64da', '#e8f3ff'], '임상/학술': ['#058652', '#e5f7ef'], '학회/세미나': ['#7C3AED', '#F1EBFF'], '기타': ['#6B7280', '#F3F4F6'] };
-function loadMat() {
-  busy(true);
-  gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); })
+function loadMat(조용히) {
+  읽기시작_(조용히, 'matList');
+  gsrun().withSuccessHandler(function(d) { MATL = d; 읽기끝_(조용히); renderMat(); })
     .withFailureHandler(function(e) {
-      busy(false);
+      읽기끝_(조용히);
+      if (조용히) { console.warn('[자료 뒤따라 받기]', (e && e.message) || e); return; }
       실패카드_('matList', e, function() { loadMat(); });
     }).웹_영업자료목록(TOKEN);
 }
@@ -4370,11 +4547,12 @@ function matDelete(row, no) {
 
 /* ── 관리자 현황 대시보드 ── */
 /** @param ym 'yyyy-MM'. 비우면 이번 달. 지난달이면 목표 없이 실적만 온다(웹_대시보드) */
-function loadDash(ym) {
-  busy(true);
-  var 끝 = function(d) { DASH = d; busy(false); renderDash(); };
+function loadDash(ym, 조용히) {
+  읽기시작_(조용히, 'dashBody');
+  var 끝 = function(d) { DASH = d; 읽기끝_(조용히); renderDash(); };
   var 실패 = function(e) {
-    busy(false);
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[현황 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('dashBody', e, function() { loadDash(ym); });
   };
   // 집계는 관문(0.3초대) — GAS와 값 대조 테스트(dashread)로 묶여 숫자가 갈릴 수 없다
