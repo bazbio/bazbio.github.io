@@ -1113,7 +1113,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608140122';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608150204';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4296,7 +4296,7 @@ function matCard(m) {
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">'
     + '<a class="btn pri" style="text-decoration:none;text-align:center;" href="' + esc(m.url) + '" target="_blank" rel="noopener">열기</a>'
-    + ((MATL.admin || m.mine) ? '<button class="btn ghost" onclick="matDelete(' + m.row + ')">삭제</button>' : '')
+    + ((MATL.admin || m.mine) ? '<button class="btn ghost" onclick="matDelete(' + m.row + ',' + (m.no || 0) + ')">삭제</button>' : '')
     + '</div></div></div>';
 }
 function pickMatCat(el) {
@@ -4352,12 +4352,12 @@ function submitMat() {
     rd.readAsDataURL(file);
   } else send();
 }
-function matDelete(row) {
+function matDelete(row, no) {
   if (!confirm('이 자료를 삭제할까요? 업로드된 파일도 휴지통으로 이동합니다.')) return;
   busy(true, '지우는 중…');
   gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); toast('삭제했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
-    .웹_영업자료삭제(TOKEN, row);
+    .웹_영업자료삭제(TOKEN, row, no || 0);   // no가 정본 — 행 번호는 다른 삭제로 밀린다
 }
 
 /* ── 관리자 현황 대시보드 ── */
