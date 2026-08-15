@@ -280,6 +280,31 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   .loading-full{padding:16vh 0; text-align:center}
   .loading-full p{color:var(--sub); font-size:14px; margin-top:14px}
+
+  /* 부팅 인트로 — 옛 Pages 셸이 하던 브랜드 순간을 0.3초로 되살린 것 (ADR 0025).
+     ⚠ **지연을 만들지 않는다.** 여기는 스냅샷·초기데이터를 이미 기다리는 자리이고,
+     준비되면 show()가 애니메이션이 끝나기를 안 기다리고 바로 걷어 간다. 옛 셸은 반대로
+     최소 3.2초를 붙들었고 그것이 승격 전 체감 속도의 정체였다 — 그 방식으로 돌아가지 마라.
+     느린 부팅에서 워드마크만 멈춰 있으면 멎은 것처럼 보이므로 0.8초를 넘길 때만 안내가
+     뜨게 지연을 준다. JS가 아니라 `both` 채움으로 처리해서 빠른 날엔 아예 안 뜬다.
+     `.loading-full`·`.spin`은 시트·처리중 오버레이가 함께 쓰므로 건드리지 않았다. */
+  .boot{padding:16vh 0; text-align:center}
+  .boot-mark{
+    font-size:28px; font-weight:800; letter-spacing:-.02em; color:var(--ink);
+    animation:boot-in .3s cubic-bezier(.16,1,.3,1) both;
+  }
+  .boot-span{
+    width:74px; height:3px; border-radius:999px; margin:14px auto 0; background:var(--accent);
+    animation:boot-span .24s cubic-bezier(.16,1,.3,1) .06s both;
+  }
+  .boot-note{
+    color:var(--sub); font-size:13px; margin:14px 0 0;
+    animation:boot-note .3s cubic-bezier(.16,1,.3,1) .8s both;
+  }
+  @keyframes boot-in{from{opacity:0; transform:translateY(6px) scale(.98)} to{opacity:1; transform:none}}
+  @keyframes boot-span{from{transform:scaleX(0)} to{transform:scaleX(1)}}
+  @keyframes boot-note{from{opacity:0} to{opacity:1}}
+
   .busy{position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.15); display:flex; align-items:center; justify-content:center}
   .busy .box{background:var(--card); border-radius:16px; padding:22px 30px; box-shadow:var(--shadow); text-align:center}
   .busy p{margin:12px 0 0; font-size:13px; color:var(--sub)}
@@ -415,7 +440,7 @@
 
 <div class="toast" id="toast"></div>
 <div class="busy hide" id="busy"><div class="box"><div class="spin"></div><p id="busyMsg">처리 중...</p></div></div>
-<div class="loading-full hide" id="vLoading"><div class="spin"></div><p>불러오는 중...</p></div>
+<div class="boot hide" id="vLoading"><div class="boot-mark">브리지</div><div class="boot-span"></div><p class="boot-note">불러오는 중...</p></div>
 
 <script>
   /* 딥링크 — 알림 메일의 「지시 보기」가 `?d=123`으로 온다.
@@ -438,7 +463,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608150856';
+  var 빌드버전_ = '202608150920';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
