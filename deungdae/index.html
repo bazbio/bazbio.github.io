@@ -658,17 +658,6 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <p class="note" id="jpNote"></p>
       </div>
 
-      <div class="card" id="jpBillCard" style="margin-top:12px" hidden>
-        <h3 class="ct">코스트플러스 청구 대조<span class="u">백만원</span></h3>
-        <div class="scroll">
-          <table class="pl" id="jpBill">
-            <thead><tr id="jpBillHead"></tr></thead>
-            <tbody id="jpBillBody"></tbody>
-          </table>
-        </div>
-        <p class="note" id="jpBillNote"></p>
-      </div>
-
       <!-- 시산표 계정별 (0048, 2026-08-14) — 월차보고 양식 첫 수령(7월분)으로 생겼다 -->
       <div class="card" id="jpTBCard" style="margin-top:12px" hidden>
         <h3 class="ct" id="jpTBTitle">시산표 계정별</h3>
@@ -692,6 +681,19 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         </div>
         <p class="note">본사와 같은 5구분(생산품질·연구개발·영업·관리·기타), 월말 재적 기준.
           겸무는 주 업무 구분에 1명으로 셉니다.</p>
+      </div>
+
+      <!-- 코스트플러스 청구 대조 — 2026-08-15 사용자 지시로 아래로 내렸다.
+           청구액은 판관비에서 파생되는 숫자라 모니터링의 주인공이 아니다 -->
+      <div class="card" id="jpBillCard" style="margin-top:12px" hidden>
+        <h3 class="ct">코스트플러스 청구 대조<span class="u">백만원 · 참고</span></h3>
+        <div class="scroll">
+          <table class="pl" id="jpBill">
+            <thead><tr id="jpBillHead"></tr></thead>
+            <tbody id="jpBillBody"></tbody>
+          </table>
+        </div>
+        <p class="note" id="jpBillNote"></p>
       </div>
 
       <!-- 쟁점은 정적이다 — ADR 0012의 미확정을 화면이 상기시킨다. 풀리면 지운다 -->
@@ -3168,26 +3170,77 @@ function 일본탭그리기() {
   var 배수 = 1.05;
   (DB['기준값'] || []).forEach(function (r) { if (r['키'] === 'cost_plus') 배수 = Number(r['값']) || 배수; });
 
-  // ── 타일 ──
-  var 누청 = 0, 계청 = 0;
-  for (m = 1; m <= 끝; m++) 누청 += 청구[m] || 0;
-  var 그룹하 = 축('sga_commission_jp', '값');
-  for (m = 끝 + 1; m <= 12; m++) 계청 += 그룹하[m] || 0;
+  // ── 타일 (2026-08-15 사용자 지시로 실적 축으로 갈았다) ──
+  // 청구액 타일 셋은 맨 아래 청구 대조 카드로 내렸다 — 청구액은 판관비에서 파생되는 숫자라
+  // 모니터링의 주인공이 아니다. 여기 서는 것은 일본법인의 매출·판관비 실적과 그 셋이다.
+  var 본사매출 = {};
+  (DB['매출탭'] || []).forEach(function (r) {
+    if (+r['회계연도'] !== 연도 || r['사업부'] !== '일본') return;
+    본사매출[+r['월']] = (본사매출[+r['월']] || 0) + (Number(r['금액']) || 0);
+  });
+  var 매출목표 = 축('rev_japan', '목표');
+  var 누매 = 0, 누판 = 0;
+  for (m = 1; m <= 끝; m++) { 누매 += 본사매출[m] || 0; 누판 += 실판[m] || 0; }
+
+  // 직전 달들의 월평균 — 지금은 1~6월, 8월 실적이 오면 1~7월 평균으로 저절로 바뀐다
+  // (2026-08-15 사용자 요청). 시산표 카드의 「평균」 열과 같은 규칙이다
+  var 이전끝 = 끝 - 1, 이전평균 = null;
+  if (이전끝 >= 1) {
+    var 이전합 = 0;
+    for (m = 1; m <= 이전끝; m++) 이전합 += 실판[m] || 0;
+    이전평균 = 이전합 / 이전끝;
+  }
+  var 퍼센트 = function (v) { return v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1); };
+  var 증감표기 = function (v, 기준) {
+    if (!기준) return '';
+    var d = (v / 기준 - 1) * 100;
+    return (d >= 0 ? '+' : '△') + Math.abs(d).toFixed(1) + '%';
+  };
+
+  var 시산 = DB['일본시산표'] || [], 인원표 = DB['일본인원'] || [];
+  // 인건비 비중 — 판관비 중 사람에 붙은 돈. 인재파견비는 뺐다 (재적 인원이 아니다)
+  var 인건계정 = ['役員報酬', '給料手当', '賞与', '退職給付費用', '法定福利費'];
+  var 시월 = 0;
+  시산.forEach(function (r) { if (+r['월'] > 시월) 시월 = +r['월']; });
+  var 인건비중 = null;
+  if (시월) {
+    var 판합 = 0, 인건 = 0;
+    시산.forEach(function (r) {
+      if (+r['월'] !== 시월 || r['구분'] !== '판관비') return;
+      var v = Number(r['당월_jpy']) || 0;
+      판합 += v;
+      if (인건계정.indexOf(r['계정']) >= 0) 인건 += v;
+    });
+    if (판합) 인건비중 = 인건 / 판합 * 100;
+  }
+  var 인월 = 0, 인합 = 0;
+  인원표.forEach(function (r) { if (+r['월'] > 인월) 인월 = +r['월']; });
+  인원표.forEach(function (r) { if (+r['월'] === 인월) 인합 += Number(r['인원']) || 0; });
+
   var 타일 = function (k, v, u, d) {
     return '<div class="tile"><div class="k">' + k + '</div>'
       + '<div class="v">' + v + '<span class="u">' + u + '</span></div>'
       + (d ? '<div class="d">' + d + '</div>' : '') + '</div>';
   };
   $('jpTiles').innerHTML =
-    타일(끝 + '월 판관비', 실엔[끝] != null ? (실엔[끝] / 1e6).toFixed(1) : '—', '백만엔',
-      '₩' + 백만(실판[끝]) + ' · 환율 ' + (환[끝] || 0).toFixed(2))
-    + 타일(끝 + '월 청구액 (실측)', 백만(청구[끝]), '백만원', '판관비 × ' + 배수.toFixed(2))
-    + 타일('누계 청구 (1~' + 끝 + '월)', 백만(누청), '백만원', '본사 분개장 실측')
-    + 타일('하반기 청구 계획', 백만(계청), '백만원', (끝 + 1) + '~12월 · 일본법인 계획 파생');
+    타일(끝 + '월 매출', 백만(본사매출[끝] || 0), '백만원',
+      매출목표[끝]
+        ? '목표 ' + 백만(매출목표[끝]) + ' 대비 ' + 퍼센트(본사매출[끝] / 매출목표[끝] * 100) + '%'
+        : '본사 ERP · 일본향')
+    + 타일(끝 + '월 판관비', 백만(실판[끝]), '백만원',
+      '¥' + (실엔[끝] != null ? (실엔[끝] / 1e6).toFixed(1) : '—') + '백만 · 환율 ' + (환[끝] || 0).toFixed(2)
+      + (이전평균 ? ' · 1~' + 이전끝 + '월 평균 대비 ' + 증감표기(실판[끝], 이전평균) : ''))
+    + 타일('매출 대비 판관비', 본사매출[끝] ? 퍼센트(실판[끝] / 본사매출[끝] * 100) : '—', '%',
+      '누계 ' + (누매 ? 퍼센트(누판 / 누매 * 100) + '%' : '—') + ' (매출 ' + 백만(누매) + ' · 판관비 ' + 백만(누판) + ')')
+    + (인건비중 != null
+      ? 타일('인건비 비중', 퍼센트(인건비중), '%', 시월 + '월 판관비 중 급여·임원보수·상여·법정복리') : '')
+    + (인합
+      ? 타일('1인당 판관비', 백만(실판[끝] / 인합), '백만원', 인월 + '월 말 ' + 인합 + '명') : '');
   $('jpTilesNote').innerHTML =
-    '청구액은 매출이 0이어도 나가는 돈입니다 — <strong>일본은 팔수록 좋아지는 구조이지, '
-    + '접어서 좋아지는 구조가 아닙니다</strong> (공헌이익모델 260810). '
-    + '하반기 목표 달성 시 매출 대비 수수료 비율이 92.7% → 30.1%로 떨어집니다.';
+    '<strong>매출은 본사 ERP(일본향)</strong>, <strong>비용은 일본법인 월차 PL을 원화로 환산</strong>한 값입니다 '
+    + '(엔 원본 × 그 달 환율). <strong>매출 대비 판관비가 100% 아래로 내려오는 달</strong>이 일본이 스스로 서는 달입니다 — '
+    + '지금은 누계 ' + (누매 ? 퍼센트(누판 / 누매 * 100) + '%' : '—') + '입니다. '
+    + '어느 계정이 갑자기 늘었는지는 아래 <strong>시산표 계정별</strong> 표의 「평균 대비」 열이 짚습니다.';
 
   // ── 월별 손익 — 실적 대 계획 ──
   var 달 = [];
@@ -3206,26 +3259,35 @@ function 일본탭그리기() {
     return '<tr class="' + 급 + '"><td>' + 이름 + '</td>' + 칸
       + '<td class="num">' + (소수 ? '' : 백만(누)) + '</td></tr>';
   };
+  // 비율 행 — 매출 대비 판관비 (2026-08-15). 누계 칸은 누계끼리 나눈 값이다
+  var 비율줄 = function (이름, 분자맵, 분모맵) {
+    var 누분자 = 0, 누분모 = 0;
+    var 칸 = 달.map(function (m) {
+      var a = 분자맵[m], b = 분모맵[m];
+      if (a != null && b != null) { 누분자 += a; 누분모 += b; }
+      return '<td class="num muted">' + (a != null && b ? 퍼센트(a / b * 100) + '%' : '—') + '</td>';
+    }).join('');
+    return '<tr class="r-child"><td>' + 이름 + '</td>' + 칸
+      + '<td class="num">' + (누분모 ? 퍼센트(누분자 / 누분모 * 100) + '%' : '—') + '</td></tr>';
+  };
   // 매출 행은 본사 ERP 축이다 (2026-08-14 사용자 합의) — 월차보고 표지의 「매출은 본사
   // ERP에서 산출한다」 그대로. 매출 탭 일본과 같은 숫자라 두 화면이 갈리지 않는다 (ADR 0007).
-  // 일본법인 자체 PL 매출(청구액 등)은 이 표에서 뺐다 — 청구액은 위 타일·아래 대조 표가 정본이다.
-  var 본사매출 = {};
-  (DB['매출탭'] || []).forEach(function (r) {
-    if (+r['회계연도'] !== 연도 || r['사업부'] !== '일본') return;
-    본사매출[+r['월']] = (본사매출[+r['월']] || 0) + (Number(r['금액']) || 0);
-  });
-  var 지표들 = [['cogs', '매출원가'], ['import_cost', '수입원가'], ['opex', '판관비']];
+  // 일본법인 자체 PL 매출(청구액 등)은 이 표에서 뺐다 — 청구액은 맨 아래 대조 표가 정본이다.
+  // 순서는 매출 → 판관비다 (2026-08-15) — 이 둘이 모니터링의 주인공이고 원가는 뒤로 물린다
   $('jpBody').innerHTML =
     줄('매출 (본사 ERP·일본향) — 실적', 본사매출, '')
-    + 줄('　목표 (램프업 8/14)', 축('rev_japan', '목표'), 'r-child')
-    + 지표들.map(function (p) {
-      return 줄(p[1] + ' — 실적', 일본지표(p[0], '실적', '백만원'), p[0] === 'opex' ? 'r-total' : '')
+    + 줄('　목표 (램프업 8/14)', 매출목표, 'r-child')
+    + 줄('판관비 — 실적', 실판, 'r-total')
+    + 줄('　계획', 일본지표('opex', '계획', '백만원'), 'r-child')
+    + 비율줄('　매출 대비 판관비', 실판, 본사매출)
+    + [['cogs', '매출원가'], ['import_cost', '수입원가']].map(function (p) {
+      return 줄(p[1] + ' — 실적', 일본지표(p[0], '실적', '백만원'), '')
         + 줄('　계획', 일본지표(p[0], '계획', '백만원'), 'r-child');
     }).join('') + 줄('환율 (원/엔, 실측 역산)', 환, 'r-child', true);
   $('jpNote').innerHTML =
     '<strong>매출 행은 본사 ERP</strong>입니다 — 매출 탭의 일본과 같은 숫자이고, 목표는 하반기 '
     + '램프업(8/14)입니다. 월차보고 표지의 「매출은 본사 ERP에서 산출한다」 그대로이며, 일본법인 '
-    + '자체 수취액(청구액)은 아래 청구 대조 표가 정본입니다. '
+    + '자체 수취액(청구액)은 맨 아래 청구 대조 표가 정본입니다. '
     + '비용 행의 원천은 일본법인 월차 PL(J-GAAP · 엔화)이고, 원화 환산은 <strong>본사가 실측 역산 '
     + '환율로</strong> 합니다 — 일본법인에 환산을 요청하지 않습니다 (ADR 0012). 분기 확정 월에는 '
     + 'K-IFRS 조정이 <strong>합산 손익</strong>에 반영됩니다 (이 표는 J-GAAP 그대로). '
@@ -3260,8 +3322,17 @@ function 일본탭그리기() {
     대조줄('모델 — 판관비 × ' + 배수.toFixed(2), 모델, 'r-child')
     + 대조줄('실측 — 분개장 판매수수료', 청구, 'r-total')
     + 대조줄('차이 (실측 − 모델)', 차이, 'r-child', true);
+  // 누계·하반기 계획은 2026-08-15에 타일에서 여기로 내려왔다 (청구는 참고 지표다)
+  var 누청 = 0, 계청 = 0;
+  for (m = 1; m <= 끝; m++) 누청 += 청구[m] || 0;
+  var 그룹하 = 축('sga_commission_jp', '값');
+  for (m = 끝 + 1; m <= 12; m++) 계청 += 그룹하[m] || 0;
   $('jpBillNote').innerHTML =
-    '차이가 <span class="neg">빨강</span>(±1 이상)이면 일본법인 PL과 본사 분개장이 어긋난 달입니다 — '
+    '<strong>누계 청구 ' + 백만(누청) + '</strong> (1~' + 끝 + '월 본사 분개장 실측) · '
+    + '하반기 청구 계획 ' + 백만(계청) + ' (' + (끝 + 1) + '~12월, 일본법인 계획 파생). '
+    + '청구액은 판관비 × ' + 배수.toFixed(2) + '라 <strong>판관비를 줄이는 것 말고 청구액만 따로 줄일 방법은 없습니다</strong> — '
+    + '그래서 이 표는 참고이고, 위 판관비 카드가 본체입니다. '
+    + '차이가 <span class="neg">빨강</span>(±1 이상)이면 일본법인 PL과 본사 분개장이 어긋난 달입니다 — '
     + '재제출·질의 대상입니다. 상반기 실측 배수는 여섯 달 전부 1.0500이었습니다 (기준값 cost_plus, '
     + '계약서 확인). 퇴직자 감액처럼 <strong>매출 행에만 반영된 수정이 있으면 이 표가 잡아냅니다.</strong>'
     + (실측없는달.length
@@ -3269,13 +3340,16 @@ function 일본탭그리기() {
       : '');
 
   // ── 시산표 계정별 + 기능별 인원 (0048) — 월차보고가 적재된 달만 ──
-  var 시산 = DB['일본시산표'] || [], 인원표 = DB['일본인원'] || [];
   $('jpTBCard').hidden = !시산.length;
   $('jpHCCard').hidden = !인원표.length;
   if (시산.length) {
     // 월별 추적 (2026-08-14 사용자 합의) — 계정명은 한국어로, 칸은 월별 당월 금액.
-    // 1~6월 월별은 원천(월차보고: 당월·누계뿐)에 없다 — 7월 행의 누계 − 당월로
-    // 「1~6월 계」 한 칸만 파생한다. 월차보고가 쌓일수록 7~12월 칸이 채워진다.
+    // 최신 월 이전은 원천(월차보고: 당월·누계뿐)에 월별이 없다 — 최신 월 행의 누계 − 당월로
+    // 그 기간 합을 파생하고 **월평균**을 낸다. 월차보고가 쌓일수록 뒷달 칸이 채워진다.
+    //
+    // 2026-08-15 사용자 지시 셋: ① 금액을 **원화**로 (엔 원본 × 그 달 환율,
+    // 이전 기간은 그 기간 가중평균 환율) ② 이전 기간 **월평균** 열 — 8월 실적이 오면
+    // 1~7월 평균으로 저절로 바뀐다 ③ 최신 월이 평균보다 튀면 「평균 대비」 열이 빨갛게 뜬다.
     var 계정한 = {
       '役員報酬': '임원보수', '給料手当': '급여', '賞与': '상여', '退職給付費用': '퇴직급여',
       '法定福利費': '법정복리비', '福利厚生費': '복리후생비', '旅費交通費': '여비교통비',
@@ -3291,35 +3365,57 @@ function 일본탭그리기() {
     var 시월들 = [];
     시산.forEach(function (r) { if (시월들.indexOf(+r['월']) < 0) 시월들.push(+r['월']); });
     시월들.sort(function (a, b) { return a - b; });
-    var 시월 = 시월들[시월들.length - 1];
     var fx = 환[시월];      // 실측 역산이 아직 없으면 undefined — 각주에서 밝힌다
     var 시색인 = {};
     시산.forEach(function (r) { 시색인[r['구분'] + '|' + r['계정'] + '|' + (+r['월'])] = r; });
     var 뒷달 = [7, 8, 9, 10, 11, 12];
-    $('jpTBTitle').innerHTML = '시산표 계정별 — 월별 추적<span class="u">엔 · MoneyForward J-GAAP · 월차보고</span>';
-    $('jpTBHead').innerHTML = '<th scope="col">계정</th><th scope="col">1~6월 계</th>'
+
+    // 이전 기간(1~시월−1)의 가중평균 환율 — 그 기간 원화 합 ÷ 엔 합. 월별 시산표가 없어
+    // 계정별로는 이 하나의 환율을 쓴다 (전체 판관비로 보면 원화 합이 손익 표와 정확히 맞는다)
+    var 이전월수 = 시월 - 1;
+    var 이전엔합 = 0, 이전원합 = 0, k;
+    for (k = 1; k <= 이전월수; k++) { 이전엔합 += 실엔[k] || 0; 이전원합 += 실판[k] || 0; }
+    var 이전환 = 이전엔합 ? 이전원합 * 1e6 / 이전엔합 : (환[시월] || 0);
+    var 원화 = function (엔, f) { return (엔 == null || !f) ? null : 엔 * f / 1e6; };
+
+    $('jpTBTitle').innerHTML = '시산표 계정별 — 월별 추적'
+      + '<span class="u">백만원 · 일본법인 월차 PL(J-GAAP) 원화 환산</span>';
+    $('jpTBHead').innerHTML = '<th scope="col">계정</th>'
+      + '<th scope="col">1~' + 이전월수 + '월 월평균</th>'
       + 뒷달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }).join('')
-      + '<th scope="col">누계</th>';
-    var 엔수 = function (v) {
-      return v ? (v < 0 ? '△' : '') + Math.abs(Math.round(v)).toLocaleString('ko-KR') : '—';
+      + '<th scope="col">평균 대비 (' + 시월 + '월)</th><th scope="col">누계</th>';
+    var 칸원 = function (v) { return v == null ? '—' : 백만(v); };
+    // 평균 대비 — 최신 월이 평균의 1.3배 이상이면서 차이가 3백만원 이상이면 빨강 (2026-08-15 합의).
+    // 줄어든 계정은 색 없이 숫자만 — 급증만 눈에 들어오게 한다
+    var 대비칸 = function (당월, 평균) {
+      if (당월 == null || 평균 == null || 평균 <= 0) return '<td class="num muted">—</td>';
+      var d = 당월 - 평균, 배 = 당월 / 평균;
+      var 급증 = 배 >= 1.3 && d >= 3;
+      return '<td class="num' + (급증 ? ' neg' : ' muted') + '">'
+        + (d >= 0 ? '+' : '△') + 백만(Math.abs(d))
+        + '<span class="csub">' + 배.toFixed(2) + '배</span></td>';
     };
-    var 칸엔 = function (v) { return v == null ? '—' : (v === 0 ? '0' : 엔수(v)); };
     var 그리기묶음 = function (구분, 제목) {
       var 본 = {};
       시산.forEach(function (r) { if (r['구분'] === 구분) 본[r['계정']] = true; });
       var 계정들 = Object.keys(본);
       if (!계정들.length) return '';
-      var 값 = function (계정, m) {
+      var 값 = function (계정, m) {                    // 그 달 당월액 (원화 백만)
         var r = 시색인[구분 + '|' + 계정 + '|' + m];
-        return r ? Number(r['당월_jpy']) : null;
+        return r ? 원화(Number(r['당월_jpy']), 환[m]) : null;
       };
-      var 상반 = function (계정) {
-        var r = 시색인[구분 + '|' + 계정 + '|7'];
-        return r ? Number(r['누계_jpy']) - Number(r['당월_jpy']) : null;
-      };
-      var 끝누계 = function (계정) {
+      var 이전합 = function (계정) {                   // 1~시월−1 합 (원화 백만)
         var r = 시색인[구분 + '|' + 계정 + '|' + 시월];
-        return r ? Number(r['누계_jpy']) : null;
+        return r ? 원화(Number(r['누계_jpy']) - Number(r['당월_jpy']), 이전환) : null;
+      };
+      var 평균 = function (계정) {
+        var v = 이전합(계정);
+        return (v == null || 이전월수 < 1) ? null : v / 이전월수;
+      };
+      var 끝누계 = function (계정) {                   // 이전 기간 + 적재된 달들 (환율이 달라 더해서 낸다)
+        var v = 이전합(계정), 있 = v != null, s = v || 0;
+        시월들.forEach(function (m) { var x = 값(계정, m); if (x != null) { s += x; 있 = true; } });
+        return 있 ? s : null;
       };
       계정들.sort(function (a, b) { return Math.abs(끝누계(b) || 0) - Math.abs(끝누계(a) || 0); });
       var 합 = function (f) {
@@ -3327,29 +3423,35 @@ function 일본탭그리기() {
         계정들.forEach(function (계정) { var v = f(계정); if (v != null) { s += v; 있 = true; } });
         return 있 ? s : null;
       };
-      var 행html = function (이름, 원문, f상반, f월, f누계, 급) {
+      var 행html = function (이름, 원문, f평균, f월, f누계, 급) {
+        var 평 = f평균();
         return '<tr class="' + 급 + '"><td' + (원문 ? ' title="' + 원문 + '"' : '') + '>' + 이름 + '</td>'
-          + '<td class="num muted">' + 칸엔(f상반()) + '</td>'
-          + 뒷달.map(function (m) { return '<td class="num">' + 칸엔(f월(m)) + '</td>'; }).join('')
-          + '<td class="num"><strong>' + 칸엔(f누계()) + '</strong></td></tr>';
+          + '<td class="num muted">' + 칸원(평) + '</td>'
+          + 뒷달.map(function (m) { return '<td class="num">' + 칸원(f월(m)) + '</td>'; }).join('')
+          + 대비칸(f월(시월), 평)
+          + '<td class="num"><strong>' + 칸원(f누계()) + '</strong></td></tr>';
       };
       return 행html(제목, null,
-          function () { return 합(상반); },
+          function () { return 합(평균); },
           function (m) { return 시월들.indexOf(m) < 0 ? null : 합(function (계정) { return 값(계정, m); }); },
           function () { return 합(끝누계); }, 'r-total')
         + 계정들.map(function (계정) {
           return 행html(계정한[계정] || 계정, 계정한[계정] ? 계정 : null,
-            function () { return 상반(계정); },
+            function () { return 평균(계정); },
             function (m) { return 값(계정, m); },
             function () { return 끝누계(계정); }, 'r-child');
         }).join('');
     };
     $('jpTBBody').innerHTML = 그리기묶음('판관비', '판관비 계') + 그리기묶음('영업외', '영업외 (참고)');
-    $('jpTBNote').innerHTML = '계정명은 한국어로 옮겼습니다 — 원문(J-GAAP)은 마우스를 올리면 보입니다. '
-      + '<strong>1~6월 계는 파생값</strong>(7월 월차보고의 누계 − 당월)입니다 — 상반기는 월별 시산표를 받지 않았습니다. '
-      + '월 칸은 월차보고가 적재된 달만 채워집니다. <strong>판관비 계가 위 손익 표의 판관비 실적</strong>이고, '
-      + '청구액은 여기에 × ' + 배수.toFixed(2) + '입니다. '
-      + (fx ? '' : '최신 월 원화 환산은 본사 분개장 확정 후 실측 환율로 확정됩니다 (그 전에는 계획 환율). ')
+    $('jpTBNote').innerHTML = '금액은 <strong>원화(백만원)</strong>입니다 — 엔 원본에 그 달 환율을 곱했고, '
+      + '1~' + 이전월수 + '월은 그 기간 가중평균 ' + 이전환.toFixed(2) + '원/엔을 썼습니다. '
+      + '계정명은 한국어로 옮겼습니다 (원문은 마우스를 올리면 보입니다). '
+      + '<strong>1~' + 이전월수 + '월 월평균은 파생값</strong>(' + 시월 + '월 월차보고의 누계 − 당월 ÷ ' + 이전월수 + ')입니다 — '
+      + '그 기간은 월별 시산표를 받지 않았습니다. <strong>' + (시월 + 1) + '월 실적이 오면 평균이 1~' + 시월 + '월로 갱신됩니다.</strong> '
+      + '「평균 대비」는 ' + 시월 + '월이 평균에서 얼마나 벗어났는지이고, '
+      + '<span class="neg">빨강</span>은 <strong>평균의 1.3배 이상이면서 차이가 3백만원 이상</strong>인 계정입니다 — 갑자기 늘어난 비용입니다. '
+      + '<strong>판관비 계가 위 손익 표의 판관비 실적</strong>이고, 청구액은 여기에 × ' + 배수.toFixed(2) + '입니다. '
+      + (fx ? '' : '최신 월 환율은 본사 분개장 확정 후 실측으로 역산됩니다 (지금은 계획 환율). ')
       + '영업외는 청구 대상이 아니라 참고로만 둡니다.';
   }
   if (인원표.length) {
