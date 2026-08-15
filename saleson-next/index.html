@@ -184,6 +184,13 @@
   #refreshBar .spin { width:13px; height:13px; border-width:2px; }
   .skel i { display:block; height:13px; margin-top:11px; border-radius:7px; background:#eef1f4; animation:skb 1.2s ease-in-out infinite; }
   @keyframes skb { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+  /* 병원 자동완성 (2026-08-15, 설계 D4) — position은 **absolute**다.
+     fixed는 iOS에서 키보드가 올라올 때 자리가 어긋난다. z-index는 모달(60)보다 위, 토스트(80)보다 아래 */
+  #acBox { position:absolute; z-index:78; display:none; background:#fff; border:1px solid #e5e8eb; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.10); max-height:44vh; overflow-y:auto; padding:4px; }
+  #acBox .aci { padding:11px 12px; font-size:14px; color:#191f28; border-radius:8px; cursor:pointer; line-height:1.4; }
+  #acBox .aci.on { background:#f2f4f6; }
+  #acBox .aci.warn { color:#B45309; }
+  #acBox .achd { padding:9px 12px 5px; font-size:11.5px; font-weight:700; color:#8b95a1; }
   #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:80; display:none; max-width:88%; }
   #toast.err { background:#f04452; }
   .pconly { display:none; }
@@ -499,7 +506,7 @@
   </div>
   <div class="card">
     <label class="f">병원 검색 *</label>
-    <input type="text" id="pHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkNewHosp()">
+    <input type="text" id="pHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkNewHosp()">
     <div id="pLeadSec" style="display:none;border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">
       <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">처음 보는 병원이네요 — 거래처와 리드로 함께 등록합니다</div>
       <!-- 거래처(02_거래처관리)에도 이 병원을 만든다. 지역·과는 나중에 관리자가 채워도 되지만
@@ -556,8 +563,7 @@
   </div>
   <div class="card">
     <label class="f">병원 검색 *</label>
-    <input type="text" id="fHosp" list="hospList" placeholder="병원명 입력 또는 선택" autocomplete="off">
-    <datalist id="hospList"></datalist>
+    <input type="text" id="fHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off">
     <div class="row2">
       <div><label class="f">방문일</label><input type="date" id="fDate"></div>
       <div><label class="f">다음 방문 예정일</label><input type="date" id="fNext"></div>
@@ -1127,7 +1133,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608151414-abc5b56';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608151450-5a88881';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1464,6 +1470,13 @@ var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi',
 var 현재뷰_ = 'home';
 function show(v) {
   현재뷰_ = v;
+  /* 계획 화면을 떠나면 「옮기는 중」을 끊는다 (8/15, 설계 D5) — 쥔 채로 두면 한참 뒤에 저장한
+     **엉뚱한 계획이 옛 계획을 연기 처리**한다. 끊는 쪽이 안전하다: 원래 계획은 예정으로 남는다.
+     조용히 넘기지 않고 말해 준다 — 안 그러면 「연기를 눌렀는데 그대로다」가 된다 */
+  if (v !== 'plan' && 연기대상_) {
+    연기대상_ = null;
+    toast('옮기던 방문은 예정 그대로 남았습니다 — 다시 [연기]를 누르세요');
+  }
   화면목록_.forEach(function(k) {
     document.getElementById('view-' + k).classList.toggle('on', k === v);
     var nb = document.getElementById('nav-' + k);
@@ -1526,6 +1539,7 @@ function 화면이력_(v) {
   } catch (e) { /* 못 쌓아도 그만이다 — 뒤로가기만 예전처럼 동작한다 */ }
 }
 function 모달닫기_() {
+  입력시트콜백_ = null;   // 입력 시트를 뒤로가기로 닫았으면 콜백도 같이 버린다
   ['hospModal', 'failModal'].forEach(function(id) {
     var m = document.getElementById(id);
     if (m) m.style.display = 'none';
@@ -1675,6 +1689,212 @@ function 실패카드_(칸id, e, 다시) {
   el.querySelector('button').onclick = 다시;
 }
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+/* 병원 자동완성 (2026-08-15, 설계 D4) ───────────────────────────────
+ *
+ * 병원명을 적는 칸이 여섯인데 자동완성은 셋뿐이었고(datalist), 그 셋도 **앞글자 일치만**
+ * 보여 준다. 「비슷하지만 다른 이름」에는 아무 말도 안 한다 — 「빌리브피부과 대구」와
+ * 「대구빌리브의원」이 각각 새 병원으로 들어가고, 흐름 탭 [통일]로 **사후에** 치우는 것이
+ * 유일한 방어였다(지금도 확인 대기 중인 표기가 둘 있다). 여기서 미리 말해 준다.
+ *
+ * `data-ac="hosp"`를 단 칸이면 어디든 붙는다 — 문서에 위임해 걸었으므로 **나중에 만들어지는
+ * 칸(erHosp·mxHosp·ncAddName·재고배정)도 공짜다.** 새 병원 칸을 만들면 속성만 달아라.
+ *
+ * ⚠ 고르는 것은 click이 아니라 **pointerdown + preventDefault**다. click은 blur 뒤에 오는데
+ * 폰에서는 blur가 목록을 접어 버려 탭이 허공을 친다.
+ * ⚠ 바깥 눌러 닫기는 **#acBox를 반드시 빼고** 판정한다 — 안 그러면 캡처 단계에서 먼저 닫혀
+ * 고르기가 죽는다(AC칸_이 null이 된다).
+ */
+var AC칸_ = null, AC고름_ = -1;
+function 병원이름들_() {
+  var 본 = {}, 목록 = [];
+  var 담기 = function(n) {
+    n = String(n == null ? '' : n).trim();
+    if (!n || 본[norm(n)]) return;
+    본[norm(n)] = 1; 목록.push(n);
+  };
+  ((DATA && DATA.hospitals) || []).forEach(function(h) { 담기(h.name); });
+  ((DATA && DATA.leadNames) || []).forEach(담기);
+  return 목록;
+}
+/* 병원명 유사 판정 — 20_도메인 `유사병원명_`·`핵심병원명_`과 **같은 규칙**이어야 한다.
+   ⚠ 값을 바꾸면 저쪽도 같이 바꾼다 — test/hospac.test.mjs가 두 구현을 실제로 돌려 대조한다
+   (인바운드소스_ 사본과 같은 규약) */
+function 핵심병원명_(s) {
+  return norm(s).replace(/(피부과|성형외과|산부인과|정형외과|이비인후과|내과|외과|치과|한의원|의원|병원|클리닉|메디컬)/g, '');
+}
+function 유사병원명_(a, b) {
+  var na = norm(a), nb = norm(b);
+  if (!na || !nb || na === nb) return false;
+  var pre = function(x, y) { return x.length >= 4 && y.indexOf(x) === 0; };
+  if (pre(na, nb) || pre(nb, na)) return true;   // 지점명만 덧붙은 경우
+  var ca = 핵심병원명_(a), cb = 핵심병원명_(b);
+  if (!ca || !cb || ca.length < 3 || cb.length < 3) return false;
+  if (ca === cb) return true;
+  return pre(ca, cb) || pre(cb, ca);
+}
+/* 적은 것에 대한 후보. 정확히 아는 이름이면 유사 경고는 안 띄운다 — 이미 등록된 병원이다 */
+function 병원후보_(값) {
+  var q = norm(값);
+  var 이름 = 병원이름들_();
+  if (!q) return { 정확: false, 일치: 이름.slice(0, 8), 유사: [] };
+  var 정확 = false, 앞 = [], 안 = [], 유사 = [];
+  이름.forEach(function(n) {
+    var nn = norm(n);
+    if (nn === q) { 정확 = true; return; }
+    if (nn.indexOf(q) === 0) 앞.push(n);
+    else if (nn.indexOf(q) > 0) 안.push(n);
+    else if (유사병원명_(값, n)) 유사.push(n);
+  });
+  return { 정확: 정확, 일치: 앞.concat(안).slice(0, 8), 유사: 정확 ? [] : 유사.slice(0, 4) };
+}
+function ac상자_() {
+  var el = document.getElementById('acBox');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'acBox';
+  el.addEventListener('pointerdown', function(ev) {
+    var it = ev.target && ev.target.closest ? ev.target.closest('.aci') : null;
+    if (!it || !it.dataset.v) return;
+    ev.preventDefault();          // 칸이 포커스를 잃지 않게 — blur가 먼저 오면 탭이 유실된다
+    ac고르기_(it.dataset.v);
+  });
+  document.body.appendChild(el);
+  return el;
+}
+/* 목록만 접는다 — **칸은 계속 쥔다.** 접기와 놓기를 가르지 않으면, 이미 정확한 이름이 적힌
+   칸을 눌렀을 때(후보가 없어 접힌다) 칸까지 놓아 버려 **그 뒤로 아무리 고쳐도 목록이 안 뜬다.**
+   프리필된 병원명을 고치는 흐름(metaPlan·연기잡기_)이 정확히 그 자리다 */
+function ac접기_() {
+  var el = document.getElementById('acBox');
+  if (el) el.style.display = 'none';
+  AC고름_ = -1;
+}
+function ac닫기_() {   // 칸에서 손을 뗀다 — 다른 칸으로 갔거나 바깥을 눌렀다
+  ac접기_();
+  AC칸_ = null;
+}
+function ac고르기_(v) {
+  var 칸 = AC칸_;
+  if (!칸) return;
+  칸.value = v;
+  // 칸에 걸린 것들이 그대로 돌게 한다 — checkNewHosp(리드 블록)·임시저장_·메타배너갱신_
+  칸.dispatchEvent(new Event('input', { bubbles: true }));
+  ac접기_();   // **고른 뒤에** 접는다 — 위 input 핸들러가 목록을 다시 펼치기 때문이다
+  칸.focus();
+}
+function ac자리_() {
+  var el = document.getElementById('acBox');
+  if (!el || el.style.display === 'none' || !AC칸_) return;
+  var b = AC칸_.getBoundingClientRect();
+  el.style.left = (b.left + window.scrollX) + 'px';
+  el.style.top = (b.bottom + window.scrollY + 4) + 'px';
+  el.style.width = b.width + 'px';
+}
+function ac그리기_() {
+  if (!AC칸_) return;
+  var r = 병원후보_(AC칸_.value);
+  var 줄 = function(n, cls) { return '<div class="aci' + (cls || '') + '" data-v="' + esc(n) + '">' + esc(n) + '</div>'; };
+  var h = '';
+  if (r.유사.length) {
+    h += '<div class="achd">비슷한 이름이 이미 있습니다 — 같은 곳인가요?</div>'
+      + r.유사.map(function(n) { return 줄(n, ' warn'); }).join('');
+  }
+  if (r.일치.length) {
+    if (r.유사.length) h += '<div class="achd">등록된 병원</div>';
+    h += r.일치.map(function(n) { return 줄(n); }).join('');
+  }
+  if (!h) { ac접기_(); return; }   // 보여 줄 게 없을 뿐이다 — 칸은 놓지 않는다
+  var el = ac상자_();
+  el.innerHTML = h;
+  AC고름_ = -1;
+  el.style.display = 'block';
+  ac자리_();
+}
+document.addEventListener('focusin', function(e) {
+  var t = e.target;
+  if (t && t.dataset && t.dataset.ac === 'hosp') { AC칸_ = t; ac그리기_(); return; }
+  ac닫기_();
+});
+document.addEventListener('input', function(e) {
+  if (AC칸_ && e.target === AC칸_) ac그리기_();
+});
+document.addEventListener('pointerdown', function(e) {
+  var t = e.target;
+  if (!AC칸_ || t === AC칸_) return;
+  if (t && t.closest && t.closest('#acBox')) return;   // 고르는 중이다 — 여기서 닫으면 죽는다
+  ac닫기_();
+}, true);
+document.addEventListener('keydown', function(e) {
+  if (!AC칸_) return;
+  var el = document.getElementById('acBox');
+  if (!el || el.style.display === 'none') return;
+  if (e.key === 'Escape') { ac접기_(); return; }   // 접기만 — 다시 치면 또 떠야 한다
+  var 것들 = el.querySelectorAll('.aci');
+  if (!것들.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    // -1은 「아무것도 안 고름」이다 — 끝에서 한 번 더 누르면 그 자리로 돌아온다
+    AC고름_ += (e.key === 'ArrowDown' ? 1 : -1);
+    if (AC고름_ >= 것들.length) AC고름_ = -1;
+    if (AC고름_ < -1) AC고름_ = 것들.length - 1;
+    for (var i = 0; i < 것들.length; i++) 것들[i].classList.toggle('on', i === AC고름_);
+    if (것들[AC고름_]) 것들[AC고름_].scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  // 아무것도 안 고른 상태의 Enter는 폼 그대로 — 적은 것이 새 병원일 수 있다
+  if (e.key === 'Enter' && AC고름_ >= 0 && 것들[AC고름_]) {
+    e.preventDefault();
+    ac고르기_(것들[AC고름_].dataset.v);
+  }
+});
+// 모달 안쪽 스크롤도 잡아야 자리가 안 어긋난다 — 캡처로 건다
+window.addEventListener('scroll', ac자리_, true);
+window.addEventListener('resize', ac자리_);
+
+/* 한 칸짜리 입력 시트 (2026-08-15, 설계 D5) ─────────────────────────
+ *
+ * native `prompt()`를 대신한다. prompt는 폰에서 앱 **위에 시스템 대화상자**를 띄운다 —
+ * 우리 문구도, 검증도, 병원 자동완성도 못 쓰고, 안드로이드 크롬에서는 「이 페이지가 추가
+ * 대화상자를 표시하지 못하게 차단」 체크가 한 번 걸리면 그 뒤로 **아무 말 없이 안 뜬다.**
+ * 재고 배정처럼 드물게 쓰는 자리가 그렇게 죽으면 원인을 못 찾는다.
+ *
+ * hospModal을 재사용한다(ncAddOpen 선례). 취소면 콜백을 안 부른다 — prompt의 null과 같다.
+ */
+var 입력시트콜백_ = null;
+function 입력시트_(옵, cb) {
+  옵 = 옵 || {};
+  입력시트콜백_ = cb;
+  var 칸 = 옵.여러줄
+    ? '<textarea id="shtVal" style="min-height:80px;" placeholder="' + esc(옵.예시 || '') + '"></textarea>'
+    : '<input type="text" id="shtVal"' + (옵.병원 ? ' data-ac="hosp" autocomplete="off"' : '')
+      + ' placeholder="' + esc(옵.예시 || '') + '">';
+  document.getElementById('hospModalBody').innerHTML =
+    '<div style="font-size:16px;font-weight:700;color:#191f28;">' + esc(옵.제목 || '') + '</div>'
+    + (옵.안내 ? '<div style="margin-top:6px;font-size:12.5px;color:#8b95a1;line-height:1.6;">' + esc(옵.안내) + '</div>' : '')
+    + '<label class="f">' + esc(옵.라벨 || '') + '</label>' + 칸
+    + '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button class="btn" style="flex:1;" onclick="입력시트닫기_()">취소</button>'
+    + '<button class="btn pri" style="flex:1;" onclick="입력시트확인_()">' + esc(옵.확인 || '확인') + '</button></div>';
+  document.getElementById('hospModal').style.display = 'flex';
+  var el = document.getElementById('shtVal');
+  el.value = 옵.값 || '';
+  el.focus();
+}
+function 입력시트닫기_() {
+  입력시트콜백_ = null;
+  ac닫기_();
+  document.getElementById('hospModal').style.display = 'none';
+}
+function 입력시트확인_() {
+  var el = document.getElementById('shtVal');
+  var v = String((el && el.value) || '').trim();
+  // 빈 채로 확인하면 그 칸에서 막는다 — 예전 prompt는 빈 값을 토스트로만 알렸다
+  if (!v) return 검증실패_('내용을 입력해 주세요', 'shtVal');
+  var cb = 입력시트콜백_;
+  입력시트닫기_();
+  if (cb) cb(v);
+}
 
 /* ── 홈 ── */
 function tile(label, val, cls, sub) {
@@ -2118,22 +2338,25 @@ function 재고카드_(s) {
 }
 /* 딜러 재고 1대를 병원에 배정한다 (8/14) — ADR 0024의 「배정 시 새 리드를 만들지 않는다」를
    사람이 직접 실행하는 자리다. 여태 이 일은 Claude가 스크립트로 했다(HANDOFF 「Claude가 할 일 0」).
-   병원명을 prompt로 받는 이유: 재고 카드는 목록이 아니라 요약이라 폼을 놓을 자리가 없고,
-   관리자가 드물게(대수만큼) 쓰는 동작이다. */
+   ⚠ 병원명을 **정확히** 적어야 하는 자리인데 예전에는 native prompt였다 (8/15 D5에서 바꿨다) —
+   자동완성이 없으니 표기가 흔들린 채로 들어가고, 그러면 그 계약이 기존 병원과 다른 곳으로 잡힌다.
+   이제 입력 시트 + 병원 자동완성이라 등록된 이름을 골라서 넣는다. */
 function 재고배정(딜러) {
-  var 병원 = prompt('「' + 딜러 + '」 재고 1대를 어느 병원에 배정할까요?\n\n병원 이름을 정확히 적어 주세요 — 이 리드가 그 병원 계약이 됩니다.');
-  if (병원 == null) return;
-  병원 = 병원.trim();
-  if (!병원) return toast('병원명을 입력해 주세요', true);
-  busy(true, '배정 중…');
-  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원 }))
-    .then(화면갱신감싸기_(function(r) {
-      busy(false); toast(r.msg);
-      // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
-      FLOW = null; DASH = null; KPIT = null; NCARE = null;
-      홈받기_();
-      loadFlow(document.getElementById('fMonth').value);
-    }), function(e) { busy(false); toast(e.message, true); });
+  입력시트_({
+    제목: '「' + 딜러 + '」 재고 1대 배정',
+    안내: '이 리드가 그 병원 계약이 됩니다. 새 리드를 만들면 회계가 이미 인식한 대수를 또 세게 됩니다.',
+    라벨: '병원명 *', 예시: '병원명 입력 또는 선택', 병원: true, 확인: '배정',
+  }, function(병원) {
+    busy(true, '배정 중…');
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원 }))
+      .then(화면갱신감싸기_(function(r) {
+        busy(false); toast(r.msg);
+        // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
+        FLOW = null; DASH = null; KPIT = null; NCARE = null;
+        홈받기_();
+        loadFlow(document.getElementById('fMonth').value);
+      }), function(e) { busy(false); toast(e.message, true); });
+  });
 }
 function renderFlow() {
   var d = FLOW;
@@ -2449,7 +2672,7 @@ function renderEvt() {
     if (EVTREG === ev.code) {
       h += '<div style="border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">'
         + '<div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">' + esc(ev.name) + ' — 참석자 등록 (담당: ' + esc(DATA.me.name) + ')</div>'
-        + '<label class="f">병원명 *</label><input type="text" id="erHosp" list="hospList" autocomplete="off" placeholder="병원명 입력 또는 선택">'
+        + '<label class="f">병원명 *</label><input type="text" id="erHosp" data-ac="hosp" autocomplete="off" placeholder="병원명 입력 또는 선택">'
         + '<div class="row2">'
         + '<div><label class="f">참석자(원장)</label><input type="text" id="erName" placeholder="예: 최OO 원장"></div>'
         + '<div><label class="f">연락처</label><input type="text" id="erPhone" placeholder="예: 010-0000-0000"></div>'
@@ -2545,26 +2768,60 @@ function planCard(p) {
     + '<button class="btn ghost" onclick="planStatus(' + p.k + ',\'취소\')">취소</button>'
     + '</div></div>';
 }
-function planStatus(row, status) {
-  if (!confirm('이 계획을 \'' + status + '\' 처리할까요?')) return;
+/* 연기로 옮기는 중인 계획의 **열쇠**를 쥔다 (2026-08-15, 설계 D5).
+   `k`가 아니라 `키_()`로 푼 `{row, no}`를 담는 이유: 새 계획을 저장하면 `onData`가 목록을
+   갈아끼우고 `열쇠매기기_`가 k를 다시 매긴다 — 그 사이 k를 쥐고 있으면 남의 행을 집는다
+   (8/14 「앱이 옛 화면을 쥐고 있습니다」와 같은 뿌리다). */
+var 연기대상_ = null;
+/* 연기는 **새 날짜를 받아야 끝난다** (8/15, 설계 D5). 여태 상태만 '연기'로 바뀌고 새 계획이
+   안 생겨 **미룬 방문이 그대로 증발**했다 — 홈 「방문기록 미입력」에서도 빠지므로 아무도
+   다시 안 집는다. 계획 폼에 그대로 채워 주고 새 날짜만 받는다.
+   ⚠ **순서가 핵심이다.** 먼저 연기 처리하고 사용자가 저장을 그만두면 오늘과 똑같이 증발한다.
+   그래서 원래 계획은 「예정」인 채로 두고, **새 계획이 저장된 뒤에** 연기로 바꾼다.
+   savePlan의 검증·신규 병원 분기·리드 블록을 그대로 태우는 것은 덤이다(서버는 안 고쳤다). */
+function 연기잡기_(row) {
+  var p = (DATA.plans || []).filter(function(x) { return x.k === row; })[0];
+  if (!p) return toast('그 계획을 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  연기대상_ = 키_(row);
+  show('plan');
+  resetPlanForm('');
+  document.getElementById('pHosp').value = p.hname;
+  document.getElementById('pPurpose').value = p.purpose || '';
+  // 병원명을 넣은 **뒤에** 부른다 — 리드 블록(#pLeadSec)을 여는 것이 이 함수다 (임시저장복구_와 같은 순서)
+  checkNewHosp();
+  var 칩 = function(sel, v, 집기) {
+    if (!v) return;
+    document.querySelectorAll(sel + ' .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === v) 집기(c);
+    });
+  };
+  칩('#pCat', p.cat, pickPCat);
+  칩('#pType', p.type, pickPType);
+  document.getElementById('pDate').value = '';   // 새 날짜를 고르는 자리다 — 오늘로 채우지 않는다
+  document.getElementById('pDate').focus();
+  toast('「' + p.hname + '」 방문을 옮깁니다 — 새 예정일을 고르고 저장하세요');
+}
+function planStatus(row, status, 자동열쇠) {
+  if (status === '연기' && !자동열쇠) return 연기잡기_(row);
+  if (!자동열쇠 && !confirm('이 계획을 \'' + status + '\' 처리할까요?')) return;
   busy(true, '변경 중…');
   /* 원천이 DB고 열쇠(no)가 있으면 관문 직접 — GAS 중계(1.8초)를 건너뛴다 (8/6) */
-  var 대상 = DATA.plans.filter(function(x) { return x.k === row; })[0];
+  var 대상 = 자동열쇠 || DATA.plans.filter(function(x) { return x.k === row; })[0];
   if (DATA.dbSrc && 대상 && 대상.no) {
     관문호출_('/saleson-plan-act', JSON.stringify({ 토큰: TOKEN, 동작: '상태변경', no: 대상.no, status: status }))
       .then(화면갱신감싸기_(function(r) { busy(false); toast(r.msg); DASH = null; FLOW = null; 홈받기_(); }),
       function(e) { busy(false); toast(e.message, true); });
     return;
   }
+  var 열쇠 = 자동열쇠 || 키_(row);
   gsrun().withSuccessHandler(function(d) { onData(d); toast(status + ' 처리했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
-    .웹_계획상태변경(TOKEN, 키_(row).row, status, 키_(row).no);
+    .웹_계획상태변경(TOKEN, 열쇠.row, status, 열쇠.no);
 }
 
 /* ── 기록 입력 ── */
 function renderForm() {
-  var dl = document.getElementById('hospList');
-  dl.innerHTML = DATA.hospitals.map(function(h) { return '<option value="' + esc(h.name) + '">'; }).join('');
+  // 병원 목록은 여기서 안 채운다 (8/15, 설계 D4) — `data-ac="hosp"` 자동완성이 DATA를 직접 본다
   document.getElementById('fDate').value = DATA.today;
   // 입력할 때마다 임시저장 — 앱이 닫히거나 저장이 실패해도 내용을 잃지 않는다
   ['fHosp', 'fNote', 'fContact', 'fReaction', 'fFu', 'fNozzle', 'fNext', 'fDate'].forEach(function(id) {
@@ -2834,6 +3091,12 @@ function savePlan() {
     onData(d); resetPlanForm(keepDate); show('plan');
     toast('계획을 저장했습니다. 이어서 등록하세요');
     document.getElementById('pSave').disabled = false;
+    /* 연기로 옮긴 계획이면 **새 계획이 실제로 생긴 지금** 원래 것을 연기 처리한다 (8/15, D5).
+       먼저 처리했다가 사용자가 저장을 그만두면 미룬 방문이 그대로 증발한다 */
+    if (연기대상_) {
+      var 옮긴것 = 연기대상_; 연기대상_ = null;
+      planStatus(0, '연기', 옮긴것);
+    }
     // Meta 문의에서 온 계획이면 DB의 문의도 '리드 전환'으로 올린다 (metaAssign과 같은 이유).
     // 시트는 GAS가 방금 고쳤다. 실패해도 계획 저장은 이미 끝났으므로 알리기만 한다
     if (승격문의) {
@@ -3242,10 +3505,10 @@ function metaCard(q) {
   return h + '</div>';
 }
 function metaMemo(id) {
-  var t = prompt('통화 메모 (예: 부재중, 내일 오전 재통화)');
-  if (t == null) return;
-  if (!t.trim()) return toast('메모 내용을 입력해 주세요', true);
-  metaAct_(id, '메모', '', '', t.trim());
+  입력시트_({
+    제목: '통화 메모', 라벨: '무슨 일이 있었나요?',
+    예시: '예: 부재중, 내일 오전 재통화', 여러줄: true, 확인: '메모 남기기',
+  }, function(t) { metaAct_(id, '메모', '', '', t); });
 }
 /* 문의 쓰기 — 관문으로 간다. GAS 왕복 1.8초가 통째로 빠지는 자리다.
    응답에 갱신된 한 건(q)이 실려 오므로 목록을 다시 안 받는다. */
@@ -3262,12 +3525,9 @@ function metaAct_(id, action, why, next, text) {
 }
 function metaTake(id) { metaAct_(id, '통화중'); }
 function metaUndo(id) { metaAct_(id, '취소'); }
-function metaExclude(id) {
-  var why = prompt('제외 사유를 입력해 주세요 (예: 병원 아님, 연락 불가, 스팸)');
-  if (why == null) return;
-  if (!why.trim()) return toast('사유가 있어야 제외할 수 있습니다', true);
-  metaAct_(id, '제외', why.trim());
-}
+/* `metaExclude`는 여기 있었다 — [제외] 버튼이 `metaExcludeBox`(칩으로 사유를 고르는 상자)로
+   옮겨 간 뒤로 **부르는 곳이 없었다.** 8/15에 지웠다(설계 G가 예고한 그 함수다).
+   되살릴 일이 있으면 git 이력에서 꺼낸다. */
 /* 통화 완료 · 분류 상자 — 폰 통화 직후 한 화면에서 끝낸다 (1차 통화자 워크플로).
    리드 전환이면 담당자를 골라 배정(웹_메타리드전환 → 배정 메일), 아니면 제외.
    내가 직접 담당할 거면 기존 [계획 등록] 경로로 넘어간다 */
@@ -3284,7 +3544,7 @@ function metaAssignBox(q) {
   var h = '<div style="margin-top:12px;border:1px solid #c9e0ff;background:#f0f7ff;border-radius:14px;padding:14px;">';
   h += '<div style="font-size:13.5px;font-weight:700;color:#1b64da;">통화 결과 분류</div>';
   h += '<label class="f">병원명 (실제 병원명으로 고쳐 주세요)</label>'
-    + '<input type="text" id="mxHosp" value="' + esc(q.hname2 || q.company || '') + '">';
+    + '<input type="text" id="mxHosp" data-ac="hosp" autocomplete="off" value="' + esc(q.hname2 || q.company || '') + '">';
   h += '<label class="f">리드 담당자 — 누구에게 넘길까요?</label>'
     + '<div class="chips" id="mxReps">' + reps.map(function(n) {
         return '<div class="chip' + (METAREP === n ? ' on' : '') + '" data-v="' + esc(n) + '" onclick="metaPickRep(this)">' + esc(n) + '</div>';
@@ -4407,7 +4667,7 @@ function ncAddOpen() {
   if (NCARE.me.viewer) { toast('조회 전용 계정은 추가할 수 없습니다', true); return; }
   var h = '<div style="font-size:16px;font-weight:700;color:#191f28;">Pool에 병원 추가</div>'
     + '<div style="margin-top:4px;font-size:12.5px;color:#8b95a1;">장비 계약이 기록되면 자동으로 들어옵니다 — 여기는 딜러·과거 판매처용입니다. 1단계(제팅교육)로 들어갑니다</div>'
-    + '<label class="f">병원명 *</label><input type="text" id="ncAddName" placeholder="예: 홍길동피부과의원">'
+    + '<label class="f">병원명 *</label><input type="text" id="ncAddName" data-ac="hosp" autocomplete="off" placeholder="예: 홍길동피부과의원">'
     + '<label class="f">케어 담당</label><select id="ncAddRep"><option value="">나중에 지정</option>'
     + (NCARE.reps || []).map(function(r) {
         return '<option value="' + esc(r.name) + '"' + (r.name === NCARE.me.name ? ' selected' : '') + '>' + esc(r.name) + '</option>';
