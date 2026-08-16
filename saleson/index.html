@@ -576,7 +576,19 @@
   <div id="planDateHint" class="warnbox" style="display:none;"></div>
   <div class="card">
     <label class="f">병원 검색 *</label>
-    <input type="text" id="fHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off">
+    <input type="text" id="fHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkLeadF_()">
+    <!-- 리드가 없는 병원이면 판매 구분을 여기서 받아 기록과 함께 리드를 만든다 (2026-08-16, P19·P49).
+         계획을 안 거치고 기록만 쓰는 경로가 8월 90건 중 39건이고, 그쪽으로 들어온 병원은
+         리드가 안 생겨 「리드 없이 계약까지」 가 실제로 일어났다(닥터스피부과의원 광주상무). -->
+    <div id="fLeadSec" style="display:none;border:1px solid #c9e0ff;background:#e8f3ff;border-radius:14px;padding:4px 14px 14px;margin-top:10px;">
+      <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1b64da;">이 병원은 리드가 없어요 — 판매 구분을 정하면 기록과 함께 리드로 등록합니다</div>
+      <label class="f">판매 구분 *</label>
+      <div class="chips" id="fCh"></div>
+      <div id="fDealerWrap" style="display:none;">
+        <label class="f">딜러명 *</label>
+        <input type="text" id="fDealer" placeholder="예: OO메디칼" autocomplete="off">
+      </div>
+    </div>
     <div class="row2">
       <div><label class="f">방문일</label><input type="date" id="fDate" onchange="계획일안내_()"></div>
       <div><label class="f">다음 방문 예정일</label><input type="date" id="fNext"></div>
@@ -988,6 +1000,7 @@ var selType = '';
 var selPType = '';
 var selPCh = '';
 var selPSrc = '';
+var selFCh = '';        // 기록 폼의 판매 구분 — 리드가 없는 병원일 때만 쓴다 (P19·P49)
 var selEType = '';
 var selPCat = '';
 var selFCat = '';
@@ -1152,7 +1165,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608160951-e238542';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608161016-0b87d8e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2987,6 +3000,10 @@ function renderForm() {
   };
   document.getElementById('pCat').innerHTML = catChips('pickPCat');
   document.getElementById('fCat').innerHTML = catChips('pickFCat');
+  // 기록 폼 판매 구분 (리드 없는 병원) — 계획 폼 pCh와 같은 값
+  document.getElementById('fCh').innerHTML = (DATA.channels || []).map(function(c) {
+    return '<div class="chip" data-v="' + esc(c) + '" onclick="pickFCh(this)">' + esc(c) + '</div>';
+  }).join('');
   // 배포 자료 칩 (복수 선택)
   document.getElementById('fMat').innerHTML = (DATA.matCats || []).map(function(m) {
     return '<div class="chip" data-v="' + esc(m) + '" onclick="toggleMat(this)">' + esc(m) + '</div>';
@@ -3025,7 +3042,7 @@ function renderForm() {
      **눈에 안 보이는 값으로 저장**된다 — 조용한 오염이라 나중에 원인을 못 찾는다.
      `resetForm`·`resetPlanForm`은 sel*와 `.on`을 같이 지우는데 여기에는 그 짝이 없었다. */
   [['#fType', selType], ['#fCat', selFCat], ['#pType', selPType], ['#pCat', selPCat],
-    ['#pCh', selPCh], ['#pSrc', selPSrc], ['#eType', selEType]].forEach(function(쌍) {
+    ['#pCh', selPCh], ['#fCh', selFCh], ['#pSrc', selPSrc], ['#eType', selEType]].forEach(function(쌍) {
     if (!쌍[1]) return;
     document.querySelectorAll(쌍[0] + ' .chip').forEach(function(c) {
       if (c.getAttribute('data-v') === 쌍[1]) c.classList.add('on');
@@ -3043,6 +3060,8 @@ function renderForm() {
   });
   폼첫그리기_ = false;
   checkNewHosp();
+  checkLeadF_();   // 기록 폼 리드 블록도 같이 — 다시 그린 뒤 열림/닫힘이 낡으면 안 된다
+  document.getElementById('fDealerWrap').style.display = selFCh === '딜러' ? 'block' : 'none';
   /* 위에서 `fDate`를 오늘로 되돌렸으므로 계획일 안내를 다시 계산한다 (2026-08-16).
      안 부르면 배너가 낡는다 — 담당자가 방문일을 계획일로 맞춰 배너를 끈 뒤 이 함수가 돌면
      날짜만 조용히 오늘로 돌아가고 배너는 꺼진 채로 남아, **경고 없이 안 닫히는 계획**이 된다.
@@ -3169,6 +3188,21 @@ function checkNewHosp() {
   } else {
     hint.style.display = 'none';
   }
+}
+/* 기록 폼 — 리드가 없는 병원이면 판매 구분을 받는다 (2026-08-16, P19·P49).
+   계획 폼의 `checkNewHosp`와 달리 **거래처는 아예 안 본다** — 기록은 거래처를 만들지 않고,
+   여기서 모자란 것은 직판/딜러 하나뿐이다(병원·담당·날짜·카테고리는 이미 폼에 있다). */
+function checkLeadF_() {
+  var v = norm(document.getElementById('fHosp').value);
+  var 리드있음 = false;
+  if (v) (DATA.leadNames || []).forEach(function(n) { if (norm(n) === v) 리드있음 = true; });
+  document.getElementById('fLeadSec').style.display = (v && !리드있음) ? 'block' : 'none';
+}
+function pickFCh(el) {
+  selFCh = el.getAttribute('data-v');
+  document.querySelectorAll('#fCh .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('fDealerWrap').style.display = selFCh === '딜러' ? 'block' : 'none';
+  임시저장_();
 }
 function pickPCat(el) {
   selPCat = el.getAttribute('data-v');
@@ -3336,6 +3370,7 @@ function prefill(row) {
   }
   PREFILL = { hname: p.hname, hcode: p.hcode || '', date: p.date };
   document.getElementById('fHosp').value = p.hname;
+  checkLeadF_();   // 프로그램으로 넣으면 oninput이 안 뜬다 — 리드 블록을 직접 맞춘다
   var 맞은칩 = null;
   document.querySelectorAll('#fType .chip').forEach(function(c) {
     if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
@@ -3431,6 +3466,13 @@ function saveLog() {
   };
   if (!f.hname) return 검증실패_('병원명을 입력해 주세요', 'fHosp');
   if (!f.cat) return 검증실패_('판매 카테고리(장비 판매/N-Care)를 선택해 주세요', 'fCat');
+  /* 리드가 없는 병원이면 판매 구분을 받아 기록과 함께 리드를 만든다 (2026-08-16, P19·P49).
+     여기서 안 막으면 「리드 없이 계약까지」가 다시 생긴다 — 실제로 그랬다. */
+  if (document.getElementById('fLeadSec').style.display !== 'none') {
+    if (!selFCh) return 검증실패_('이 병원은 리드가 없습니다 — 판매 구분(직판/딜러)을 선택해 주세요', 'fCh');
+    if (selFCh === '딜러' && !document.getElementById('fDealer').value.trim()) return 검증실패_('딜러명을 입력해 주세요', 'fDealer');
+    f.lead = { channel: selFCh, dealer: document.getElementById('fDealer').value.trim() };
+  }
   if (!f.type) return 검증실패_('활동 유형을 선택해 주세요', selType === '__etc' ? 'fTypeEtc' : 'fType');
   if (!f.note.trim()) return 검증실패_('논의 내용을 입력해 주세요', 'fNote');
   document.getElementById('fSave').disabled = true;
@@ -3540,10 +3582,13 @@ function resetForm() {
   document.getElementById('fTypeEtc').style.display = 'none';
   document.getElementById('fTypeEtcNote').style.display = 'none';
   document.getElementById('planDateHint').style.display = 'none';   // PREFILL이 없어지므로 안내도 같이 (점검 P13)
-  selType = ''; selFCat = ''; PREFILL = null;
+  selType = ''; selFCat = ''; selFCh = ''; PREFILL = null;
+  document.getElementById('fDealer').value = '';
+  document.getElementById('fDealerWrap').style.display = 'none';
+  document.getElementById('fLeadSec').style.display = 'none';   // 병원 칸을 비웠으니 같이 닫는다
   selMats = []; matVals = {};
   document.getElementById('fMatDetails').innerHTML = '';
-  document.querySelectorAll('#fType .chip, #fCat .chip, #fMat .chip').forEach(function(c) { c.classList.remove('on'); });
+  document.querySelectorAll('#fType .chip, #fCat .chip, #fCh .chip, #fMat .chip').forEach(function(c) { c.classList.remove('on'); });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4013,6 +4058,7 @@ function 임시저장복구_() {
     '저장하지 않은 기록이 있습니다 — ' + (d.hname || '(병원 미입력)');
   el.querySelector('.dload').onclick = function() {
     document.getElementById('fHosp').value = d.hname || '';
+    checkLeadF_();
     document.getElementById('fDate').value = d.date || DATA.today;
     document.getElementById('fNext').value = d.next || '';
     document.getElementById('fStage').value = d.stage || '';
@@ -4375,6 +4421,7 @@ function editLog(k) {
   resetForm();
   EDITKEY = k;   // resetForm이 지우므로 다시 세운다
   document.getElementById('fHosp').value = l.hname;
+  checkLeadF_();
   document.getElementById('fDate').value = l.date;
   document.getElementById('fNext').value = l.next || '';
   document.getElementById('fStage').value = l.stage || '';
