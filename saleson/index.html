@@ -1165,7 +1165,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608161016-0b87d8e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608161046-623294e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4684,7 +4684,39 @@ function leadCard(l) {
           + '</div>';
       })()
     + (l.memo ? '<div class="memo">' + esc(l.memo) + '</div>' : '')
-    + '<div class="stg">' + chips + '</div></div>';
+    + '<div class="stg">' + chips + '</div>'
+    /* 지우기 (2026-08-16) — 방문기록 [삭제]와 같은 규칙이다. **DB가 원천일 때만** 보인다:
+       시트가 원천이면 지울 곳이 관문이 아니라 시트라 아무 일도 못 하는 버튼이 된다.
+       계약된 리드에는 안 그린다 — 실적이 조용히 줄면 나중에 원인을 못 찾는다(관문도 막는다). */
+    + (DATA.dbSrc && !done && !(DATA.me && DATA.me.viewer)
+      ? '<div style="margin-top:10px;text-align:right;">'
+        + '<button class="btn ghost" onclick="deleteLead(' + l.k + ')">삭제</button></div>'
+      : '')
+    + '</div>';
+}
+
+/* 리드 지우기 — 행을 진짜로 지우지 않고 숨긴다(마이그레이션 0013).
+   목록·퍼널·KPI·시트에서 사라지고, 잘못 눌러도 DB에 남아 있어 되살릴 수 있다. */
+function deleteLead(row) {
+  var l = (DATA.leads || []).filter(function(x) { return x.k === row; })[0] || {};
+  if (!l.no) return toast('이 리드는 새로고침 뒤에 지울 수 있어요', true);
+  /* 문구가 실제보다 파괴적으로 들리면 지워도 되는 것을 못 지운다 (8/5 감사 U10).
+     방문기록 삭제와 같은 말투로 맞춘다. */
+  if (!confirm('이 리드를 지울까요?\n\n'
+    + (l.hname || '') + (l.contact ? ' · ' + l.contact : '') + '\n\n'
+    + '리드 목록과 퍼널·KPI에서 사라집니다. 방문기록은 그대로 남습니다.\n'
+    + '완전히 없어지는 것은 아니라, 잘못 지웠으면 관리자가 되살릴 수 있습니다.')) return;
+  busy(true, '저장 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify({
+    토큰: TOKEN, 동작: '삭제', no: l.no,
+  })).then(화면갱신감싸기_(function(r) {
+    busy(false);
+    // 목록에서 그 카드만 걷어낸다 — 목록을 다시 부르면 왕복이 하나 는다 (deleteLog와 같은 규칙)
+    DATA.leads = (DATA.leads || []).filter(function(x) { return x.k !== row; });
+    DASH = null; FLOW = null; KPIT = null; NCARE = null;
+    renderLeads();
+    toast(r.msg || '지웠습니다.');
+  }), function(e) { busy(false); toast(e.message, true); });
 }
 
 /** 리드에 행사를 붙이거나 뗀다. 행사명은 서버가 07_학회행사에서 찾아 함께 적는다 */
