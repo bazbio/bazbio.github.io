@@ -477,6 +477,10 @@ const CODE_MERGED = {
 const normCode = c => { const u = String(c || '').trim().toUpperCase(); const v = CODE_MIG[u] || u; return CODE_MERGED[v] || v; };
 let BUDGET = [], DEPTMAP = [], SETTINGS = {}, CODED_DEPTS = [];
 let EXPENSES = [], USER = { depts: null }, UNMATCHED = [];
+/* 계정분류 시트 [계정, 비용성격, 회계계정]. 서버는 처음부터 init에 실어 보냈는데(`Code.gs:1619`)
+   화면이 받고도 안 썼다 — 그래서 월별 탭이 '자본적지출' 목록을 자기 손으로 다시 적었고,
+   넷 중 하나(투자비)만 적혀 있었다 (2026-08-16 훑기 B8). 목록은 시트 한 곳에만 둔다. */
+let ACCT_CLASS = [];
 let dirty = {};
 let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내림차순. i=4 기안일, i=16 지출일자
 // 대시보드 경고에서 넘어올 때 걸리는 필터. '' = 없음 / all = 입력 필요 전체 /
@@ -606,6 +610,7 @@ const EDGE_BOOT_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1/got
 function 부트적용(init, expenses) {
   BUDGET = init.budget; DEPTMAP = init.deptMap; SETTINGS = init.settings;
   CODED_DEPTS = init.codedDepts;
+  ACCT_CLASS = init.acctClass || [];
   UNMATCHED = init.unmatched || [];
   USER = { email: init.email, name: init.name, depts: init.depts || null };
   EXPENSES = expenses;
@@ -1074,13 +1079,29 @@ function monthList() {
 function renderMonthly() {
   const months = monthList();
   const inclPending = el('mon-pend') ? el('mon-pend').checked : false;
+  const mLabel = mm => Number(mm.slice(5)) + '월';
+  const nowD = new Date();
+  const thisMonth = nowD.getFullYear() + '-' + String(nowD.getMonth() + 1).padStart(2, '0');
 
   // 예산내 판정: 부서|계정 조합이 예산마스터에 존재하면 예산내, 아니면 예산외
   const budKeys = new Set(BUDGET.map(r => r[1] + '|' + r[2]));
 
   // 월×(예산내/예산외), 계정×월
   // 회계 규칙: ① 원재료비*는 매출원가 → 판관비 월별 집계 제외
-  //           ② 연구소 투자비(경상연구개발비-투자비)는 집행 월부터 60개월 정액 상각으로 감가상각비 인식
+  //           ② 자본적지출은 집행 월부터 60개월 정액 상각으로 감가상각비 인식
+  /* 어떤 계정이 자본적지출인지는 **계정분류 시트가 정한다.** 여기에 목록을 다시 적으면
+     `Code.gs:209`의 「목록을 두 군데 두면 한쪽만 고치는 날이 온다」를 그대로 밟는다 —
+     실제로 밟았다: 시트에는 넷(투자비·설비·JIG·자재창고)인데 화면은 투자비 하나만
+     보고 있어서 2.63억이 집행 월에 전액 실렸고, 등대는 그 넷을 다 손익에서 빼므로
+     **같은 달 판관비에 두 시스템이 다른 답을 냈다** (2026-08-16 훑기 B8).
+     부서 조건도 뗐다 — 회계 결정표는 계정만 본다. 코드 없는 집행(77%)은 예산부서가
+     기안부서 매핑에서 오므로, 부서로 가르면 같은 계정이 연구소 밖에서 잡히는 순간
+     상각이 조용히 꺼진다. */
+  const 자본적 = new Set(ACCT_CLASS.filter(r => String(r[1] || '').trim() === '자본적지출')
+    .map(r => String(r[0] || '').trim()));
+  /* 시트를 못 받으면 상각이 **조용히 꺼진다** — 3억짜리 금형이 집행 월에 통째로 실려도
+     화면은 멀쩡해 보인다. 목록을 여기 다시 적는 대신 못 한다고 말한다. */
+  const 분류없음 = 자본적.size === 0;
   const inBud = {}, outBud = {}, pendM = {};
   const byAcct = {};   // 계정 → 월 → 금액
   let tot = 0, investTot = 0;
@@ -1096,37 +1117,44 @@ function renderMonthly() {
     if (amt <= 0) return;
     // 매출원가는 판관비가 아니다 — 예산부서로 가른다(v17). 계정명으로 보던 것을 대체한다.
     if (dept === '매출원가') { if (st === '종결') cogsM += amt; return; }
-    const isInvest = acct === '경상연구개발비-투자비' && dept.indexOf('연구소') === 0;
+    const isInvest = 자본적.has(acct);
     const ok = st === '종결' || (inclPending && st === '진행');
     if (!ok) { if (st === '진행' && !isInvest) { const mm = String(r[4]).slice(0, 7); pendM[mm] = (pendM[mm] || 0) + amt; } return; }
     const mm = String(r[4]).slice(0, 7);
     if (months.indexOf(mm) === -1) return;
     if (isInvest) {
-      // 자산화 후 월 1/60 상각 (기간 내 월만 표시)
+      /* 자산화 후 월 1/60 상각. **아직 오지 않은 달에는 넣지 않는다** (2026-08-16 훑기 B1).
+         종전에는 집계기간 끝(12월)까지 채워 넣고 그걸 「기간 내 총 지출 (종결)」에 실었다 —
+         7월 3억 투자비 하나면 그 카드의 3분의 2가 아직 일어나지 않은 상각이었다. */
       investTot += amt;
       const dep = Math.round(amt / 60);
-      months.filter(m2 => m2 >= mm).forEach(m2 => put(m2, dep, true, '감가상각비(연구 투자상각)'));
+      months.filter(m2 => m2 >= mm && m2 <= thisMonth)
+        .forEach(m2 => put(m2, dep, true, '감가상각비(자본적지출 상각)'));
       return;
     }
     put(mm, amt, budKeys.has(dept + '|' + acct), acct || '(계정 미지정)');
   });
 
-  const mLabel = mm => Number(mm.slice(5)) + '월';
-  const nowD = new Date();
-  const thisMonth = nowD.getFullYear() + '-' + String(nowD.getMonth() + 1).padStart(2, '0');
   const curSum = (inBud[thisMonth] || 0) + (outBud[thisMonth] || 0);
-  const monthsPast = months.filter(mm => mm <= thisMonth).length || 1;
+  /* 월평균 분모는 **끝난 달만** 센다 (2026-08-16 훑기 B1). 진행 중인 달을 넣으면 반달치가
+     한 달 무게로 들어가 월평균이 실제보다 낮게 나온다 — 7월 2.4억·8월 4,120만이 8/16에
+     실제로 1.4억(41% 낮음)을 찍었다. 기간 첫 달이 아직 안 끝났으면 0이 되므로 `|| 1`. */
+  const 완료달 = months.filter(mm => mm < thisMonth);
+  const monthsPast = 완료달.length || 1;
+  // 분자도 완료된 달만 — 분모만 고치면 진행 중인 달의 반달치가 통째로 평균에 얹힌다
+  const 완료합 = 완료달.reduce((s, mm) => s + (inBud[mm] || 0) + (outBud[mm] || 0), 0);
 
   let html = `<div class="cards">
     <div class="card"><div class="label">기간 내 총 지출${inclPending ? ' (진행 포함)' : ' (종결)'}</div><div class="value">${fmt(tot)}원</div></div>
     <div class="card"><div class="label">이번 달 (${mLabel(thisMonth)})</div><div class="value">${fmt(curSum)}원</div><div class="extra">진행중 ${fmt(pendM[thisMonth] || 0)}원 별도</div></div>
-    <div class="card"><div class="label">월평균</div><div class="value">${fmt(tot / monthsPast)}원</div><div class="extra">경과 ${monthsPast}개월 기준</div></div>
+    <div class="card"><div class="label">월평균</div><div class="value">${fmt(완료합 / monthsPast)}원</div><div class="extra">완료 ${monthsPast}개월 기준 (${mLabel(thisMonth)} 제외)</div></div>
     <div class="card"><div class="label">매출원가 (별도)</div><div class="value">${fmt(cogsM)}원</div><div class="extra">위 판관비 집계에는 안 들어감</div></div>
   </div>`;
 
   // 표1: 월별 전체 (예산내/예산외)
   html += `<section class="panel"><h2 class="section-head">월별 전체 지출</h2>
-    <p class="section-sub">예산 항목에 없는 비용(예산외) 포함, <b>매출원가는 제외</b>(원재료비·외주가공비·제조(제) 귀속 — 위 카드에 별도 표시). 연구소 투자비는 집행 월부터 5년(60개월) 정액 상각으로 인식${investTot ? ' — 자산화 누계 ' + fmt(investTot) + '원' : ''}. 월 기준은 기안일${inclPending ? ' · 진행중 포함' : ' · 결재 종결 기준'}.</p>
+    ${분류없음 ? '<div class="alert warn">계정분류를 받지 못해 <b>자본적지출 상각을 적용하지 못했습니다</b> — 금형·설비가 집행 월에 전액으로 실려 있습니다. 재경팀에 알려 주세요.</div>' : ''}
+    <p class="section-sub">예산 항목에 없는 비용(예산외) 포함, <b>매출원가는 제외</b>(원재료비·외주가공비·제조(제) 귀속 — 위 카드에 별도 표시). 자본적지출(계정분류 시트 기준 — 투자비·설비·JIG·자재창고)은 집행 월부터 5년(60개월) 정액 상각으로 인식${investTot ? ' — 자산화 누계 ' + fmt(investTot) + '원' : ''}. 월 기준은 기안일${inclPending ? ' · 진행중 포함' : ' · 결재 종결 기준'}.<br><b>이번 반기(집계기간) 안에 집행된 분의 상각만 표시합니다</b> — 상반기 집행 자산의 상각은 아직 이 표에 안 들어옵니다. 아직 오지 않은 달은 「—」입니다.</p>
     <div class="filters"><label class="muted"><input type="checkbox" id="mon-pend" ${inclPending ? 'checked' : ''}> 진행중(미종결) 포함</label></div>
     <div class="table-wrap"><table>
     <tr><th>월</th><th class="num">예산내</th><th class="num">예산외</th><th class="num">합계</th><th class="num">누계</th></tr>`;
@@ -1134,9 +1162,13 @@ function renderMonthly() {
   months.forEach(mm => {
     const a = inBud[mm] || 0, b = outBud[mm] || 0;
     run += a + b;
-    html += `<tr><td${mm === thisMonth ? ' style="font-weight:600"' : ''}>${mLabel(mm)}</td>
-      <td class="num">${fmt(a)}</td><td class="num">${b > 0 ? fmt(b) : '<span class="muted">—</span>'}</td>
-      <td class="num" style="font-weight:600">${fmt(a + b)}</td><td class="num muted">${fmt(run)}</td></tr>`;
+    /* 아직 오지 않은 달은 값 대신 「—」. 0원으로 그리면 「그 달엔 지출이 0이었다」와
+       「아직 안 온 달이다」가 완전히 같은 모양이 된다 (2026-08-16 훑기 B1). */
+    const 미래 = mm > thisMonth;
+    const 칸 = v => 미래 ? '<span class="muted">—</span>' : fmt(v);
+    html += `<tr><td${mm === thisMonth ? ' style="font-weight:600"' : ''}>${mLabel(mm)}${미래 ? ' <span class="muted">(예정)</span>' : ''}</td>
+      <td class="num">${칸(a)}</td><td class="num">${미래 || b <= 0 ? '<span class="muted">—</span>' : fmt(b)}</td>
+      <td class="num" style="font-weight:600">${칸(a + b)}</td><td class="num muted">${미래 ? '' : fmt(run)}</td></tr>`;
   });
   html += `<tr class="grand-row"><td>합계</td>
     <td class="num">${fmt(months.reduce((s, mm) => s + (inBud[mm] || 0), 0))}</td>
