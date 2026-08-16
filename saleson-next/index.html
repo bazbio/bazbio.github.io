@@ -1165,7 +1165,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608161221-a7abf2a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608161246-6e34e5e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2460,15 +2460,33 @@ function 재고배정(딜러) {
       도움: '영업이 이 계약을 딴 날입니다 — 재고를 뒤늦게 배정했다면 그날로 맞춰 주세요. 회계 인식월은 따로 기록돼 그대로 남습니다.',
     },
   }, function(병원, 계약일) {
-    busy(true, '배정 중…');
-    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일 }))
-      .then(화면갱신감싸기_(function(r) {
+    /* 관문이 「이미 계약 리드가 있다」로 409를 주면 한 번 되묻고 그대로 보낸다 (2026-08-16).
+       막지 않는 이유: 한 병원이 정말 2대를 사기도 한다. 다만 **모르고 두 번 누르는 것**은
+       실제로 두 번 났다(스노우의원 안산 8/16 00:05·11:42) — 그때마다 7월 계약이 15대가 됐다. */
+    var 보내기 = function(중복확인) {
+      busy(true, '배정 중…');
+      return 관문호출_('/saleson-lead-act', JSON.stringify({
+        토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일,
+        중복확인: !!중복확인,
+      })).then(화면갱신감싸기_(function(r) {
         busy(false); toast(r.msg);
         // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
         FLOW = null; DASH = null; KPIT = null; NCARE = null;
         홈받기_();
         loadFlow(document.getElementById('fMonth').value);
-      }), function(e) { busy(false); toast(e.message, true); });
+      }), function(e) {
+        busy(false);
+        if (!중복확인 && /이미 계약 리드가 있습니다/.test(e.message || '')) {
+          if (confirm(e.message + '\n\n그래도 배정할까요?\n\n'
+            + '이 병원이 정말 2대를 샀다면 [확인], 잘못 누르신 것이면 [취소]를 눌러 주세요.')) {
+            보내기(true);
+          }
+          return;
+        }
+        toast(e.message, true);
+      });
+    };
+    보내기(false);
   });
 }
 function renderFlow() {
