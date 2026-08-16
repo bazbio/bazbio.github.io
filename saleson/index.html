@@ -253,9 +253,10 @@
   .fmore { font-family:inherit; font-size:11.5px; font-weight:600; color:#1b64da; background:none; border:none; padding:4px 0; cursor:pointer; }
   .fgb { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:5px; font-size:9.5px; font-weight:700;
          background:#fff3e0; color:#8a5a00; vertical-align:1px; white-space:nowrap; }
-  /* 퍼널 줄의 직판/딜러 배지 (P48). 직판이 대부분이라 회색으로 눕히고 딜러만 세운다 */
+  /* 퍼널 줄의 직판/딜러 배지 (P48). 처음에는 직판을 회색으로 눕혔는데 눈에 안 띄어서
+     둘 다 세우고 색으로 가른다 (8/16) — 직판 초록 · 딜러 파랑. 인식배지(.fgb)는 주황이라 안 겹친다 */
   .fch { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:5px; font-size:9.5px; font-weight:700;
-         background:#f2f4f6; color:#8b95a1; vertical-align:1px; white-space:nowrap; }
+         background:#e3f6ec; color:#058652; vertical-align:1px; white-space:nowrap; }
   .fch.dlr { background:#e8f3ff; color:#1b64da; }
 
   /* 리드 탭 장비/N-Care 2단 */
@@ -1151,7 +1152,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608160915-1be983f';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608160951-e238542';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
