@@ -1146,7 +1146,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608160201-af33174';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608160236-394c02d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1361,7 +1361,13 @@ function 홈받기_() {
         DATA.team.monthVisits = d.tiles.team.monthVisits;
       }
     }
-    renderHome(); renderLeads(); renderForm();
+    /* ⚠ 여기서 `renderForm()`을 불렀다 (2026-08-16, 점검 P17에서 뺐다).
+       renderForm이 읽는 것은 `DATA.types`·`matCats`·`channels`·`sources`·`evtList`·`evtTypes`인데
+       홈받기_는 그중 **하나도 안 바꾼다** — plans·leads·leadNames·tiles만 갈아끼운다.
+       그러면서 폼의 칩을 통째로 다시 그려 `.on`을 지우고 날짜를 오늘로 되돌렸다.
+       즉 얻는 것 없이 입력 중인 폼만 부수는 호출이었다. 실제로 바뀌는 것은 `leadNames`뿐이고
+       그것을 쓰는 것은 `checkNewHosp()` 하나다. */
+    renderHome(); renderLeads(); checkNewHosp();
   }, '홈을 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
     홈받는중_ = false;   // 실패해도 화면은 GAS 데이터로 이미 서 있다 — 조용히 넘어간다
     console.warn('[홈 관문]', (e && e.message) || e);
@@ -2918,9 +2924,24 @@ function planStatus(row, status, 자동열쇠) {
 }
 
 /* ── 기록 입력 ── */
+/* 폼을 **처음 그리는가** (2026-08-16, 점검 P17).
+   renderForm은 목록(칩·드롭다운)을 다시 그리는 함수인데 날짜까지 오늘로 되돌리고 있었다.
+   목록은 여러 번 그려도 되지만 **값은 첫 그리기에만** 넣어야 한다 — 안 그러면 다른 사람이
+   쓴 것이 도착할 때마다(onData·홈받기_) 입력 중인 폼의 날짜가 말없이 오늘로 돌아간다.
+   ⚠ 「비어 있으면 오늘」로는 못 고친다 — `연기잡기_`가 새 예정일을 받으려고 pDate를
+      **일부러 비운다**(D5). 그 자리를 오늘로 채우면 연기가 다시 깨진다. */
+var 폼첫그리기_ = true;
 function renderForm() {
   // 병원 목록은 여기서 안 채운다 (8/15, 설계 D4) — `data-ac="hosp"` 자동완성이 DATA를 직접 본다
-  document.getElementById('fDate').value = DATA.today;
+  /* 다시 그리기 전에 **고른 값을 붙잡는다.** 아래에서 innerHTML로 목록을 새로 만들면
+     select의 선택이 통째로 날아간다 — sel*가 없어 되돌릴 근거조차 없던 셋이다.
+     그중 eEdit는 「행사 수정」을 조용히 「신규 등록」으로 바꾸던 자리다. */
+  var 붙든 = {};
+  ['fStage', 'pEvt', 'eEdit'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) 붙든[id] = el.value;
+  });
+  if (폼첫그리기_) document.getElementById('fDate').value = DATA.today;
   /* 입력할 때마다 임시저장 — 앱이 닫히거나 저장이 실패해도 내용을 잃지 않는다.
      `fStage`(단계 select)와 `fTypeEtc`(유형 직접 입력)가 빠져 있었다 (2026-08-16, 감사 화11) */
   ['fHosp', 'fNote', 'fContact', 'fReaction', 'fFu', 'fNozzle', 'fNext', 'fDate', 'fStage', 'fTypeEtc'].forEach(function(id) {
@@ -2956,8 +2977,8 @@ function renderForm() {
   document.getElementById('fMat').innerHTML = (DATA.matCats || []).map(function(m) {
     return '<div class="chip" data-v="' + esc(m) + '" onclick="toggleMat(this)">' + esc(m) + '</div>';
   }).join('');
-  // 계획 입력 폼
-  document.getElementById('pDate').value = DATA.today;
+  // 계획 입력 폼 — 날짜는 첫 그리기에만 (점검 P17. 연기가 pDate를 일부러 비운다)
+  if (폼첫그리기_) document.getElementById('pDate').value = DATA.today;
   document.getElementById('pType').innerHTML = DATA.types.map(function(t) {
     return '<div class="chip" data-v="' + esc(t) + '" onclick="pickPType(this)">' + esc(t) + '</div>';
   }).join('') + '<div class="chip" data-v="__etc" onclick="pickPType(this)">기타 (직접 입력)</div>';
@@ -2984,6 +3005,29 @@ function renderForm() {
   (DATA.evtList || []).forEach(function(ev) {
     var o = document.createElement('option'); o.value = ev.code; o.textContent = ev.name; ee.appendChild(o);
   });
+  /* ── 고른 것을 되돌린다 (2026-08-16, 점검 P17) — 이 고침의 핵심이다 ──
+     위에서 칩을 **여덟 묶음** innerHTML로 다시 그리면 `.on`이 전부 지워지는데 sel*는 그대로
+     남는다. 그러면 화면은 「아무것도 안 골랐다」인데 검증은 통과해서, 다시 안 누르고 저장하면
+     **눈에 안 보이는 값으로 저장**된다 — 조용한 오염이라 나중에 원인을 못 찾는다.
+     `resetForm`·`resetPlanForm`은 sel*와 `.on`을 같이 지우는데 여기에는 그 짝이 없었다. */
+  [['#fType', selType], ['#fCat', selFCat], ['#pType', selPType], ['#pCat', selPCat],
+    ['#pCh', selPCh], ['#pSrc', selPSrc], ['#eType', selEType]].forEach(function(쌍) {
+    if (!쌍[1]) return;
+    document.querySelectorAll(쌍[0] + ' .chip').forEach(function(c) {
+      if (c.getAttribute('data-v') === 쌍[1]) c.classList.add('on');
+    });
+  });
+  // 배포 자료는 복수 선택이라 따로 — 고른 것 전부를 켠다
+  document.querySelectorAll('#fMat .chip').forEach(function(c) {
+    if (selMats.indexOf(c.getAttribute('data-v')) >= 0) c.classList.add('on');
+  });
+  /* 붙잡아 둔 select 값을 되돌린다. 목록에서 사라진 값이면(남이 지운 행사 등) 그대로 빈다 —
+     없는 값을 넣으면 브라우저가 첫 항목을 고르는데, 그건 「신규 등록」이라 더 나쁘다. */
+  Object.keys(붙든).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && 붙든[id]) el.value = 붙든[id];
+  });
+  폼첫그리기_ = false;
   checkNewHosp();
   /* 위에서 `fDate`를 오늘로 되돌렸으므로 계획일 안내를 다시 계산한다 (2026-08-16).
      안 부르면 배너가 낡는다 — 담당자가 방문일을 계획일로 맞춰 배너를 끈 뒤 이 함수가 돌면
