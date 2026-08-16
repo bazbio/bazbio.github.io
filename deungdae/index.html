@@ -90,6 +90,38 @@ header.top .spacer{flex:1}
 .ghost:disabled{opacity:.5;cursor:default}
 .ghost:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
+/* ===== 리스크 보드 (SPEC 4절) — 탭 밖, 상시 =====
+   접힌 한 줄이 기본이다. 경영진이 8탭을 돌기 전에 「이상 N건」을 먼저 읽는 자리라
+   펼치기 전에도 무엇이 걸렸는지는 보여야 한다. */
+.risk{margin:0 0 14px}
+.risk-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 16px;
+  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);
+  font:inherit;font-size:13.5px;color:var(--ink);cursor:pointer;text-align:left}
+.risk-head:hover{background:var(--soft)}
+.risk-head:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.risk-head .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--sig-green)}
+.risk-head.bad .dot{background:var(--sig-red)}
+.risk-head.wait .dot{background:var(--sig-amber)}
+.risk-head strong{font-weight:600;letter-spacing:-0.01em}
+.risk-head .risk-more{margin-left:auto;color:var(--ink-3);font-size:12.5px;flex:none}
+.risk-head[aria-expanded="true"] .risk-more::after{content:' ▾'}
+.risk-head[aria-expanded="false"] .risk-more::after{content:' ▸'}
+.risk-body{margin-top:8px;display:grid;gap:8px}
+.risk-item{border:1px solid var(--line);border-radius:var(--r-sm);padding:14px 16px;background:var(--surface)}
+.risk-item .rl{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.risk-item .chip{flex:none;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:var(--r-pill)}
+.risk-item .chip.bad{background:var(--sig-red-bg);color:var(--sig-red)}
+.risk-item .chip.ok{background:var(--sig-green-bg);color:var(--sig-green)}
+.risk-item .chip.wait{background:var(--sig-amber-bg);color:var(--sig-amber)}
+.risk-item .rn{font-weight:600;font-size:13.5px}
+.risk-item .rv{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;font-size:13.5px}
+.risk-item .rv.bad{color:var(--sig-red)}
+.risk-item .why{margin:8px 0 0;font-size:12.5px;line-height:1.65;color:var(--ink-2);word-break:keep-all}
+.risk-item .why strong{color:var(--ink)}
+.risk-item table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+.risk-item td{padding:3px 0;color:var(--ink-2);border-bottom:1px solid var(--hairline)}
+.risk-item td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+
 /* 카드 — 헤어라인 테두리 + 24px 반경, 그림자는 없다 (Coinbase: 표면의 80%가 플랫) */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);padding:18px}
 h3.ct{font-size:15px;font-weight:600;margin:0 0 10px;letter-spacing:-0.02em}
@@ -374,8 +406,20 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">9039cfc · 260816</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">01ca57b · 260816</span>
     </header>
+
+    <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
+         상시 표시」로 정한 규칙이라(숨기면 달성률이 거짓말을 한다) 탭 안에 두면 그 탭에
+         들어간 사람만 본다. 접힌 한 줄이 기본이고 누르면 근거가 펼쳐진다. -->
+    <section class="risk" id="riskCard" hidden>
+      <button type="button" class="risk-head" id="riskHead" aria-expanded="false" aria-controls="riskBody">
+        <span class="dot"></span>
+        <strong id="riskSummary"></strong>
+        <span class="risk-more">근거</span>
+      </button>
+      <div class="risk-body" id="riskBody" hidden></div>
+    </section>
 
     <!-- 손익 탭 -->
     <section id="tab-pl">
@@ -981,6 +1025,9 @@ var 탭목록 = [['tabBtnPL', 'pl'], ['tabBtnBEP', 'bep'], ['tabBtnCost', 'cost'
               ['tabBtnSales', 'sales'], ['tabBtnJP', 'jp'], ['tabBtnFIN', 'fin'],
               ['tabBtnCash', 'cash'], ['tabBtnKPI', 'kpi']];
 function 현재탭그리기() {
+  // 보드는 탭 밖이지만 여기서 같이 그린다 — 탭설정·범위설정·권한적용이 전부 이리로 모이므로
+  // 부르는 자리를 하나로 두면 「어떤 경로로 왔을 때만 안 갱신되는」 상태가 안 생긴다
+  리스크그리기();
   if (탭 === 'pl') 그리기();
   else if (탭 === 'bep') BEP탭그리기();
   else if (탭 === 'cost') 원가탭그리기();
@@ -1006,6 +1053,12 @@ $('tabBtnJP').addEventListener('click', function () { 탭설정('jp'); });
 $('tabBtnCash').addEventListener('click', function () { 탭설정('cash'); });
 $('tabBtnFIN').addEventListener('click', function () { 탭설정('fin'); });
 $('tabBtnKPI').addEventListener('click', function () { 탭설정('kpi'); });
+// 근거는 접힌 채로 둔다 (SPEC 4절) — "이 숫자 어디서 나왔냐"에 답하되 먼저 요약을 읽게 한다
+$('riskHead').addEventListener('click', function () {
+  var 열림 = $('riskHead').getAttribute('aria-expanded') === 'true';
+  $('riskHead').setAttribute('aria-expanded', 열림 ? 'false' : 'true');
+  $('riskBody').hidden = 열림;
+});
 
 /* ===== 집계 ===== */
 var 백만 = function (v) {
@@ -1262,6 +1315,211 @@ function 결손안내(결손, 끝) {
 }
 
 /* ===== 손익 그리기 ===== */
+/* =========================================================================
+   리스크 보드 (SPEC 4·5절, 2026-08-16)
+
+   **탭 밖에 있다.** R6이 「목표 중 자료상 근거가 없는 구간을 상시 표시」로 정한 규칙이라
+   (숨기면 달성률이 거짓말을 한다) 탭 안에 두면 그 탭에 들어간 사람만 본다.
+
+   담는 것은 **R2·R3·R6 셋**이다.
+     · R1(매출 달성률)은 손익표·매출 탭이 이미 달성률 + 페이스 + 색으로 낸다 —
+       여기 또 넣으면 같은 판정이 두 곳이 된다. 오늘 고친 결함 열하나가 대부분 그 병이었다.
+     · R4(예산 집행률)·R5(파이프라인)는 원천이 곳간·SalesON이라 등대에 없다.
+
+   **임계는 전부 `등대.기준값`에서 온다.** 못 읽으면 숫자를 지어내지 않고 「근거 미적재」라고
+   말한다 — 조용히 옛 값을 쓰는 것이 나침반 `||1003.0` 사고였다 (`기준값적재.mjs` 머리말).
+
+   ⚠ **매출 권한에는 안 보인다.** 엣지가 매출 권한 응답에 기준값·손익비용을 안 담기 때문이다
+   (0020). R6만이라도 보이게 하려면 엣지에 `rev_ceiling_*` 세 줄을 더해 재배포해야 한다.
+   ========================================================================= */
+
+/**
+ * 그 달에 유효한 기준값. **없으면 null이다 — 기본값을 지어내지 않는다.**
+ * 유효시작월은 timestamptz라 KST로 되돌려 연·월만 본다 (2026-07-01이 …06-30T15:00Z로 온다).
+ */
+function 기준값(키, 월) {
+  var 한계 = 연도 * 100 + 월, 값 = null, 늦은 = -1;
+  (DB['기준값'] || []).forEach(function (r) {
+    if (r['키'] !== 키) return;
+    var d = new Date(r['유효시작월']);
+    if (isNaN(d.getTime())) return;
+    var k = new Date(d.getTime() + 9 * 3600 * 1000);
+    var ym = k.getUTCFullYear() * 100 + (k.getUTCMonth() + 1);
+    if (ym <= 한계 && ym > 늦은) { 늦은 = ym; 값 = Number(r['값']); }
+  });
+  return 값;
+}
+
+function 리스크그리기() {
+  var 카드 = $('riskCard');
+  // 손익 축이 없으면 R2·R3를 못 재고, 기준값도 응답에 없어 R6까지 「미적재」가 된다.
+  // 「이상 없음」으로 보이는 것보다 아예 안 내는 것이 낫다
+  if (!DB || !(권한 === '전체' || 권한 === '재무')) { 카드.hidden = true; return; }
+  카드.hidden = false;
+
+  var 규칙 = [];
+
+  // ── R2 · 원가율 상한 ────────────────────────────────────────────
+  (function () {
+    var 축c = 원가월별(), 끝 = 축c.원가끝;
+    // **연말 기준으로 읽는다** — 이 임계는 기간 금액(판관비 허용액)이 아니라 **비율**이라
+    // 기간에 안 매인다. 유효시작월이 7월인 것은 사업계획 임계들을 같이 적재한 흔적이다.
+    // 축이 정확히 같지 않다는 사실은 아래 각주가 먼저 말한다
+    var 상한 = 기준값('cap_cogs_ratio', 12);
+    if (!끝) return 규칙.push({ 이름: 'R2 원가율 상한', 상태: '대기', 값: '—',
+      why: '매출원가가 아직 한 달도 안 들어왔습니다.' });
+    if (상한 == null) return 규칙.push({ 이름: 'R2 원가율 상한', 상태: '미적재', 값: '—',
+      why: '임계 <code>cap_cogs_ratio</code>가 기준값에 없습니다 — <code>기준값적재.mjs --실행</code>이 필요합니다.' });
+
+    var 매 = 0, 원 = 0, m;
+    for (m = 1; m <= 끝; m++) { 매 += 축c.매출[m] || 0; 원 += 축c.원가[m] || 0; }
+    var 율 = 매 ? 원 / 매 : null;
+    var 초과 = 율 != null && 율 > 상한;
+
+    // 근거 ① 월별 추이 ② 매출원가 계정별 누계 (SPEC: 제품별은 못 낸다 — 매출 RAW의
+    // 원가 컬럼이 20.6%만 차 있다. 표준원가표가 선행이다)
+    var 월줄 = '';
+    for (m = 1; m <= 끝; m++) {
+      var mm = 축c.매출[m] || 0, oo = 축c.원가[m] || 0;
+      월줄 += '<tr><td>' + m + '월</td><td class="num">' + (mm ? (100 * oo / mm).toFixed(1) + '%' : '—')
+        + '</td><td class="num">' + 백만(oo) + ' / ' + 백만(mm) + '</td></tr>';
+    }
+    var 계정 = {};
+    (DB['손익비용'] || []).forEach(function (r) {
+      if (r['대분류'] !== '원가' || +r['월'] > 끝) return;
+      계정[r['계정명']] = (계정[r['계정명']] || 0) + Number(r['금액']);
+    });
+    var 계정줄 = Object.keys(계정).sort(function (a, b) { return Math.abs(계정[b]) - Math.abs(계정[a]); })
+      .map(function (n) { return '<tr><td>' + n + '</td><td class="num">' + 백만(계정[n]) + '</td><td></td></tr>'; }).join('');
+
+    규칙.push({
+      이름: 'R2 원가율 상한',
+      상태: 초과 ? '초과' : '이내',
+      값: (100 * 율).toFixed(1) + '% <span class="share">/ 상한 ' + (100 * 상한).toFixed(1) + '%</span>',
+      why: '<strong>1~' + 끝 + '월 누계 ' + 백만(원) + ' ÷ ' + 백만(매) + ' = ' + (100 * 율).toFixed(1) + '%</strong>'
+        + (초과 ? ' — 상한을 <strong>' + (100 * (율 - 상한)).toFixed(1) + '%p</strong> 넘습니다. ' : ' — 상한 안입니다. ')
+        + '월별로는 크게 튑니다(생산이 없는 달의 미배부 제조원가가 매출원가로 직행합니다) — <strong>누계로 읽으십시오.</strong> '
+        + '⚠ 상한 22.5%는 <strong>사업계획의 하반기 계획값</strong>이고 판정 창은 1~' + 끝 + '월 실적입니다 — 축이 정확히 같지는 않습니다. '
+        + '제품별 원가율은 아직 못 냅니다(매출 RAW의 원가 컬럼이 20.6%만 차 있어 표준원가표가 선행입니다 — SPEC 5절).',
+      표: '<table><tr><td><strong>월별 원가율</strong></td><td class="num"></td><td class="num">원가 / 매출</td></tr>'
+        + 월줄 + '<tr><td><strong>매출원가 계정별</strong></td><td class="num"></td><td></td></tr>' + 계정줄 + '</table>',
+    });
+  })();
+
+  // ── R3 · 판관비 고정비 상한 ─────────────────────────────────────
+  // SPEC 5절: 상한 = 판관비 월 허용액 − 당월 변동비. **하반기 중 결산조정 없는 달만** 판정한다
+  // — 허용액이 하반기 6개월을 나눈 값이라 마감된 상반기에 들이대면 안 되고, 조정 전
+  // 관리기준으로 재면 오탐이다(6월 실측: 관리기준 초과 +152.6 / 확정기준 이내 △270.0).
+  (function () {
+    var 합산 = 범위 === 'COMBINED';
+    var 허용 = 기준값(합산 ? 'cap_sga_monthly_combined' : 'cap_sga_monthly_hq', 12);
+    if (허용 == null) return 규칙.push({ 이름: 'R3 판관비 고정비 상한', 상태: '미적재', 값: '—',
+      why: '임계가 기준값에 없습니다 — <code>기준값적재.mjs --실행</code>이 필요합니다.' });
+
+    var sga = 판관비항목(), 조정 = 조정월(), 비끝 = 비용마감월();
+    var 달 = [], m;
+    for (m = 7; m <= 비끝; m++) if (!조정[m]) 달.push(m);
+    var 몫 = function (mm, 구) {
+      return 더(sga.filter(function (r) { return r.월 === mm && (구 ? r.구분 === 구 : true); }), function (r) { return r.값; });
+    };
+    if (!달.length) {
+      return 규칙.push({
+        이름: 'R3 판관비 고정비 상한', 상태: '대기',
+        값: '허용액 ' + 백만(허용) + '<span class="share">/월</span>',
+        why: '<strong>아직 판정할 달이 없습니다.</strong> 허용액은 하반기 6개월을 나눈 값이라 마감된 '
+          + '상반기에 들이대면 안 되고(SPEC 5절), 지금 비용은 ' + 비끝 + '월까지 들어와 있습니다. '
+          + '<strong>7월 확정 분개장이 오는 순간 이 규칙이 처음 켜집니다.</strong> '
+          + '분기 결산조정이 붙은 달(6·9·12월)도 판정에서 뺍니다 — 조정 전 관리기준으로 재면 오탐입니다.',
+      });
+    }
+    // 초과 판정은 판관비 총액 대 허용액과 같다 (고정비 > 허용액 − 변동비 ⟺ 판관비 > 허용액).
+    // 산식을 두 벌로 쓰지 않으려고 총액으로 재고, 화면이 고정비 상한선을 같이 적는다
+    var 최근 = 달[달.length - 1];
+    var 변 = 몫(최근, '변동비') + (합산 ? 0 : 몫(최근, '그룹내부'));
+    var 총 = 몫(최근);
+    var 고정상한 = 허용 - 변, 고정실적 = 총 - 변;
+    var 초과 = 고정실적 > 고정상한;
+    var 계정 = {};
+    sga.filter(function (r) { return r.월 === 최근 && r.구분 !== '변동비' && (합산 || r.구분 !== '그룹내부'); })
+      .forEach(function (r) { 계정[r.이름] = (계정[r.이름] || 0) + r.값; });
+    var 상위 = Object.keys(계정).sort(function (a, b) { return 계정[b] - 계정[a]; }).slice(0, 3);
+
+    규칙.push({
+      이름: 'R3 판관비 고정비 상한',
+      상태: 초과 ? '초과' : '이내',
+      값: 백만(고정실적) + '<span class="share">/ 상한 ' + 백만(고정상한) + '</span>',
+      why: '<strong>' + 최근 + '월</strong> — 허용액 ' + 백만(허용) + ' − 당월 변동비 ' + 백만(변)
+        + ' = 고정비 상한 <strong>' + 백만(고정상한) + '</strong>, 실적 <strong>' + 백만(고정실적) + '</strong>'
+        + (초과 ? ' (<strong>초과 ' + 백만(고정실적 - 고정상한) + '</strong>)' : ' (이내)') + '. '
+        + (합산 ? '합산 기준입니다 — 일본향 청구액은 내부거래로 제거되고 일본법인 운영비가 그 자리에 섭니다.'
+                : '별도 기준입니다 — 일본향 판매수수료는 매출이 아니라 일본법인 인건비에 연동되므로 변동비 쪽에 셉니다(SPEC 5절).')
+        + ' 판정 대상은 하반기 중 결산조정이 없는 달뿐입니다 (' + 달.join('·') + '월).',
+      표: 상위.length ? '<table><tr><td><strong>' + 최근 + '월 고정비 상위 3</strong></td><td class="num"></td><td></td></tr>'
+        + 상위.map(function (n) { return '<tr><td>' + n + '</td><td class="num">' + 백만(계정[n]) + '</td><td></td></tr>'; }).join('')
+        + '</table>' : '',
+    });
+  })();
+
+  // ── R6 · 목표-근거 갭 (상시) ────────────────────────────────────
+  // 목표는 움직이지만 상향 여력 상한은 안 움직인다. 8/14 재배분으로 사업부별 갈래가 바뀌어
+  // **해외가 「여유 1,948.8」에서 「초과 51.2」로 뒤집혔다** — SPEC 5절의 표는 8/1 기준이라
+  // 낡았고, 그래서 화면이 갭을 상수로 들면 안 된다. 목표 축과 상한으로 그때그때 뺀다
+  (function () {
+    var 축들 = [['국내', 'rev_domestic', 'rev_ceiling_domestic'],
+                ['일본', 'rev_japan', 'rev_ceiling_japan'],
+                ['해외', 'rev_overseas', 'rev_ceiling_overseas']];
+    var 줄 = [], 목표계 = 0, 상한계 = 0, 미적재 = 0;
+    축들.forEach(function (p) {
+      var 목표축 = 축(p[1], '목표'), 하반 = 0, m;
+      for (m = 7; m <= 12; m++) 하반 += 목표축[m] || 0;
+      var 상한 = 기준값(p[2], 12);
+      if (상한 == null) { 미적재++; return; }
+      목표계 += 하반; 상한계 += 상한;
+      줄.push({ 이름: p[0], 목표: 하반, 상한: 상한, 갭: 하반 - 상한 });
+    });
+    if (미적재 || !줄.length) return 규칙.push({ 이름: 'R6 목표-근거 갭', 상태: '미적재', 값: '—',
+      why: '사업부별 <code>rev_ceiling_*</code>가 기준값에 없습니다 — <code>기준값적재.mjs --실행</code>이 필요합니다.' });
+
+    var 갭 = 목표계 - 상한계;
+    규칙.push({
+      이름: 'R6 목표-근거 갭',
+      상태: 갭 > 0 ? '초과' : '이내',
+      값: (갭 > 0 ? '+' : '') + 백만(갭) + '<span class="share">/ 하반기 목표 ' + 백만(목표계) + '</span>',
+      why: '<strong>하반기 목표 ' + 백만(목표계) + ' 중 ' + 백만(갭) + '은 자료상 근거가 없습니다</strong>'
+        + ' (' + (100 * 갭 / 목표계).toFixed(0) + '%). 「상향 여력 상한」은 각 사업부가 사업계획 시트6에서 '
+        + '<strong>스스로 제시한 최대치</strong>입니다. 이 줄을 숨기면 달성률이 거짓말을 하므로 상시 띄웁니다 (SPEC 5절). '
+        + '<strong>목표는 움직이지만 이 상한은 안 움직입니다</strong> — 8/14 재배분으로 사업부별 갈래가 바뀌었고, '
+        + '그때 해외가 여유에서 초과로 뒤집혔습니다.',
+      표: '<table><tr><td><strong>사업부</strong></td><td class="num">하반기 목표</td><td class="num">상한 / 갭</td></tr>'
+        + 줄.map(function (r) {
+            return '<tr><td>' + r.이름 + '</td><td class="num">' + 백만(r.목표) + '</td><td class="num">'
+              + 백만(r.상한) + ' / <strong>' + (r.갭 > 0 ? '+' : '') + 백만(r.갭) + '</strong></td></tr>';
+          }).join('')
+        + '<tr><td><strong>계</strong></td><td class="num"><strong>' + 백만(목표계) + '</strong></td>'
+        + '<td class="num"><strong>' + 백만(상한계) + ' / ' + (갭 > 0 ? '+' : '') + 백만(갭) + '</strong></td></tr></table>',
+    });
+  })();
+
+  // ── 요약 한 줄 ──
+  var 초과들 = 규칙.filter(function (r) { return r.상태 === '초과'; });
+  var 대기들 = 규칙.filter(function (r) { return r.상태 === '대기' || r.상태 === '미적재'; });
+  var 머리 = $('riskHead');
+  머리.classList.remove('bad'); 머리.classList.remove('wait');
+  if (초과들.length) 머리.classList.add('bad');
+  else if (대기들.length) 머리.classList.add('wait');
+  $('riskSummary').innerHTML = (초과들.length
+      ? '이상 ' + 초과들.length + '건 — ' + 초과들.map(function (r) { return r.이름.replace(/^R\d+ /, ''); }).join(' · ')
+      : '이상 없음')
+    + (대기들.length ? '<span class="share"> · 아직 못 재는 규칙 ' + 대기들.length + '건</span>' : '');
+
+  $('riskBody').innerHTML = 규칙.map(function (r) {
+    var 급 = r.상태 === '초과' ? 'bad' : (r.상태 === '이내' ? 'ok' : 'wait');
+    return '<div class="risk-item"><div class="rl"><span class="chip ' + 급 + '">' + r.상태 + '</span>'
+      + '<span class="rn">' + r.이름 + '</span><span class="rv' + (급 === 'bad' ? ' bad' : '') + '">' + r.값 + '</span></div>'
+      + '<p class="why">' + r.why + '</p>' + (r.표 || '') + '</div>';
+  }).join('');
+}
+
 function 그리기() {
   var 끝 = 마감월(), 달 = [], m;
   for (m = 1; m <= 끝; m++) 달.push(m);
