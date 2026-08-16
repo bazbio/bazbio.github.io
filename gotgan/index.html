@@ -426,10 +426,13 @@ const CODE_MIG = {
   'CLD-015':'CLD-BJ-004','CLD-016':'CLD-COM-001','CLD-017':'CLD-COM-002','CLD-018':'CLD-RC-001','CLD-019':'CLD-RC-002','CLD-020':'CLD-COM-003',
   'CLD-021':'CLD-COM-004','CLD-022':'CLD-COM-005','CLD-023':'CLD-COM-006','CLD-024':'CLD-COM-007','CLD-025':'CLD-COM-008','CLD-026':'CLD-CJ-008'
 };
-// v18·v19 통합 대응 — 흡수된 코드가 적힌 기안이 들어와도 대표 코드로 읽는다.
+// v11·v18·v19 통합 대응 — 흡수된 코드가 적힌 기안이 들어와도 대표 코드로 읽는다.
 // ③ 결재함 사전 확인은 결재 **대기** 문서를 보므로 예전 코드가 실제로 들어온다.
-// (서버 Code.gs의 CODE_MERGE_V18·CODE_MERGE_V19에서 생성. 바꾸면 양쪽을 함께 바꾼다)
+// (서버 Code.gs의 CODE_MERGE_V11·V18·V19에서 생성. 바꾸면 양쪽을 함께 바꾼다)
+// ⚠ v11 세 건은 2026-08-16까지 양쪽 모두에서 빠져 있었다 (훑기 B5) — CODE_MIG가
+//    RND-019/020/022를 v11이 이미 흡수한 코드로 보내 죽은 코드가 됐다.
 const CODE_MERGED = {
+  'RND-CJP-008':'RND-CJP-007','RND-CJP-009':'RND-CJP-007','RND-CJP-011':'RND-CJP-007',
   'CLM-003':'CLM-001','CLM-005':'CLM-001','CLM-007':'CLM-001','CLM-008':'CLM-001','CLM-011':'CLM-001','CLM-012':'CLM-001',
   'CLM-013':'CLM-001','CLM-014':'CLM-001','CLM-017':'CLM-001','DOM-005':'DOM-004','DOM-006':'DOM-004','DOM-007':'DOM-004',
   'DOM-008':'DOM-004','DOM-009':'DOM-004','DOM-016':'DOM-015','DOM-017':'DOM-015','DOM-018':'DOM-015','DOM-019':'DOM-015',
@@ -481,10 +484,6 @@ let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내�
 let EXP_FOCUS = '';
 // 계정 하나만 보기 (대시보드 배너에서 계정 이름을 누르면 걸린다). '' = 전체
 let EXP_ACCT = '';
-/* 예산코드 없이 집행된 건만 보기. 부서 세부의 그 표에서 넘어올 때 걸린다.
-   계정 필터와 따로 두는 이유: 계정이 빈 건들은 계정으로 못 거르는데(EXP_ACCT가 ''),
-   그때도 「코드 없음」은 걸려 있어야 한다. */
-let EXP_NOCODE = false;
 let 현재탭 = 'dash';   // 뒤로가기가 되살릴 자리 — 탭이동()이 갱신한다
 const TOKEN_KEY = 'baz_budget_token';
 
@@ -724,7 +723,7 @@ let 깊이 = 0;
 function 지금자리() {
   const 카드 = document.querySelector('.dept-card.on');
   return {
-    탭: 현재탭, focus: EXP_FOCUS, acct: EXP_ACCT, nocode: EXP_NOCODE,
+    탭: 현재탭, focus: EXP_FOCUS, acct: EXP_ACCT,
     부서: el('f-dept') ? el('f-dept').value : '',
     펼친부서: 카드 ? 카드.dataset.dept : '',
   };
@@ -741,7 +740,7 @@ function 부서펼치기(dept) {
   if (dept) renderDeptDetail(dept); else el('dept-detail').innerHTML = '';
 }
 function 자리되살리기(s) {
-  EXP_FOCUS = s.focus || ''; EXP_ACCT = s.acct || ''; EXP_NOCODE = !!s.nocode;
+  EXP_FOCUS = s.focus || ''; EXP_ACCT = s.acct || '';
   const 탭 = s.탭 || 'dash';
   탭이동(탭);
   /* 지출내역은 **지금 보고 있지 않더라도** 되돌린다. 숨은 채로 필터가 남으면 나중에 그
@@ -795,10 +794,7 @@ function aggregate() {
   /* 경고 종류별 지출 ID. 대시보드 경고를 누르면 지출내역이 이걸로 걸러진다.
      판정을 여기서 한 번만 하고 ID를 나르는 이유: 필터가 따로 판정하면 "금액 미입력 14건"을
      눌렀는데 20건이 나오는 일이 생기고, 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
-  /* nocode는 경고가 아니다 — 부서 세부의 「예산코드 없이 집행된 건」을 눌렀을 때
-     지출내역이 **여기서 센 것과 같은 건들**을 열게 하려고 담는다. 종전에는 그쪽이
-     부서·계정만 걸어서, 8건짜리 줄을 눌렀는데 코드가 있는 건까지 19건이 열렸다. */
-  const 할일 = { amt: {}, acct: {}, dept: {}, code: {}, rule: {}, nocode: {} };
+  const 할일 = { amt: {}, acct: {}, dept: {}, code: {}, rule: {} };
   // 금액이 빈 것은 대부분 "아직 지급 전"이라 정상이다. 사람이 봐야 하는 것은
   // 종결된 지 2주가 지나도록 자금 자료에 안 나타난 건뿐이다 — 그것만 경고로 올린다.
   const STALE_MS = 14 * 86400000, 오늘 = Date.now();
@@ -819,7 +815,9 @@ function aggregate() {
       원가의심.set(String(acct).trim(), (원가의심.get(String(acct).trim()) || 0) + 1);
     }
     // 계정 규칙(서버 acctRules_)은 이 두 계정을 경영관리부문으로 통일한다 — 코드가 이기므로 어긋나면 코드가 틀린 것
-    if (/^(지급임차료|자기계발비)/.test(String(acct)) && dept !== '경영관리부문') { ruleConflict++; 할일.rule[r[0]] = 1; }
+    // 매출원가는 뺀다 (2026-08-16 훑기 C3) — (제)지급임차료가 제자리에 들어간 건이라,
+    // 안 빼면 이 경고가 지목하는 것이 **정상인 건들뿐**이 된다. 바로 위 원가의심(:797)과 같은 처리다.
+    if (/^(지급임차료|자기계발비)/.test(String(acct)) && dept !== '경영관리부문' && dept !== '매출원가') { ruleConflict++; 할일.rule[r[0]] = 1; }
     if (amt <= 0) return;
     // 매출원가는 판관비 예산과 다른 돈이다 — 집행률·잔액 어디에도 섞지 않고 따로 센다
     if (dept === '매출원가') { if (st === '종결') cogs += amt; return; }
@@ -839,7 +837,6 @@ function aggregate() {
       const mo = 무코드[mk] || (무코드[mk] = { spent: 0, pending: 0, n: 0 });
       if (st === '종결') mo.spent += amt; else mo.pending += amt;
       mo.n++;
-      할일.nocode[r[0]] = 1;
     }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
@@ -957,7 +954,7 @@ function renderDash() {
  * 배너의 건수와 표의 줄 수가 달라 보인다.
  */
 function 짚어보기(키) {
-  EXP_FOCUS = 키; EXP_ACCT = ''; EXP_NOCODE = false;
+  EXP_FOCUS = 키; EXP_ACCT = '';
   탭이동('exp');
   if (!el('f-todo')) renderExpenses();   // 부팅에서 이미 그려지지만, 없으면 만들고 본다
   el('f-todo').value = 키;
@@ -976,10 +973,6 @@ function 짚어보기(키) {
 function 계정건보기(acct, dept) {
   EXP_ACCT = acct === '(계정 미지정)' ? '' : acct;   // 계정이 빈 건들은 계정으로 못 거른다
   EXP_FOCUS = acct === '(계정 미지정)' ? 'acct' : '';
-  /* 이 표는 「예산코드 없이 집행된 건」이다 — 코드가 있는 건까지 열면 8건을 눌렀는데
-     19건이 나온다. 실제로 그렇게 나와서 "코드가 들어가 있는데 왜 미분류냐"는 물음이
-     나왔다 (2026-08-14). 판정은 aggregate가 한 것을 그대로 쓴다. */
-  EXP_NOCODE = true;
   탭이동('exp');
   if (!el('f-todo')) renderExpenses();
   el('f-todo').value = EXP_FOCUS;
@@ -1224,6 +1217,7 @@ function renderExpenses() {
   ['f-dept', 'f-status', 'f-q'].forEach(id => el(id).oninput = drawExpTable);
   el('f-todo').oninput = () => { EXP_FOCUS = el('f-todo').value; drawExpTable(); };
   el('btn-save').onclick = saveDirty;
+  저장단추갱신();   // 탭을 다시 그려도 남아 있는 dirty 건수를 그대로 잇는다
   if (el('btn-unmatched')) el('btn-unmatched').onclick = () => {
     const t = el('unmatched-table');
     const 열림 = t.style.display !== 'none';
@@ -1255,10 +1249,9 @@ function drawExpTable() {
   /* 경고 한 종류를 고르면 대시보드가 센 것과 **같은 판정**으로 거른다 — aggregate가
      한 번 순회하며 모아 둔 ID를 그대로 쓴다. 따로 판정하면 배너의 숫자와 표의 줄 수가
      어긋나고, 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
-  const 할일 = (todo || EXP_NOCODE) ? aggregate().할일 : null;
+  const 할일 = todo ? aggregate().할일 : null;
   const rows = EXPENSES.filter(r => {
     if (EXP_ACCT && String(r[10] || '').trim() !== EXP_ACCT) return false;
-    if (EXP_NOCODE && !할일.nocode[r[0]]) return false;
     if (fd && r[9] !== fd) return false;
     if (fs && r[8] !== fs) return false;
     if (todo === 'all') {
@@ -1285,13 +1278,10 @@ function drawExpTable() {
      "왜 3건밖에 없지?"가 된다. 칩으로 보여주고 X로 풀 수 있게 한다. */
   const chip = el('acct-chip');
   if (chip) {
-    const 조각 = [];
-    if (EXP_ACCT) 조각.push(`계정 <b>${EXP_ACCT}</b>`);
-    if (EXP_NOCODE) 조각.push('<b>예산코드 없음</b>');
-    chip.innerHTML = 조각.length
-      ? `<span class="filter-chip">${조각.join(' · ')}<button title="필터 풀기">✕</button></span>` : '';
+    chip.innerHTML = EXP_ACCT
+      ? `<span class="filter-chip">계정 <b>${EXP_ACCT}</b><button title="필터 풀기">✕</button></span>` : '';
     const x = chip.querySelector('button');
-    if (x) x.onclick = () => { EXP_ACCT = ''; EXP_NOCODE = false; drawExpTable(); 기록하기(); };
+    if (x) x.onclick = () => { EXP_ACCT = ''; drawExpTable(); 기록하기(); };
   }
 
   const 화살 = i => EXP_SORT.i === i ? (EXP_SORT.d === -1 ? ' ▼' : ' ▲') : '';
@@ -1301,18 +1291,29 @@ function drawExpTable() {
     <th class="sortable" data-sort="16" title="클릭해서 정렬">지출일자${화살(16)}</th>
     <th>제목</th><th>기안부서</th><th>기안자</th><th>상태</th>
     <th>예산부서</th><th>계정</th><th>예산코드</th><th class="num">금액</th><th></th></tr>`;
+  /* 저장 전 입력값(dirty)을 덮어 그린다 (2026-08-16 훑기 B4). dirty는 화면을 다시 그려도
+     남는데 표는 EXPENSES만 보고 그렸다 — 필터를 바꾸거나 세션이 끊겨 재로그인하면 입력한
+     값이 사라진 것처럼 보였다. 값은 살아 있어서 [저장]을 누르면 실제로는 그게 나간다. */
+  const 덮어쓰기 = (id, f, 기본) => {
+    const d = dirty[id];
+    return d && d[f] !== undefined ? d[f] : 기본;
+  };
   rows.slice(0, 500).forEach(r => {
     const id = r[0];
     const stBadge = r[8] === '종결' ? 'b-ok' : r[8] === '진행' ? 'b-warn' : 'b-gray';
-    h += `<tr data-id="${id}">
+    const vDept = 덮어쓰기(id, 'budgetDept', r[9]);
+    const vAcct = String(덮어쓰기(id, 'acct', r[10] || '')).replace(/"/g, '&quot;');
+    const vCode = String(덮어쓰기(id, 'code', r[11] || '')).replace(/"/g, '&quot;');
+    const vAmt = 덮어쓰기(id, 'amount', r[12] === '' ? '' : r[12]);
+    h += `<tr data-id="${id}"${dirty[id] ? ' class="dirty"' : ''}>
       <td class="muted">${String(r[4]).slice(0, 10)}</td>
       <td class="muted">${payCell(r[16])}</td>
       <td class="title-cell" title="${String(r[3]).replace(/"/g, '&quot;')}">${r[3]}</td>
       <td class="muted">${r[6]}</td><td>${r[7]}</td><td><span class="badge ${stBadge}">${r[8]}</span></td>
-      <td><select data-f="budgetDept" ${deptOfCode(r[11]) ? `disabled title="${DEPT_LOCK_HINT}"` : ''}>${depts.map(d => `<option ${d === r[9] ? 'selected' : ''}>${d}</option>`).join('')}</select></td>
-      <td><input class="acct-in" data-f="acct" list="dl-accts" value="${r[10] || ''}"></td>
-      <td><input class="code-in" data-f="code" list="dl-codes" value="${r[11] || ''}"></td>
-      <td class="num"><input class="amt" data-f="amount" type="number" value="${r[12] === '' ? '' : r[12]}"></td>
+      <td><select data-f="budgetDept" ${deptOfCode(vCode) ? `disabled title="${DEPT_LOCK_HINT}"` : ''}>${depts.map(d => `<option ${d === vDept ? 'selected' : ''}>${d}</option>`).join('')}</select></td>
+      <td><input class="acct-in" data-f="acct" list="dl-accts" value="${vAcct}"></td>
+      <td><input class="code-in" data-f="code" list="dl-codes" value="${vCode}"></td>
+      <td class="num"><input class="amt" data-f="amount" type="number" value="${vAmt}"></td>
       <td><button class="mini" data-del="${id}">삭제</button></td></tr>`;
   });
   h += '</table>';
@@ -1352,9 +1353,7 @@ function drawExpTable() {
       sel.disabled = !!d;
       sel.title = d ? DEPT_LOCK_HINT : '';
     }
-    const n = Object.keys(dirty).length;
-    el('btn-save').textContent = `변경사항 저장 (${n})`;
-    el('btn-save').disabled = n === 0;
+    저장단추갱신();
   });
   // 삭제 — 낙관 반영: 화면에서 먼저 지우고 서버는 뒤에서. 실패하면 행을 되살린다.
   el('exp-table').querySelectorAll('[data-del]').forEach(b => b.onclick = e => {
@@ -1422,15 +1421,25 @@ async function saveDirty() {
     막힌것.forEach(s => 막힘표시(s.id, s.msg));
     renderDash(); renderMonthly();
   } catch (e) {
-    if (isAuthErr(e)) return showLogin('세션이 만료됐습니다.');
+    /* 되살리기가 먼저다 (2026-08-16 훑기 B4). 종전에는 isAuthErr 분기가 앞에 있어
+       세션이 끊긴 저장은 보낸 값이 그대로 사라졌다 — 재로그인하면 boot()가 EXPENSES를
+       다시 받아 오므로 30건을 고쳐 저장한 사용자가 「세션 만료」만 보고 처음부터 다시
+       입력했다. 삭제 경로(:1340)는 원래 이 순서다. */
     // 실패 — 보낸 것을 dirty로 되살린다 (전송 중 새 수정이 있으면 그쪽이 우선)
     dirty = Object.assign({}, 보낸것, dirty);
     Object.keys(dirty).forEach(id => {
       const tr = el('exp-table').querySelector(`tr[data-id="${id}"]`);
       if (tr) tr.classList.add('dirty');
     });
+    if (isAuthErr(e)) return showLogin('세션이 만료됐습니다. 다시 로그인하면 입력한 내용이 남아 있습니다.');
     alert('저장 실패: ' + (e.message || e) + '\n입력한 내용은 남아 있습니다 — 다시 저장을 눌러 주세요.');
   }
+  저장단추갱신();
+}
+
+/* 저장 전 입력이 몇 건 남았는지는 단추가 유일하게 말하는 자리다. 표를 다시 그리든
+   재로그인을 하든 dirty와 어긋나면 안 되므로 한 군데서만 쓴다 (2026-08-16 훑기 B4). */
+function 저장단추갱신() {
   const n = Object.keys(dirty).length;
   el('btn-save').textContent = `변경사항 저장 (${n})`;
   el('btn-save').disabled = n === 0;
@@ -1444,7 +1453,10 @@ setupDropzone('dz-pre', 'file-pre', handlePreFile);
 function setupDropzone(dzId, fileId, handler) {
   const dz = el(dzId), fi = el(fileId);
   dz.onclick = () => fi.click();
-  fi.onchange = () => fi.files[0] && handler(fi.files[0]);
+  /* 고르자마자 칸을 비운다 — 안 비우면 **같은 파일을 다시 고를 때 change가 안 난다.**
+     시트를 고쳐 같은 이름으로 다시 내려받아 올리는 것이 주간 업로드의 실제 동선이라
+     자주 밟히고, 오류도 안 나서 "눌러도 아무 일이 없다"로만 보인다 (2026-08-15 감사 화4). */
+  fi.onchange = () => { const f = fi.files[0]; fi.value = ''; if (f) handler(f); };
   dz.ondragover = e => { e.preventDefault(); dz.classList.add('hover'); };
   dz.ondragleave = () => dz.classList.remove('hover');
   dz.ondrop = e => { e.preventDefault(); dz.classList.remove('hover'); e.dataTransfer.files[0] && handler(e.dataTransfer.files[0]); };
@@ -1504,19 +1516,18 @@ async function handleDocsFile(file) {
   };
 }
 
-// ─── 업로드 ② 금액 병합 ───
-// 자금과목 표기 정규화: "법카_(판)복리후생비(중/야근식대)" → "복리후생비".
-// 서버(계정정규화_)와 같은 판정 — 접두사('법카_'·'개인_')를 허용하고, 꼬리가 (자기계발비)면
-// 계정 자체를 자기계발비로 준다(재경 방침이 경영관리부문으로 보낸다). 서버가 최종 권한이다.
-function normAcct(a) {
-  a = String(a || '').trim();
-  const m = a.match(/\((판|제)\)\s*(.+)$/);
-  if (!m) return a;
-  const tail = (m[2].match(/\(([^)]*)\)\s*$/) || [])[1] || '';
-  if (tail.indexOf('자기계발비') > -1) return '자기계발비';
-  return m[2].replace(/\([^)]*\)\s*$/, '').trim();
-}
-
+/* ─── 업로드 ② 금액 병합 ───
+ *
+ * 자금과목은 **원문 그대로** 보낸다. 정규화는 서버 `계정정규화_`가 한다.
+ *
+ * 종전에는 화면에도 같은 이름의 normAcct가 있어 `(판|제)`를 똑같이 떼고 보냈는데,
+ * 서버는 `(제)`에 `제조_` 접두사를 달아 **매출원가**로 보내는 반면 화면은 그 신호를
+ * 그냥 지웠다. 그래서 서버의 (제)→매출원가 판정이 실경로에서는 한 번도 안 탔다 —
+ * 「자금 자료 ②를 다시 올리면 (제) 건이 복구된다」는 유일한 복구 경로가 죽어 있었다
+ * (2026-08-15 감사 정1). `계정정규화.test.mjs`가 통과한 이유는 그 테스트가 서버에
+ * 원문을 직접 넣기 때문이다 — 화면이 중간에서 깎는 것은 테스트 밖이었다.
+ *
+ * 화면이 이 값을 쓰는 곳은 없다(전송이 전부다). 두 벌로 두면 또 갈린다. */
 async function handleAmtFile(file) {
   let grid;
   try { grid = await readWorkbook(file); } catch (e) { return alert('엑셀 파싱 실패: ' + e.message); }
@@ -1525,15 +1536,25 @@ async function handleAmtFile(file) {
   const guess = kws => { const i = header.findIndex(h => kws.some(k => h.indexOf(k) > -1)); return i; };
   const opts = sel => header.map((h, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${h || '(열 ' + (i + 1) + ')'}</option>`).join('');
   el('amt-preview').innerHTML = `<div class="filters">
-      <label class="muted">문서번호 열 <select id="m-doc">${opts(guess(['문서번호', '결의번호', '전표번호']))}</select></label>
-      <label class="muted">금액 열 <select id="m-amt">${opts(guess(['금액', '차변', '합계', '공급가액']))}</select></label>
+      <label class="muted">문서번호 열 <select id="m-doc"><option value="-1">(열을 고르세요)</option>${opts(guess(['문서번호', '결의번호', '전표번호']))}</select></label>
+      <label class="muted">금액 열 <select id="m-amt"><option value="-1">(열을 고르세요)</option>${opts(guess(['금액', '차변', '합계', '공급가액']))}</select></label>
       <label class="muted">계정 열(선택) <select id="m-acct"><option value="-1">없음</option>${opts(guess(['계정', '자금과목', '과목']))}</select></label>
       <label class="muted">지출 확정일 열(선택) <select id="m-paid"><option value="-1">없음</option>${opts(guess(['확정일', '지급일', '지출일']))}</select></label>
       <label class="muted">지출 예정일 열(선택) <select id="m-due"><option value="-1">없음</option>${opts(guess(['예정일']))}</select></label>
       <button class="btn" id="btn-merge">병합 실행</button>
     </div><p class="muted">미리보기: ${grid.slice(1, 4).map(r => r.slice(0, 5).join(' | ')).join('<br>')}
-    <br>계정 열을 지정하면 "(판)지급임차료(차량)" 같은 자금과목은 "지급임차료(판)" 형식으로 자동 변환됩니다.
+    <br>계정 열을 지정하면 "법카_(판)복리후생비(중/야근식대)" 같은 자금과목은 서버가 "복리후생비"로 정리합니다. <b>(제)</b> 표기는 매출원가로 분류됩니다.
     <br>지출일자는 확정일을 쓰고, 비어 있으면 예정일을 "(예정)"으로 표시합니다. 다음 업로드에서 확정일이 들어오면 저절로 확정으로 바뀝니다.</p>`;
+  /* 자동 인식이 실패하면 종전에는 첫 열이 말없이 골라져 전 건의 금액이 0으로 덮였다
+     (2026-08-16 훑기 A3). 두 열을 고르기 전에는 병합을 잠근다 — 계정·확정일·예정일과 달리
+     이 둘은 「없음」이 성립하지 않는다. */
+  const 병합가능 = () => {
+    const ok = +el('m-doc').value > -1 && +el('m-amt').value > -1;
+    el('btn-merge').disabled = !ok;
+    el('btn-merge').title = ok ? '' : '문서번호 열과 금액 열을 골라 주세요.';
+  };
+  ['m-doc', 'm-amt'].forEach(id => el(id).onchange = 병합가능);
+  병합가능();
   el('btn-merge').onclick = async () => {
     const ci = +el('m-doc').value, ca = +el('m-amt').value, cc = +el('m-acct').value;
     const cp = +el('m-paid').value, cd = +el('m-due').value;
@@ -1543,7 +1564,7 @@ async function handleAmtFile(file) {
       return {
         docNo: String(r[ci]).trim(),
         amount: Number(String(r[ca]).replace(/[,원\s]/g, '')) || 0,
-        acct: cc > -1 ? normAcct(r[cc]) : '',
+        acct: cc > -1 ? String(r[cc] || '').trim() : '',
         payDate: paid || (due ? due + '(예정)' : ''),
       };
     });
@@ -1551,8 +1572,10 @@ async function handleAmtFile(file) {
     try {
       const r = await gsAuth('apiMergeAmounts', rows);
       EXPENSES = await gsAuth('apiGetExpenses');
+      const 금액없음 = r.noAmount || [];
       el('amt-preview').innerHTML = `<div class="alert info">완료 — ${r.matched}건 금액 반영.
         ${r.unmatched.length ? '매칭 안 된 문서번호 ' + r.unmatched.length + '건: ' + r.unmatched.slice(0, 10).join(', ') + (r.unmatched.length > 10 ? ' …' : '') : ''}
+        ${금액없음.length ? '<br>금액이 0이라 <b>건너뛴</b> 문서 ' + 금액없음.length + '건: ' + 금액없음.slice(0, 10).join(', ') + (금액없음.length > 10 ? ' …' : '') + ' — 금액 열을 잘못 골랐는지 확인해 주세요.' : ''}
         <br><span class="muted">서버 처리 ${((r.ms || 0) / 1000).toFixed(1)}초</span></div>`;
       renderDash(); renderMonthly(); renderExpenses();
     } catch (e) {
@@ -1588,7 +1611,13 @@ function 사전확인계산(items) {
     누적[code] = (누적[code] || 0) + amt;
     const 기집행 = b.spent + b.pending;
     const remain = b.budget - 기집행 - 누적[code];
-    const verdict = amt <= 0 ? 'noamt'
+    /* 예산 0원 코드는 판정 자체가 성립하지 않는다 (2026-08-16 훑기 B6). 시드 283개 중 34개가
+       0원이고 그중 22개는 전 부서 공통 접대비·조직활성화비다 — remain이 언제나 음수라
+       무조건 'over'가 되어 「초과 · 반영 후 잔액 -3,000,000원」이라는 없는 숫자를 그렸다.
+       같은 사실을 집행률칸(:839)은 「예산없음」으로, 서버 임계 알림(`Code.gs`의 bud<=0)은
+       건너뛰기로 다룬다 — 결재 판단이 걸린 이 화면만 세 번째 답을 내고 있었다. */
+    const verdict = !b.budget ? 'nobudget'
+      : amt <= 0 ? 'noamt'
       : remain < 0 ? 'over'
       : (기집행 + 누적[code]) / b.budget >= A.warnTh ? 'warn' : 'ok';
     return Object.assign({}, it, { code: code, desc: b.desc, budget: b.budget, 기집행: 기집행, 누적: 누적[code], remain: remain, verdict: verdict });
@@ -1649,10 +1678,13 @@ function 판정칸갱신(결과) {
     over: '<span class="badge b-over">초과</span>', warn: '<span class="badge b-warn">주의</span>',
     ok: '<span class="badge b-ok">여유</span>', noamt: '<span class="badge b-gray">금액 입력</span>',
     nocode: '<span class="badge b-gray">코드 없음</span>', badcode: '<span class="badge b-warn">미등록 코드</span>',
+    // 예산이 안 잡힌 코드 — 대시보드 집행률칸의 「예산없음」과 같은 말이다 (훑기 B6)
+    nobudget: '<span class="badge b-gray">예산없음</span>',
   };
   결과.forEach((r, i) => {
     el('pre-remain-' + i).innerHTML = r.verdict === 'nocode' ? '<span class="muted">제목에 [코드]가 없어 판정 불가</span>'
       : r.verdict === 'badcode' ? '<span class="muted">예산마스터에 없는 코드</span>'
+      : r.verdict === 'nobudget' ? `<span class="muted">예산 미편성 — 판정 불가 (기집행 ${fmt(r.기집행 + r.누적)}원)</span>`
       : r.verdict === 'noamt' ? `<span class="muted">현재 잔액 ${fmt(r.budget - r.기집행)}원</span>`
       : `${fmt(r.remain)}원`;
     el('pre-verdict-' + i).innerHTML = 배지[r.verdict];
