@@ -1165,7 +1165,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608161246-6e34e5e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608161313-0f095ec';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1279,7 +1279,7 @@ function 스냅샷받기_() {
        굳는다 — 저장 실패와 달리 경고가 없어 **조용히 틀린 날짜로 저장된다**(실제로 재현했다).
        대가는 각자 하루 한 번 첫 실행이 GAS를 기다리는 것뿐이다. */
     if (r.payload.init.today !== 기기날짜_()) return;
-    그린부트_ = JSON.stringify(r.payload);
+    그린부트_ = 지문_(r.payload);   // ⚠ 양쪽이 같은 함수여야 한다 — jsonb가 키를 재정렬한다
     /* 그리다 실패하면 그린부트_를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 부트가
        「같은 값」이라며 조기 반환해 아무도 안 그리고, 62초 뒤 워치독이 로그인으로 내쫓는다. */
     try { onBoot(r.payload); } catch (e) { 그린부트_ = ''; throw e; }
@@ -1290,10 +1290,24 @@ function 스냅샷받기_() {
   });
 }
 
+/* 키 순서에 안 흔들리는 지문 (2026-08-16, 회차6 감사).
+   ⚠ `JSON.stringify`로 두 부트를 비교하면 **영원히 다르다.** 스냅샷은 Postgres `jsonb`에서
+   오는데 jsonb는 키를 **재정렬해 저장**한다 — 실측: 스냅샷 13행이 전부 `evt,kpi,dash,flow,init,matl`
+   인데 GAS `부트_`(30_웹API.gs)가 만드는 순서는 `init,dash,evt,flow,kpi,matl`이다. 첫 키부터 다르다.
+   실 페이로드로 재 보니 **길이가 203,760으로 정확히 같은데 `===`가 false**였다.
+   그래서 「스냅샷이 최신이었다」 갈래가 **한 번도 성립한 적이 없다.** */
+function 지문_(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(지문_).join(',') + ']';
+  return '{' + Object.keys(v).sort().map(function(k) {
+    return JSON.stringify(k) + ':' + 지문_(v[k]);
+  }).join(',') + '}';
+}
+
 /* GAS 부트가 도착했다 — 이게 진실이다. 스냅샷이 그린 화면을 여기서 수렴시킨다. */
 function onBoot최신_(b) {
   b = b || {};
-  var 원문 = JSON.stringify(b);
+  var 원문 = 지문_(b);
   if (원문 === 그린부트_) return;        // 스냅샷이 최신이었다 — 대부분 여기서 끝난다
   if (!그린부트_) { 그린부트_ = 원문; onBoot(b); return; }   // 스냅샷이 없었다 — 평소 경로
   그린부트_ = 원문;
@@ -1305,8 +1319,14 @@ function onBoot최신_(b) {
   if (b.flow) { FLOW = b.flow; FLOWX = {}; }
   if (b.kpi) KPIT = b.kpi;
   if (b.matl) MATL = b.matl;
-  // 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다
-  if (b.init && !쓴적_) DATA = b.init;
+  /* 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다.
+     ⚠ **열쇠를 다시 매긴다** (2026-08-16, 회차6 감사). `열쇠매기기_` 호출 아홉 곳 중
+     이 자리만 빠져 있었다. 안 매기면 `x.k`가 undefined로 남고, 카드에 `prefill(undefined)`·
+     `leadStage(undefined, …)`가 박힌다. 그런데 `x.k === undefined`는 **전 원소에 참**이라
+     찾기가 늘 **목록 첫 건**을 집는다 — `leadStage`·`leadTarget`은 확인창이 없고 `대상.no`가
+     멀쩡해서 **오류 하나 없이 남의 리드에 관문 쓰기가 나간다.** 8/14 이정국 사고와 같은
+     모양인데 그때는 오류라도 떴다. 바로 아래 onData(:1367)와 홈받기_(:1399)는 이미 부른다. */
+  if (b.init && !쓴적_) { DATA = b.init; 열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads); }
 
   /* 다시 그리는 것은 사용자가 아직 아무것도 안 했을 때만. 건드린 뒤에 갈아엎으면 입력하던
      값이 날아가고 지워 둔 임시저장 안내가 되살아난다. 위에서 데이터는 이미 갈아끼웠으므로
