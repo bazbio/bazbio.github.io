@@ -1165,7 +1165,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608161046-623294e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608161221-a7abf2a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2265,14 +2265,13 @@ function renderKpiTab() {
     h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">방문·데모처 현황은 현황 탭의 월간 실적에서 확인할 수 있습니다.</div>';
 
     h += kick('목표 설정 — 저장하면 06_월간KPI에 반영');
-    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">신규 Lead</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
+    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
     var inpCell = function(id, v) {
       return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" style="width:54px;padding:6px 4px;text-align:center;font-size:13.5px;border-radius:8px;">';
     };
     var tt = d.teamTgt || {};
     h += '<tr style="background:#fff4e0;"><td><b>팀 목표</b><div style="font-size:10px;color:#a35c11;">월간 팀 전체</div></td>'
       + '<td class="c">' + inpCell('kt_team_visit', tt.visit) + '</td>'
-      + '<td class="c">' + inpCell('kt_team_lead', tt.lead) + '</td>'
       + '<td class="c">' + inpCell('kt_team_equip', tt.equip) + '</td>'
       + '<td class="c">' + inpCell('kt_team_ncare', tt.ncare) + '</td>'
       + '<td class="c">' + inpCell('kt_team_demo', tt.demo) + '</td></tr>';
@@ -2280,7 +2279,6 @@ function renderKpiTab() {
       var inp = function(f, v) { return inpCell('kt_' + i + '_' + f, v); };
       h += '<tr><td><b>' + esc(r.name) + '</b></td>'
         + '<td class="c">' + inp('visit', r.tgt.visit) + '</td>'
-        + '<td class="c">' + inp('lead', r.tgt.lead) + '</td>'
         + '<td class="c">' + inp('equip', r.tgt.equip) + '</td>'
         + '<td class="c">' + inp('ncare', r.tgt.ncare) + '</td>'
         + '<td class="c">' + inp('demo', r.tgt.demo) + '</td></tr>';
@@ -2297,10 +2295,10 @@ function renderKpiTab() {
 function saveKpiTargets() {
   var rows = KPIT.reps.map(function(r, i) {
     var g = function(f) { return document.getElementById('kt_' + i + '_' + f).value.trim(); };
-    return { name: r.name, visit: g('visit'), lead: g('lead'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
+    return { name: r.name, visit: g('visit'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
   });
   var gt = function(f) { return document.getElementById('kt_team_' + f).value.trim(); };
-  var team = { visit: gt('visit'), lead: gt('lead'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
+  var team = { visit: gt('visit'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
   busy(true, '저장 중…');
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
