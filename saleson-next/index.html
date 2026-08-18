@@ -5,8 +5,9 @@
 <!-- PWA 머리 (ADR 0008) — 예전에는 셸(iframe 바깥)이 들고 있었다. 화면이 Pages로 오면서
      여기가 곧 홈 화면 앱이라 이리로 옮겼다. GAS(doGet)로 열릴 때는 manifest·sw가 404가
      나지만 둘 다 조용히 무시되므로 롤백 경로가 안 깨진다. -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SalesON</title>
+<meta name="description" content="바즈바이오메딕 영업팀 전용 CRM — 거래처·방문기록·행사·재고를 한곳에서 관리합니다.">
 <meta name="theme-color" content="#0A84FF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +16,10 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<!-- 폰트 CSS는 렌더를 막지 않게 받는다 — 막으면 모바일 첫 페인트가 CDN 왕복(~0.6초)만큼 늦는다.
+     받는 동안은 폴백(Malgun Gothic)으로 그렸다가 도착하면 갈아입는다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" media="print" onload="this.media='all';this.onload=null;">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"></noscript>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html { font-size:16px; }
@@ -46,12 +50,12 @@
   .hero { padding:24px 18px 4px; }
   .hero .inner { max-width:900px; }
   .hero .kick { display:flex; align-items:center; gap:8px; }
-  .logout { font-family:inherit; font-size:12.5px; font-weight:600; color:#6b7684; background:#fff; border:1px solid #e5e8eb; padding:7px 14px; border-radius:10px; cursor:pointer; }
+  .logout { font-family:inherit; font-size:12.5px; font-weight:600; color:#4e5968; background:#fff; border:1px solid #e5e8eb; padding:7px 14px; border-radius:10px; cursor:pointer; }
   .logout:active { transform:scale(.96); opacity:.75; }
   .hero .kick .bar { display:none; }
   .hero .kick .lbl { font-size:12px; font-weight:700; letter-spacing:.06em; color:#1b64da; }
   .hero h1 { margin-top:8px; font-size:26px; font-weight:700; color:#191f28; letter-spacing:-.03em; line-height:1.38; }
-  .hero .meta { margin-top:4px; font-size:14px; color:#6b7684; }
+  .hero .meta { margin-top:4px; font-size:14px; color:#4e5968; }
 
   .wrap { padding:16px 14px 0; max-width:720px; margin:0 auto; }
   .card { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:16px 18px; margin-bottom:12px; }
@@ -64,31 +68,31 @@
   /* KPI 타일 */
   .tiles { display:flex; gap:10px; }
   .tile { flex:1; background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:14px 16px; }
-  .tile .t { font-size:12px; font-weight:600; color:#6b7684; }
+  .tile .t { font-size:12px; font-weight:600; color:#4e5968; }
   .tile .n { margin-top:8px; font-size:30px; font-weight:700; color:#191f28; line-height:1; letter-spacing:-.03em; }
   .tile .n.blue { color:#1b64da; } .tile .n.red { color:#d0223a; }
-  .tile .s { margin-top:7px; font-size:12px; color:#8b95a1; }
+  .tile .s { margin-top:7px; font-size:12px; color:#5f6b7a; }
 
   /* 계획 카드 */
   .plan { display:flex; gap:12px; align-items:flex-start; }
   .plan .dd { min-width:56px; text-align:center; background:#e8f3ff; border-radius:12px; padding:9px 4px; }
   .plan .dd .d1 { font-size:15px; font-weight:700; color:#1b64da; }
   .plan .dd .d1.late { color:#d0223a; }
-  .plan .dd .d2 { font-size:11px; color:#6b7684; margin-top:2px; }
+  .plan .dd .d2 { font-size:11px; color:#4e5968; margin-top:2px; }
   .plan .bd { flex:1; }
   .plan .h { font-size:16.5px; font-weight:700; color:#191f28; }
-  .plan .p { font-size:14px; color:#6b7684; margin-top:3px; line-height:1.5; }
+  .plan .p { font-size:14px; color:#4e5968; margin-top:3px; line-height:1.5; }
   .plan .tag { display:inline-block; margin-top:8px; font-size:12px; font-weight:600; color:#1b64da; background:#e8f3ff; border-radius:999px; padding:4px 11px; }
   .plan .acts { display:flex; flex-direction:column; gap:7px; }
   .btn { font-family:inherit; font-size:13.5px; font-weight:600; padding:10px 16px; border:1px solid #e5e8eb; background:#fff; color:#4e5968; border-radius:12px; cursor:pointer; }
-  .btn.pri { background:#3182f6; border-color:#3182f6; color:#fff; }
-  .btn.ghost { color:#8b95a1; }
+  .btn.pri { background:#1b64da; border-color:#1b64da; color:#fff; }
+  .btn.ghost { color:#5f6b7a; }
   .btn:active { transform:scale(.96); opacity:.85; }
 
-  .empty { text-align:center; padding:30px 0; font-size:14px; color:#8b95a1; line-height:1.7; }
+  .empty { text-align:center; padding:30px 0; font-size:14px; color:#5f6b7a; line-height:1.7; }
 
   /* 폼 */
-  label.f { display:block; font-size:13px; font-weight:600; color:#6b7684; margin:16px 4px 7px; }
+  label.f { display:block; font-size:13px; font-weight:600; color:#4e5968; margin:16px 4px 7px; }
   input[type=text], input[type=date], input[type=month], input[type=password], select, textarea {
     width:100%; font-family:inherit; font-size:16px; font-weight:400; padding:12px 14px;
     border:1px solid #e5e8eb; background:#fff; color:#191f28; border-radius:12px; -webkit-appearance:none; appearance:none;
@@ -100,18 +104,18 @@
   textarea { min-height:100px; resize:vertical; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { font-size:14px; font-weight:500; padding:9px 15px; border:none; background:#f2f4f6; color:#4e5968; border-radius:999px; cursor:pointer; }
-  .chip.on { background:#3182f6; color:#fff; font-weight:700; }
-  .chip.green.on { background:#03b26c; }
-  .tag.ncare { color:#058652; background:#e5f7ef; }
-  .tag.equip { color:#058652; background:#e5f7ef; }
+  .chip.on { background:#1b64da; color:#fff; font-weight:700; }
+  .chip.green.on { background:#058652; }
+  .tag.ncare { color:#05754a; background:#e5f7ef; }
+  .tag.equip { color:#05754a; background:#e5f7ef; }
   /* 문의 상태 칩 — Meta DB 카드용. .plan 밖이라 .plan .tag 규칙이 안 닿는다(맨 텍스트로 나왔었다) */
   .tag-red, .tag-orange, .tag-blue, .tag-green, .tag-grey {
     display:inline-block; font-size:12px; font-weight:700; border-radius:999px; padding:4px 11px; white-space:nowrap; }
   .tag-red { color:#d0223a; background:#ffeaed; }
   .tag-orange { color:#a35c11; background:#fff4e0; }
   .tag-blue { color:#1b64da; background:#e8f3ff; }
-  .tag-green { color:#058652; background:#e5f7ef; }
-  .tag-grey { color:#6b7684; background:#f2f4f6; }
+  .tag-green { color:#05754a; background:#e5f7ef; }
+  .tag-grey { color:#4e5968; background:#f2f4f6; }
   .badge.tgt { background:#fff4e0; color:#a35c11; }
   /* 폰에서 날짜 입력 두 개가 나란히 서면 최소 폭이 화면을 넘어 **문서 전체가 옆으로 밀린다**
      (2026-08-04 실측: 375px 화면에서 344px 필요 → 문서 스크롤 389px).
@@ -120,21 +124,21 @@
   .row2 { display:flex; gap:10px; flex-wrap:wrap; }
   .row2 > div { flex:1 1 140px; min-width:0; }
   .row2 input, .row2 select { max-width:100%; }
-  .save { width:100%; margin-top:22px; font-size:16px; font-weight:700; padding:15px; background:#3182f6; color:#fff; border:none; border-radius:12px; cursor:pointer; }
+  .save { width:100%; margin-top:22px; font-size:16px; font-weight:700; padding:15px; background:#1b64da; color:#fff; border:none; border-radius:12px; cursor:pointer; }
   .save:active { transform:scale(.985); opacity:.92; }
-  .save:disabled { background:#8b95a1; }
+  .save:disabled { background:#5f6b7a; }
 
   /* 리드 카드 */
   .lead .h { font-size:16.5px; font-weight:700; color:#191f28; }
-  .lead .m { font-size:13px; color:#6b7684; margin-top:4px; }
+  .lead .m { font-size:13px; color:#4e5968; margin-top:4px; }
   .lead .memo { font-size:14px; color:#4e5968; margin-top:7px; line-height:1.5; }
   .lead .stg { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
   .stgchip { font-size:13px; font-weight:500; padding:7px 13px; border:none; background:#f2f4f6; color:#4e5968; border-radius:999px; cursor:pointer; }
   .stgchip.on { background:#191f28; color:#fff; font-weight:700; }
-  .stgchip.deal.on { background:#3182f6; }
+  .stgchip.deal.on { background:#1b64da; }
   .lead.done { opacity:.55; }
   .badge { display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; margin-left:7px; border-radius:999px; }
-  .badge.deal { background:#e5f7ef; color:#058652; }
+  .badge.deal { background:#e5f7ef; color:#05754a; }
 
   /* 홈 바로 가기 — 하단 탭 5개에 없는 화면으로 한 번에. 모바일 전용(PC는 사이드바에 다 있다).
      예전 스윕 2페이지의 그라디언트 컬러 타일을 대체한다 — 색은 아이콘 칩에만 쓴다. */
@@ -144,7 +148,7 @@
   .qtile:active { transform:scale(.98); }
   .qtile .qi { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; font-size:15px; font-weight:700; margin-bottom:12px; }
   .qtile .qt { font-size:16px; font-weight:700; color:#191f28; letter-spacing:-.02em; }
-  .qtile .qs { margin-top:4px; font-size:13px; color:#6b7684; }
+  .qtile .qs { margin-top:4px; font-size:13px; color:#4e5968; }
   /* 숨김 규칙은 .qgrid{display:grid} 뒤에 와야 이긴다 — 같은 특이도면 소스 순서가 결정한다.
      .qgrid.mobonly는 두 클래스라 미디어 쿼리 안에서도 확실히 우선한다. */
   @media (min-width: 900px) { .mobonly, .qgrid.mobonly { display:none; } }
@@ -167,9 +171,9 @@
   .mrow .mi { flex:0 0 40px; height:40px; border-radius:13px; display:grid; place-items:center; font-size:15px; font-weight:700; color:#fff; }
   .mrow .mb2 { flex:1; min-width:0; }
   .mrow .mb2 .mn { font-size:15.5px; font-weight:600; color:#191f28; }
-  .mrow .mb2 .ms2 { margin-top:2px; font-size:13px; color:#6b7684; }
-  .mrow .mc { color:#b0b8c1; font-size:17px; font-weight:700; }
-  .nav button { flex:1; font-family:inherit; background:none; border:none; color:#6b7684; font-size:13.5px; font-weight:600; min-height:44px; padding:15px 0 max(15px, env(safe-area-inset-bottom)); cursor:pointer; }
+  .mrow .mb2 .ms2 { margin-top:2px; font-size:13px; color:#4e5968; }
+  .mrow .mc { color:#6b7684; font-size:17px; font-weight:700; }
+  .nav button { flex:1; font-family:inherit; background:none; border:none; color:#4e5968; font-size:13.5px; font-weight:600; min-height:44px; padding:15px 0 max(15px, env(safe-area-inset-bottom)); cursor:pointer; }
   .nav button.on { color:#1b64da; font-weight:700; }
 
   /* 오버레이 */
@@ -190,9 +194,9 @@
   #acBox .aci { padding:11px 12px; font-size:14px; color:#191f28; border-radius:8px; cursor:pointer; line-height:1.4; }
   #acBox .aci.on { background:#f2f4f6; }
   #acBox .aci.warn { color:#B45309; }
-  #acBox .achd { padding:9px 12px 5px; font-size:11.5px; font-weight:700; color:#8b95a1; }
+  #acBox .achd { padding:9px 12px 5px; font-size:11.5px; font-weight:700; color:#5f6b7a; }
   #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:80; display:none; max-width:88%; }
-  #toast.err { background:#f04452; }
+  #toast.err { background:#d22030; }
   .pconly { display:none; }
   .seg { display:flex; gap:8px; margin-bottom:12px; }
   .seg .chip { flex:1; text-align:center; }
@@ -212,7 +216,7 @@
 
   /* 대시보드 테이블 */
   .dt { width:100%; border-collapse:collapse; font-size:13.5px; }
-  .dt th { text-align:left; font-size:11.5px; font-weight:600; color:#6b7684; border-bottom:1px solid #e5e8eb; padding:7px 8px; white-space:nowrap; }
+  .dt th { text-align:left; font-size:11.5px; font-weight:600; color:#4e5968; border-bottom:1px solid #e5e8eb; padding:7px 8px; white-space:nowrap; }
   .dt td { border-bottom:1px solid #f2f4f6; padding:10px 8px; color:#4e5968; vertical-align:top; }
   .dt tr:last-child td { border-bottom:none; }
   .dt .c { text-align:center; } .dt .r { text-align:right; white-space:nowrap; }
@@ -222,19 +226,22 @@
   /* 홈 2단 레이아웃 (PC: 계획 | KPI) */
   .home2 { display:flex; flex-direction:column; }
   .home2 .hcol { min-width:0; }
+  /* 부트 데이터가 오기 전에 홈 두 칸의 자리를 잡아 둔다 — 늦게 채워질 때 아래 내용이
+     화면째 밀리는 것(CLS 0.2~0.46)을 막는다. 실제 내용은 항상 한 화면을 넘겨 티가 안 난다. */
+  #homeMain, #homeKpi { min-height:100vh; }
 
   /* KPI 패널 */
   .krow { padding:12px 0; border-bottom:1px solid #f2f4f6; }
   .krow:last-child { border-bottom:none; padding-bottom:4px; }
-  .krow .kt { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:600; color:#6b7684; }
+  .krow .kt { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:600; color:#4e5968; }
   .krow .kt .pct { font-size:13px; font-weight:700; color:#1b64da; }
   .krow .kt .pct.low { color:#d0223a; } .krow .kt .pct.mid { color:#191f28; }
-  .krow .kt .pct.none { color:#8b95a1; font-weight:600; }
+  .krow .kt .pct.none { color:#5f6b7a; font-weight:600; }
   .krow .kv { margin-top:5px; font-size:20px; font-weight:700; color:#191f28; letter-spacing:-.02em; }
-  .krow .kv .of { font-size:14px; font-weight:600; color:#8b95a1; }
+  .krow .kv .of { font-size:14px; font-weight:600; color:#5f6b7a; }
   .kbar { margin-top:8px; height:6px; background:#f2f4f6; border-radius:99px; overflow:hidden; }
   .kbar > div { height:100%; border-radius:99px; background:#3182f6; }
-  .kbar > div.low { background:#f04452; } .kbar > div.done { background:#03b26c; }
+  .kbar > div.low { background:#d22030; } .kbar > div.done { background:#058652; }
 
   /* 흐름(퍼널) 탭 */
   .fmonth { display:flex; align-items:center; gap:8px; }
@@ -244,19 +251,19 @@
   .fcol .flab { font-size:15px; font-weight:700; color:#191f28; white-space:nowrap; }
   .fcol .fnum { font-size:36px; font-weight:700; margin-top:6px; line-height:1; letter-spacing:-.03em; }
   .fcol .fcv { font-size:12px; font-weight:700; color:#1b64da; margin-top:6px; min-height:15px; }
-  .fcol .fcv .sub { color:#6b7684; font-weight:600; }
+  .fcol .fcv .sub { color:#4e5968; font-weight:600; }
   .fcol .flist { margin-top:11px; border-top:1px solid #f2f4f6; padding-top:8px; }
   .fcol .fli { font-size:11.5px; color:#4e5968; padding:3px 0; font-weight:600; line-height:1.4; }
-  .fcol .fli .fr { font-size:10px; color:#8b95a1; margin-left:4px; font-weight:500; }
+  .fcol .fli .fr { font-size:10px; color:#5f6b7a; margin-left:4px; font-weight:500; }
   .fcol.fail { background:#fff5f6; border:1px dashed #ffd0d5; margin-left:6px; }
-  .farr2 { align-self:center; color:#b0b8c1; font-weight:700; font-size:17px; flex:0 0 auto; }
+  .farr2 { align-self:center; color:#6b7684; font-weight:700; font-size:17px; flex:0 0 auto; }
   .fmore { font-family:inherit; font-size:11.5px; font-weight:600; color:#1b64da; background:none; border:none; padding:4px 0; cursor:pointer; }
   .fgb { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:5px; font-size:9.5px; font-weight:700;
          background:#fff3e0; color:#8a5a00; vertical-align:1px; white-space:nowrap; }
   /* 퍼널 줄의 직판/딜러 배지 (P48). 처음에는 직판을 회색으로 눕혔는데 눈에 안 띄어서
      둘 다 세우고 색으로 가른다 (8/16) — 직판 초록 · 딜러 파랑. 인식배지(.fgb)는 주황이라 안 겹친다 */
   .fch { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:5px; font-size:9.5px; font-weight:700;
-         background:#e3f6ec; color:#058652; vertical-align:1px; white-space:nowrap; }
+         background:#e3f6ec; color:#05754a; vertical-align:1px; white-space:nowrap; }
   .fch.dlr { background:#e8f3ff; color:#1b64da; }
 
   /* 리드 탭 장비/N-Care 2단 */
@@ -274,8 +281,8 @@
   .ptabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .ptab { font-family:inherit; cursor:pointer; text-align:center; background:#fff; border:1px solid #e5e8eb; border-radius:14px; padding:10px 20px; font-size:15px; font-weight:700; color:#4e5968; }
   .ptab:hover { border-color:#b0d3ff; }
-  .ptab .cnt { display:block; font-size:11px; font-weight:600; color:#8b95a1; margin-top:3px; }
-  .ptab.on { background:#3182f6; border-color:#3182f6; color:#fff; }
+  .ptab .cnt { display:block; font-size:11px; font-weight:600; color:#5f6b7a; margin-top:3px; }
+  .ptab.on { background:#1b64da; border-color:#1b64da; color:#fff; }
   .ptab.on .cnt { color:#cfe4ff; }
   .ptab.sm { padding:8px 14px; font-size:13px; border-radius:11px; }
 
@@ -284,7 +291,7 @@
   .evt-sum .pill { font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:999px; background:#f2f4f6; color:#4e5968; }
   .evt-sum .pill b { font-weight:700; }
   .evt-sum .pill.blue { background:#e8f3ff; color:#1b64da; }
-  .evt-sum .pill.green { background:#e5f7ef; color:#058652; }
+  .evt-sum .pill.green { background:#e5f7ef; color:#05754a; }
   .evt-sum .pill.amber { background:#fff4e0; color:#a35c11; }
 
   /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
@@ -300,20 +307,20 @@
   /* 현황 — 월 목표 진척 (1군 지표) */
   .goals { display:grid; grid-template-columns:1fr; gap:12px; }
   .gtile { background:#fff; border:1px solid #e5e8eb; border-radius:16px; padding:18px 20px; }
-  .gtile .gt { font-size:13px; font-weight:700; color:#6b7684; }
+  .gtile .gt { font-size:13px; font-weight:700; color:#4e5968; }
   .gtile .gv { margin-top:11px; display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
   .gtile .gv .a { font-size:38px; font-weight:700; color:#191f28; line-height:1; letter-spacing:-.03em; }
-  .gtile .gv .b { font-size:17px; font-weight:600; color:#8b95a1; }
+  .gtile .gv .b { font-size:17px; font-weight:600; color:#5f6b7a; }
   .gtile .gv .pc { margin-left:auto; font-size:17px; font-weight:700; color:#1b64da; }
-  .gtile .gv .pc.done { color:#058652; } .gtile .gv .pc.low { color:#d0223a; }
+  .gtile .gv .pc.done { color:#05754a; } .gtile .gv .pc.low { color:#d0223a; }
   .gbar { margin-top:12px; height:8px; background:#f2f4f6; border-radius:99px; overflow:hidden; position:relative; }
   .gbar > i { display:block; height:100%; border-radius:99px; background:#3182f6; }
-  .gbar > i.done { background:#03b26c; } .gbar > i.low { background:#f04452; }
-  .gbar > u { position:absolute; top:-3px; bottom:-3px; width:2px; background:#b0b8c1; }
-  .gpace { margin-top:9px; font-size:12.5px; color:#6b7684; display:flex; justify-content:space-between; gap:8px; }
+  .gbar > i.done { background:#058652; } .gbar > i.low { background:#d22030; }
+  .gbar > u { position:absolute; top:-3px; bottom:-3px; width:2px; background:#6b7684; }
+  .gpace { margin-top:9px; font-size:12.5px; color:#4e5968; display:flex; justify-content:space-between; gap:8px; }
   .gpace b { font-weight:700; }
-  .gpace b.ok { color:#058652; } .gpace b.bad { color:#d0223a; }
-  .gnote { font-size:12.5px; color:#6b7684; margin:8px 4px 0; line-height:1.6; }
+  .gpace b.ok { color:#05754a; } .gpace b.bad { color:#d0223a; }
+  .gnote { font-size:12.5px; color:#4e5968; margin:8px 4px 0; line-height:1.6; }
 
   /* 목표 입력 경고 — 현황·KPI 탭 공용 */
   .warnbox { background:#fff4e0; border-radius:16px; padding:15px 17px; margin-top:10px; font-size:13.5px; color:#a35c11; line-height:1.65; }
@@ -325,21 +332,21 @@
   /* 현황 — 접이식 보조 지표(방문 활동) */
   details.sub { margin-top:22px; border-top:1px solid #e5e8eb; padding-top:6px; }
   details.sub > summary {
-    list-style:none; cursor:pointer; padding:12px 4px; font-size:15px; font-weight:700; color:#6b7684;
+    list-style:none; cursor:pointer; padding:12px 4px; font-size:15px; font-weight:700; color:#4e5968;
     display:flex; align-items:center; gap:8px;
   }
   details.sub > summary::-webkit-details-marker { display:none; }
-  details.sub > summary::after { content:'▾'; font-size:12px; color:#b0b8c1; transition:transform .2s cubic-bezier(0.16,1,0.3,1); }
+  details.sub > summary::after { content:'▾'; font-size:12px; color:#6b7684; transition:transform .2s cubic-bezier(0.16,1,0.3,1); }
   details.sub[open] > summary::after { transform:rotate(180deg); }
   details.sub[open] > summary { color:#191f28; }
-  details.sub > summary .cnt { font-size:12.5px; font-weight:600; color:#8b95a1; margin-left:auto; }
+  details.sub > summary .cnt { font-size:12.5px; font-weight:600; color:#5f6b7a; margin-left:auto; }
 
   /* PC 화면: 왼쪽 사이드바 + 본문 왼쪽 정렬 + 글씨 확대 */
   @media (min-width: 900px) {
     body { padding-left:200px; padding-bottom:24px; }
     .nav { top:0; bottom:0; left:0; right:auto; width:200px; background:#fff; backdrop-filter:none; border-top:none; border-right:1px solid #e5e8eb; flex-direction:column; justify-content:flex-start; padding:26px 14px 0; gap:6px; }
     .nav button { flex:0 0 auto; width:100%; text-align:left; padding:13px 18px; font-size:15px; border-radius:12px; }
-    .nav button.on { background:#3182f6; color:#fff; }
+    .nav button.on { background:#1b64da; color:#fff; }
     .hero { padding-left:36px; padding-right:36px; }
     .wrap { margin:0; max-width:880px; padding-left:36px; padding-right:24px; }
     #toast { bottom:40px; }
@@ -389,7 +396,7 @@
                 background:#3ED07E; opacity:0; transform:scale(0);
                 animation:doton .5s cubic-bezier(.2,1.6,.4,1) 1.65s forwards,
                           breath 2.2s ease-in-out 2.3s infinite; }
-  #splash .sub { margin-top:24px; font-size:14px; font-weight:600; color:#B9B9C0;
+  #splash .sub { margin-top:24px; font-size:14px; font-weight:600; color:#5f6b7a;
          letter-spacing:.42em; text-indent:.42em; opacity:0; animation:subin 1.1s ease 1.2s forwards; }
   @keyframes focusin {
     0%   { opacity:0; letter-spacing:.34em; filter:blur(14px); transform:scale(1.06); }
@@ -422,7 +429,10 @@
 
 <!-- 홈 — 세로 한 장. 예전엔 좌우 스윕 2페이지였는데, 2페이지 컬러 메뉴가
      하단 탭 '더보기'와 기능이 겹치고 스와이프를 눈치채야 발견되는 구조였다. -->
-<div class="view on" id="view-home"><div class="wrap">
+<!-- ⚠ `on`을 마크업에 두면 안 된다 — 부팅 스크립트가 숨기기 전에 첫 페인트가 끼어들면
+     '그려졌다 사라지는' 레이아웃 시프트가 기록된다(실측 CLS 0.79). 부팅 전 첫 화면은
+     #loading이고, 홈은 boot()가 show('home')으로 켠다. -->
+<div class="view" id="view-home"><div class="wrap">
   <div class="home2" id="home2">
     <div class="hcol" id="homeMain">
       <!-- 저장하지 않은 것 알림 (2026-08-16, 감사 화12) — 여태 그 탭에 들어가야만 보였다 -->
@@ -451,7 +461,7 @@
           <div class="qt">자료</div><div class="qs">공식 영업 자료실</div>
         </div>
         <div class="qtile" onclick="show('kpi')">
-          <div class="qi" style="background:#e5f7ef;color:#058652;">K</div>
+          <div class="qi" style="background:#e5f7ef;color:#05754a;">K</div>
           <div class="qt">KPI</div><div class="qs">목표 · 달성 관리</div>
         </div>
       </div>
@@ -492,7 +502,7 @@
     <input type="text" id="eCost" inputmode="numeric" placeholder="예: 35920095">
     <div id="evtReqSec" style="margin-top:16px;border:1px solid #EDEDF0;border-radius:14px;padding:4px 14px 14px;">
       <div style="margin-top:10px;font-size:13.5px;font-weight:700;color:#1A1A1A;">자료 요청 (선택)</div>
-      <div style="margin-top:4px;font-size:12px;color:#6b7684;line-height:1.5;">체크한 팀에 행사 안내 메일과 함께 요청 내용이 전달됩니다</div>
+      <div style="margin-top:4px;font-size:12px;color:#4e5968;line-height:1.5;">체크한 팀에 행사 안내 메일과 함께 요청 내용이 전달됩니다</div>
       <label class="f" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="rq_CLabs" onchange="document.getElementById('rqBox_CLabs').style.display=this.checked?'block':'none'" style="width:17px;height:17px;accent-color:#3182f6;margin:0;">C-Labs에 자료 요청
       </label>
@@ -600,7 +610,7 @@
     <input type="text" id="fTypeEtc" style="display:none;margin-top:8px;" placeholder="활동 유형 직접 입력 (예: 정기 결제, 실장님 미팅)" autocomplete="off">
     <!-- 직접 입력은 방문으로 집계된다 (2026-08-16) — 방문유형_()가 「방문/」을 붙인다.
          현장에 간 것이 아닌 활동을 여기 적으면 방문 수가 부풀려지므로 그 자리를 알려 준다 -->
-    <div id="fTypeEtcNote" style="display:none;margin-top:6px;font-size:12px;color:#8b95a1;line-height:1.6;">
+    <div id="fTypeEtcNote" style="display:none;margin-top:6px;font-size:12px;color:#5f6b7a;line-height:1.6;">
       직접 입력한 활동은 <b>현장 방문으로 집계</b>됩니다 — 「방문/○○」로 저장돼요.<br>
       전화·이메일·세미나였다면 위에서 그 칩을 골라 주세요.
     </div>
@@ -650,7 +660,7 @@
     <label class="f">또는 자료 링크(URL)</label>
     <input type="text" id="mLink" placeholder="https:// 드라이브·홈페이지 링크" autocomplete="off">
     <button class="save" id="mSave" onclick="submitMat()">업로드 + 메일 알림</button>
-    <div id="mBigHint" style="display:none;margin-top:12px;font-size:12px;color:#6b7684;line-height:1.7;background:#f2f4f6;border-radius:10px;padding:12px 14px;">
+    <div id="mBigHint" style="display:none;margin-top:12px;font-size:12px;color:#4e5968;line-height:1.7;background:#f2f4f6;border-radius:10px;padding:12px 14px;">
       <b style="color:#4e5968;">20MB 넘는 대용량 파일 올리는 법</b><br>
       ① [자료 폴더 열기]로 드라이브 폴더에 파일을 직접 업로드 → ② 파일 우클릭 → 링크 복사 → ③ 위 "자료 링크"에 붙여넣고 등록.<br>메일 알림·자료 리스트는 동일하게 동작합니다.
       <div style="margin-top:10px;"><a id="mFolderBtn" class="btn" style="text-decoration:none;display:inline-block;" href="#" target="_blank" rel="noopener">자료 폴더 열기</a></div>
@@ -672,7 +682,7 @@
       <b>2. 방문 기록</b> — 방문 후 <b>기록 탭</b>에서 결과 입력 (홈 계획 카드의 [기록 쓰기]를 누르면 자동으로 채워져요)<br>
       <b>3. 리드 관리</b> — <b>리드 탭</b>에서 내 리드의 단계를 탭해서 변경 (컨택 → 데모 → 협의 → 계약)
     </div>
-    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">기록을 남기면 같은 병원의 계획이 자동으로 '완료' 처리됩니다. 방문 못 간 계획은 홈에서 [연기/취소]로 정리해 주세요 — 안 하면 매일 아침 미기록 알림이 갑니다.</div>
+    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">기록을 남기면 같은 병원의 계획이 자동으로 '완료' 처리됩니다. 방문 못 간 계획은 홈에서 [연기/취소]로 정리해 주세요 — 안 하면 매일 아침 미기록 알림이 갑니다.</div>
   </div>
 
   <div class="card">
@@ -682,7 +692,7 @@
       · <b>판매 단계</b> — 데모 완료·협의중·제안 완료·계약 등. <b>퍼널·KPI가 전부 이걸로 집계</b>되니 정확하게!<br>
       · <b>데모 노즐 사용량 · 배포 자료</b> — 데모/자료 전달 시 함께 입력
     </div>
-    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">단계를 '계약'으로 저장하면 해당 병원 리드가 자동으로 계약·달성 처리됩니다.</div>
+    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">단계를 '계약'으로 저장하면 해당 병원 리드가 자동으로 계약·달성 처리됩니다.</div>
   </div>
 
   <div class="card">
@@ -727,7 +737,7 @@
       · <b>금요일 아침</b> — 다음 주 방문 계획 등록 리마인더 (금요일까지 등록 원칙)<br>
       · <b>수시</b> — 새 영업 자료 등록 알림
     </div>
-    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">알림을 받으려면 관리자에게 이메일 등록을 확인하세요. 리드에 방문 계획만 등록해도 방치 알림에서 빠집니다.</div>
+    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">알림을 받으려면 관리자에게 이메일 등록을 확인하세요. 리드에 방문 계획만 등록해도 방치 알림에서 빠집니다.</div>
   </div>
 
   <div class="card">
@@ -736,7 +746,7 @@
       <b>안드로이드 (Chrome)</b> — 이 페이지에서 오른쪽 위 <b>⋮</b> → <b>홈 화면에 추가</b><br>
       <b>아이폰 (Safari)</b> — 하단 <b>공유 버튼(⬆)</b> → <b>홈 화면에 추가</b>
     </div>
-    <div style="margin-top:10px;font-size:12.5px;color:#6b7684;">카톡 안에서 열린 상태에서는 안 됩니다 — 오른쪽 위 메뉴에서 [다른 브라우저로 열기]를 먼저 눌러 Chrome/Safari로 연 다음 추가하세요. 추가하면 바탕화면 아이콘으로 앱처럼 실행되고 로그인도 유지됩니다.</div>
+    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">카톡 안에서 열린 상태에서는 안 됩니다 — 오른쪽 위 메뉴에서 [다른 브라우저로 열기]를 먼저 눌러 Chrome/Safari로 연 다음 추가하세요. 추가하면 바탕화면 아이콘으로 앱처럼 실행되고 로그인도 유지됩니다.</div>
   </div>
 
   <div class="card">
@@ -749,15 +759,15 @@
     </div>
   </div>
 
-  <div style="margin-top:4px;margin-bottom:8px;font-size:12px;color:#8b95a1;text-align:center;">문의: 유영환 · 시스템은 계속 업데이트됩니다</div>
+  <div style="margin-top:4px;margin-bottom:8px;font-size:12px;color:#5f6b7a;text-align:center;">문의: 유영환 · 시스템은 계속 업데이트됩니다</div>
   </div>
 
   <div class="gqr"><div class="card" style="text-align:center;">
     <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:4px;">SalesON 접속 QR</div>
-    <div style="margin-top:6px;font-size:12.5px;color:#6b7684;line-height:1.6;">동료에게 이 화면을 보여주면<br>카메라로 찍고 바로 접속할 수 있어요</div>
+    <div style="margin-top:6px;font-size:12.5px;color:#4e5968;line-height:1.6;">동료에게 이 화면을 보여주면<br>카메라로 찍고 바로 접속할 수 있어요</div>
     <img alt="SalesON 접속 QR" style="width:200px;height:200px;display:block;margin:14px auto 8px;" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAACAvzbMAAAAAklEQVR4AewaftIAAAqASURBVO3BwbEkNpIlwMewukEm6AERoQdkwpnL4xxmeg1hzGZ+lrv/8edfAgCPKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuW/YKwT/l53z3zSWCcv7p55MdbJi7tnvs1YJ/zf7p55MdYJf6+7Zz6pAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAw698obtnfidjnXybu2dejHXy4u6ZF2OdvLh75tPunvkmY528uHvmp7t75ncy1sk3qQBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/wJjnXyTu2e+zVgnL+6eeXH3zIuxTr7JWCev7p55MdbJi7tnXtw982Ksk0+6e+bbjHXyTe6e+ckqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/Ar8L8Y6+aS7Z77J3TPfZqyTF3fPfNLdM/A/VQCgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaPgV+AeMdfK7uXvmxVgnL8Y6gf+mCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADb/yL3D3DP+su2c+aayTn26sk0+6e4b/7O4Z/j4VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuULjXXCP+vumRdjnby4e+aT7p55MdbJq7tnXox18uLumRdjnby4e+bFWCcv7p75tLFO+OdUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAwx9//iX864118kl3z3yTsU5e3D3zaqyTF3fPfJOxTl7cPQP/UwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIZf+S8Y6+TF3TMvxjr53dw98+LumU8a6+Sb3D3zYqyTbzPWySfdPfNNxjr53dw985NVAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBo+OPPv+TLjHXySXfPvBjr5JPunnk11skn3T3zSWOdvLh75tuMdcK/290z32Sskxd3z3xSBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhj/+/Es+bKyTF3fPvBjr5JPunvmksU6+zd0zL8Y6+SZ3z/x0Y528uHvmk8Y6+TZ3z/DPqQBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PArv6G7Z16MdfLi7pkXd898m7FOXtw982Kskxd3z3zSWCev7p55MdbJi7tnfrK7Z77NWCefdPfMi7FOXtw9800qANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/PHnX/JhY538ZHfPvBjr5NvcPfNJY528uHvmxVgnL+6e+enGOnlx98wnjXXy4u6Zn26sk0+6e+YnqwBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PDHn3/JDzfWyYu7Z16MdfJJd8+8GuuEn+XumW8y1gn/2d0z32Sskxd3z3xSBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQUAGAhj/+/Es+bKyTT7p75sVYJy/unnkx1sm3uXvmxVgn/LvdPfNNxjp5dffMJ4118kl3z/xkFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/H+NdfJJd8/8dHfPfJOxTl7cPfNpY528uHuGf9bdM5801smLu2e+SQUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIY//vxLfrixTj7p7plPGuvk1d0zL8Y6+Z3cPfNirJNXd8980lgnL+6eeTHWyYu7Z16MdfLi7plXY528uHvmxVgnn3T3zE9WAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Y8//5IPG+vkk+6eeTHWySfdPfNpY5180t0znzTWySfdPfO7GeuEv9fdMy/GOnlx98yLsU5e3D3zSRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABp+5QvdPfOTjXXy04118kl3z/x0Y528uHvmm9w9803GOuE/u3vmm1QAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGj4ld/Q3TOfNNbJi7tnXo118k3unvnJxjp5dffMi7FOXtw98+LumU8a6+Tb3D3zYqyTT7p75sVYJy/unvkmFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGn7lNzTWyYu7Zz5prJNXd8+8GOvkxd0zL8Y6eXH3zIuxTl7cPfPi7plPu3vmxVgnL+6e+d2MdfJNxjr5pLFOXtw980kVAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAafuW/4O6Zb3L3zCfdPcN/NtbJi7tnXox18ml3z7wY6+STxjr5JnfPfJuxTl6MdcL/rQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACgoQIADRUAaKgAQMOv/BeMdcLf6+6ZF3fPvBjr5MXdM5801sm3Gevkk+6e+aSxTr7JWCev7p75ye6e+ckqANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Ve+0N0zv5OxTj5trJMXd898k7tnXox18uLumU8b6+STxjr5ye6e+TZ3z/B/qwBAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0PAr/wJjnXyTu2d+urFOXtw982Ksk0+6e+bFWCev7p55cffMi7FOXtw980ljnbwY6+R3M9bJJ909800qANBQAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0/Ar8L+6eeTHWyYu7Zz5prJMXd8982lgnL+6eeTHWySfdPfO7Gevkm4x18uLumU+qAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGioAEBDBQAaKgDQ8Cvwvxjr5JPGOnlx98yLu2dejHXy090980ljnfDPunvmm1QAoKECAA0VAGioAEBDBQAaKgDQUAGAhgoANFQAoKECAA0VAGj4lX+Bu2f4z+6eeTHWyYu7Z16MdfJirJMXd8+8uHuGv9fdMz/dWCcv7p55MdbJT1YBgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKDhV77QWCf8vcY6+aSxTj7p7pkXY538bu6eeTHWyYu7Zz5prJNXd8+8GOvkxd0zL8Y6eXH3zE9WAYCGCgA0VACgoQIADRUAaKgAQEMFABoqANBQAYCGCgA0VACg4Y8//xIAeFQBgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGioA0FABgIYKADRUAKChAgANFQBoqABAQwUAGv4fUys1STlr4H8AAAAASUVORK5CYII=">
-    <div style="font-size:11.5px;color:#8b95a1;">bazbio.github.io/saleson</div>
-    <div style="margin-top:12px;font-size:12px;color:#6b7684;line-height:1.6;border-top:1px solid #f2f4f6;padding-top:10px;">접속 후 <b>홈 화면에 추가</b>하면<br>파란 S 아이콘의 앱으로 설치됩니다</div>
+    <div style="font-size:11.5px;color:#5f6b7a;">bazbio.github.io/saleson</div>
+    <div style="margin-top:12px;font-size:12px;color:#4e5968;line-height:1.6;border-top:1px solid #f2f4f6;padding-top:10px;">접속 후 <b>홈 화면에 추가</b>하면<br>파란 S 아이콘의 앱으로 설치됩니다</div>
   </div></div>
   </div>
 </div></div>
@@ -820,7 +830,7 @@
      통화로 확인한 것만 [계획 등록]을 거쳐 리드로 승격된다 -->
 <div class="view" id="view-meta"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-    <span style="font-size:13px;color:#6b7684;">광고 문의 — 빠른 첫 통화가 전환율을 가릅니다. 먼저 통화하는 분이 담당입니다</span>
+    <span style="font-size:13px;color:#4e5968;">광고 문의 — 빠른 첫 통화가 전환율을 가릅니다. 먼저 통화하는 분이 담당입니다</span>
     <button class="refresh" onclick="METAQ=null;loadMeta()">새로고침</button>
   </div>
   <div class="seg scrollx" id="metaSeg"></div>
@@ -831,7 +841,7 @@
      계약일 수정도 여기서 한다 (피드백 2번) -->
 <div class="view" id="view-mine"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-    <span style="font-size:13px;color:#6b7684;">내가 입력한 내용을 보고 고칠 수 있습니다</span>
+    <span style="font-size:13px;color:#4e5968;">내가 입력한 내용을 보고 고칠 수 있습니다</span>
     <button class="refresh" onclick="MINE=null;loadMine()">새로고침</button>
   </div>
   <!-- 검색 (8/13 요청) — 「테스트 기록을 지우고 싶은데 어디 있는지 모르겠다」 -->
@@ -846,7 +856,7 @@
   <div class="kicker"><div class="bar"></div><div class="lbl">전체 메뉴</div></div>
   <div class="mlist">
     <div class="mrow" id="more-plan" onclick="show('plan')">
-      <div class="mi" style="background:#3182f6;">계</div>
+      <div class="mi" style="background:#1b64da;">계</div>
       <div class="mb2"><div class="mn">계획</div><div class="ms2">다음 주 방문 계획 등록</div></div>
       <div class="mc">›</div>
     </div>
@@ -861,7 +871,7 @@
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-mine" onclick="show('mine')">
-      <div class="mi" style="background:#03b26c;">내</div>
+      <div class="mi" style="background:#058652;">내</div>
       <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
       <div class="mc">›</div>
     </div>
@@ -871,12 +881,12 @@
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-evt" onclick="show('evt')">
-      <div class="mi" style="background:#fe9800;">학</div>
+      <div class="mi" style="background:#a35f00;">학</div>
       <div class="mb2"><div class="mn">학회 / 세미나</div><div class="ms2">행사별 참석자 · 달성</div></div>
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-kpi" onclick="show('kpi')">
-      <div class="mi" style="background:#03b26c;">K</div>
+      <div class="mi" style="background:#058652;">K</div>
       <div class="mb2"><div class="mn">KPI</div><div class="ms2">목표 · 달성 관리</div></div>
       <div class="mc">›</div>
     </div>
@@ -886,7 +896,7 @@
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
-      <div class="mi" style="background:#6b7684;">?</div>
+      <div class="mi" style="background:#4e5968;">?</div>
       <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
       <div class="mc">›</div>
     </div>
@@ -918,7 +928,7 @@
 <div id="failModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;">
   <div class="card" style="max-width:480px;width:100%;margin:0;max-height:90vh;overflow-y:auto;">
     <div style="font-size:15px;font-weight:700;color:#d0223a;margin-top:2px;">리드 실패 처리</div>
-    <div id="failHosp" style="margin-top:6px;font-size:13px;color:#6b7684;"></div>
+    <div id="failHosp" style="margin-top:6px;font-size:13px;color:#4e5968;"></div>
     <label class="f">실패 요인 (상세히) *</label>
     <textarea id="failWhy" style="min-height:80px;" placeholder="예: 올해 장비 예산 소진 — 원장 관심은 높으나 내년 예산 확정 전까지 구매 불가"></textarea>
     <label class="f">재컨택 조건 — 어떤 문제가 해결되면 다시 컨택할까요?</label>
@@ -927,7 +937,7 @@
     <input type="date" id="failRetry">
     <div style="display:flex;gap:8px;margin-top:14px;">
       <button class="btn" style="flex:1;" onclick="closeFail()">취소</button>
-      <button class="btn pri" style="flex:1;background:#f04452;border-color:#f04452;" onclick="submitFail()">실패 처리</button>
+      <button class="btn pri" style="flex:1;background:#d22030;border-color:#d22030;" onclick="submitFail()">실패 처리</button>
     </div>
   </div>
 </div>
@@ -938,9 +948,9 @@
 <div id="ptr" style="display:none;position:fixed;top:0;left:50%;transform:translate(-50%,-54px);z-index:90;background:#fff;border:1px solid #e5e8eb;border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:600;color:#4e5968;box-shadow:0 4px 14px rgba(0,0,0,.08);white-space:nowrap;">아래로 당겨서 새로고침</div>
 <div id="gate">
   <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
-  <div style="margin-top:10px;font-size:12px;font-weight:600;color:#B9B9C0;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
+  <div style="margin-top:10px;font-size:12px;font-weight:600;color:#5f6b7a;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
   <div style="margin-top:26px;font-size:19px;font-weight:700;color:#1A1A1A;">임직원 로그인</div>
-  <div style="margin-top:8px;font-size:12.5px;color:#6b7684;line-height:1.6;">국내영업 · 관리자 · 조회 계정 공통<br>새 기기는 최초 1회 메일 인증이 필요합니다</div>
+  <div style="margin-top:8px;font-size:12.5px;color:#4e5968;line-height:1.6;">국내영업 · 관리자 · 조회 계정 공통<br>새 기기는 최초 1회 메일 인증이 필요합니다</div>
   <div style="margin-top:20px;width:100%;max-width:320px;text-align:left;">
     <div id="loginStep">
       <label class="f">이름</label>
@@ -1017,6 +1027,17 @@ var matVals = {};
  * 이미 로그인해 둔 사람이 재로그인도 인증번호도 안 겪는다. */
 var TOKEN = '';
 try { TOKEN = localStorage.getItem('saleson_token') || ''; } catch (e) {}
+/* 관리자는 renderKpi()가 KPI 패널을 왼쪽 칸으로 옮긴다. 부트 데이터가 온 뒤에 옮기면
+   이미 그려진 두 칸이 통째로 자리를 바꿔 화면이 크게 밀린다(CLS 0.2~0.46). 지난 방문에서
+   기억해 둔 값(saleson_admin)으로 **첫 페인트 전에** 미리 옮겨 둔다 — 파서 블로킹
+   인라인 스크립트라 아직 아무것도 안 그려졌고, renderKpi의 insertBefore는 이미 맞는
+   순서라 no-op이 된다. 첫 방문만 종전대로 한 번 밀린다. */
+try {
+  if (localStorage.getItem('saleson_admin') === '1') {
+    var 홈틀_ = document.getElementById('home2');
+    홈틀_.insertBefore(document.getElementById('homeKpi'), document.getElementById('homeMain'));
+  }
+} catch (e) {}
 var DEV = '';   // 기기 식별자 — 메일 인증을 마친 기기는 서버가 기억해 인증번호를 생략
 try {
   DEV = localStorage.getItem('saleson_device') || '';
@@ -1165,7 +1186,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608161313-0f095ec';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608182257-819e0dd';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1279,7 +1300,7 @@ function 스냅샷받기_() {
        굳는다 — 저장 실패와 달리 경고가 없어 **조용히 틀린 날짜로 저장된다**(실제로 재현했다).
        대가는 각자 하루 한 번 첫 실행이 GAS를 기다리는 것뿐이다. */
     if (r.payload.init.today !== 기기날짜_()) return;
-    그린부트_ = 지문_(r.payload);   // ⚠ 양쪽이 같은 함수여야 한다 — jsonb가 키를 재정렬한다
+    그린부트_ = JSON.stringify(r.payload);
     /* 그리다 실패하면 그린부트_를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 부트가
        「같은 값」이라며 조기 반환해 아무도 안 그리고, 62초 뒤 워치독이 로그인으로 내쫓는다. */
     try { onBoot(r.payload); } catch (e) { 그린부트_ = ''; throw e; }
@@ -1290,24 +1311,10 @@ function 스냅샷받기_() {
   });
 }
 
-/* 키 순서에 안 흔들리는 지문 (2026-08-16, 회차6 감사).
-   ⚠ `JSON.stringify`로 두 부트를 비교하면 **영원히 다르다.** 스냅샷은 Postgres `jsonb`에서
-   오는데 jsonb는 키를 **재정렬해 저장**한다 — 실측: 스냅샷 13행이 전부 `evt,kpi,dash,flow,init,matl`
-   인데 GAS `부트_`(30_웹API.gs)가 만드는 순서는 `init,dash,evt,flow,kpi,matl`이다. 첫 키부터 다르다.
-   실 페이로드로 재 보니 **길이가 203,760으로 정확히 같은데 `===`가 false**였다.
-   그래서 「스냅샷이 최신이었다」 갈래가 **한 번도 성립한 적이 없다.** */
-function 지문_(v) {
-  if (v === null || typeof v !== 'object') return JSON.stringify(v);
-  if (Array.isArray(v)) return '[' + v.map(지문_).join(',') + ']';
-  return '{' + Object.keys(v).sort().map(function(k) {
-    return JSON.stringify(k) + ':' + 지문_(v[k]);
-  }).join(',') + '}';
-}
-
 /* GAS 부트가 도착했다 — 이게 진실이다. 스냅샷이 그린 화면을 여기서 수렴시킨다. */
 function onBoot최신_(b) {
   b = b || {};
-  var 원문 = 지문_(b);
+  var 원문 = JSON.stringify(b);
   if (원문 === 그린부트_) return;        // 스냅샷이 최신이었다 — 대부분 여기서 끝난다
   if (!그린부트_) { 그린부트_ = 원문; onBoot(b); return; }   // 스냅샷이 없었다 — 평소 경로
   그린부트_ = 원문;
@@ -1319,14 +1326,8 @@ function onBoot최신_(b) {
   if (b.flow) { FLOW = b.flow; FLOWX = {}; }
   if (b.kpi) KPIT = b.kpi;
   if (b.matl) MATL = b.matl;
-  /* 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다.
-     ⚠ **열쇠를 다시 매긴다** (2026-08-16, 회차6 감사). `열쇠매기기_` 호출 아홉 곳 중
-     이 자리만 빠져 있었다. 안 매기면 `x.k`가 undefined로 남고, 카드에 `prefill(undefined)`·
-     `leadStage(undefined, …)`가 박힌다. 그런데 `x.k === undefined`는 **전 원소에 참**이라
-     찾기가 늘 **목록 첫 건**을 집는다 — `leadStage`·`leadTarget`은 확인창이 없고 `대상.no`가
-     멀쩡해서 **오류 하나 없이 남의 리드에 관문 쓰기가 나간다.** 8/14 이정국 사고와 같은
-     모양인데 그때는 오류라도 떴다. 바로 아래 onData(:1367)와 홈받기_(:1399)는 이미 부른다. */
-  if (b.init && !쓴적_) { DATA = b.init; 열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads); }
+  // 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다
+  if (b.init && !쓴적_) DATA = b.init;
 
   /* 다시 그리는 것은 사용자가 아직 아무것도 안 했을 때만. 건드린 뒤에 갈아엎으면 입력하던
      값이 날아가고 지워 둔 임시저장 안내가 되살아난다. 위에서 데이터는 이미 갈아끼웠으므로
@@ -1447,9 +1448,11 @@ function onData(d) {
   renderHome(); renderForm(); renderLeads(); 임시저장복구_();
   계획폼바인딩_(); 계획임시저장복구_();
   if (DATA.dbSrc) 홈받기_();   // 관문 읽기가 도착하면 홈·리드가 그걸로 다시 그려진다
-  if (vw) show(cl ? 'meta' : 'dash');
-  /* 첫 항목을 여기서 놓는다 (8/15, 설계 D3) — 일반 계정은 홈이 처음부터 켜져 있어
-     show()를 한 번도 안 거친다. 없으면 첫 탭 이동이 replaceState로 먹혀 뒤로가기가 한 칸 모자란다 */
+  /* 홈도 여기서 명시적으로 켠다 — 마크업의 `on`을 떼면서(위 view-home 주석) 일반 계정도
+     show()를 거쳐야 화면이 보인다. show는 classList.toggle이라 거듭 불러도 안전하다 */
+  show(vw ? (cl ? 'meta' : 'dash') : 현재뷰_);
+  /* 첫 항목을 여기서 놓는다 (8/15, 설계 D3) — 없으면 첫 탭 이동이 replaceState로 먹혀
+     뒤로가기가 한 칸 모자란다 */
   화면이력_(현재뷰_);
   setTimeout(prefetch, 1200);
 }
@@ -1937,11 +1940,11 @@ function 입력시트_(옵, cb) {
     ? '<label class="f">' + esc(옵.날짜.라벨 || '날짜') + '</label>'
       + '<input type="date" id="shtDate" value="' + esc(옵.날짜.값 || '') + '"'
       + (옵.날짜.최대 ? ' max="' + esc(옵.날짜.최대) + '"' : '') + '>'
-      + (옵.날짜.도움 ? '<div style="margin-top:5px;font-size:12px;color:#8b95a1;line-height:1.6;">' + esc(옵.날짜.도움) + '</div>' : '')
+      + (옵.날짜.도움 ? '<div style="margin-top:5px;font-size:12px;color:#5f6b7a;line-height:1.6;">' + esc(옵.날짜.도움) + '</div>' : '')
     : '';
   document.getElementById('hospModalBody').innerHTML =
     '<div style="font-size:16px;font-weight:700;color:#191f28;">' + esc(옵.제목 || '') + '</div>'
-    + (옵.안내 ? '<div style="margin-top:6px;font-size:12.5px;color:#8b95a1;line-height:1.6;">' + esc(옵.안내) + '</div>' : '')
+    + (옵.안내 ? '<div style="margin-top:6px;font-size:12.5px;color:#5f6b7a;line-height:1.6;">' + esc(옵.안내) + '</div>' : '')
     + '<label class="f">' + esc(옵.라벨 || '') + '</label>' + 칸 + 날짜칸
     + '<div style="display:flex;gap:8px;margin-top:14px;">'
     + '<button class="btn" style="flex:1;" onclick="입력시트닫기_()">취소</button>'
@@ -2071,32 +2074,32 @@ function renderTeamWeek(w) {
       + 'color:' + color + ';background:' + tint + ';white-space:nowrap;">' + esc(txt) + '</span>';
   };
   var secLbl = function(t) {
-    return '<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:#8b95a1;letter-spacing:.4px;">' + t + '</div>';
+    return '<div style="margin:10px 0 4px;font-size:11px;font-weight:700;color:#5f6b7a;letter-spacing:.4px;">' + t + '</div>';
   };
   var dateCell = function(x) {
-    return '<td style="white-space:nowrap;font-size:12px;color:#6b7684;">' + esc(x.date.slice(5).replace('-', '/')) + ' ' + esc(x.dow) + '</td>';
+    return '<td style="white-space:nowrap;font-size:12px;color:#4e5968;">' + esc(x.date.slice(5).replace('-', '/')) + ' ' + esc(x.dow) + '</td>';
   };
   return w.reps.map(function(r) {
     var h = '<div class="card">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
       + '<b style="font-size:15px;">' + esc(r.name) + '</b>'
-      + '<span style="font-size:12px;color:#6b7684;">계획 <b class="blue">' + r.plans.length + '</b> · 방문 <b style="color:#058652;">' + r.visits.length + '</b></span>'
+      + '<span style="font-size:12px;color:#4e5968;">계획 <b class="blue">' + r.plans.length + '</b> · 방문 <b style="color:#05754a;">' + r.visits.length + '</b></span>'
       + '</div>';
 
     h += secLbl('방문 계획');
     if (r.plans.length) {
       h += '<table class="dt"><tbody>' + r.plans.map(function(p) {
-        var st = p.status === '완료' ? chip('완료', '#03b26c', '#e5f7ef')
-          : p.status === '연기' ? chip('연기', '#6b7684', '#f2f4f6')
-          : p.past ? chip('미기록', '#f04452', '#ffeaec')
-          : chip('예정', '#3182f6', '#e8f3ff');
+        var st = p.status === '완료' ? chip('완료', '#05754a', '#e5f7ef')
+          : p.status === '연기' ? chip('연기', '#4e5968', '#f2f4f6')
+          : p.past ? chip('미기록', '#d22030', '#ffeaec')
+          : chip('예정', '#1b64da', '#e8f3ff');
         return '<tr>' + dateCell(p)
           + '<td><b>' + esc(p.hname) + '</b>'
-          + (p.purpose ? '<div style="font-size:12px;color:#6b7684;">' + esc(p.purpose) + '</div>' : '') + '</td>'
+          + (p.purpose ? '<div style="font-size:12px;color:#4e5968;">' + esc(p.purpose) + '</div>' : '') + '</td>'
           + '<td class="r">' + st + '</td></tr>';
       }).join('') + '</tbody></table>';
     } else {
-      h += '<div style="font-size:12.5px;color:#b0b8c1;">등록된 계획이 없습니다.</div>';
+      h += '<div style="font-size:12.5px;color:#6b7684;">등록된 계획이 없습니다.</div>';
     }
 
     h += secLbl('실제 방문');
@@ -2104,14 +2107,14 @@ function renderTeamWeek(w) {
       h += '<table class="dt"><tbody>' + r.visits.map(function(v) {
         return '<tr>' + dateCell(v)
           + '<td><b>' + esc(v.hname) + '</b>'
-          + (v.note ? '<div style="font-size:12px;color:#6b7684;">' + esc(v.note) + '</div>' : '') + '</td>'
+          + (v.note ? '<div style="font-size:12px;color:#4e5968;">' + esc(v.note) + '</div>' : '') + '</td>'
           + '<td class="r" style="white-space:nowrap;">'
           + (v.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>' : (v.cat === '장비 판매' ? '<span class="tag">장비</span>' : ''))
           + '<span class="tag">' + esc(v.type) + '</span>'
-          + (v.stage ? ' <span style="font-size:11px;color:#6b7684;">' + esc(v.stage) + '</span>' : '') + '</td></tr>';
+          + (v.stage ? ' <span style="font-size:11px;color:#4e5968;">' + esc(v.stage) + '</span>' : '') + '</td></tr>';
       }).join('') + '</tbody></table>';
     } else {
-      h += '<div style="font-size:12.5px;color:#b0b8c1;">이번 주 방문 기록이 없습니다.</div>';
+      h += '<div style="font-size:12.5px;color:#6b7684;">이번 주 방문 기록이 없습니다.</div>';
     }
 
     return h + '</div>';
@@ -2133,7 +2136,7 @@ function renderMonthly(team) {
   var 유입있음 = rows.some(function(r) { return r.inb != null; });
   var 유입칸 = function(r, bold) {
     if (!유입있음) return '';
-    var v = r.newLeads ? '<span style="font-size:11px;color:#8b95a1;">인 ' + (r.inb || 0) + ' · 아웃 ' + (r.outb || 0) + '</span>' : '';
+    var v = r.newLeads ? '<span style="font-size:11px;color:#5f6b7a;">인 ' + (r.inb || 0) + ' · 아웃 ' + (r.outb || 0) + '</span>' : '';
     return '<div>' + v + '</div>';
   };
   rows.forEach(function(r) {
@@ -2144,16 +2147,16 @@ function renderMonthly(team) {
       + '<td class="c">' + (r.visits || '-') + '</td>'
       + '<td class="c">' + (r.demos || '-') + '</td>'
       + '<td class="c">' + (r.sales ? '<b class="blue">' + r.sales + '</b>' : '-') + '</td>'
-      + '<td class="c">' + (r.ncare ? '<b style="color:#058652;">' + r.ncare + '</b>' : '-') + '</td>'
+      + '<td class="c">' + (r.ncare ? '<b style="color:#05754a;">' + r.ncare + '</b>' : '-') + '</td>'
       + '<td class="c">' + (r.newLeads || '-') + 유입칸(r) + '</td></tr>';
   });
   h += '<tr style="background:#FAFAFC;"><td><b>누적</b></td>'
     + '<td class="c"><b>' + tot.visits + '</b></td>'
     + '<td class="c"><b>' + tot.demos + '</b></td>'
     + '<td class="c"><b class="blue">' + tot.sales + '</b></td>'
-    + '<td class="c"><b style="color:#058652;">' + tot.ncare + '</b></td>'
+    + '<td class="c"><b style="color:#05754a;">' + tot.ncare + '</b></td>'
     + '<td class="c"><b>' + tot.newLeads + '</b>'
-    + (유입있음 ? '<div><span style="font-size:11px;color:#8b95a1;">인 ' + tot.inb + ' · 아웃 ' + tot.outb + '</span></div>' : '')
+    + (유입있음 ? '<div><span style="font-size:11px;color:#5f6b7a;">인 ' + tot.inb + ' · 아웃 ' + tot.outb + '</span></div>' : '')
     + '</td></tr>';
   h += '</tbody></table></div>';
   el.innerHTML = h;
@@ -2193,7 +2196,7 @@ function renderKpi() {
         return kpiRow(c.cat, '건', { tgt: c.tgt, act: c.ach }, '목표 리드 없음');
       }).join('')
     + '</div>'
-    + '<div style="margin-top:8px;font-size:12px;color:#8b95a1;line-height:1.6;">'
+    + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
     + (team ? '팀 전체 기준 · 카테고리별 수치는 리드의 달성 목표에서 집계됩니다. 판매 목표는 06_월간KPI 시트에서 설정합니다.'
             : '내 실적 기준 · 카테고리별 수치는 내 리드의 달성 목표에서 집계됩니다.')
     + '</div>';
@@ -2202,6 +2205,8 @@ function renderKpi() {
   var main = document.getElementById('homeMain');
   if (team && wrap.firstElementChild !== el) wrap.insertBefore(el, main);
   if (!team && wrap.firstElementChild !== main) wrap.insertBefore(main, el);
+  // 다음 방문의 첫 페인트 전 재배치(위 saleson_admin 블록)가 쓰도록 기억해 둔다
+  try { localStorage.setItem('saleson_admin', team ? '1' : '0'); } catch (e) {}
 }
 
 /* ── 학회/세미나 탭 ── */
@@ -2248,11 +2253,11 @@ function renderKpiTab() {
     d.dues.forEach(function(x) {
       var late = x.dday < 0;
       var dd = x.dday === 0 ? '오늘' : (late ? 'D+' + Math.abs(x.dday) : 'D-' + x.dday);
-      h += '<tr><td style="white-space:nowrap;"><b style="color:' + (late ? '#f04452' : (x.dday <= 7 ? '#3182f6' : '#4e5968')) + ';">' + dd + '</b></td>'
+      h += '<tr><td style="white-space:nowrap;"><b style="color:' + (late ? '#d22030' : (x.dday <= 7 ? '#1b64da' : '#4e5968')) + ';">' + dd + '</b></td>'
         + '<td><b>' + esc(x.hname) + '</b>'
         + (d.admin && x.rep ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(x.rep) + '</span>' : '') + '</td>'
         + '<td style="font-size:12px;">' + esc(x.target) + '</td>'
-        + '<td class="r" style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(x.due) + '</td></tr>';
+        + '<td class="r" style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(x.due) + '</td></tr>';
     });
     h += '</tbody></table></div>';
   }
@@ -2268,10 +2273,10 @@ function renderKpiTab() {
       + '</tr></thead><tbody>';
     var kcell = function(a, tg) {
       var pct = tg ? Math.round(a / tg * 100) : null;
-      var color = pct == null ? '#b0b8c1' : (pct >= 100 ? '#03b26c' : (pct >= 50 ? '#3182f6' : '#f04452'));
+      var color = pct == null ? '#6b7684' : (pct >= 100 ? '#05754a' : (pct >= 50 ? '#1b64da' : '#d22030'));
       var tint = pct == null ? '#f2f4f6' : (pct >= 100 ? '#e5f7ef' : (pct >= 50 ? '#e8f3ff' : '#ffeaec'));
-      return '<div style="font-size:16px;font-weight:700;color:' + (a ? '#191f28' : '#b0b8c1') + ';line-height:1.2;">'
-        + a + '<span style="font-size:11px;font-weight:600;color:#8b95a1;"> / ' + (tg || '-') + '</span></div>'
+      return '<div style="font-size:16px;font-weight:700;color:' + (a ? '#191f28' : '#6b7684') + ';line-height:1.2;">'
+        + a + '<span style="font-size:11px;font-weight:600;color:#5f6b7a;"> / ' + (tg || '-') + '</span></div>'
         + '<span style="display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;color:' + color + ';background:' + tint + ';">'
         + (pct == null ? '목표 없음' : pct + '%') + '</span>';
     };
@@ -2282,16 +2287,17 @@ function renderKpiTab() {
         + '<td class="c">' + kcell(r.catAch, r.catTgt) + '</td></tr>';
     });
     h += '</tbody></table></div>';
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">방문·데모처 현황은 현황 탭의 월간 실적에서 확인할 수 있습니다.</div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">방문·데모처 현황은 현황 탭의 월간 실적에서 확인할 수 있습니다.</div>';
 
     h += kick('목표 설정 — 저장하면 06_월간KPI에 반영');
-    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
+    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">신규 Lead</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
     var inpCell = function(id, v) {
-      return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" style="width:54px;padding:6px 4px;text-align:center;font-size:13.5px;border-radius:8px;">';
+      return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" style="width:54px;padding:6px 4px;text-align:center;font-size:16px;border-radius:8px;">';
     };
     var tt = d.teamTgt || {};
     h += '<tr style="background:#fff4e0;"><td><b>팀 목표</b><div style="font-size:10px;color:#a35c11;">월간 팀 전체</div></td>'
       + '<td class="c">' + inpCell('kt_team_visit', tt.visit) + '</td>'
+      + '<td class="c">' + inpCell('kt_team_lead', tt.lead) + '</td>'
       + '<td class="c">' + inpCell('kt_team_equip', tt.equip) + '</td>'
       + '<td class="c">' + inpCell('kt_team_ncare', tt.ncare) + '</td>'
       + '<td class="c">' + inpCell('kt_team_demo', tt.demo) + '</td></tr>';
@@ -2299,15 +2305,16 @@ function renderKpiTab() {
       var inp = function(f, v) { return inpCell('kt_' + i + '_' + f, v); };
       h += '<tr><td><b>' + esc(r.name) + '</b></td>'
         + '<td class="c">' + inp('visit', r.tgt.visit) + '</td>'
+        + '<td class="c">' + inp('lead', r.tgt.lead) + '</td>'
         + '<td class="c">' + inp('equip', r.tgt.equip) + '</td>'
         + '<td class="c">' + inp('ncare', r.tgt.ncare) + '</td>'
         + '<td class="c">' + inp('demo', r.tgt.demo) + '</td></tr>';
     });
     h += '</tbody></table>'
-      + '<div style="margin-top:10px;font-size:12px;color:#8b95a1;line-height:1.6;">팀 목표를 입력하면 팀 KPI(홈·KPI 탭)의 목표로 사용됩니다. 비워두면 담당자별 목표의 합계를 사용합니다.</div>'
+      + '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;line-height:1.6;">팀 목표를 입력하면 팀 KPI(홈·KPI 탭)의 목표로 사용됩니다. 비워두면 담당자별 목표의 합계를 사용합니다.</div>'
       + '<button class="save" style="margin-top:12px;" onclick="saveKpiTargets()">목표 저장</button></div>';
   } else {
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">목표는 관리자가 설정합니다. 카테고리별 수치는 내 리드의 달성 목표에서 집계됩니다.</div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">목표는 관리자가 설정합니다. 카테고리별 수치는 내 리드의 달성 목표에서 집계됩니다.</div>';
   }
 
   document.getElementById('kpiBody').innerHTML = h;
@@ -2315,10 +2322,10 @@ function renderKpiTab() {
 function saveKpiTargets() {
   var rows = KPIT.reps.map(function(r, i) {
     var g = function(f) { return document.getElementById('kt_' + i + '_' + f).value.trim(); };
-    return { name: r.name, visit: g('visit'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
+    return { name: r.name, visit: g('visit'), lead: g('lead'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
   });
   var gt = function(f) { return document.getElementById('kt_team_' + f).value.trim(); };
-  var team = { visit: gt('visit'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
+  var team = { visit: gt('visit'), lead: gt('lead'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
   busy(true, '저장 중…');
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
@@ -2402,7 +2409,7 @@ function fcol(key, label, color, items, conv, sub, isFail) {
   var cv = conv === null ? '' : '전환 ' + conv + '%';
   if (sub) cv += (cv ? ' <span class="sub">· ' : '<span class="sub">') + sub + '</span>';
   return '<div class="fcol' + (isFail ? ' fail' : '') + (sel ? ' selon' : '') + '" style="cursor:pointer;" onclick="flowStage(\'' + sid + '\')">'
-    + '<div class="flab">' + esc(label) + (items.length ? ' <span style="font-size:10.5px;font-weight:600;color:' + (sel ? '#3182f6' : '#b0b8c1') + ';">' + (sel ? '상세 ▼' : '클릭') + '</span>' : '') + '</div>'
+    + '<div class="flab">' + esc(label) + (items.length ? ' <span style="font-size:10.5px;font-weight:600;color:' + (sel ? '#1b64da' : '#6b7684') + ';">' + (sel ? '상세 ▼' : '클릭') + '</span>' : '') + '</div>'
     + '<div class="fnum" style="color:' + color + ';">' + items.length + '</div>'
     + '<div class="fcv">' + (cv || '&nbsp;') + '</div>'
     + (items.length ? '<div class="flist">' + list + '</div>' : '')
@@ -2440,8 +2447,8 @@ function 재고카드_(s) {
     + '<div class="card">'
     + '<div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;">'
     + '<div style="font-size:26px;font-weight:800;color:#191f28;line-height:1;">' + s.total
-    + '<span style="font-size:15px;font-weight:700;color:#6b7684;margin-left:2px;">대</span></div>'
-    + '<div style="font-size:12.5px;color:#8b95a1;">병원이 정해지지 않은 딜러 재고</div></div>'
+    + '<span style="font-size:15px;font-weight:700;color:#4e5968;margin-left:2px;">대</span></div>'
+    + '<div style="font-size:12.5px;color:#5f6b7a;">병원이 정해지지 않은 딜러 재고</div></div>'
     + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;">'
     + s.dealers.map(function(d) {
         return '<span class="tag-blue">' + esc(d.name) + ' <b>' + d.count + '</b>대</span>'
@@ -2451,7 +2458,7 @@ function 재고카드_(s) {
             : '');
       }).join('')
     + '</div>'
-    + '<div style="margin-top:13px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+    + '<div style="margin-top:13px;font-size:11.5px;color:#5f6b7a;line-height:1.6;">'
     + '매출은 딜러가 매입한 시점에 <b>회계가 이미 인식</b>했습니다 — 위 계약 숫자에는 넣지 않습니다.<br>'
     + (DATA.me.admin
       ? '병원이 정해지면 <b>[병원 배정]</b>을 누르세요 — 재고 1대가 그 병원 계약으로 바뀝니다. '
@@ -2480,33 +2487,15 @@ function 재고배정(딜러) {
       도움: '영업이 이 계약을 딴 날입니다 — 재고를 뒤늦게 배정했다면 그날로 맞춰 주세요. 회계 인식월은 따로 기록돼 그대로 남습니다.',
     },
   }, function(병원, 계약일) {
-    /* 관문이 「이미 계약 리드가 있다」로 409를 주면 한 번 되묻고 그대로 보낸다 (2026-08-16).
-       막지 않는 이유: 한 병원이 정말 2대를 사기도 한다. 다만 **모르고 두 번 누르는 것**은
-       실제로 두 번 났다(스노우의원 안산 8/16 00:05·11:42) — 그때마다 7월 계약이 15대가 됐다. */
-    var 보내기 = function(중복확인) {
-      busy(true, '배정 중…');
-      return 관문호출_('/saleson-lead-act', JSON.stringify({
-        토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일,
-        중복확인: !!중복확인,
-      })).then(화면갱신감싸기_(function(r) {
+    busy(true, '배정 중…');
+    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일 }))
+      .then(화면갱신감싸기_(function(r) {
         busy(false); toast(r.msg);
         // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
         FLOW = null; DASH = null; KPIT = null; NCARE = null;
         홈받기_();
         loadFlow(document.getElementById('fMonth').value);
-      }), function(e) {
-        busy(false);
-        if (!중복확인 && /이미 계약 리드가 있습니다/.test(e.message || '')) {
-          if (confirm(e.message + '\n\n그래도 배정할까요?\n\n'
-            + '이 병원이 정말 2대를 샀다면 [확인], 잘못 누르신 것이면 [취소]를 눌러 주세요.')) {
-            보내기(true);
-          }
-          return;
-        }
-        toast(e.message, true);
-      });
-    };
-    보내기(false);
+      }), function(e) { busy(false); toast(e.message, true); });
   });
 }
 function renderFlow() {
@@ -2527,7 +2516,7 @@ function renderFlow() {
 
   h += kick(d.label + (nc ? ' N-Care 영업 흐름' : ' 장비 영업 흐름'));
   h += '<div class="fcols">'
-    + fcol(k + 'lead', '리드 확보', '#3182f6', st.lead, null, '')
+    + fcol(k + 'lead', '리드 확보', '#1b64da', st.lead, null, '')
     + '<div class="farr2">›</div>'
     + fcol(k + 'demo', '데모 중', '#0BB8A5', st.demo, pct(st.demo, st.lead), '')
     + '<div class="farr2">›</div>'
@@ -2535,10 +2524,10 @@ function renderFlow() {
     + '<div class="farr2">›</div>'
     + fcol(k + 'deal', '계약', '#1b64da', st.deal, pct(st.deal, st.prop), f.dealAmt ? esc(f.dealAmt) : '')
     + '<div class="farr2">›</div>'
-    + fcol(k + 'paid', '입금', '#03b26c', st.paid, pct(st.paid, st.deal), '')
-    + fcol(k + 'fail', '실패', '#f04452', st.fail, null, '진행 중단', true)
+    + fcol(k + 'paid', '입금', '#05754a', st.paid, pct(st.paid, st.deal), '')
+    + fcol(k + 'fail', '실패', '#d22030', st.fail, null, '진행 중단', true)
     + '</div>';
-  h += '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+  h += '<div style="margin-top:8px;font-size:11.5px;color:#5f6b7a;line-height:1.6;">'
     + (nc
       ? '노즐(N-Care) 영업 퍼널 — 장비 보유(유저) 병원 리드 + 판매 카테고리 N-Care 기록 기준<br>'
         + 퍼널기준문구_(d)
@@ -2564,15 +2553,15 @@ function renderFlow() {
       h += '<tr' + (cur ? ' style="background:#f4f8ff;"' : '') + '>'
         + '<td' + (cur ? ' style="font-weight:700;"' : '') + '>' + esc(r.ym) + '</td>'
         + '<td class="c">' + (r.inb ? '<b class="blue">' + r.inb + '</b>' : '-')
-        + (r.indemo ? ' <span style="font-size:11.5px;color:#058652;font-weight:700;">· 데모 ' + r.indemo + '</span>' : '')
+        + (r.indemo ? ' <span style="font-size:11.5px;color:#05754a;font-weight:700;">· 데모 ' + r.indemo + '</span>' : '')
         + '</td>'
         + '<td class="c">' + (r.outb || '-') + '</td>'
         + '<td class="c"><b>' + (r.inb + r.outb || '-') + '</b></td></tr>';
     });
     h += '</tbody></table>'
-      + '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+      + '<div style="margin-top:8px;font-size:11.5px;color:#5f6b7a;line-height:1.6;">'
       + '인바운드 = 문의전화 · Meta DB · C-Labs / 아웃바운드 = 학회·세미나 · 소개 · 기타. 리드 소스에서 자동 분류됩니다.<br>'
-      + '<b style="color:#058652;">데모</b>는 그 달에 첫 데모를 간 인바운드 리드 수 — 유입된 달과 다르면 각자의 달에 잡힙니다. 계는 유입 기준입니다.</div></div>';
+      + '<b style="color:#05754a;">데모</b>는 그 달에 첫 데모를 간 인바운드 리드 수 — 유입된 달과 다르면 각자의 달에 잡힙니다. 계는 유입 기준입니다.</div></div>';
   }
 
   /* 데모 성공률 — 첫 데모 월 코호트 (ADR 0023). 분자·분모가 같은 병원 집단이라
@@ -2590,12 +2579,12 @@ function renderFlow() {
         + '<td class="c">' + (r.fail ? '<b class="red">' + r.fail + '</b>' : '-') + '</td>'
         + '<td class="c">' + (r.open || '-') + '</td>'
         + '<td class="c">' + (rate === null ? '-'
-          : '<b' + (rate >= 50 ? ' style="color:#058652;"' : '') + '>' + rate + '%</b>'
-            + (r.open ? '<span style="font-size:11px;color:#8b95a1;"> +진행 ' + r.open + '</span>' : ''))
+          : '<b' + (rate >= 50 ? ' style="color:#05754a;"' : '') + '>' + rate + '%</b>'
+            + (r.open ? '<span style="font-size:11px;color:#5f6b7a;"> +진행 ' + r.open + '</span>' : ''))
         + '</td></tr>';
     });
     h += '</tbody></table>'
-      + '<div style="margin-top:8px;font-size:11.5px;color:#8b95a1;line-height:1.6;">'
+      + '<div style="margin-top:8px;font-size:11.5px;color:#5f6b7a;line-height:1.6;">'
       + '그 달에 <b>첫 데모</b>를 한 병원(병원당 한 번)이 지금까지 계약에 이른 비율입니다 — 데모한 달 기준이라 계약이 늦게 나도 그 달 성공률이 올라갑니다.<br>'
       + '진행이 남아 있으면 아직 자라는 숫자입니다. 실패는 그 병원의 장비 리드가 전부 실패 처리된 경우만, N-Care(노즐) 데모는 여기서 제외 — Pool 단계가 따로 추적합니다.</div></div>';
   }
@@ -2610,9 +2599,9 @@ function renderFlow() {
       h += '<div class="card">'
         + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">'
         + '<b style="font-size:15px;">' + esc(it.h) + '</b>'
-        + '<span style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(dt.rep || it.r || '-')
+        + '<span style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(dt.rep || it.r || '-')
         + (dt.stage ? ' · ' + esc(dt.stage) : '') + '</span></div>'
-        + (dt.target ? '<div style="margin-top:4px;font-size:12px;color:#6b7684;">목표 ' + esc(dt.target)
+        + (dt.target ? '<div style="margin-top:4px;font-size:12px;color:#4e5968;">목표 ' + esc(dt.target)
           + (dt.achv === '달성' ? ' <span class="badge deal">달성</span>' : '') + '</div>' : '')
         + (dt.logs && dt.logs.length
           ? dt.logs.map(function(l) {
@@ -2624,7 +2613,7 @@ function renderFlow() {
                 + (l.note ? '<div style="margin-top:3px;font-size:12.5px;line-height:1.65;color:#4e5968;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
                 + '</div>';
             }).join('')
-          : '<div style="margin-top:8px;font-size:12px;color:#b0b8c1;">' + (nc ? 'N-Care' : '장비') + ' 방문 기록이 없습니다.</div>')
+          : '<div style="margin-top:8px;font-size:12px;color:#6b7684;">' + (nc ? 'N-Care' : '장비') + ' 방문 기록이 없습니다.</div>')
         + '</div>';
     });
   }
@@ -2639,7 +2628,7 @@ function renderFlow() {
         + '<td class="c">' + (r.prop || '-') + '</td>'
         + '<td class="c">' + (r.deal ? '<b class="blue">' + r.deal + '</b>' : '-') + '</td>'
         + '<td class="c">' + (r.fail ? '<b class="red">' + r.fail + '</b>' : '-') + '</td>'
-        + '<td class="c">' + (r.paid ? '<b style="color:#058652;">' + r.paid + '</b>' : '-') + '</td></tr>';
+        + '<td class="c">' + (r.paid ? '<b style="color:#05754a;">' + r.paid + '</b>' : '-') + '</td></tr>';
     });
     h += '</tbody></table></div>';
   }
@@ -2663,7 +2652,7 @@ function renderFlow() {
         + '</td></tr>';
     });
     h += '</tbody></table></div>';
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">입금 처리하면 08_리드관리의 입금일에 오늘 날짜가 기록됩니다.</div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">입금 처리하면 08_리드관리의 입금일에 오늘 날짜가 기록됩니다.</div>';
   }
 
   document.getElementById('flowBody').innerHTML = h;
@@ -2800,7 +2789,7 @@ function renderEvt() {
     h += '<div class="card">'
       + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
       + '<div style="font-size:16.5px;font-weight:700;color:#191f28;">' + esc(ev.name) + '</div>'
-      + '<div style="font-size:12px;color:#6b7684;white-space:nowrap;">' + esc(ev.type) + (ev.date ? ' · ' + esc(ev.date) : '') + '</div></div>'
+      + '<div style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(ev.type) + (ev.date ? ' · ' + esc(ev.date) : '') + '</div></div>'
       + '<div class="evt-sum">'
       + '<span class="pill">참석자 <b>' + ev.cnt + '</b></span>'
       + '<span class="pill blue">데모 <b>' + ev.demos + '</b></span>'
@@ -2897,8 +2886,8 @@ function renderEvt() {
         h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
           + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
           + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
-          + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#b0b8c1;">-</span>')
-          + (l.due ? '<div style="font-size:10.5px;color:#8b95a1;margin-top:2px;">시기 ' + esc(l.due) + '</div>' : '') + '</td>'
+          + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#6b7684;">-</span>')
+          + (l.due ? '<div style="font-size:10.5px;color:#5f6b7a;margin-top:2px;">시기 ' + esc(l.due) + '</div>' : '') + '</td>'
           /* 미방문인데 **행사 전에** 다녀온 기록이 있으면 같이 보여 준다 (2026-08-11).
              「행사 후 방문」은 행사일 뒤만 세는 것이 맞고 그 숫자는 안 건드린다. 다만 방문하고
              기록까지 넣은 담당자에게 「미방문」만 보이면 「입력이 인식이 안 된다」로 읽힌다. */
@@ -2906,7 +2895,7 @@ function renderEvt() {
             ? (l.visits > 0 ? l.visits + '회' : '-')
             : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>'))
           + (l.visits === 0 && l.pre
-            ? '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;white-space:nowrap;">행사 전 ' + l.pre.cnt + '회<br>'
+            ? '<div style="font-size:10.5px;color:#5f6b7a;margin-top:3px;white-space:nowrap;">행사 전 ' + l.pre.cnt + '회<br>'
               + l.pre.days.map(function(d) { return esc(d.slice(5).replace('-', '/')); }).join(' · ') + '</div>'
             : '') + '</td>'
           + '<td class="c">' + (l.target ? (done ? '<span class="badge deal" style="margin-left:0;">달성</span>' : '<span class="badge tgt" style="margin-left:0;">진행 중</span>') : '-') + '</td>'
@@ -2915,7 +2904,7 @@ function renderEvt() {
       });
       h += '</tbody></table></div>';   // 위에서 연 가로 스크롤 컨테이너를 닫는다
     } else {
-      h += '<div style="margin-top:12px;font-size:13px;color:#8b95a1;">등록된 참석자(리드)가 없습니다.</div>';
+      h += '<div style="margin-top:12px;font-size:13px;color:#5f6b7a;">등록된 참석자(리드)가 없습니다.</div>';
     }
     h += '</div>';
   });
@@ -3216,7 +3205,7 @@ function checkNewHosp() {
   // 장비 보유 인식: N-Care 영업 대상 여부 표시
   var hint = document.getElementById('pEquipHint');
   if (v && known && equip === '보유') {
-    hint.style.display = 'block'; hint.style.color = '#058652';
+    hint.style.display = 'block'; hint.style.color = '#045c40';
     hint.textContent = '✓ 장비 보유 고객 — N-Care 영업 대상입니다';
   } else if (v && selPCat === 'N-Care' && known && equip !== '보유') {
     hint.style.display = 'block'; hint.style.color = '#E8850C';
@@ -3763,9 +3752,9 @@ function metaCard(q) {
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
     + '<b style="font-size:16px;">' + esc(q.hname2 || q.company || '(업체명 없음)') + '</b>'
     + '<span class="tag ' + stTag + '">' + esc(q.status) + '</span></div>';
-  h += '<div style="margin-top:4px;font-size:13px;color:#6b7684;">'
+  h += '<div style="margin-top:4px;font-size:13px;color:#4e5968;">'
     + esc(q.name) + (q.title ? ' · ' + esc(q.title) : '') + ' · ' + esc(q.platform || '')
-    + ' · 접수 ' + esc(q.created) + ' <b style="color:' + (q.status === '신규' && Date.now() - q.createdMs > 3600000 ? '#d0223a' : '#8b95a1') + ';">(' + 경과문구_(q.createdMs) + ' 전)</b></div>';
+    + ' · 접수 ' + esc(q.created) + ' <b style="color:' + (q.status === '신규' && Date.now() - q.createdMs > 3600000 ? '#d0223a' : '#5f6b7a') + ';">(' + 경과문구_(q.createdMs) + ' 전)</b></div>';
   if (q.phone) {
     h += '<div style="margin-top:9px;"><a href="tel:' + esc(q.phone.replace(/-/g, '')) + '" '
       + 'style="font-size:17px;font-weight:700;color:#1b64da;text-decoration:none;">📞 ' + esc(q.phone) + '</a></div>';
@@ -3786,12 +3775,12 @@ function metaCard(q) {
     var visit = q.visits > 0
       ? '방문 <b>' + q.visits + '회</b>' + (q.firstDays >= 0 ? ' · 첫 방문까지 <b>' + (q.firstDays === 0 ? '당일' : q.firstDays + '일') + '</b>' : '')
       : '<b style="color:#d0223a;">아직 방문 없음</b>';
-    h += '<div style="margin-top:7px;font-size:12.5px;color:#058652;">담당 <b>' + esc(q.rep) + '</b>'
+    h += '<div style="margin-top:7px;font-size:12.5px;color:#05754a;">담당 <b>' + esc(q.rep) + '</b>'
       + (q.hname2 && q.hname2 !== q.company ? ' · 병원명 확정: ' + esc(q.hname2) : '')
       + ' · ' + visit + '</div>';
   }
   if (q.status === '제외') {
-    h += '<div style="margin-top:7px;font-size:12.5px;color:#8b95a1;">' + esc(q.rep) + ' · ' + esc(q.why) + '</div>';
+    h += '<div style="margin-top:7px;font-size:12.5px;color:#5f6b7a;">' + esc(q.rep) + ' · ' + esc(q.why) + '</div>';
   }
   if (q.memo) {
     // 통화 시도 이력 — 최신이 위. "7/30 14:00 차성민: 부재중, 내일 재통화" 형식
@@ -3890,7 +3879,7 @@ function metaAssignBox(q) {
     + '<input type="datetime-local" id="mxNextAt" style="display:none;margin-top:8px;">'
     + '<div style="margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
     + '<button class="btn" onclick="metaMissed(' + q.id + ')">부재중으로 넘기기</button>'
-    + '<span style="font-size:11.5px;color:#8b95a1;">'
+    + '<span style="font-size:11.5px;color:#5f6b7a;">'
     + (남은 > 1 ? (q.tries || 0) + '회 시도 · ' + 남은 + '회 더 부재중이면 자동 제외'
                 : '<b style="color:#d0223a;">' + (q.tries || 0) + '회 시도 · 다음 부재중이면 연락 불가로 자동 제외됩니다</b>') + '</span>'
     + '</div></div>';
@@ -4372,7 +4361,7 @@ function mineLogCard(l) {
   return '<div class="card">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
     + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
-    + '<span style="font-size:12px;color:#8b95a1;white-space:nowrap;">' + esc(l.date) + ' ' + esc(l.dow) + '</span></div>'
+    + '<span style="font-size:12px;color:#5f6b7a;white-space:nowrap;">' + esc(l.date) + ' ' + esc(l.dow) + '</span></div>'
     + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
     + (l.cat ? '<span class="tag' + (l.cat === 'N-Care' ? ' ncare' : '') + '">' + esc(l.cat) + '</span>' : '')
     + (l.type ? '<span class="tag">' + esc(l.type) + '</span>' : '')
@@ -4416,14 +4405,14 @@ function mineLeadCard(l) {
   return '<div class="card">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
     + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
-    + '<span style="font-size:12px;color:#8b95a1;">' + esc(l.stage || '') + (MINE.admin && l.rep ? ' · ' + esc(l.rep) : '') + '</span></div>'
+    + '<span style="font-size:12px;color:#5f6b7a;">' + esc(l.stage || '') + (MINE.admin && l.rep ? ' · ' + esc(l.rep) : '') + '</span></div>'
     + (l.target
-        ? '<div style="margin-top:5px;font-size:13px;color:#6b7684;">' + esc(l.target) + '</div>'
+        ? '<div style="margin-top:5px;font-size:13px;color:#4e5968;">' + esc(l.target) + '</div>'
         : '<div style="margin-top:5px;font-size:13px;color:#d0223a;">달성 목표 미입력 — 칸 분류가 부정확할 수 있어요</div>')
     + '<label class="f">계약일</label>'
     + '<div class="row2"><div><input type="date" id="dl' + 열쇠_(l) + '" value="' + esc(l.dealDate) + '"></div>'
     + '<div><button class="btn pri" style="width:100%;padding:12px;" onclick="saveDealDate(\'' + 열쇠_(l) + '\')">저장</button></div></div>'
-    + (l.paid ? '<div style="margin-top:8px;font-size:12.5px;color:#058652;">입금 ' + esc(l.paid) + '</div>' : '')
+    + (l.paid ? '<div style="margin-top:8px;font-size:12.5px;color:#05754a;">입금 ' + esc(l.paid) + '</div>' : '')
     + '</div>';
 }
 function saveDealDate(k) {
@@ -4563,7 +4552,7 @@ function renderLeads() {
   if (LEADSEG === 'fail') {
     fails.sort(function(a, b) { return (a.failRetry || '9999') < (b.failRetry || '9999') ? -1 : 1; });
     document.getElementById('leadList').innerHTML = fails.length
-      ? '<div style="margin-bottom:8px;font-size:12px;color:#8b95a1;line-height:1.6;">실패 리드는 버리지 않고 누적으로 계속 추적합니다. 재컨택 조건이 해결되면 [재컨택 시작]을 누르세요. 매주 목요일 아침 메일로도 알려드립니다.</div>'
+      ? '<div style="margin-bottom:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">실패 리드는 버리지 않고 누적으로 계속 추적합니다. 재컨택 조건이 해결되면 [재컨택 시작]을 누르세요. 매주 목요일 아침 메일로도 알려드립니다.</div>'
         + fails.map(failCard).join('')
       : '<div class="card empty">실패 처리된 리드가 없습니다.</div>';
     return;
@@ -4588,11 +4577,11 @@ function renderLeads() {
   };
   document.getElementById('leadList').innerHTML =
     '<div class="lead2">'
-    + col('장비 판매', '#3182f6', eq, '장비 리드가 없습니다.')
-    + col('N-Care', '#03b26c', nc, 'N-Care 리드가 없습니다.')
+    + col('장비 판매', '#1b64da', eq, '장비 리드가 없습니다.')
+    + col('N-Care', '#05754a', nc, 'N-Care 리드가 없습니다.')
     + '</div>'
     + (etc.length
-      ? '<div class="kicker"><div class="bar" style="background:#b0b8c1;"></div><div class="lbl">분류 미지정 · ' + etc.length + ' — 달성 목표를 정하면 자동 분류됩니다</div></div>'
+      ? '<div class="kicker"><div class="bar" style="background:#6b7684;"></div><div class="lbl">분류 미지정 · ' + etc.length + ' — 달성 목표를 정하면 자동 분류됩니다</div></div>'
         + etc.map(leadCard).join('')
       : '');
 }
@@ -4716,7 +4705,7 @@ function leadCard(l) {
             }).join('');
         return '<div class="memo" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">행사 · '
           + '<select style="width:auto;max-width:100%;font-size:12px;padding:5px 8px;margin:0;" onchange="leadEvent(' + l.k + ',this.value)">' + opts + '</select>'
-          + (l.ecode ? '' : '<span style="font-size:11px;color:#8b95a1;">행사에서 만난 리드면 골라 주세요 — 행사 성과에 잡힙니다</span>')
+          + (l.ecode ? '' : '<span style="font-size:11px;color:#5f6b7a;">행사에서 만난 리드면 골라 주세요 — 행사 성과에 잡힙니다</span>')
           + '</div>';
       })()
     + (l.memo ? '<div class="memo">' + esc(l.memo) + '</div>' : '')
@@ -4816,16 +4805,16 @@ var NC_STAGES = [
   { n: 5, name: 'N-Care 가입', cond: '가입 계약 체결 — 이 단계부터 거래처 「N-Care 가입」이 예가 됩니다' },
   { n: 6, name: '확장', cond: '다양한 적응증 도입' },
   { n: 7, name: '업그레이드', cond: 'N-Care 등급 상향 (BASIC → STANDARD → PRO → PREMIUM)' }];
-var NC_COLOR = { 1: '#6b7684', 2: '#3182f6', 3: '#1b64da', 4: '#fe9800', 5: '#03b26c', 6: '#058652', 7: '#7C3AED' };
-var NC_GCOLOR = { A: ['#d0223a', '#fdeef0'], B: ['#fe9800', '#fff4e2'], C: ['#4e5968', '#f2f4f6'], D: ['#8b95a1', '#f9fafb'] };
+var NC_COLOR = { 1: '#4e5968', 2: '#1b64da', 3: '#1b64da', 4: '#a35f00', 5: '#05754a', 6: '#045c40', 7: '#7C3AED' };
+var NC_GCOLOR = { A: ['#d0223a', '#fdeef0'], B: ['#a35f00', '#fff4e2'], C: ['#4e5968', '#f2f4f6'], D: ['#5f6b7a', '#f9fafb'] };
 function ncStageName(n) { var s = NC_STAGES[n - 1]; return s ? s.name : String(n); }
 function ncGradeBadge(g) {
-  if (!g) return '<span style="color:#b0b8c1;">—</span>';
+  if (!g) return '<span style="color:#6b7684;">—</span>';
   var c = NC_GCOLOR[g] || NC_GCOLOR.C;
   return '<span style="display:inline-block;min-width:20px;text-align:center;padding:1px 6px;border-radius:6px;font-weight:700;font-size:12px;color:' + c[0] + ';background:' + c[1] + ';">' + g + '</span>';
 }
 function ncStageBadge(n) {
-  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:' + (NC_COLOR[n] || '#6b7684') + ';">' + n + ' ' + esc(ncStageName(n)) + '</span>';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:' + (NC_COLOR[n] || '#4e5968') + ';">' + n + ' ' + esc(ncStageName(n)) + '</span>';
 }
 
 function loadNcare(조용히) {
@@ -4874,10 +4863,10 @@ function renderNcare() {
         var on = NCST === s.n;
         return '<div onclick="NCST=NCST===' + s.n + '?0:' + s.n + ';renderNcare()" style="flex:1;min-width:64px;text-align:center;padding:10px 4px;border-radius:12px;cursor:pointer;border:1.5px solid ' + (on ? NC_COLOR[s.n] : '#f2f4f6') + ';background:' + (on ? '#fff' : '#f9fafb') + ';">'
           + '<div style="font-size:20px;font-weight:700;color:' + NC_COLOR[s.n] + ';">' + (cnt[s.n] || 0) + '</div>'
-          + '<div style="margin-top:2px;font-size:11px;color:#6b7684;white-space:nowrap;">' + s.n + '. ' + esc(s.name) + '</div></div>';
+          + '<div style="margin-top:2px;font-size:11px;color:#4e5968;white-space:nowrap;">' + s.n + '. ' + esc(s.name) + '</div></div>';
       }).join('')
     + '</div>'
-    + '<div style="margin-top:10px;font-size:12px;color:#8b95a1;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳 · 단계 타일을 누르면 그 단계만 봅니다</div>'
+    + '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳 · 단계 타일을 누르면 그 단계만 봅니다</div>'
     + '</div>';
 
   /* 목록 — 병원마다 1→7 단계를 쭉 펼치고 지금 어디까지 왔는지를 진행바로 보인다
@@ -4893,13 +4882,13 @@ function renderNcare() {
   h += rows.length
     ? '<div class="card" style="padding:4px 16px;">'
       + rows.map(function(p, i) {
-          var c = NC_COLOR[p.stage] || '#6b7684';
+          var c = NC_COLOR[p.stage] || '#4e5968';
           return '<div style="padding:12px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="ncOpen(' + p.id + ')">'
             + '<div style="display:flex;align-items:center;gap:8px;">'
             + ncGradeBadge(p.grade)
             + '<b style="font-size:14.5px;color:#191f28;">' + esc(p.hname) + '</b>'
-            + '<span style="font-size:12px;color:#8b95a1;">' + esc(p.region) + '</span>'
-            + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#8b95a1;">· ' + esc(p.rep || '담당 미지정') + '</span>' : '')
+            + '<span style="font-size:12px;color:#5f6b7a;">' + esc(p.region) + '</span>'
+            + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(p.rep || '담당 미지정') + '</span>' : '')
             + '<span style="margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap;color:' + c + ';">' + p.stage + '/7 ' + esc(ncStageName(p.stage)) + '</span>'
             + '</div>'
             + '<div style="display:flex;gap:3px;margin-top:8px;">'
@@ -4926,7 +4915,7 @@ function ncOpen(id) {
   var canAssign = !me.viewer && (me.admin || p.rep === me.name || !p.rep);
   var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
     + '<div><div style="font-size:17px;font-weight:700;color:#191f28;">' + esc(p.hname) + '</div>'
-    + '<div style="margin-top:4px;font-size:13px;color:#6b7684;">' + esc(p.region || '') + (p.code ? ' · ' + esc(p.code) : ' · 거래처 미연결') + ' · 노즐 ' + ncGradeBadge(p.grade) + '</div></div>'
+    + '<div style="margin-top:4px;font-size:13px;color:#4e5968;">' + esc(p.region || '') + (p.code ? ' · ' + esc(p.code) : ' · 거래처 미연결') + ' · 노즐 ' + ncGradeBadge(p.grade) + '</div></div>'
     + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
   if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
 
@@ -4942,16 +4931,16 @@ function ncOpen(id) {
         var 테두리 = picked ? '1.5px dashed #1b64da' : ('1.5px solid ' + (cur ? NC_COLOR[s.n] : '#f2f4f6'));
         return '<div ' + (canEdit && !cur ? 'onclick="ncPick(' + p.id + ',' + s.n + ')" style="cursor:pointer;"' : 'style="cursor:default;"') + '>'
           + '<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:11px;border:' + 테두리 + ';background:' + (cur || picked ? '#fff' : '#fbfcfd') + ';">'
-          + '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:' + (cur ? NC_COLOR[s.n] : (picked ? '#1b64da' : '#d5dae0')) + ';">' + s.n + '</span>'
-          + '<span style="flex:1;"><span style="font-size:14px;font-weight:' + (cur || picked ? 700 : 600) + ';color:' + (cur || picked ? '#191f28' : '#6b7684') + ';">' + esc(s.name) + '</span>'
-          + '<span style="display:block;margin-top:1px;font-size:11.5px;color:#8b95a1;">' + esc(s.cond) + '</span></span>'
+          + '<span style="flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:' + (cur ? NC_COLOR[s.n] : (picked ? '#1b64da' : '#5f6b7a')) + ';">' + s.n + '</span>'
+          + '<span style="flex:1;"><span style="font-size:14px;font-weight:' + (cur || picked ? 700 : 600) + ';color:' + (cur || picked ? '#191f28' : '#4e5968') + ';">' + esc(s.name) + '</span>'
+          + '<span style="display:block;margin-top:1px;font-size:11.5px;color:#5f6b7a;">' + esc(s.cond) + '</span></span>'
           + (cur ? '<span style="font-size:11.5px;font-weight:700;color:' + NC_COLOR[s.n] + ';">현재</span>'
                  : (picked ? '<span style="font-size:11.5px;font-weight:700;color:#1b64da;">선택</span>' : ''))
           + '</div></div>';
       }).join('')
     + '</div>';
   if (!canEdit) {
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">'
+    h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">'
       + (me.viewer ? '조회 전용 계정은 보기만 할 수 있습니다'
         : p.rep ? '단계는 케어 담당(' + esc(p.rep) + ')과 관리자만 바꿀 수 있습니다' : '담당을 먼저 지정하면 단계를 바꿀 수 있습니다')
       + '</div>';
@@ -4961,7 +4950,7 @@ function ncOpen(id) {
       + '<button class="btn" onclick="NCSEL=0;ncOpen(' + p.id + ')">취소</button>'
       + '</div>';
   } else {
-    h += '<div style="margin-top:8px;font-size:12px;color:#8b95a1;">단계를 누르면 선택되고, [저장]을 눌러야 옮겨집니다 (뒤로도 이동 가능 — 이력이 남습니다)</div>';
+    h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">단계를 누르면 선택되고, [저장]을 눌러야 옮겨집니다 (뒤로도 이동 가능 — 이력이 남습니다)</div>';
   }
 
   h += '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
@@ -4986,7 +4975,7 @@ function ncOpen(id) {
   h += '</div>';
 
   h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">전환 이력</div>'
-    + '<div id="ncHist" style="margin-top:6px;font-size:12.5px;color:#6b7684;">불러오는 중…</div>';
+    + '<div id="ncHist" style="margin-top:6px;font-size:12.5px;color:#4e5968;">불러오는 중…</div>';
 
   document.getElementById('hospModalBody').innerHTML = h;
   document.getElementById('hospModal').style.display = 'flex';
@@ -4997,7 +4986,7 @@ function ncOpen(id) {
       el.innerHTML = (r.logs || []).length
         ? r.logs.map(function(g) {
             return '<div style="padding:3px 0;">' + esc(g.on) + ' · ' + (g.from ? g.from + '단계 → ' : '편입 → ') + g.to + '단계'
-              + ' <span style="color:#8b95a1;">(' + esc(g.by) + ')</span></div>';
+              + ' <span style="color:#5f6b7a;">(' + esc(g.by) + ')</span></div>';
           }).join('')
         : '이력이 없습니다';
     }), function() {
@@ -5056,7 +5045,7 @@ function ncAddOpen() {
   if (!NCARE) { toast('목록을 먼저 불러오는 중입니다', true); loadNcare(); return; }
   if (NCARE.me.viewer) { toast('조회 전용 계정은 추가할 수 없습니다', true); return; }
   var h = '<div style="font-size:16px;font-weight:700;color:#191f28;">Pool에 병원 추가</div>'
-    + '<div style="margin-top:4px;font-size:12.5px;color:#8b95a1;">장비 계약이 기록되면 자동으로 들어옵니다 — 여기는 딜러·과거 판매처용입니다. 1단계(제팅교육)로 들어갑니다</div>'
+    + '<div style="margin-top:4px;font-size:12.5px;color:#5f6b7a;">장비 계약이 기록되면 자동으로 들어옵니다 — 여기는 딜러·과거 판매처용입니다. 1단계(제팅교육)로 들어갑니다</div>'
     + '<label class="f">병원명 *</label><input type="text" id="ncAddName" data-ac="hosp" autocomplete="off" placeholder="예: 홍길동피부과의원">'
     + '<label class="f">케어 담당</label><select id="ncAddRep"><option value="">나중에 지정</option>'
     + (NCARE.reps || []).map(function(r) {
@@ -5086,7 +5075,7 @@ function ncAddSave() {
 }
 
 /* ── 영업자료 탭 (MA·C-Labs 공식 자료) ── */
-var MATCOLOR = { '마케팅': ['#1b64da', '#e8f3ff'], '임상/학술': ['#058652', '#e5f7ef'], '학회/세미나': ['#7C3AED', '#F1EBFF'], '기타': ['#6B7280', '#F3F4F6'] };
+var MATCOLOR = { '마케팅': ['#1b64da', '#e8f3ff'], '임상/학술': ['#045c40', '#e5f7ef'], '학회/세미나': ['#7C3AED', '#F1EBFF'], '기타': ['#5f6b7a', '#F3F4F6'] };
 function loadMat(조용히) {
   읽기시작_(조용히, 'matList');
   gsrun().withSuccessHandler(function(d) { MATL = d; 읽기끝_(조용히); renderMat(); })
@@ -5126,8 +5115,8 @@ function matCard(m) {
     + '<div style="min-width:0;">'
     + '<span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;color:' + c[0] + ';background:' + c[1] + ';">' + esc(m.cat) + '</span>'
     + '<div style="margin-top:7px;font-size:15px;font-weight:700;">' + esc(m.title) + '</div>'
-    + (m.desc ? '<div style="margin-top:4px;font-size:12.5px;color:#6b7684;line-height:1.6;">' + esc(m.desc) + '</div>' : '')
-    + '<div style="margin-top:6px;font-size:11.5px;color:#8b95a1;">' + esc(m.date) + (m.uploader ? ' · ' + esc(m.uploader) : '') + '</div>'
+    + (m.desc ? '<div style="margin-top:4px;font-size:12.5px;color:#4e5968;line-height:1.6;">' + esc(m.desc) + '</div>' : '')
+    + '<div style="margin-top:6px;font-size:11.5px;color:#5f6b7a;">' + esc(m.date) + (m.uploader ? ' · ' + esc(m.uploader) : '') + '</div>'
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">'
     + '<a class="btn pri" style="text-decoration:none;text-align:center;" href="' + esc(m.url) + '" target="_blank" rel="noopener">열기</a>'
@@ -5235,8 +5224,8 @@ function goalCard(label, o, dayPassed, dayTotal, key) {
         + list.map(function(x) {
             return '<div style="font-size:13px;color:#4e5968;padding:3px 0;display:flex;justify-content:space-between;gap:8px;">'
               + '<span>' + esc(x.h)
-              + (x.r ? ' <span style="color:#8b95a1;font-size:11.5px;">' + esc(x.r) + '</span>' : '') + '</span>'
-              + (x.d ? '<span style="color:#8b95a1;font-size:11.5px;white-space:nowrap;">' + esc(x.d) + '</span>' : '')
+              + (x.r ? ' <span style="color:#5f6b7a;font-size:11.5px;">' + esc(x.r) + '</span>' : '') + '</span>'
+              + (x.d ? '<span style="color:#5f6b7a;font-size:11.5px;white-space:nowrap;">' + esc(x.d) + '</span>' : '')
               + '</div>';
           }).join('') + '</div>' : '');
   var wrap = function(inner) {
@@ -5431,8 +5420,8 @@ function renderDash() {
   var mcell = function(a, t) {
     a = Number(a) || 0; t = Number(t) || 0;
     var pct = t ? Math.round(a / t * 100) : null;
-    return '<b>' + a + '</b> <span style="color:#8b95a1;">/ ' + (t || '-') + '</span>'
-      + (pct == null ? '' : ' <b style="font-size:11px;color:' + (pct >= 100 ? '#03b26c' : (pct >= 50 ? '#3182f6' : '#f04452')) + ';">' + pct + '%</b>');
+    return '<b>' + a + '</b> <span style="color:#5f6b7a;">/ ' + (t || '-') + '</span>'
+      + (pct == null ? '' : ' <b style="font-size:11px;color:' + (pct >= 100 ? '#05754a' : (pct >= 50 ? '#1b64da' : '#d22030')) + ';">' + pct + '%</b>');
   };
   var byName = {};
   (d.month && d.month.rows || []).forEach(function(m) { byName[String(m.name).trim()] = m; });
@@ -5464,9 +5453,9 @@ function renderDash() {
       var key = 라인 + '|' + n;
       var open = ROWOPEN === key;
       t += '<tr' + (list.length ? ' style="cursor:pointer;" onclick="rowList(\'' + esc(key) + '\')"' : '') + '>'
-        + '<td><b>' + esc(n) + '</b>' + (m ? '' : ' <span style="font-size:11px;color:#8b95a1;">미등록</span>')
+        + '<td><b>' + esc(n) + '</b>' + (m ? '' : ' <span style="font-size:11px;color:#5f6b7a;">미등록</span>')
         + (list.length ? ' <span style="font-size:11px;color:#1b64da;">' + (open ? '▲' : '▼') + '</span>' : '') + '</td>'
-        + (seg === '전체' ? '<td class="c"><span style="font-size:11.5px;color:#6b7684;">' + lineOf(n) + '</span></td>' : '')
+        + (seg === '전체' ? '<td class="c"><span style="font-size:11.5px;color:#4e5968;">' + lineOf(n) + '</span></td>' : '')
         + '<td class="c">' + mcell(필드 === 'sale' ? mm.sale : mm.ncare, 필드 === 'sale' ? mm.tgtE : mm.tgtN) + '</td></tr>';
       if (open) {
         t += '<tr><td colspan="' + (seg === '전체' ? 3 : 2) + '" style="background:#f9fafb;">'
@@ -5650,7 +5639,7 @@ function showHosp(hname) {
       if (d.acc.ncare) tags.push('N-Care ' + esc(d.acc.ncare));
       if (d.acc.carerep) tags.push('케어 담당 ' + esc(d.acc.carerep));
       else if (d.acc.rep) tags.push('담당 ' + esc(d.acc.rep));
-      h += '<div style="margin-top:8px;font-size:12px;color:#6b7684;">' + tags.join(' · ') + '</div>';
+      h += '<div style="margin-top:8px;font-size:12px;color:#4e5968;">' + tags.join(' · ') + '</div>';
     }
     if (d.lead) {
       h += '<div style="margin-top:12px;background:#f2f4f6;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.8;">'
@@ -5664,18 +5653,18 @@ function showHosp(hname) {
         + '</div>';
     }
     if (d.logs.length) {
-      h += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#8b95a1;">최근 기록 ' + d.logs.length + '건</div>';
+      h += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#5f6b7a;">최근 기록 ' + d.logs.length + '건</div>';
       d.logs.forEach(function(l) {
         var catTag = l.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
           : (l.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
         h += '<div style="margin-top:10px;padding-bottom:10px;border-bottom:1px solid #f2f4f6;">'
-          + '<div style="font-size:12px;color:#6b7684;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
+          + '<div style="font-size:12px;color:#4e5968;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
           + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
           + (l.note ? '<div style="margin-top:4px;font-size:12.5px;color:#4e5968;line-height:1.65;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
           + '</div>';
       });
     } else {
-      h += '<div style="margin-top:14px;font-size:12.5px;color:#b0b8c1;">방문 기록이 없습니다.</div>';
+      h += '<div style="margin-top:14px;font-size:12.5px;color:#6b7684;">방문 기록이 없습니다.</div>';
     }
     document.getElementById('hospModalBody').innerHTML = h;
     document.getElementById('hospModal').style.display = 'flex';
