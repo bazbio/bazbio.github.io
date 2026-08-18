@@ -283,7 +283,7 @@
   .ptab:hover { border-color:#b0d3ff; }
   .ptab .cnt { display:block; font-size:11px; font-weight:600; color:#5f6b7a; margin-top:3px; }
   .ptab.on { background:#1b64da; border-color:#1b64da; color:#fff; }
-  .ptab.on .cnt { color:#cfe4ff; }
+  .ptab.on .cnt { color:#e8f3ff; }
   .ptab.sm { padding:8px 14px; font-size:13px; border-radius:11px; }
 
   /* 학회/세미나 탭 */
@@ -327,7 +327,7 @@
   .warnbox .wt { display:block; font-weight:700; margin-bottom:6px; font-size:14px; }
   .warnbox ul { margin:0; padding-left:17px; }
   .warnbox li { margin-top:4px; }
-  .warnbox .wf { margin-top:9px; font-size:12.5px; opacity:.9; }
+  .warnbox .wf { margin-top:9px; font-size:12.5px; }
 
   /* 현황 — 접이식 보조 지표(방문 활동) */
   details.sub { margin-top:22px; border-top:1px solid #e5e8eb; padding-top:6px; }
@@ -556,7 +556,7 @@
     <div id="pEquipHint" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;"></div>
     <label class="f">판매 카테고리 *</label>
     <div class="chips" id="pCat"></div>
-    <label class="f">방문 예정일 *</label>
+    <label class="f" for="pDate">방문 예정일 *</label>
     <input type="date" id="pDate">
     <label class="f">방문 목적 *</label>
     <div class="chips" id="pType"></div>
@@ -568,7 +568,7 @@
     <label class="f">준비 사항</label>
     <input type="text" id="pPrep" placeholder="예: 데모 장비, 제안서 지참">
     <button class="save" id="pSave" onclick="savePlan()">계획 저장</button>
-    <div style="margin-top:12px;font-size:12.5px;color:#9A9A9A;text-align:center;">저장 후 이어서 다음 계획을 등록할 수 있습니다</div>
+    <div style="margin-top:12px;font-size:12.5px;color:#5f6b7a;text-align:center;">저장 후 이어서 다음 계획을 등록할 수 있습니다</div>
   </div>
 </div></div>
 
@@ -600,8 +600,8 @@
       </div>
     </div>
     <div class="row2">
-      <div><label class="f">방문일</label><input type="date" id="fDate" onchange="계획일안내_()"></div>
-      <div><label class="f">다음 방문 예정일</label><input type="date" id="fNext"></div>
+      <div><label class="f" for="fDate">방문일</label><input type="date" id="fDate" onchange="계획일안내_()"></div>
+      <div><label class="f" for="fNext">다음 방문 예정일</label><input type="date" id="fNext"></div>
     </div>
     <label class="f">판매 카테고리 *</label>
     <div class="chips" id="fCat"></div>
@@ -614,7 +614,7 @@
       직접 입력한 활동은 <b>현장 방문으로 집계</b>됩니다 — 「방문/○○」로 저장돼요.<br>
       전화·이메일·세미나였다면 위에서 그 칩을 골라 주세요.
     </div>
-    <label class="f">판매 단계</label>
+    <label class="f" for="fStage">판매 단계</label>
     <select id="fStage"><option value="">선택 안 함</option></select>
     <label class="f">데모 노즐 사용량 (개)</label>
     <input type="text" id="fNozzle" inputmode="numeric" placeholder="데모에 사용한 노즐 수량 (없으면 비워두기)">
@@ -656,7 +656,7 @@
     <label class="f">설명 (변경 사항 · 사용처)</label>
     <textarea id="mDesc" rows="2" style="min-height:64px;" placeholder="예: 가격표 갱신본 — 이전 버전은 폐기해 주세요"></textarea>
     <label class="f">파일 첨부 (20MB 이하 — 초과 시 아래 대용량 안내)</label>
-    <input type="file" id="mFile" style="font-size:13px;">
+    <input type="file" id="mFile" aria-label="자료 파일" style="font-size:13px;">
     <label class="f">또는 자료 링크(URL)</label>
     <input type="text" id="mLink" placeholder="https:// 드라이브·홈페이지 링크" autocomplete="off">
     <button class="save" id="mSave" onclick="submitMat()">업로드 + 메일 알림</button>
@@ -798,7 +798,7 @@
 <div class="view" id="view-flow"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
     <div class="fmonth">
-      <input type="month" id="fMonth" onchange="loadFlow(this.value)">
+      <input type="month" id="fMonth" aria-label="조회 월" onchange="loadFlow(this.value)">
     </div>
     <button class="refresh" onclick="loadFlow(document.getElementById('fMonth').value)">새로고침</button>
   </div>
@@ -1186,7 +1186,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608182257-819e0dd';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608182321-b455d06';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2255,7 +2255,7 @@ function renderKpiTab() {
       var dd = x.dday === 0 ? '오늘' : (late ? 'D+' + Math.abs(x.dday) : 'D-' + x.dday);
       h += '<tr><td style="white-space:nowrap;"><b style="color:' + (late ? '#d22030' : (x.dday <= 7 ? '#1b64da' : '#4e5968')) + ';">' + dd + '</b></td>'
         + '<td><b>' + esc(x.hname) + '</b>'
-        + (d.admin && x.rep ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(x.rep) + '</span>' : '') + '</td>'
+        + (d.admin && x.rep ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(x.rep) + '</span>' : '') + '</td>'
         + '<td style="font-size:12px;">' + esc(x.target) + '</td>'
         + '<td class="r" style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(x.due) + '</td></tr>';
     });
@@ -2292,7 +2292,7 @@ function renderKpiTab() {
     h += kick('목표 설정 — 저장하면 06_월간KPI에 반영');
     h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">신규 Lead</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
     var inpCell = function(id, v) {
-      return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" style="width:54px;padding:6px 4px;text-align:center;font-size:16px;border-radius:8px;">';
+      return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" aria-label="목표 수치" style="width:54px;padding:6px 4px;text-align:center;font-size:16px;border-radius:8px;">';
     };
     var tt = d.teamTgt || {};
     h += '<tr style="background:#fff4e0;"><td><b>팀 목표</b><div style="font-size:10px;color:#a35c11;">월간 팀 전체</div></td>'
@@ -2453,7 +2453,7 @@ function 재고카드_(s) {
     + s.dealers.map(function(d) {
         return '<span class="tag-blue">' + esc(d.name) + ' <b>' + d.count + '</b>대</span>'
           + (DATA.me.admin
-            ? ' <button class="btn" style="padding:4px 10px;font-size:11.5px;" data-d="' + esc(d.name)
+            ? ' <button class="btn" style="padding:5px 10px;font-size:11.5px;" data-d="' + esc(d.name)
               + '" onclick="재고배정(this.getAttribute(\'data-d\'))">병원 배정</button>'
             : '');
       }).join('')
@@ -2518,7 +2518,7 @@ function renderFlow() {
   h += '<div class="fcols">'
     + fcol(k + 'lead', '리드 확보', '#1b64da', st.lead, null, '')
     + '<div class="farr2">›</div>'
-    + fcol(k + 'demo', '데모 중', '#0BB8A5', st.demo, pct(st.demo, st.lead), '')
+    + fcol(k + 'demo', '데모 중', '#087f73', st.demo, pct(st.demo, st.lead), '')
     + '<div class="farr2">›</div>'
     + fcol(k + 'prop', '제안 완료', '#8E7CF8', st.prop, pct(st.prop, st.demo), '')
     + '<div class="farr2">›</div>'
@@ -2608,7 +2608,7 @@ function renderFlow() {
               var catTag = l.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
                 : (l.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
               return '<div style="margin-top:9px;padding-top:9px;border-top:1px solid #f2f4f6;">'
-                + '<div style="font-size:11.5px;color:#9A9A9A;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
+                + '<div style="font-size:11.5px;color:#5f6b7a;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
                 + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
                 + (l.note ? '<div style="margin-top:3px;font-size:12.5px;line-height:1.65;color:#4e5968;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
                 + '</div>';
@@ -2874,7 +2874,7 @@ function renderEvt() {
           EVTSIM.push({ a: l.hname, b: l.near.name });
           // ⚠ 이름 뒤에 조사를 붙이지 않는다 — 「미소의원 인천」로/「미소의원」로처럼 받침에 따라 틀린다
           var 맞춤 = function(side, name) {
-            return '<button class="btn" style="font-size:10.5px;padding:2px 7px;margin-left:4px;"'
+            return '<button class="btn" style="font-size:11.5px;padding:5px 10px;margin-left:4px;"'
               + ' onclick="evtUnify(' + si + ',\'' + side + '\')">「' + esc(name) + '」 유지</button>';
           };
           near = '<div style="font-size:11px;color:#c2410c;margin-top:3px;">「' + esc(l.near.name)
@@ -2883,7 +2883,7 @@ function renderEvt() {
               : '<div style="margin-top:4px;">' + 맞춤('a', l.hname) + 맞춤('b', l.near.name) + '</div>')
             + '</div>';
         }
-        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
+        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
           + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
           + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
           + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#6b7684;">-</span>')
@@ -5319,7 +5319,7 @@ function simBanner(list) {
   if (!list || !list.length) return '';
   // ⚠ 이름 뒤에 조사를 붙이지 않는다 — 받침에 따라 「…의원」로/「…안산」로처럼 틀린다 (2026-08-16)
   var 버튼 = function(i, side, name) {
-    return '<button class="btn" style="font-size:11.5px;padding:4px 9px;margin-left:4px;"'
+    return '<button class="btn" style="font-size:11.5px;padding:5px 10px;margin-left:4px;"'
       + ' onclick="simUnify(' + i + ',\'' + side + '\')">「' + esc(name) + '」 유지</button>';
   };
   var h = '<div class="warnbox"><span class="wt">병원명 표기가 갈린 것으로 보입니다 ' + list.length + '쌍</span><ul>';
@@ -5379,7 +5379,7 @@ function renderDash() {
 
   h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">'
     + '<div style="display:flex;align-items:center;gap:8px;">'
-    + '<input type="month" id="dMonth" value="' + esc(d.ym || '') + '" onchange="loadDash(this.value)">'
+    + '<input type="month" id="dMonth" aria-label="조회 월" value="' + esc(d.ym || '') + '" onchange="loadDash(this.value)">'
     + '<span style="font-size:13px;color:#4e5968;">'
     + (d.past ? esc(d.monthLabel) + ' 실적' : esc(d.monthLabel) + ' 목표 대비 진척 · ' + (g.dayPassed || 0) + '/' + (g.dayTotal || 0) + '일 경과')
     + '</span></div>'
@@ -5512,7 +5512,7 @@ function renderDash() {
   stats.forEach(function(s) {
     var p = pick(s, 'plan'), dn = pick(s, 'done');
     var r = p ? Math.round(dn / p * 100) : null;
-    h += '<tr><td><b>' + esc(s.name) + '</b> <span style="font-size:11px;color:#9A9A9A;">' + esc(s.team || '') + '</span></td>'
+    h += '<tr><td><b>' + esc(s.name) + '</b> <span style="font-size:11px;color:#5f6b7a;">' + esc(s.team || '') + '</span></td>'
       + '<td class="c">' + p + '</td><td class="c">' + dn + '</td>'
       + '<td class="c">' + (r === null ? '-' : '<b class="' + (r >= 80 ? 'blue' : (r >= 50 ? '' : 'red')) + '">' + r + '%</b>') + '</td>'
       + '<td class="c">' + pick(s, 'logs') + '</td>'
@@ -5612,7 +5612,7 @@ function renderDashRecent(d, seg) {
       }).join('');
       var stage = g.entries.map(function(l) { return l.stage; }).filter(Boolean)[0] || '';
       h += '<tr><td><b>' + esc(l0.hname) + '</b> ' + catTag
-        + ' <span style="font-size:11px;color:#9A9A9A;">' + esc(l0.rep) + (show.length === 1 ? ' · ' + esc(l0.type) : ' · 기록 ' + g.entries.length + '건') + '</span>'
+        + ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l0.rep) + (show.length === 1 ? ' · ' + esc(l0.type) : ' · 기록 ' + g.entries.length + '건') + '</span>'
         + body + '</td>'
         + '<td class="r" style="font-size:12px;vertical-align:top;white-space:nowrap;"><b class="blue">' + esc(stage || '-') + '</b></td></tr>';
     });
