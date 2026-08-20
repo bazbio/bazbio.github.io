@@ -945,7 +945,7 @@ function renderDash() {
       <div class="dc-name">${dept.replace(/_/g, ' ')}</div>
       <div class="dc-bar"><i style="width:${pct}%;background:${color}"></i></div>
       <div class="dc-meta"><span>집행률 <b style="color:${color}">${(rate * 100).toFixed(1)}%</b></span><span>잔액 <b>${fmt(dB - dS)}</b></span></div>
-      <div class="dc-sub">예산 ${fmt(dB)}${dP ? ' · 진행중 ' + fmt(dP) : ''}</div>
+      <div class="dc-sub">예산 ${fmt(dB)} · 집행 ${fmt(dS)}${dP ? ' · 진행중 ' + fmt(dP) : ''}</div>
     </button>`;
   });
   html += `</div><div id="dept-detail"></div></section>`;
