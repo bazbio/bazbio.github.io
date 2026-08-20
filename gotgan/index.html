@@ -324,7 +324,8 @@
     </section>
     <section class="panel">
       <h2 class="section-head">금액 병합</h2>
-      <p class="section-sub">재경팀이 회계관리에서 내려받은 상세 내역(문서번호·금액 포함)을 올리면 문서번호로 매칭해 금액과 계정을 자동으로 채웁니다. 파일을 올린 뒤 각 정보가 들어 있는 열을 지정하세요.</p>
+      <p class="section-sub">재경팀이 회계관리에서 내려받은 상세 내역(문서번호·금액 포함)을 올리면 문서번호로 매칭해 금액과 계정을 자동으로 채웁니다. 파일을 올린 뒤 각 정보가 들어 있는 열을 지정하세요.
+        <br><b>집계기간 시작일부터 오늘까지 누적 전체를 올리세요.</b> 기존 금액은 더해지지 않고 <b>이 파일의 값으로 교체</b>됩니다 — 한 달치만 잘라 올리면 앞의 금액이 사라집니다.</p>
       <div class="dropzone" id="dz-amt">파일을 끌어다 놓거나 클릭해서 선택</div>
       <input type="file" id="file-amt" accept=".xlsx,.xls" style="display:none">
       <div id="amt-preview" style="margin-top:16px"></div>
@@ -484,7 +485,7 @@ let ACCT_CLASS = [];
 let dirty = {};
 let EXP_SORT = { i: 4, d: -1 }; // 지출내역 정렬 — 기본 기안일 내림차순. i=4 기안일, i=16 지출일자
 // 대시보드 경고에서 넘어올 때 걸리는 필터. '' = 없음 / all = 입력 필요 전체 /
-// amt·acct·dept·code·rule = 경고 한 종류 (aggregate의 A.할일 키와 같다)
+// amt·acct·dept·code·rule·nocode = 한 종류 (aggregate의 A.할일 키와 같다)
 let EXP_FOCUS = '';
 // 계정 하나만 보기 (대시보드 배너에서 계정 이름을 누르면 걸린다). '' = 전체
 let EXP_ACCT = '';
@@ -788,7 +789,7 @@ function aggregate() {
     budCode[r[0]] = { dept: r[1], acct: r[2], desc: r[3], budget: b, spent: 0, pending: 0, cnt: 0 };
   });
   const spentDA = {}, pendDA = {};
-  let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0;
+  let noAmtStale = 0, noAmtWait = 0, noAmtDraft = 0, noAcct = 0, unmappedDept = 0, badCode = 0, ruleConflict = 0, noCode = 0;
   let totSpent = 0, totPend = 0, cogs = 0;
   /* 원가처럼 보이는데 판관비에 섞인 계정 → 건수 (2026-08-07).
      매출원가 판정이 계정명 접두사 셋(제조(제)·원재료비·외주가공비)에만 의존해서,
@@ -799,7 +800,7 @@ function aggregate() {
   /* 경고 종류별 지출 ID. 대시보드 경고를 누르면 지출내역이 이걸로 걸러진다.
      판정을 여기서 한 번만 하고 ID를 나르는 이유: 필터가 따로 판정하면 "금액 미입력 14건"을
      눌렀는데 20건이 나오는 일이 생기고, 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
-  const 할일 = { amt: {}, acct: {}, dept: {}, code: {}, rule: {} };
+  const 할일 = { amt: {}, acct: {}, dept: {}, code: {}, rule: {}, nocode: {} };
   // 금액이 빈 것은 대부분 "아직 지급 전"이라 정상이다. 사람이 봐야 하는 것은
   // 종결된 지 2주가 지나도록 자금 자료에 안 나타난 건뿐이다 — 그것만 경고로 올린다.
   const STALE_MS = 14 * 86400000, 오늘 = Date.now();
@@ -836,6 +837,13 @@ function aggregate() {
         budCode[code].cnt++;
       } else { badCode++; 할일.code[r[0]] = 1; }
     }
+    /* 예산코드가 아예 빈 건 (2026-08-16 훑기 B7). 종전에는 이 건들을 **줄 단위로 볼 방법이
+       화면에 없었다** — 아래 무코드 표는 계정별 합계라 어느 결의서인지 알 수 없고,
+       「입력 필요 건만」은 금액·계정·부서 셋만 봤다. 그래서 담당자가 안내문대로 필터를 걸고
+       남은 줄을 다 채운 뒤 "예산코드 미입력은 없다"고 결론 내릴 수 있었다.
+       무코드 표와 **같은 조건 안**(판관비·금액 있음)에 두는 이유: 대시보드가 센 77%와
+       필터에 뜨는 줄 수가 갈리면 그 순간 화면의 숫자를 아무도 안 믿게 된다. */
+    if (!code) { noCode++; 할일.nocode[r[0]] = 1; }
     // 코드가 없거나 죽은 코드면 어느 예산 항목에도 안 붙는다 — 둘 다 같이 센다
     if (!code || !budCode[code]) {
       const mk = dept + '|' + (String(acct || '').trim() || '(계정 미지정)');
@@ -845,7 +853,7 @@ function aggregate() {
     }
   });
   const totBudget = BUDGET.reduce((s, r) => s + Number(r[4] || 0), 0);
-  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, warnTh, 원가의심, 할일, 무코드 };
+  return { budDA, spentDA, pendDA, budCode, totBudget, totSpent, totPend, cogs, noAmtStale, noAmtWait, noAmtDraft, noAcct, unmappedDept, badCode, ruleConflict, noCode, warnTh, 원가의심, 할일, 무코드 };
 }
 
 /**
@@ -857,18 +865,25 @@ function aggregate() {
  * 색은 화면 다른 곳과 같은 3단계를 따른다: 정상(초록) · 주의(주황, 기본 80%) · 초과(빨강).
  * 아직 안 쓴 0%는 회색으로 내려 눈에 덜 걸리게 한다 — 38줄 중 대부분이 0%다.
  *
- * 예산이 0원인데 집행이 있으면 나눗셈이 무의미하다. 종전에는 999%(9.99)라는 가짜 값을
- * 만들어 넣었는데, 그건 비율이 아니라 **예산이 없다는 사실**이라 그대로 적는다.
+ * 예산이 0원이면 나눗셈이 무의미하다. 종전에는 999%(9.99)라는 가짜 값을 만들어 넣었고,
+ * 그 뒤엔 빨간 「예산없음」을 적었다. 둘 다 **경고로 읽힌다** — 그런데 0원 코드는 사고가
+ * 아니라 의도다 (법인카드는 카드 한도가 통제 수단이고, 접대비·조직활성화비도 처음부터
+ * 0원으로 열었다. 2026-08-20 결정 — CONTEXT.md 「예산 0원 관리코드」).
+ *
+ * 그래서 회색 「—」로 내린다. 이 화면이 세 번째 답을 내지 않게 되는 셈이기도 하다 —
+ * 결재 사전확인의 'nobudget'(판정 불가)과 서버 임계 알림의 건너뛰기가 이미 같은 말을 한다.
+ * 집행 금액 자체는 옆 「집행」 칸에 그대로 보이므로 숨겨지는 사실은 없다.
  */
 function 집행률칸(budget, spent, warnTh) {
-  if (!budget) {
-    return spent > 0
-      ? '<b style="color:var(--over)">예산없음</b>'
-      : '<span class="muted">—</span>';
-  }
+  if (!budget) return '<span class="muted">—</span>';
   const r = spent / budget;
   const 색 = r > 1 ? 'var(--over)' : r >= warnTh ? 'var(--warn)' : (r > 0 ? 'var(--ok)' : 'var(--ink-48)');
   return `<b style="color:${색}">${(r * 100).toFixed(1)}%</b>`;
+}
+
+/* 잔액 칸 — 예산이 0원이면 「잔액 -2,850,501원」은 없는 숫자다. 집행률과 같이 「—」로 둔다. */
+function 잔액칸(budget, spent) {
+  return budget ? fmt(budget - spent) : '<span class="muted">—</span>';
 }
 
 // ─── 대시보드 ───
@@ -1007,7 +1022,7 @@ function renderDeptDetail(dept) {
       <th class="num">예산</th><th class="num">집행</th><th class="num">진행중</th><th class="num">잔액</th><th class="num">집행률</th></tr>`;
     const rowHtml = ([code, v]) => `<tr><td style="font-weight:600">${code}</td><td class="muted">${v.acct}</td><td class="title-cell" title="${String(v.desc).replace(/"/g, '&quot;')}">${v.desc}</td>
         <td class="num">${fmt(v.budget)}</td><td class="num">${fmt(v.spent)}</td><td class="num">${fmt(v.pending)}</td>
-        <td class="num">${fmt(v.budget - v.spent)}</td><td class="num">${집행률칸(v.budget, v.spent, A.warnTh)}</td></tr>`;
+        <td class="num">${잔액칸(v.budget, v.spent)}</td><td class="num">${집행률칸(v.budget, v.spent, A.warnTh)}</td></tr>`;
     if (hasSeg) {
       const groups = new Map(); // seg → items (BUDGET 순서 유지)
       items.forEach(it => {
@@ -1020,7 +1035,7 @@ function renderDeptDetail(dept) {
         list.forEach(([, v]) => { gB += v.budget; gS += v.spent; gP += v.pending; });
         h += `<tr class="prod-head"><td colspan="3">${seg === '_' ? '기타' : PRODUCT_SEG[seg]} <span class="muted" style="font-weight:400">${list.length}개</span></td>
           <td class="num">${fmt(gB)}</td><td class="num">${fmt(gS)}</td><td class="num">${fmt(gP)}</td>
-          <td class="num">${fmt(gB - gS)}</td><td class="num">${집행률칸(gB, gS, A.warnTh)}</td></tr>`;
+          <td class="num">${잔액칸(gB, gS)}</td><td class="num">${집행률칸(gB, gS, A.warnTh)}</td></tr>`;
         list.forEach(it => { h += rowHtml(it); });
       });
     } else {
@@ -1238,6 +1253,7 @@ function renderExpenses() {
         <option value="dept">└ 부서 미분류</option>
         <option value="code">└ 존재하지 않는 예산코드</option>
         <option value="rule">└ 계정 규칙과 어긋난 코드</option>
+        <option value="nocode">└ 예산코드 미입력</option>
       </select>
       <input type="search" id="f-q" placeholder="제목·기안자 검색">
       <button class="btn" id="btn-save" disabled>변경사항 저장 (0)</button>
@@ -1287,10 +1303,13 @@ function drawExpTable() {
     if (fd && r[9] !== fd) return false;
     if (fs && r[8] !== fs) return false;
     if (todo === 'all') {
-      const needsAmt = (r[8] === '종결' || r[8] === '진행') && (r[12] === '' || r[12] === null);
-      const needsAcct = Number(r[12]) > 0 && !r[10];
-      const needsDept = r[9] === '미분류';
-      if (!needsAmt && !needsAcct && !needsDept) return false;
+      /* 하위 갈래의 **합집합**이다 (2026-08-16 훑기 B7). 종전에는 여기서 따로 판정해
+         금액·계정·부서 셋만 봤고, 그래서 드롭다운의 하위 갈래 중 code·rule·nocode가
+         상위에 안 담겨 **하위가 상위보다 많았다** — 바로 위 주석이 말하는 「같은 판정」이
+         정작 이 갈래에서만 안 지켜지고 있었다.
+         덤으로 금액 미입력 기준도 대시보드와 같아진다: 종결 2주 경과 건만 남고
+         「아직 지급 전」인 정상 건은 안 뜬다. */
+      if (!Object.keys(할일).some(k => 할일[k][r[0]])) return false;
     } else if (todo) {
       if (!할일[todo] || !할일[todo][r[0]]) return false;
     }
@@ -1604,10 +1623,14 @@ async function handleAmtFile(file) {
     try {
       const r = await gsAuth('apiMergeAmounts', rows);
       EXPENSES = await gsAuth('apiGetExpenses');
-      const 금액없음 = r.noAmount || [];
+      const 금액없음 = r.noAmount || [], 섞임 = r.mixed || [], 줄어듦 = r.decreased || [];
+      const 목록 = a => a.slice(0, 10).join(', ') + (a.length > 10 ? ' …' : '');
       el('amt-preview').innerHTML = `<div class="alert info">완료 — ${r.matched}건 금액 반영.
-        ${r.unmatched.length ? '매칭 안 된 문서번호 ' + r.unmatched.length + '건: ' + r.unmatched.slice(0, 10).join(', ') + (r.unmatched.length > 10 ? ' …' : '') : ''}
-        ${금액없음.length ? '<br>금액이 0이라 <b>건너뛴</b> 문서 ' + 금액없음.length + '건: ' + 금액없음.slice(0, 10).join(', ') + (금액없음.length > 10 ? ' …' : '') + ' — 금액 열을 잘못 골랐는지 확인해 주세요.' : ''}
+        ${r.unmatched.length ? '매칭 안 된 문서번호 ' + r.unmatched.length + '건: ' + 목록(r.unmatched) : ''}
+        ${금액없음.length ? '<br>금액이 0이라 <b>건너뛴</b> 문서 ' + 금액없음.length + '건: ' + 목록(금액없음) + ' — 금액 열을 잘못 골랐는지 확인해 주세요.' : ''}
+        ${섞임.length ? '<br>자금과목이 <b>섞여 있어 건너뛴</b> 문서 ' + 섞임.length + '건: ' + 목록(섞임) + ' — 한 문서에 (제)와 (판)이 같이 있어 어느 부서인지 정할 수 없습니다. [지출내역]에서 직접 넣어 주세요.' : ''}
+        ${줄어듦.length ? '<br>금액이 <b>줄어든</b> 문서 ' + 줄어듦.length + '건: ' + 목록(줄어듦) : ''}
+        ${r.notInFile ? '<br>금액이 있는데 <b>이번 파일에 없던</b> 건 ' + r.notInFile + '건 — 누적 전체를 올린 게 맞는지 확인해 주세요. 화면에서 직접 넣은 금액이면 정상입니다.' : ''}
         <br><span class="muted">서버 처리 ${((r.ms || 0) / 1000).toFixed(1)}초</span></div>`;
       renderDash(); renderMonthly(); renderExpenses();
     } catch (e) {
