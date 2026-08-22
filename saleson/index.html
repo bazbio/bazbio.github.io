@@ -83,6 +83,11 @@
   .plan .h { font-size:16.5px; font-weight:700; color:#191f28; }
   .plan .p { font-size:14px; color:#4e5968; margin-top:3px; line-height:1.5; }
   .plan .tag { display:inline-block; margin-top:8px; font-size:12px; font-weight:600; color:#1b64da; background:#e8f3ff; border-radius:999px; padding:4px 11px; }
+  .plan .pmeta { font-size:12.5px; color:#6b7684; margin-top:5px; line-height:1.55; }
+  .plan .pmeta b { color:#8b95a1; font-weight:600; margin-right:5px; }
+  /* 방문기록의 다섯 칸 (점검 P23) — 본문(note) 아래에 한 벌로 붙는다 */
+  .logmeta { margin-top:9px; padding-top:9px; border-top:1px solid #f2f4f6; font-size:12.5px; color:#4e5968; line-height:1.75; }
+  .logmeta b { display:inline-block; min-width:56px; color:#8b95a1; font-weight:600; }
   .plan .acts { display:flex; flex-direction:column; gap:7px; }
   .btn { font-family:inherit; font-size:13.5px; font-weight:600; padding:10px 16px; border:1px solid #e5e8eb; background:#fff; color:#4e5968; border-radius:12px; cursor:pointer; }
   .btn.pri { background:#1b64da; border-color:#1b64da; color:#fff; }
@@ -1188,7 +1193,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608202257-895ec7d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608220539-b344c3b';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1302,7 +1307,7 @@ function 스냅샷받기_() {
        굳는다 — 저장 실패와 달리 경고가 없어 **조용히 틀린 날짜로 저장된다**(실제로 재현했다).
        대가는 각자 하루 한 번 첫 실행이 GAS를 기다리는 것뿐이다. */
     if (r.payload.init.today !== 기기날짜_()) return;
-    그린부트_ = JSON.stringify(r.payload);
+    그린부트_ = 지문_(r.payload);   // ⚠ 양쪽이 같은 함수여야 한다 — jsonb가 키를 재정렬한다
     /* 그리다 실패하면 그린부트_를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 부트가
        「같은 값」이라며 조기 반환해 아무도 안 그리고, 62초 뒤 워치독이 로그인으로 내쫓는다. */
     try { onBoot(r.payload); } catch (e) { 그린부트_ = ''; throw e; }
@@ -1313,10 +1318,24 @@ function 스냅샷받기_() {
   });
 }
 
+/* 키 순서에 안 흔들리는 지문 (2026-08-16, 회차6 감사).
+   ⚠ `JSON.stringify`로 두 부트를 비교하면 **영원히 다르다.** 스냅샷은 Postgres `jsonb`에서
+   오는데 jsonb는 키를 **재정렬해 저장**한다 — 실측: 스냅샷 13행이 전부 `evt,kpi,dash,flow,init,matl`
+   인데 GAS `부트_`(30_웹API.gs)가 만드는 순서는 `init,dash,evt,flow,kpi,matl`이다. 첫 키부터 다르다.
+   실 페이로드로 재 보니 **길이가 203,760으로 정확히 같은데 `===`가 false**였다.
+   그래서 「스냅샷이 최신이었다」 갈래가 **한 번도 성립한 적이 없다.** */
+function 지문_(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(지문_).join(',') + ']';
+  return '{' + Object.keys(v).sort().map(function(k) {
+    return JSON.stringify(k) + ':' + 지문_(v[k]);
+  }).join(',') + '}';
+}
+
 /* GAS 부트가 도착했다 — 이게 진실이다. 스냅샷이 그린 화면을 여기서 수렴시킨다. */
 function onBoot최신_(b) {
   b = b || {};
-  var 원문 = JSON.stringify(b);
+  var 원문 = 지문_(b);
   if (원문 === 그린부트_) return;        // 스냅샷이 최신이었다 — 대부분 여기서 끝난다
   if (!그린부트_) { 그린부트_ = 원문; onBoot(b); return; }   // 스냅샷이 없었다 — 평소 경로
   그린부트_ = 원문;
@@ -1328,8 +1347,14 @@ function onBoot최신_(b) {
   if (b.flow) { FLOW = b.flow; FLOWX = {}; }
   if (b.kpi) KPIT = b.kpi;
   if (b.matl) MATL = b.matl;
-  // 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다
-  if (b.init && !쓴적_) DATA = b.init;
+  /* 쓰기 뒤라면 이 부트는 **쓰기 이전**을 담고 있다 — 완료된 계획이 미입력으로 되살아난다.
+     ⚠ **열쇠를 다시 매긴다** (2026-08-16, 회차6 감사). `열쇠매기기_` 호출 아홉 곳 중
+     이 자리만 빠져 있었다. 안 매기면 `x.k`가 undefined로 남고, 카드에 `prefill(undefined)`·
+     `leadStage(undefined, …)`가 박힌다. 그런데 `x.k === undefined`는 **전 원소에 참**이라
+     찾기가 늘 **목록 첫 건**을 집는다 — `leadStage`·`leadTarget`은 확인창이 없고 `대상.no`가
+     멀쩡해서 **오류 하나 없이 남의 리드에 관문 쓰기가 나간다.** 8/14 이정국 사고와 같은
+     모양인데 그때는 오류라도 떴다. 바로 아래 onData(:1367)와 홈받기_(:1399)는 이미 부른다. */
+  if (b.init && !쓴적_) { DATA = b.init; 열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads); }
 
   /* 다시 그리는 것은 사용자가 아직 아무것도 안 했을 때만. 건드린 뒤에 갈아엎으면 입력하던
      값이 날아가고 지워 둔 임시저장 안내가 되살아난다. 위에서 데이터는 이미 갈아끼웠으므로
@@ -2292,14 +2317,13 @@ function renderKpiTab() {
     h += '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;">방문·데모처 현황은 현황 탭의 월간 실적에서 확인할 수 있습니다.</div>';
 
     h += kick('목표 설정 — 저장하면 06_월간KPI에 반영');
-    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">신규 Lead</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
+    h += '<div class="card" style="overflow-x:auto;"><table class="dt"><thead><tr><th>담당자</th><th class="c">방문</th><th class="c">장비 판매</th><th class="c">N-Care</th><th class="c">데모처</th></tr></thead><tbody>';
     var inpCell = function(id, v) {
       return '<input type="text" inputmode="numeric" id="' + id + '" value="' + (v || '') + '" aria-label="목표 수치" style="width:54px;padding:6px 4px;text-align:center;font-size:16px;border-radius:8px;">';
     };
     var tt = d.teamTgt || {};
     h += '<tr style="background:#fff4e0;"><td><b>팀 목표</b><div style="font-size:10px;color:#a35c11;">월간 팀 전체</div></td>'
       + '<td class="c">' + inpCell('kt_team_visit', tt.visit) + '</td>'
-      + '<td class="c">' + inpCell('kt_team_lead', tt.lead) + '</td>'
       + '<td class="c">' + inpCell('kt_team_equip', tt.equip) + '</td>'
       + '<td class="c">' + inpCell('kt_team_ncare', tt.ncare) + '</td>'
       + '<td class="c">' + inpCell('kt_team_demo', tt.demo) + '</td></tr>';
@@ -2307,7 +2331,6 @@ function renderKpiTab() {
       var inp = function(f, v) { return inpCell('kt_' + i + '_' + f, v); };
       h += '<tr><td><b>' + esc(r.name) + '</b></td>'
         + '<td class="c">' + inp('visit', r.tgt.visit) + '</td>'
-        + '<td class="c">' + inp('lead', r.tgt.lead) + '</td>'
         + '<td class="c">' + inp('equip', r.tgt.equip) + '</td>'
         + '<td class="c">' + inp('ncare', r.tgt.ncare) + '</td>'
         + '<td class="c">' + inp('demo', r.tgt.demo) + '</td></tr>';
@@ -2324,10 +2347,10 @@ function renderKpiTab() {
 function saveKpiTargets() {
   var rows = KPIT.reps.map(function(r, i) {
     var g = function(f) { return document.getElementById('kt_' + i + '_' + f).value.trim(); };
-    return { name: r.name, visit: g('visit'), lead: g('lead'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
+    return { name: r.name, visit: g('visit'), equip: g('equip'), ncare: g('ncare'), demo: g('demo') };
   });
   var gt = function(f) { return document.getElementById('kt_team_' + f).value.trim(); };
-  var team = { visit: gt('visit'), lead: gt('lead'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
+  var team = { visit: gt('visit'), equip: gt('equip'), ncare: gt('ncare'), demo: gt('demo') };
   busy(true, '저장 중…');
   gsrun().withSuccessHandler(function(r) {
     busy(false); toast(r.msg);
@@ -2489,15 +2512,33 @@ function 재고배정(딜러) {
       도움: '영업이 이 계약을 딴 날입니다 — 재고를 뒤늦게 배정했다면 그날로 맞춰 주세요. 회계 인식월은 따로 기록돼 그대로 남습니다.',
     },
   }, function(병원, 계약일) {
-    busy(true, '배정 중…');
-    관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일 }))
-      .then(화면갱신감싸기_(function(r) {
+    /* 관문이 「이미 계약 리드가 있다」로 409를 주면 한 번 되묻고 그대로 보낸다 (2026-08-16).
+       막지 않는 이유: 한 병원이 정말 2대를 사기도 한다. 다만 **모르고 두 번 누르는 것**은
+       실제로 두 번 났다(스노우의원 안산 8/16 00:05·11:42) — 그때마다 7월 계약이 15대가 됐다. */
+    var 보내기 = function(중복확인) {
+      busy(true, '배정 중…');
+      return 관문호출_('/saleson-lead-act', JSON.stringify({
+        토큰: TOKEN, 동작: '재고배정', dealer: 딜러, hname: 병원, dealOn: 계약일,
+        중복확인: !!중복확인,
+      })).then(화면갱신감싸기_(function(r) {
         busy(false); toast(r.msg);
         // 계약 숫자와 재고가 같이 바뀐다 — 흐름·현황·홈을 다시 받는다
         FLOW = null; DASH = null; KPIT = null; NCARE = null;
         홈받기_();
         loadFlow(document.getElementById('fMonth').value);
-      }), function(e) { busy(false); toast(e.message, true); });
+      }), function(e) {
+        busy(false);
+        if (!중복확인 && /이미 계약 리드가 있습니다/.test(e.message || '')) {
+          if (confirm(e.message + '\n\n그래도 배정할까요?\n\n'
+            + '이 병원이 정말 2대를 샀다면 [확인], 잘못 누르신 것이면 [취소]를 눌러 주세요.')) {
+            보내기(true);
+          }
+          return;
+        }
+        toast(e.message, true);
+      });
+    };
+    보내기(false);
   });
 }
 function renderFlow() {
@@ -2919,7 +2960,12 @@ function planCard(p) {
     + '<div class="dd"><div class="d1' + (late ? ' late' : '') + '">' + dd + '</div><div class="d2">' + p.date.slice(5).replace('-', '/') + ' ' + esc(p.dow) + '</div></div>'
     + '<div class="bd"><div class="h">' + esc(p.hname) + '</div><div class="p">' + esc(p.purpose) + '</div>'
     + (p.cat ? '<span class="tag' + (p.cat === 'N-Care' ? ' ncare' : '') + '" style="margin-right:6px;">' + esc(p.cat) + '</span>' : '')
-    + (p.type ? '<span class="tag">' + esc(p.type) + '</span>' : '') + '</div>'
+    + (p.type ? '<span class="tag">' + esc(p.type) + '</span>' : '')
+    /* 접촉 예정자·준비 사항 — 방문 **직전에 보라고** 받아 놓고 어디에도 안 그렸다
+       (2026-08-22, 점검 P42 · 259건·125건). 계획 카드가 그 값의 유일한 자리다. */
+    + (p.contact ? '<div class="pmeta"><b>담당</b>' + esc(p.contact) + '</div>' : '')
+    + (p.prep ? '<div class="pmeta"><b>준비</b>' + esc(p.prep) + '</div>' : '')
+    + '</div>'
     + '<div class="acts">'
     + '<button class="btn pri" onclick="prefill(' + p.k + ')">기록 쓰기</button>'
     + '<button class="btn" onclick="planStatus(' + p.k + ',\'연기\')">연기</button>'
@@ -2945,6 +2991,11 @@ function 연기잡기_(row) {
   resetPlanForm('');
   document.getElementById('pHosp').value = p.hname;
   document.getElementById('pPurpose').value = p.purpose || '';
+  /* ⚠ 이 둘을 안 되채우면 **연기한 계획만** 담당자명·준비 사항을 잃는다 (2026-08-22).
+     resetPlanForm('')이 비운 값을 savePlan이 그대로 보내는데, 아무 데도 안 그려져 있어서
+     사라진 것도 안 보였다 — 점검 P42를 고치면서 같이 드러났다. */
+  document.getElementById('pContact').value = p.contact || '';
+  document.getElementById('pPrep').value = p.prep || '';
   // 병원명을 넣은 **뒤에** 부른다 — 리드 블록(#pLeadSec)을 여는 것이 이 함수다 (임시저장복구_와 같은 순서)
   checkNewHosp();
   var 칩 = function(sel, v, 집기) {
@@ -4327,7 +4378,8 @@ function renderMine() {
       return String(v == null ? '' : v).replace(/\s/g, '').toLowerCase().indexOf(q) >= 0;
     });
   };
-  var logs = d.logs.filter(function(l) { return 맞나([l.hname, l.note, l.type, l.rep, l.contact]); });
+  // 반응·후속도 찾는다 — 카드에 그려 놓고 검색이 못 잡으면 「있는데 안 나온다」가 된다
+  var logs = d.logs.filter(function(l) { return 맞나([l.hname, l.note, l.type, l.rep, l.contact, l.reaction, l.fu]); });
   var leadRows = d.leads.filter(function(l) { return 맞나([l.hname, l.rep, l.target]); });
   document.getElementById('mineSeg').innerHTML =
     [['방문기록', logs.length], ['계약일', leadRows.length]].map(function(t) {
@@ -4359,6 +4411,35 @@ function renderMine() {
   }
   document.getElementById('mineBody').innerHTML = h;
 }
+/**
+ * 방문기록의 다섯 칸 — 반응·후속·다음 방문·노즐·배포 자료 (2026-08-22, 점검 P23).
+ *
+ * 484건이 저장은 됐는데 **수정 폼을 열어야만** 보였다. 목록 카드도 병원 상세도 안 그려서
+ * 담당자에게는 「입력한 것이 없어졌다」로 읽혔고, 그것이 릴리즈 뒤 반복된 「저장·반영이
+ * 안 된다」 신고의 한 갈래다. 목록과 병원 상세가 **같은 모양**을 쓰도록 한 함수로 둔다.
+ *
+ * 빈 칸은 줄을 안 만든다 — 「반응 -」이 다섯 줄 쌓이면 정작 적힌 칸이 안 보인다.
+ */
+function 기록상세_(l) {
+  var 줄 = [];
+  /* 접촉자 — 실데이터 훑기에서 나왔다 (2026-08-22, DB 339건). 코덱스가 받은 7열 목록에는
+     없었지만 부류가 같다: 폼이 저장하고 응답에도 실리는데 어느 카드도 안 그렸다.
+     다섯 칸 중 가장 많이 적힌 칸이었다. */
+  if (l.contact) 줄.push(['접촉자', esc(l.contact)]);
+  if (l.reaction) 줄.push(['반응', esc(l.reaction)]);
+  if (l.fu) 줄.push(['후속', esc(l.fu)]);
+  if (l.next) 줄.push(['다음 방문', esc(l.next)]);
+  if (l.nozzle) 줄.push(['노즐', esc(String(l.nozzle)) + '개']);
+  var 자료 = (l.mats || []).map(function(m) {
+    var 세부 = (l.matDetails || {})[m];
+    return esc(m) + (세부 ? ' (' + esc(세부) + ')' : '');
+  });
+  if (자료.length) 줄.push(['자료', 자료.join(' · ')]);
+  if (!줄.length) return '';
+  return '<div class="logmeta">' + 줄.map(function(x) {
+    return '<div><b>' + x[0] + '</b>' + x[1] + '</div>';
+  }).join('') + '</div>';
+}
 function mineLogCard(l) {
   return '<div class="card">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
@@ -4371,6 +4452,7 @@ function mineLogCard(l) {
     + (MINE.admin && l.rep ? '<span class="tag">' + esc(l.rep) + '</span>' : '')
     + '</div>'
     + (l.note ? '<div style="margin-top:9px;font-size:14px;color:#4e5968;line-height:1.6;">' + esc(l.note) + '</div>' : '')
+    + 기록상세_(l)
     + '<div style="margin-top:12px;text-align:right;display:flex;gap:7px;justify-content:flex-end;">'
     /* 삭제는 **DB가 원천일 때만** 보인다. 시트가 원천이면 지울 곳이 관문이 아니라 시트라
        버튼이 아무 일도 못 한다 — 되는 것처럼 보이는 버튼이 제일 나쁘다. */
@@ -5663,6 +5745,7 @@ function showHosp(hname) {
           + '<div style="font-size:12px;color:#4e5968;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
           + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
           + (l.note ? '<div style="margin-top:4px;font-size:12.5px;color:#4e5968;line-height:1.65;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
+          + 기록상세_(l)
           + '</div>';
       });
     } else {
