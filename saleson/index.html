@@ -786,7 +786,7 @@
   <div id="kpiBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
 
-<!-- N-Care — Pool 단계별 진행현황 (ADR 0021). 원천은 DB(ncare_pool), 시트가 없다 -->
+<!-- N-Care — Pool 단계별 진행현황 (ADR 0021) + 만료 관리(P54-2). 원천은 DB(ncare_pool), 시트가 없다 -->
 <div class="view" id="view-ncare"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
     <span style="font-size:13px;color:#4e5968;">N-Care Pool — 병원별 진행 단계 관리</span>
@@ -795,6 +795,7 @@
       <button class="refresh" onclick="NCARE=null;loadNcare()">새로고침</button>
     </div>
   </div>
+  <div class="seg" id="ncModeSeg"></div>
   <div class="seg scrollx" id="ncSeg"></div>
   <div id="ncBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
@@ -999,6 +1000,7 @@ var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
 var NCST = 0;           // 단계 필터 (0 = 전체)
+var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2)
 var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [저장]을 눌러야 반영 (8/13)
 var NCSEL_ID = 0;       // 어느 병원의 선택인지
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
@@ -1193,7 +1195,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608220614-ca7594b';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608221014-4574b92';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4929,7 +4931,11 @@ function ncRowSet_(p) {
 
 function renderNcare() {
   var d = NCARE;
-  // 담당자 필터 — 처음이면 내 병원이 있는 사람은 내 것부터, 아니면 전체
+  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리']].map(function(m) {
+    return '<div class="chip' + (NCMODE === m[0] ? ' on' : '') + '" onclick="NCMODE=\'' + m[0] + '\';renderNcare()">' + m[1] + '</div>';
+  }).join('');
+
+  // 담당자 필터 — 처음이면 내 병원이 있는 사람은 내 것부터, 아니면 전체 (두 보기가 같이 쓴다)
   var repNames = [];
   (d.pool || []).forEach(function(p) { if (p.rep && repNames.indexOf(p.rep) < 0) repNames.push(p.rep); });
   repNames.sort();
@@ -4944,6 +4950,10 @@ function renderNcare() {
     return NCSEG === '전체' || (NCSEG === '미지정' ? !p.rep : p.rep === NCSEG);
   });
 
+  document.getElementById('ncBody').innerHTML = NCMODE === 'exp' ? renderNcareExp(d, mine) : renderNcareStage(mine);
+}
+
+function renderNcareStage(mine) {
   var h = '';
   // 단계 분포 — 타일을 누르면 그 단계만 본다
   var cnt = {};
@@ -4992,7 +5002,80 @@ function renderNcare() {
       + '</div>'
     : '<div class="card empty">해당하는 병원이 없습니다</div>';
 
-  document.getElementById('ncBody').innerHTML = h;
+  return h;
+}
+
+/* D-day 배지 — 홈 「내 계획」과 같은 규칙(dday<0=지남 → 'D+N', 그 외 'D-N', 0='오늘').
+   같은 문구를 두 곳에서 다르게 쓰면 사람이 헷갈린다. */
+function ncDdayLabel_(dday) {
+  return dday === 0 ? '오늘' : (dday < 0 ? 'D+' + Math.abs(dday) : 'D-' + dday);
+}
+
+/* 만료 관리 (P54-2, 2026-08-22) — Pool 병원의 N-Care 구독 만료를 「이미 만료」·「D-60 임박」
+   두 구간으로 보여준다. 담당자 요약 줄은 필터(NCSEG)와 무관하게 전체 담당자를 놓고 계산한다
+   — 어느 담당자를 눌러도 되게 하려면 이미 한 명으로 좁혀진 mine으로는 못 만든다. */
+function renderNcareExp(d, mine) {
+  var 전체만료 = (d.pool || []).filter(function(p) { return p.expOn; });
+  if (!전체만료.length) {
+    return '<div class="card empty">만료일 데이터가 아직 없습니다 — 바즈몰 구독 시트 CSV 반입 후 채워집니다.</div>';
+  }
+
+  // 담당자별 요약 — 임박(방어없음 포함)·만료 건수. 방어없음이 많은 담당자가 위로 오게 정렬
+  var 요약 = {};
+  var 요약키 = function(rep) { return rep || '미지정'; };
+  전체만료.forEach(function(p) {
+    var k = 요약키(p.rep);
+    if (!요약[k]) 요약[k] = { rep: k, 임박: 0, 임박없음: 0, 만료: 0 };
+    if (p.dDay < 0) 요약[k].만료++;
+    else if (p.dDay <= 60) { 요약[k].임박++; if (!p.defended) 요약[k].임박없음++; }
+  });
+  var 요약행 = Object.keys(요약).map(function(k) { return 요약[k]; })
+    .filter(function(r) { return r.임박 || r.만료; })
+    .sort(function(a, b) { return (b.임박없음 - a.임박없음) || (b.만료 - a.만료); });
+
+  var h = '<div class="card" style="padding:6px 16px;">'
+    + 요약행.map(function(r, i) {
+        return '<div style="padding:10px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="NCSEG=\'' + r.rep + '\';renderNcare()">'
+          + '<b style="font-size:14px;color:#191f28;">' + esc(r.rep) + '</b>'
+          + '<div style="margin-top:3px;font-size:12.5px;color:#5f6b7a;">'
+          + 'D-60 임박 <b style="color:#191f28;">' + r.임박 + '</b>곳'
+          + (r.임박없음 ? ' <span class="tag-red" style="margin-left:2px;">방어없음 ' + r.임박없음 + '</span>' : '')
+          + ' · 이미 만료 <b style="color:' + (r.만료 ? '#d0223a' : '#191f28') + ';">' + r.만료 + '</b>곳'
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+
+  var 대상 = mine.filter(function(p) { return p.expOn; });
+  var 만료됨 = 대상.filter(function(p) { return p.dDay < 0; }).sort(function(a, b) { return b.dDay - a.dDay; });
+  var 임박 = 대상.filter(function(p) { return p.dDay >= 0 && p.dDay <= 60; }).sort(function(a, b) { return a.dDay - b.dDay; });
+
+  /* 한 줄에 다 욱여넣으면 375px에서 넘친다(실측) — 단계별 목록처럼 두 줄로 가른다:
+     1줄 = 병원 정보, 2줄 = 등급·방어·D-day 배지(오른쪽 정렬은 justify-content로, margin-left:auto 안 씀). */
+  var 목록 = function(rows) {
+    return rows.length
+      ? '<div class="card" style="padding:4px 16px;">'
+        + rows.map(function(p, i) {
+            var late = p.dDay < 0;
+            return '<div style="padding:12px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="ncOpen(' + p.id + ')">'
+              + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+              + '<b style="font-size:14.5px;color:#191f28;">' + esc(p.hname) + '</b>'
+              + '<span style="font-size:12px;color:#5f6b7a;">' + esc(p.region) + '</span>'
+              + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(p.rep || '담당 미지정') + '</span>' : '')
+              + '</div>'
+              + '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">'
+              + (p.tier ? '<span class="tag-blue">' + esc(p.tier) + '</span>' : '')
+              + '<span class="' + (p.defended ? 'tag-green' : 'tag-red') + '">' + (p.defended ? '방어 계획 있음' : '방어 계획 없음') + '</span>'
+              + '<span style="margin-left:auto;font-size:13px;font-weight:700;white-space:nowrap;color:' + (late ? '#d0223a' : (p.dDay <= 7 ? '#1b64da' : '#4e5968')) + ';">' + ncDdayLabel_(p.dDay) + '</span>'
+              + '</div>'
+              + '</div>';
+          }).join('')
+        + '</div>'
+      : '<div class="card empty">해당하는 병원이 없습니다</div>';
+  };
+
+  h += kick('이미 만료 ' + 만료됨.length + '곳', true) + 목록(만료됨);
+  h += kick('D-60 임박 ' + 임박.length + '곳') + 목록(임박);
+  return h;
 }
 
 /* 병원 상세 — 단계 전환·등급·담당·이력·계획 잡기 (hospModal 재사용) */
