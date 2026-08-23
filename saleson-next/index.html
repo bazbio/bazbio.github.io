@@ -1195,7 +1195,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608221014-4574b92';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608230059-7b5cfef';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4897,6 +4897,7 @@ var NC_STAGES = [
   { n: 5, name: 'N-Care 가입', cond: '가입 계약 체결 — 이 단계부터 거래처 「N-Care 가입」이 예가 됩니다' },
   { n: 6, name: '확장', cond: '다양한 적응증 도입' },
   { n: 7, name: '업그레이드', cond: 'N-Care 등급 상향 (BASIC → STANDARD → PRO → PREMIUM)' }];
+var NC_CHURN_STATUS = ['미정', '진행중', '재가입완료', '재가입없음'];
 var NC_COLOR = { 1: '#4e5968', 2: '#1b64da', 3: '#1b64da', 4: '#a35f00', 5: '#05754a', 6: '#045c40', 7: '#7C3AED' };
 var NC_GCOLOR = { A: ['#d0223a', '#fdeef0'], B: ['#a35f00', '#fff4e2'], C: ['#4e5968', '#f2f4f6'], D: ['#5f6b7a', '#f9fafb'] };
 function ncStageName(n) { var s = NC_STAGES[n - 1]; return s ? s.name : String(n); }
@@ -4935,11 +4936,12 @@ function renderNcare() {
     return '<div class="chip' + (NCMODE === m[0] ? ' on' : '') + '" onclick="NCMODE=\'' + m[0] + '\';renderNcare()">' + m[1] + '</div>';
   }).join('');
 
-  // 담당자 필터 — 처음이면 내 병원이 있는 사람은 내 것부터, 아니면 전체 (두 보기가 같이 쓴다)
+  // 담당자 필터 — 처음이면 내 병원이 있는 사람은 내 것부터, 아니면 전체 (세 보기가 같이 쓴다)
+  // 이탈에만 있는 담당자·미지정도 칩에 나와야 골라진다(코덱스 8/22 지적 — 요약 줄 클릭으로만 가능했다)
   var repNames = [];
-  (d.pool || []).forEach(function(p) { if (p.rep && repNames.indexOf(p.rep) < 0) repNames.push(p.rep); });
+  (d.pool || []).concat(d.churn || []).forEach(function(p) { if (p.rep && repNames.indexOf(p.rep) < 0) repNames.push(p.rep); });
   repNames.sort();
-  var 미지정 = (d.pool || []).some(function(p) { return !p.rep; });
+  var 미지정 = (d.pool || []).concat(d.churn || []).some(function(p) { return !p.rep; });
   if (NCSEG === null) NCSEG = repNames.indexOf(d.me.name) >= 0 ? d.me.name : '전체';
   var segs = ['전체'].concat(repNames).concat(미지정 ? ['미지정'] : []);
   document.getElementById('ncSeg').innerHTML = segs.map(function(s) {
@@ -5016,22 +5018,28 @@ function ncDdayLabel_(dday) {
    — 어느 담당자를 눌러도 되게 하려면 이미 한 명으로 좁혀진 mine으로는 못 만든다. */
 function renderNcareExp(d, mine) {
   var 전체만료 = (d.pool || []).filter(function(p) { return p.expOn; });
-  if (!전체만료.length) {
+  var 전체이탈 = d.churn || [];
+  if (!전체만료.length && !전체이탈.length) {
     return '<div class="card empty">만료일 데이터가 아직 없습니다 — 바즈몰 구독 시트 CSV 반입 후 채워집니다.</div>';
   }
 
-  // 담당자별 요약 — 임박(방어없음 포함)·만료 건수. 방어없음이 많은 담당자가 위로 오게 정렬
+  // 담당자별 요약 — 임박(방어없음 포함)·만료·이탈 건수. 방어없음이 많은 담당자가 위로 오게 정렬
   var 요약 = {};
   var 요약키 = function(rep) { return rep || '미지정'; };
   전체만료.forEach(function(p) {
     var k = 요약키(p.rep);
-    if (!요약[k]) 요약[k] = { rep: k, 임박: 0, 임박없음: 0, 만료: 0 };
+    if (!요약[k]) 요약[k] = { rep: k, 임박: 0, 임박없음: 0, 만료: 0, 이탈: 0 };
     if (p.dDay < 0) 요약[k].만료++;
     else if (p.dDay <= 60) { 요약[k].임박++; if (!p.defended) 요약[k].임박없음++; }
   });
+  전체이탈.forEach(function(c) {
+    var k = 요약키(c.rep);
+    if (!요약[k]) 요약[k] = { rep: k, 임박: 0, 임박없음: 0, 만료: 0, 이탈: 0 };
+    요약[k].이탈++;
+  });
   var 요약행 = Object.keys(요약).map(function(k) { return 요약[k]; })
-    .filter(function(r) { return r.임박 || r.만료; })
-    .sort(function(a, b) { return (b.임박없음 - a.임박없음) || (b.만료 - a.만료); });
+    .filter(function(r) { return r.임박 || r.만료 || r.이탈; })
+    .sort(function(a, b) { return (b.임박없음 - a.임박없음) || (b.만료 - a.만료) || (b.이탈 - a.이탈); });
 
   var h = '<div class="card" style="padding:6px 16px;">'
     + 요약행.map(function(r, i) {
@@ -5041,6 +5049,7 @@ function renderNcareExp(d, mine) {
           + 'D-60 임박 <b style="color:#191f28;">' + r.임박 + '</b>곳'
           + (r.임박없음 ? ' <span class="tag-red" style="margin-left:2px;">방어없음 ' + r.임박없음 + '</span>' : '')
           + ' · 이미 만료 <b style="color:' + (r.만료 ? '#d0223a' : '#191f28') + ';">' + r.만료 + '</b>곳'
+          + ' · 이탈 <b style="color:' + (r.이탈 ? '#d0223a' : '#191f28') + ';">' + r.이탈 + '</b>곳'
           + '</div></div>';
       }).join('')
     + '</div>';
@@ -5075,7 +5084,63 @@ function renderNcareExp(d, mine) {
 
   h += kick('이미 만료 ' + 만료됨.length + '곳', true) + 목록(만료됨);
   h += kick('D-60 임박 ' + 임박.length + '곳') + 목록(임박);
+
+  var 이탈대상 = 전체이탈.filter(function(c) {
+    return NCSEG === '전체' || (NCSEG === '미지정' ? !c.rep : c.rep === NCSEG);
+  }).sort(function(a, b) { return (a.churnedOn || '') < (b.churnedOn || '') ? 1 : -1; });
+  h += kick('이탈 ' + 이탈대상.length + '곳', true) + renderNcareChurn(이탈대상);
   return h;
+}
+
+/* 이탈(해지) 병원 — ncare_pool과 별도인 ncare_churn이 원천이라 ncOpen 모달을 못 쓴다.
+   목록에서 바로 재가입 상태·사유·전략을 편집한다(grilling 합의, 2026-08-22 밤). */
+function ncChurnCanEdit_(c) {
+  var me = NCARE.me;
+  if (!me || me.viewer) return false;
+  // 담당 없으면 누구나(관문 이탈수정과 같은 관용) — !!c.rep로 막으면 미지정 건을 아무도 못 고친다(코덱스 8/22 지적)
+  return me.admin || !c.rep || c.rep === me.name;
+}
+function renderNcareChurn(rows) {
+  if (!rows.length) return '<div class="card empty">해당하는 병원이 없습니다</div>';
+  return '<div class="card" style="padding:4px 16px;">'
+    + rows.map(function(c, i) {
+        var canEdit = ncChurnCanEdit_(c);
+        return '<div style="padding:12px 0;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '">'
+          + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          + '<b style="font-size:14.5px;color:#191f28;">' + esc(c.hname) + '</b>'
+          + '<span style="font-size:12px;color:#5f6b7a;">' + esc(c.region) + '</span>'
+          + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(c.rep || '담당 미지정') + '</span>' : '')
+          + '<span style="margin-left:auto;font-size:12px;color:#5f6b7a;white-space:nowrap;">이탈일 ' + esc(c.churnedOn || '미상') + '</span>'
+          + '</div>'
+          + '<div style="margin-top:8px;">'
+          + '<select id="ncChSt' + c.id + '" style="width:130px;margin:0;" ' + (canEdit ? '' : 'disabled') + '>'
+          + NC_CHURN_STATUS.map(function(s) { return '<option value="' + s + '"' + (s === c.status ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+          + '</select>'
+          + '</div>'
+          + '<textarea id="ncChRs' + c.id + '" placeholder="이탈 사유" ' + (canEdit ? '' : 'disabled') + ' style="margin-top:6px;width:100%;min-height:36px;resize:vertical;">' + esc(c.reason) + '</textarea>'
+          + '<textarea id="ncChPl' + c.id + '" placeholder="재가입 전략" ' + (canEdit ? '' : 'disabled') + ' style="margin-top:6px;width:100%;min-height:36px;resize:vertical;">' + esc(c.plan) + '</textarea>'
+          + (canEdit ? '<button class="btn" style="margin-top:6px;" onclick="ncChurnSave(' + c.id + ')">저장</button>' : '')
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+function ncChurnRowSet_(c) {
+  if (!c) return;
+  var arr = NCARE.churn || (NCARE.churn = []);
+  for (var i = 0; i < arr.length; i++) if (arr[i].id === c.id) { arr[i] = c; return; }
+  arr.push(c);
+}
+function ncChurnSave(id) {
+  var status = document.getElementById('ncChSt' + id).value;
+  var reason = document.getElementById('ncChRs' + id).value.trim();
+  var plan = document.getElementById('ncChPl' + id).value.trim();
+  busy(true, '저장 중…');
+  관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '이탈수정', id: id, status: status, reason: reason, plan: plan }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false); toast(r.msg);
+      ncChurnRowSet_(r.churn);
+      renderNcare();
+    }), function(e) { busy(false); toast(e.message, true); });
 }
 
 /* 병원 상세 — 단계 전환·등급·담당·이력·계획 잡기 (hospModal 재사용) */
