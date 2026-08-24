@@ -406,7 +406,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">83f833f · 260819</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">b2b1881 · 260824</span>
     </header>
 
     <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
@@ -847,12 +847,30 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <div class="tiles" id="cashTiles"></div>
         <p class="note" id="cashTilesNote"></p>
       </div>
+      <div class="card" id="cashChartCard" style="margin-top:12px" hidden>
+        <h3 class="ct">월별 순증감<span class="u">백만원 · 내부거래 제외</span></h3>
+        <div style="position:relative;height:200px;margin-top:8px">
+          <canvas id="cashNetChart" role="img" aria-label="2026년 월별 순현금흐름(내부거래 제외) 막대그래프"></canvas>
+        </div>
+        <h3 class="ct" style="margin-top:24px">현금 잔액 추이<span class="u">백만원 · 재무 축(월말 확정)</span></h3>
+        <div style="position:relative;height:200px;margin-top:8px">
+          <canvas id="cashBalChart" role="img" aria-label="2026년 월말 현금 잔액 추이 선그래프"></canvas>
+        </div>
+        <p class="note" id="cashChartNote"></p>
+      </div>
       <div class="card" id="cashCard" style="margin-top:12px" hidden>
         <h3 class="ct">월별 입출금 — 눌러서 세분화<span class="u">백만원</span></h3>
         <div class="scroll">
           <table class="pl" id="cash"><thead><tr id="cashHead"></tr></thead><tbody id="cashBody"></tbody></table>
         </div>
         <p class="note" id="cashNote"></p>
+      </div>
+      <div class="card" id="cashFvCard" style="margin-top:12px" hidden>
+        <h3 class="ct">월별 고정비 · 변동비<span class="u">백만원 · 눌러서 세분화</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cashFv"><thead><tr id="cashFvHead"></tr></thead><tbody id="cashFvBody"></tbody></table>
+        </div>
+        <p class="note" id="cashFvNote"></p>
       </div>
       <div class="card" id="cashTrendCard" style="margin-top:12px" hidden>
         <h3 class="ct">지출 추세 — 무엇이 늘고 줄었나<span class="u">백만원/월</span></h3>
@@ -4245,11 +4263,42 @@ function 일본탭그리기() {
 var 자금펼침 = {};
 function 자금이름(s) { return String(s || '').replace(/^\d+\./, ''); }
 
+// 일회성 지출 — 자리 이동(내부거래·금융상품·투자)과 반복성 없는 자본적·프로젝트성 지출은
+// 반복 판관비가 아니다. 전망 카드와 고정비·변동비 카드가 같이 쓴다
+// (2026-08-24 합의로 IPO 추가 — 상장 준비비는 매달 반복되는 비용이 아니다).
+function 자금일회성(r) {
+  return /내부거래|금융상품|투자/.test(r['구분'] || '')
+    || /대출금|퇴직금|고정자산|투자금|정기예금|IPO/.test(r['세부'] || '');
+}
+
+/* 고정비·변동비·그룹내부 갈래 — 분개장 판관비 3분류(결정_비용구분_260807)와 같은 원칙을
+ * 자금 원장(구분>세부)에 적용한다 (2026-08-24 합의).
+ *   - 그룹내부: 「판매수수료」는 분개장 기준 대부분(2026 상반기 99.6%) 일본법인 코스트플러스
+ *     청구다. 자금 원장에는 거래처코드가 없어 일본향·국내딜러분을 못 가르므로(거래처명이
+ *     송금 계좌 라벨뿐) 통째로 이 갈래에 둔다 — 국내 딜러분이 소액 섞여 있어도, 정밀 분리보다
+ *     안전한 쪽을 택한다는 사용자 확인(2026-08-24).
+ *   - 변동비: 매출·생산량에 연동되는 항목(외상대=매입 지급, 물류비, 외주가공비, 금형).
+ *   - 고정비: 나머지 전부(인건비·마케팅·연구개발·임차료·출장·이자비용 …) — 「기타」
+ *     (2년반 월평균 약 205백만, 거래처명이 은행계좌 라벨뿐이라 실체 미상)도 여기 기본 편입
+ *     한다(2026-08-24 사용자 확인). 일회성(자금일회성)은 애초에 이 분류에 들어오지 않는다.
+ */
+function 자금갈래(r) {
+  if (자금일회성(r)) return null;
+  var 구 = 자금이름(r['구분'] || ''), 세 = 자금이름(r['세부'] || '');
+  if (구 === '내부거래') return null;
+  if (세 === '판매수수료') return '그룹내부';
+  if (구 === '외상대' || 세 === '물류비' || 세 === '외주가공비' || 세 === '금형') return '변동비';
+  return '고정비';
+}
+
 function 자금탭그리기() {
   var 행 = (DB['자금'] || []).filter(function (r) { return +r['연도'] >= 2024; });
-  ['cashTilesCard', 'cashCard', 'cashTrendCard', 'cashFcCard'].forEach(function (id) {
+  ['cashTilesCard', 'cashChartCard', 'cashCard', 'cashFvCard', 'cashTrendCard', 'cashFcCard'].forEach(function (id) {
     $(id).hidden = !행.length;
   });
+  // 계좌 간 이체·예치는 자리 이동이지 실제 입출금이 아니다 — 지출 추세·전망은 이미 뺀다
+  // (자금추세그리기·자금전망그리기). 월별 입출금 표의 계·순증감도 같은 원칙으로 뺀다
+  var 실질 = function (r) { return !/내부거래|금융상품/.test(r['구분'] || ''); };
   $('asof').textContent = '자금 — 은행 실거래 원장';
   if (!행.length) return;
 
@@ -4373,11 +4422,14 @@ function 자금탭그리기() {
   [['2.입금', '입금'], ['3.출금', '출금']].forEach(function (p) {
     var 방향 = p[0];
     var f0 = function (r) { return r['입출'] === 방향; };
-    html += 줄(p[1] + ' 계', f0, 'r-total');
+    var f0실 = function (r) { return f0(r) && 실질(r); };
+    html += 줄(p[1] + ' 계<span class="muted"> · 내부거래 제외</span>', f0실, 'r-total');
     이름들(행.filter(f0), '구분').forEach(function (구) {
       var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
       var 키1 = 방향 + '|' + 구;
-      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
+      var 제외됨 = /내부거래|금융상품/.test(구);
+      html += 줄('　' + 자금이름(구) + (제외됨 ? '<span class="muted"> · 계 제외</span>' : ''),
+        f1, 'r-child', 키1);
       if (!자금펼침[키1]) return;
       이름들(행.filter(f1), '세부').forEach(function (세) {
         var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
@@ -4392,7 +4444,7 @@ function 자금탭그리기() {
       });
     });
   });
-  html += 줄('순증감', null, 'r-op');
+  html += 줄('순증감<span class="muted"> · 내부거래 제외</span>', 실질, 'r-op');
   $('cashBody').innerHTML = html;
   Array.prototype.forEach.call($('cashBody').querySelectorAll('.toggle'), function (b) {
     b.addEventListener('click', function () {
@@ -4401,12 +4453,162 @@ function 자금탭그리기() {
   });
   $('cashNote').innerHTML =
     '구분을 누르면 세부, 세부를 누르면 세세부까지 펼쳐집니다 — 3단 분류는 재경팀이 '
-    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)이고, 내부거래(계좌 간 이체)와 '
-    + '금융상품은 실제 손익이 아니라 자리 이동입니다.';
+    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)이고, '
+    + '<strong>계·순증감은 내부거래(계좌 간 이체)와 금융상품(정기예치)을 뺀 값입니다</strong> '
+    + '— 자리 이동일 뿐 실제 손익이 아니라서입니다. 두 갈래는 줄로는 남겨 두되(감사용) '
+    + '계에는 안 더합니다.';
 
   // **완결 축을 넘긴다** — 추세·전망의 기준선은 진행 중인 달을 빼고 잡아야 한다
   자금추세그리기(행, 창합, 완결색인, 진행중 ? 끝월 : null);
   자금전망그리기(행, 창합, 월합, 완결[0], 완결[1], 잔, 끝월);
+  자금차트그리기(달, 월합, 실질);
+  자금고정변동그리기(행, 달);
+}
+
+/* 월별 고정비 · 변동비 · 그룹내부 — 자금갈래() 판정을 갈래→구분→세부 3단 드릴다운으로 편다.
+   일회성(자금일회성)은 자금갈래()가 null을 돌려줘 애초에 빠진다 — 그래서 이 표의 합계는
+   위 「월별 입출금」 표의 출금 계보다 작다(아래 각주에 그 차액을 밝힌다). */
+function 자금고정변동그리기(행, 달) {
+  var 지출 = 행.filter(function (r) { return r['입출'] === '3.출금' && 자금갈래(r) != null; });
+  var 합 = function (f) { return 더(지출.filter(f), function (r) { return Number(r['금액']); }); };
+  var 월합 = function (m, f) {
+    return 합(function (r) { return +r['연도'] === 2026 && +r['월'] === m && (!f || f(r)); });
+  };
+  var 이름들 = function (자료, 칸) {
+    var 봤 = {}, 순서 = [];
+    자료.forEach(function (r) { var k = r[칸] || '(없음)'; if (!봤[k]) { 봤[k] = 1; 순서.push(k); } });
+    return 순서.sort();
+  };
+  $('cashFvHead').innerHTML = ['<th scope="col">항목</th>']
+    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(['<th scope="col">2026 누계</th>']).join('');
+  var 줄 = function (이름, f, 급, 키) {
+    var 화살 = 키 ? (자금펼침[키] ? '▾ ' : '▸ ') : '';
+    var 칸 = 달.map(function (m) {
+      var v = 월합(m, f);
+      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
+    }).join('');
+    var 누계 = 합(function (r) { return !f || f(r); });
+    return '<tr class="' + 급 + '"><td>' + (키
+      ? '<button type="button" class="toggle" data-키="' + 키 + '">' + 화살 + 이름 + '</button>'
+      : 이름) + '</td>' + 칸 + '<td class="num' + (누계 < 0 ? ' neg' : ' muted') + '">' + 백만(누계) + '</td></tr>';
+  };
+  var html = '';
+  ['고정비', '변동비', '그룹내부'].forEach(function (갈래) {
+    var f0 = function (r) { return 자금갈래(r) === 갈래; };
+    if (Math.abs(합(f0)) < 0.5) return;
+    var 키0 = 'FV|' + 갈래;
+    html += 줄(갈래 + ' 계', f0, 'r-total', 키0);
+    if (!자금펼침[키0]) return;
+    이름들(지출.filter(f0), '구분').forEach(function (구) {
+      var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
+      var 키1 = 키0 + '|' + 구;
+      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
+      if (!자금펼침[키1]) return;
+      이름들(지출.filter(f1), '세부').forEach(function (세) {
+        var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
+        html += 줄('　　' + 자금이름(세), f2, 'r-leaf');
+      });
+    });
+  });
+  html += 줄('합계(3갈래)', null, 'r-op');
+  $('cashFvBody').innerHTML = html;
+  Array.prototype.forEach.call($('cashFvBody').querySelectorAll('.toggle'), function (b) {
+    b.addEventListener('click', function () {
+      자금펼침[b.dataset['키']] = !자금펼침[b.dataset['키']]; 자금탭그리기();
+    });
+  });
+  var 일회성합 = 더(행.filter(function (r) {
+    return r['입출'] === '3.출금' && 자금갈래(r) == null && !/내부거래/.test(r['구분'] || '');
+  }), function (r) { return Number(r['금액']); });
+  $('cashFvNote').innerHTML =
+    '분개장 판관비 3분류(결정_비용구분_260807)와 같은 원칙을 자금 원장에 적용했습니다. '
+    + '<strong>그룹내부는 「판매수수료」 전체</strong>입니다 — 자금 원장엔 거래처코드가 없어 '
+    + '일본향·국내딜러분을 못 가르므로(대부분은 일본법인 코스트플러스 청구로 추정) 정밀 분리 '
+    + '대신 통째로 여기 뒀습니다. <strong>「기타」(월평균 약 205백만, 거래처명이 은행계좌 라벨뿐)는 '
+    + '고정비에 기본 편입</strong>했습니다 — 실체를 못 가려 근거는 약합니다. '
+    + '<strong>대출금·퇴직금·고정자산·투자금·정기예금·IPO는 일회성이라 이 표에서 아예 뺐습니다</strong> '
+    + '(2026 누계 ' + 백만(일회성합) + ') — 위 「월별 입출금」 표의 출금 계와 이 표의 합계가 다른 이유입니다.';
+}
+
+/* Chart.js는 자금 탭을 열 때 처음 받는다 (엑셀SDK와 같은 지연 로딩 패턴) */
+var 차트로딩 = null;
+function 차트SDK() {
+  if (window.Chart) return Promise.resolve();
+  if (!차트로딩) 차트로딩 = new Promise(function (되, 안) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+    s.onload = 되;
+    s.onerror = function () { 차트로딩 = null; 안(new Error('차트 모듈을 못 불러왔습니다')); };
+    document.head.appendChild(s);
+  });
+  return 차트로딩;
+}
+
+/* 월별 순증감(막대) · 현금 잔액 추이(선) — 잔액은 은행 원장이 아니라 재무 축(분개, 월말
+   확정)을 쓴다. 원장 누적은 실잔액과 약 20억 어긋나(위 타일 주석) 추이에 못 쓴다. */
+var 자금차트 = { 순증감: null, 잔액: null };
+function 자금차트그리기(달, 월합, 실질) {
+  if (!달.length) { $('cashChartCard').hidden = true; return; }
+  var 순증감들 = 달.map(function (m) { return 월합(2026, m, 실질); });
+  var 운 = (DB['운전자본'] || []).slice();
+  var 잔액맵 = {};
+  운.forEach(function (r) { 잔액맵[+r['월']] = Number(r['현금']); });
+  var 잔액들 = 달.map(function (m) { return 잔액맵[m] != null ? 잔액맵[m] : null; });
+  var 라벨 = 달.map(function (m) { return m + '월'; });
+
+  차트SDK().then(function () {
+    var 잉크3 = '#7C828A', 헤어 = '#EEF0F3', 초록 = '#05B169', 빨강 = '#CF202F', 파랑 = '#0052FF';
+    var 축 = {
+      x: { grid: { display: false }, ticks: { color: 잉크3, font: { size: 11 } } },
+      y: {
+        grid: { color: 헤어 }, border: { display: false },
+        ticks: { color: 잉크3, font: { size: 11 }, callback: function (v) { return v.toLocaleString('ko-KR'); } },
+      },
+    };
+    if (자금차트.순증감) 자금차트.순증감.destroy();
+    자금차트.순증감 = new Chart($('cashNetChart'), {
+      type: 'bar',
+      data: { labels: 라벨, datasets: [{
+        data: 순증감들,
+        backgroundColor: 순증감들.map(function (v) { return v < 0 ? 빨강 : 초록; }),
+        borderRadius: 3, maxBarThickness: 40,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return 백만(c.parsed.y) + '백만'; } } },
+        },
+        scales: 축,
+      },
+    });
+    if (자금차트.잔액) 자금차트.잔액.destroy();
+    자금차트.잔액 = new Chart($('cashBalChart'), {
+      type: 'line',
+      data: { labels: 라벨, datasets: [{
+        data: 잔액들, borderColor: 파랑, backgroundColor: 파랑, borderWidth: 2,
+        pointRadius: 3, pointBackgroundColor: 파랑, tension: 0.15, spanGaps: true,
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            label: function (c) { return c.parsed.y == null ? '—' : 백만(c.parsed.y) + '백만'; },
+          } },
+        },
+        scales: 축,
+      },
+    });
+  }).catch(function (e) {
+    $('cashChartNote').textContent = e.message;
+  });
+
+  $('cashChartNote').innerHTML =
+    '순증감은 <strong>내부거래·금융상품을 뺀 은행 원장</strong>이고, 잔액은 <strong>재무 탭과 같은 '
+    + '분개 축(월말 확정)</strong>입니다 — 은행 원장을 이월부터 누적하면 실잔액과 약 20억 어긋나 '
+    + '(계좌 미포섭·외화환산평가 누락), 추이에는 재무 축을 씁니다.';
 }
 
 /* 지출 추세 — 세부 갈래별 최근 3개월 vs 직전 3개월 vs 전년 동기 */
@@ -4472,10 +4674,7 @@ function 자금추세그리기(행, 창합, 끝색인, 진행월) {
  * 넣으면 3분의 1 낮아진다 — **한 값으로는 둘 다 못 맞춘다.**
  */
 function 자금전망그리기(행, 창합, 월합, 끝연, 끝월, 잔, 잔월) {
-  var 제외 = function (r) {
-    return /내부거래|금융상품|투자/.test(r['구분'] || '')
-      || /대출금|퇴직금|고정자산|투자금|정기예금/.test(r['세부'] || '');
-  };
+  var 제외 = 자금일회성;
   var 그룹 = {};
   행.forEach(function (r) {
     if (제외(r)) return;
