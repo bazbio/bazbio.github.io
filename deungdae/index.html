@@ -406,7 +406,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">b2b1881 · 260824</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">4d5ec9e · 260824</span>
     </header>
 
     <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
@@ -849,11 +849,11 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       </div>
       <div class="card" id="cashChartCard" style="margin-top:12px" hidden>
         <h3 class="ct">월별 순증감<span class="u">백만원 · 내부거래 제외</span></h3>
-        <div style="position:relative;height:200px;margin-top:8px">
+        <div style="position:relative;height:230px;margin-top:8px">
           <canvas id="cashNetChart" role="img" aria-label="2026년 월별 순현금흐름(내부거래 제외) 막대그래프"></canvas>
         </div>
         <h3 class="ct" style="margin-top:24px">현금 잔액 추이<span class="u">백만원 · 재무 축(월말 확정)</span></h3>
-        <div style="position:relative;height:200px;margin-top:8px">
+        <div style="position:relative;height:230px;margin-top:8px">
           <canvas id="cashBalChart" role="img" aria-label="2026년 월말 현금 잔액 추이 선그래프"></canvas>
         </div>
         <p class="note" id="cashChartNote"></p>
@@ -4421,15 +4421,14 @@ function 자금탭그리기() {
   var html = '';
   [['2.입금', '입금'], ['3.출금', '출금']].forEach(function (p) {
     var 방향 = p[0];
-    var f0 = function (r) { return r['입출'] === 방향; };
-    var f0실 = function (r) { return f0(r) && 실질(r); };
-    html += 줄(p[1] + ' 계<span class="muted"> · 내부거래 제외</span>', f0실, 'r-total');
+    var f0 = function (r) { return r['입출'] === 방향 && 실질(r); };
+    html += 줄(p[1] + ' 계', f0, 'r-total');
+    // 내부거래·금융상품은 자리 이동이라 줄 자체를 안 낸다 — 예전엔 줄로 남기고 계에서만
+    // 뺐는데, 「계 제외」 표시가 화면을 채워 정작 실제 지출 갈래를 가렸다 (2026-08-24)
     이름들(행.filter(f0), '구분').forEach(function (구) {
       var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
       var 키1 = 방향 + '|' + 구;
-      var 제외됨 = /내부거래|금융상품/.test(구);
-      html += 줄('　' + 자금이름(구) + (제외됨 ? '<span class="muted"> · 계 제외</span>' : ''),
-        f1, 'r-child', 키1);
+      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
       if (!자금펼침[키1]) return;
       이름들(행.filter(f1), '세부').forEach(function (세) {
         var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
@@ -4444,7 +4443,7 @@ function 자금탭그리기() {
       });
     });
   });
-  html += 줄('순증감<span class="muted"> · 내부거래 제외</span>', 실질, 'r-op');
+  html += 줄('순증감', 실질, 'r-op');
   $('cashBody').innerHTML = html;
   Array.prototype.forEach.call($('cashBody').querySelectorAll('.toggle'), function (b) {
     b.addEventListener('click', function () {
@@ -4453,10 +4452,12 @@ function 자금탭그리기() {
   });
   $('cashNote').innerHTML =
     '구분을 누르면 세부, 세부를 누르면 세세부까지 펼쳐집니다 — 3단 분류는 재경팀이 '
-    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)이고, '
-    + '<strong>계·순증감은 내부거래(계좌 간 이체)와 금융상품(정기예치)을 뺀 값입니다</strong> '
-    + '— 자리 이동일 뿐 실제 손익이 아니라서입니다. 두 갈래는 줄로는 남겨 두되(감사용) '
-    + '계에는 안 더합니다.';
+    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)입니다. '
+    + '<strong>내부거래(계좌 간 이체)와 금융상품(정기예치)은 이 표에서 아예 뺐습니다</strong> '
+    + '— 자리 이동일 뿐 실제 입출금이 아니라서입니다(2026 누계 이체 규모 '
+    // 내부거래는 A계좌 출금·B계좌 입금이 쌍으로 잡혀 두 방향을 그냥 더하면 서로 상쇄돼
+    // 거의 0이 된다 — 출금 쪽 절대값만 「이체 규모」로 보여준다 (2026-08-24 실측으로 확인)
+    + 백만(-합(function (r) { return +r['연도'] === 2026 && r['입출'] === '3.출금' && /내부거래/.test(r['구분'] || ''); })) + ').';
 
   // **완결 축을 넘긴다** — 추세·전망의 기준선은 진행 중인 달을 빼고 잡아야 한다
   자금추세그리기(행, 창합, 완결색인, 진행중 ? 끝월 : null);
@@ -4558,12 +4559,30 @@ function 자금차트그리기(달, 월합, 실질) {
   var 라벨 = 달.map(function (m) { return m + '월'; });
 
   차트SDK().then(function () {
-    var 잉크3 = '#7C828A', 헤어 = '#EEF0F3', 초록 = '#05B169', 빨강 = '#CF202F', 파랑 = '#0052FF';
+    var 잉크 = '#0A0B0D', 잉크3 = '#7C828A', 헤어 = '#EEF0F3', 초록 = '#05B169', 빨강 = '#CF202F', 파랑 = '#0052FF';
     var 축 = {
       x: { grid: { display: false }, ticks: { color: 잉크3, font: { size: 11 } } },
       y: {
         grid: { color: 헤어 }, border: { display: false },
         ticks: { color: 잉크3, font: { size: 11 }, callback: function (v) { return v.toLocaleString('ko-KR'); } },
+      },
+    };
+    // 막대 위(양수)·아래(음수)에 값을 직접 쓴다 — 플러그인 CDN을 더 안 받고 Chart.js
+    // 훅(afterDatasetsDraw)만으로 그린다. 축 눈금만으로는 정확한 값을 읽기 번거로웠다 (2026-08-24)
+    var 막대라벨 = {
+      id: '막대라벨',
+      afterDatasetsDraw: function (c) {
+        var meta = c.getDatasetMeta(0), ctx = c.ctx;
+        ctx.save();
+        ctx.font = '500 11px Pretendard, sans-serif';
+        ctx.textAlign = 'center';
+        meta.data.forEach(function (bar, i) {
+          var v = 순증감들[i];
+          if (v == null || Math.abs(v) < 0.05) return;
+          ctx.fillStyle = v < 0 ? 빨강 : 초록;
+          ctx.fillText(백만(v), bar.x, v < 0 ? bar.y + 16 : bar.y - 8);
+        });
+        ctx.restore();
       },
     };
     if (자금차트.순증감) 자금차트.순증감.destroy();
@@ -4572,10 +4591,13 @@ function 자금차트그리기(달, 월합, 실질) {
       data: { labels: 라벨, datasets: [{
         data: 순증감들,
         backgroundColor: 순증감들.map(function (v) { return v < 0 ? 빨강 : 초록; }),
-        borderRadius: 3, maxBarThickness: 40,
+        borderRadius: 4, borderSkipped: false, maxBarThickness: 36,
+        categoryPercentage: 0.6, barPercentage: 0.9,
       }] },
+      plugins: [막대라벨],
       options: {
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20, bottom: 4 } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: function (c) { return 백만(c.parsed.y) + '백만'; } } },
@@ -4583,15 +4605,34 @@ function 자금차트그리기(달, 월합, 실질) {
         scales: 축,
       },
     });
+    // 값라벨 — 선그래프는 점 옆에 백만() 값을 적는다 (없는 달은 건너뜀)
+    var 점라벨 = {
+      id: '점라벨',
+      afterDatasetsDraw: function (c) {
+        var meta = c.getDatasetMeta(0), ctx = c.ctx;
+        ctx.save();
+        ctx.font = '500 11px Pretendard, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 잉크;
+        meta.data.forEach(function (pt, i) {
+          var v = 잔액들[i];
+          if (v == null) return;
+          ctx.fillText(백만(v), pt.x, pt.y - 10);
+        });
+        ctx.restore();
+      },
+    };
     if (자금차트.잔액) 자금차트.잔액.destroy();
     자금차트.잔액 = new Chart($('cashBalChart'), {
       type: 'line',
       data: { labels: 라벨, datasets: [{
         data: 잔액들, borderColor: 파랑, backgroundColor: 파랑, borderWidth: 2,
-        pointRadius: 3, pointBackgroundColor: 파랑, tension: 0.15, spanGaps: true,
+        pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: 파랑, tension: 0.15, spanGaps: true,
       }] },
+      plugins: [점라벨],
       options: {
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20, bottom: 4 } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: {
