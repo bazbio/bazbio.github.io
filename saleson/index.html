@@ -1195,7 +1195,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608230059-7b5cfef';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608240052-2792031';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2687,11 +2687,10 @@ function renderFlow() {
   if (f.deals.length) {
     var admin = DATA && (DATA.me.admin || DATA.me.finance);
     h += kick('계약 목록 · 입금 확인' + (nc ? ' — N-Care' : ' — 장비'));
-    h += '<div class="card"><table class="dt"><thead><tr><th>병원</th><th class="c">담당</th><th class="r">금액</th><th class="c">계약일</th><th class="c">입금</th></tr></thead><tbody>';
+    h += '<div class="card"><table class="dt"><thead><tr><th>병원</th><th class="c">담당</th><th class="c">계약일</th><th class="c">입금</th></tr></thead><tbody>';
     f.deals.forEach(function(l) {
       h += '<tr><td><b>' + esc(l.hname) + '</b></td>'
         + '<td class="c">' + esc(l.rep) + '</td>'
-        + '<td class="r">' + esc(l.amt) + '</td>'
         + '<td class="c">' + esc(l.date) + '</td>'
         + '<td class="c">'
         + (l.paid
@@ -5872,12 +5871,19 @@ function showHosp(hname) {
       var tags = [];
       if (d.acc.region) tags.push(esc(d.acc.region));
       if (d.acc.dept) tags.push(esc(d.acc.dept));
+      if (d.acc.kind) tags.push(esc(d.acc.kind));
+      if (d.acc.network) tags.push(esc(d.acc.network) + (d.acc.branch ? ' ' + esc(d.acc.branch) + '개점' : ''));
+      if (d.acc.products) tags.push('취급 ' + esc(d.acc.products));
+      if (d.acc.status) tags.push(esc(d.acc.status));
       if (d.acc.equip) tags.push('장비 ' + esc(d.acc.equip));
       if (d.acc.grade) tags.push('케어 ' + esc(d.acc.grade) + '등급');
       if (d.acc.ncare) tags.push('N-Care ' + esc(d.acc.ncare));
       if (d.acc.carerep) tags.push('케어 담당 ' + esc(d.acc.carerep));
       else if (d.acc.rep) tags.push('담당 ' + esc(d.acc.rep));
+      if (d.acc.contact) tags.push(esc(d.acc.contact));
+      if (d.acc.phone) tags.push(esc(d.acc.phone));
       h += '<div style="margin-top:8px;font-size:12px;color:#4e5968;">' + tags.join(' · ') + '</div>';
+      if (d.acc.memo) h += '<div style="margin-top:4px;font-size:12px;color:#8b95a1;">' + esc(d.acc.memo) + '</div>';
     }
     if (d.lead) {
       h += '<div style="margin-top:12px;background:#f2f4f6;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.8;">'
