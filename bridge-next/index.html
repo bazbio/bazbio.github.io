@@ -164,6 +164,7 @@
   .pill.meet{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent)}
   .pill.gray{color:var(--sub); background:var(--field)}
   .empty{padding:26px 0; text-align:center; font-size:14px; color:var(--sub)}
+  .stuck-g{padding:10px 0 4px; font-size:12px; font-weight:700; color:var(--sub)}
 
   /* 보고 일정 캘린더 */
   .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
@@ -354,6 +355,10 @@
       <div class="searchbar"><input type="text" id="q" placeholder="검색 · 제목 · 내용 · 이름" autocomplete="off"></div>
       <div class="board-cols">
         <div class="board-main">
+          <div class="card" id="cardStuck">
+            <h3 id="stuckHead">막힌 곳</h3>
+            <div class="dlist" id="stuckList"></div>
+          </div>
           <div class="card" id="cardMeet">
             <h3 id="meetHead">미팅</h3>
             <div class="dlist" id="meetList"></div>
@@ -463,7 +468,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608182350';
+  var 빌드버전_ = '202608290516';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -739,9 +744,10 @@
     const s = DATA.stats;
     $('tiles').innerHTML =
       tile('진행 중', s.open, '') + tile('기한 임박', s.late, s.late ? 'bad' : '') +
-      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('최근 완료', s.doneWeek, 'ok');
+      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('막힘', s.stuck || 0, s.stuck ? 'bad' : '');
 
-    // 미팅 + 임원별 현황 + 목록 + 캘린더
+    // 막힌 곳 + 미팅 + 임원별 현황 + 목록 + 캘린더
+    renderStuck();
     renderMeet();
     renderMembers();
     renderLists();
@@ -786,6 +792,46 @@
   const meetPendingMine = () => MEETS().some(t => t.from === DATA.me.name && (t.status === '대기' || t.status === '역제안'));
   // 미래 확정 여부 — whenIso 'yyyy-MM-dd HH:mm'
   const meetUpcoming = t => t.status === '확정' && t.whenIso && new Date(t.whenIso.replace(' ', 'T')) >= new Date();
+
+  /* 막힌 곳 — 「지금 어디가 막혔는지」를 현황판 맨 위에 올린다.
+     정렬은 **정체일수 내림차순**이다. 기한 초과 순으로 놓으면 매일 진행 중인 장기 건이 위로 오고
+     한 달째 아무도 안 건드린 건이 아래로 밀린다 — 그게 지금까지의 화면이었다.
+     임원에게는 「내 차례」와 「대표님 확인 대기」를 나눠 준다. 공이 어디 있는지가 임원에겐 전부다. */
+  function renderStuck(){
+    const me = DATA.me;
+    const rows = (DATA.directives || []).filter(d => d.stuck)
+      .sort((a, b) => (b.stallDays || 0) - (a.stallDays || 0));
+    $('stuckHead').textContent = rows.length ? '막힌 곳 · ' + rows.length + '건' : '막힌 곳';
+    if (!rows.length) { $('stuckList').innerHTML = '<div class="empty">막힌 곳이 없습니다</div>'; return; }
+
+    let h = '';
+    if (me.manage) h = rows.map(stuckItemHtml).join('');
+    else {
+      /* 공은 사유가 정한다. 마지막 글쓴이로 가르면 두 방향 다 틀린다 —
+         내가 답한 뒤 세부업무가 지연되면 내 일인데 남의 일로 보이고,
+         미처리 미팅 요청 뒤에 누가 코멘트를 달면 대표 확인 대기인데 내 차례로 보인다.
+         '무진행'만은 사유가 공을 못 말해 주므로 그때만 마지막 글쓴이를 본다. */
+      const 대표대기 = d => d.stuckWhy === '대표 확인 대기'
+        || (d.stuckWhy === '무진행' && d.lastBy === me.name);
+      const 내차례 = rows.filter(d => !대표대기(d));
+      const 상대차례 = rows.filter(대표대기);
+      if (내차례.length) h += '<div class="stuck-g">내 차례</div>' + 내차례.map(stuckItemHtml).join('');
+      if (상대차례.length) h += '<div class="stuck-g">대표님 확인 대기</div>' + 상대차례.map(stuckItemHtml).join('');
+    }
+    $('stuckList').innerHTML = h;
+    $('stuckList').querySelectorAll('.ditem').forEach(el =>
+      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+  }
+
+  function stuckItemHtml(d){
+    const 상대 = d.owner === DATA.me.name ? d.who.join(', ') : d.owner;
+    // '대표 확인 대기'는 사유와 설명이 같은 말이다 — 칩에 이미 있으므로 줄에서는 뺀다
+    const 설명 = d.stuckText && d.stuckText !== d.stuckWhy ? ' · ' + d.stuckText : '';
+    return '<button class="ditem" data-id="' + d.id + '">'
+      + '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(상대 + 설명) + '</span></div>'
+      + '<div class="side"><span class="pill late">' + esc(d.stuckWhy) + '</span>'
+      + '<i class="dday over">' + d.stallDays + '일</i></div></button>';
+  }
 
   function renderMeet(){
     const me = DATA.me;
@@ -1254,8 +1300,12 @@
   function pillOf(d){
     if (d.status === '완료') return '<span class="pill done">완료</span>';
     if (d.status === '보류') return '<span class="pill gray">보류</span>';
-    if (d.meetPending || d.duePending) return '<span class="pill meet">' + (d.meetPending ? '미팅 요청' : '기한 조정') + '</span>';
+    // 역제안을 받은 쪽은 '미팅 요청'이 아니라 **고를 차례**다 — 막힌 곳 카드와 같은 말을 쓴다
+    if (d.meetPending || d.duePending) return '<span class="pill meet">'
+      + (d.meetChoose ? '일정 선택' : (d.meetPending ? '미팅 요청' : '기한 조정')) + '</span>';
     if (d.status === '답변 완료') return '<span class="pill done">답변 완료</span>';
+    // 막힌 건은 '기한 임박'보다 사유가 쓸모 있다 (기한 임박 위에 둔다)
+    if (d.stuck) return '<span class="pill late">' + esc(d.stuckWhy) + '</span>';
     if (d.dday != null && d.dday <= 1) return '<span class="pill late">기한 임박</span>';
     return '<span class="pill wait">답변 대기</span>';
   }
