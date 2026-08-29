@@ -73,6 +73,8 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 .알:active{transform:scale(.97)}
 .알[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600}
 .무리.제품 .알{flex:1 1 calc(33.333% - 7px); padding:0 8px}
+/* 유형은 이름이 길다 — 두 칸으로 흘린다 */
+.무리.유형 .알{flex:1 1 calc(50% - 7px); padding:0 12px; font-size:13.5px; min-height:44px}
 
 /* ── 최근 거래처 ── */
 .최근{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
@@ -126,6 +128,11 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
   border-radius:var(--r-btn); font-size:13.5px; font-weight:500;
   background:var(--red-bg); color:var(--red); border:1px solid #e6cfcb;
 }
+.붙임알림{
+  margin:0 0 16px; padding:11px 14px;
+  border-radius:var(--r-btn); font-size:13.5px; font-weight:500;
+  background:var(--card); color:var(--body); border:1px solid var(--hair);
+}
 .가운데{
   min-height:60vh; display:flex; flex-direction:column;
   align-items:center; justify-content:center; text-align:center; padding:24px;
@@ -150,6 +157,7 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 @media (min-width:640px){
   .머리{padding-top:36px}
   .무리.제품 .알{flex:0 0 auto; padding:0 18px}
+  .무리.유형 .알{flex:0 0 auto}
 }
 </style>
 </head>
@@ -175,15 +183,11 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 <!-- 등록 화면 -->
 <main id="본문" class="몸 숨김">
   <p id="탈" class="알림 숨김" role="alert"></p>
+  <p id="붙임말" class="붙임알림 숨김" role="status"></p>
 
   <div class="칸">
     <label class="표" for="이름">누구세요<span class="별">*</span></label>
     <select id="이름" class="고름"></select>
-  </div>
-
-  <div class="칸">
-    <span class="표">어디<span class="별">*</span></span>
-    <div class="무리" id="지역무리"></div>
   </div>
 
   <div class="칸">
@@ -193,13 +197,29 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
   </div>
 
   <div class="칸">
+    <label class="표" for="연락처">연락처</label>
+    <input id="연락처" class="글칸" type="tel" placeholder="병원 담당자 연락처" autocomplete="off">
+  </div>
+
+  <div class="칸">
     <span class="표">무엇<span class="별">*</span></span>
     <div class="무리 제품" id="제품무리"></div>
   </div>
 
   <div class="칸">
+    <span class="표">어떤 증상<span class="별">*</span></span>
+    <div class="무리 유형" id="유형무리"></div>
+  </div>
+
+  <div class="칸">
     <label class="표" for="내용">무슨 일이 있었나요<span class="별">*</span></label>
     <textarea id="내용" class="글칸" placeholder="고객이 한 말을 그대로 적어도 됩니다"></textarea>
+    <p class="도움">그룹웨어 접수 글을 여기 그대로 붙여넣으면 위 칸들이 채워집니다.</p>
+  </div>
+
+  <div class="칸">
+    <label class="표" for="특이사항">특이사항</label>
+    <input id="특이사항" class="글칸" type="text" placeholder="예) 엔케어 가입처" autocomplete="off">
   </div>
 
   <div class="칸">
@@ -255,7 +275,7 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 'use strict';
 /* ═══════════════════════════════════════════════════════════════
    관문 세 개를 부른다 (SPEC §5.1 · §7)
-     meari-boot        이름 목록 · 최근 거래처
+     meari-boot        이름 목록 · 유형 목록 · 최근 거래처
      meari-register    건 저장 → 사진 업로드용 서명 URL
      meari-photo-done  실제로 올라간 사진만 장부에 적는다
    ═══════════════════════════════════════════════════════════════ */
@@ -265,10 +285,12 @@ var 사진최대 = 5;
 var 긴변 = 1600;      // 폰 원본 4~8MB를 200~400KB로 — 안 줄이면 LTE에서 30초가 깨진다
 var 화질 = 0.8;
 
-var 지역들 = ['국내', '일본', '해외'];
 var 제품들 = ['큐어젯', '노보젯', '노즐', '핸드피스', '기타'];
+// 유형 목록은 여기 박지 않는다. `메아리.유형` 표가 유일한 원천이고 부트가 실어 온다 —
+// 화면과 관문에 목록을 따로 박아 두면 한쪽만 고쳤을 때 화면에는 뜨는데 관문이 400을 낸다.
+var 유형들 = [];
 
-var 사람 = [], 고른지역 = '', 고른제품 = '', 사진 = [], 동영상 = null, 보내는중 = false;
+var 사람 = [], 고른제품 = '', 고른유형 = '', 사진 = [], 동영상 = null, 보내는중 = false;
 var 동영상최대 = 50 * 1024 * 1024;   // 무료 티어의 파일당 한계와 같다 — 넘으면 서버도 거절한다
 
 var $ = function (id) { return document.getElementById(id); };
@@ -295,11 +317,11 @@ function 무리그리기(칸, 값들, 고른값, 누를때) {
   });
 }
 
-function 지역그리기() {
-  무리그리기($('지역무리'), 지역들, 고른지역, function (v) { 고른지역 = v; 지역그리기(); });
-}
 function 제품그리기() {
   무리그리기($('제품무리'), 제품들, 고른제품, function (v) { 고른제품 = v; 제품그리기(); });
+}
+function 유형그리기() {
+  무리그리기($('유형무리'), 유형들, 고른유형, function (v) { 고른유형 = v; 유형그리기(); });
 }
 
 /* ── 부트 ── */
@@ -313,10 +335,11 @@ function 부트() {
     .then(function (d) {
       if (!d || !d.ok) throw new Error('부트');
       사람 = d.사람 || [];
+      유형들 = d.유형 || [];
       이름칸채우기();
       최근채우기(d.거래처 || []);
-      지역그리기();
       제품그리기();
+      유형그리기();
       보임($('로딩'), false);
       보임($('본문'), true);
       보임($('바닥'), true);
@@ -335,33 +358,19 @@ function 이름칸채우기() {
   첫.textContent = 사람.length ? '이름을 골라 주세요' : '등록자 명단이 아직 비어 있습니다';
   sel.appendChild(첫);
 
-  // 이름 없이도 받는다 (2026-08-13). 서버의 '익명' 계정으로 접수된다.
-  // 대신 그 건에는 원 등록자가 없어 현장 확인을 품질 담당이 대신한다.
-  var 익명 = document.createElement('option');
-  익명.value = '익명';
-  익명.textContent = '이름 없이 올리기';
-  sel.appendChild(익명);
-
   사람.forEach(function (p) {
     var o = document.createElement('option');
     o.value = p.이름;
-    o.textContent = p.지역 ? p.이름 + ' · ' + p.지역 : p.이름;
-    o.dataset.지역 = p.지역 || '';
+    o.textContent = p.이름;
     sel.appendChild(o);
   });
 
   // 한 번 고르면 폰이 기억한다 — 두 번째부터는 바로 본론이다
   var 기억 = '';
   try { 기억 = localStorage.getItem(기억키) || ''; } catch (e) {}
-  if (기억 && 사람.some(function (p) { return p.이름 === 기억; })) {
-    sel.value = 기억;
-    고른지역 = (사람.find(function (p) { return p.이름 === 기억; }) || {}).지역 || '';
-  }
+  if (기억 && 사람.some(function (p) { return p.이름 === 기억; })) sel.value = 기억;
 
   sel.onchange = function () {
-    var o = sel.selectedOptions[0];
-    var 지 = o && o.dataset ? o.dataset.지역 : '';
-    if (지) { 고른지역 = 지; 지역그리기(); }   // 이름에서 자동. 다르면 눌러서 바꾼다
     try { localStorage.setItem(기억키, sel.value); } catch (e) {}
   };
 }
@@ -377,6 +386,74 @@ function 최근채우기(목록) {
     칸.appendChild(b);
   });
 }
+
+/* ── 그룹웨어 접수 글 붙여넣기 ────────────────────────────────────
+   지금 접수는 그룹웨어 「Cs접수건」 대화방에 이 다섯 줄로 올라간다:
+
+     병원명 / 영업담당자 / 연락처 / 접수사항 / 특이사항
+
+   메아리는 그 방을 대체하지 않는다 — CS에는 지금처럼 그룹웨어로 간다. 그러면 영업이
+   같은 것을 두 번 적게 되고, **두 번 적는 것은 죽는다.** 그래서 그 글을 그대로 받는다.
+   같은 글을 붙여넣는 것으로 등록이 끝나야 이 장부가 산다.
+   ────────────────────────────────────────────────────────────── */
+var 붙임키 = {
+  '병원명': '거래처', '거래처': '거래처', '병원': '거래처',
+  '연락처': '연락처', '전화': '연락처', '전화번호': '연락처',
+  '접수사항': '내용', '내용': '내용', '증상': '내용',
+  '특이사항': '특이사항', '비고': '특이사항'
+};
+
+function 붙임파싱(글) {
+  var 결과 = {}, 담당 = '', 찾음 = 0;
+  글.split(/\r?\n/).forEach(function (줄) {
+    var m = 줄.match(/^\s*([^:：]{1,12})\s*[:：]\s*(.+)$/);
+    if (!m) return;
+    var 키 = m[1].replace(/\s+/g, ''), 값 = m[2].trim();
+    if (키 === '영업담당자' || 키 === '담당자') { 담당 = 값; 찾음++; return; }
+    var 칸 = 붙임키[키];
+    if (칸) { 결과[칸] = 값; 찾음++; }
+  });
+  // 두 칸 이상 알아본 것만 접수 양식으로 본다. 한 줄짜리 메모가 잘못 흩어지지 않게
+  return 찾음 >= 2 ? { 값: 결과, 담당: 담당 } : null;
+}
+
+function 붙임채우기(파싱) {
+  var 채운것 = [];
+  if (파싱.값.거래처)   { $('거래처').value = 파싱.값.거래처;     채운것.push('병원명'); }
+  if (파싱.값.연락처)   { $('연락처').value = 파싱.값.연락처;     채운것.push('연락처'); }
+  if (파싱.값.특이사항) { $('특이사항').value = 파싱.값.특이사항; 채운것.push('특이사항'); }
+  $('내용').value = 파싱.값.내용 || '';
+
+  // 담당자 이름은 명부에 있을 때만 고른다 — 없는 이름을 넣으면 서버가 403을 낸다
+  if (파싱.담당 && 사람.some(function (p) { return p.이름 === 파싱.담당; })) {
+    $('이름').value = 파싱.담당;
+    try { localStorage.setItem(기억키, 파싱.담당); } catch (e) {}
+    채운것.push('담당자');
+  }
+
+  // 제품은 **글자가 그대로 있을 때만** 고른다. 둘 이상 짚이거나 없으면 아무것도 안 고르고
+  // 사람이 누른다 — 틀리게 찍어 주는 것이 안 찍어 주는 것보다 나쁘다
+  var 글 = (파싱.값.내용 || '') + ' ' + (파싱.값.특이사항 || '');
+  var 짚임 = ['핸드피스', '노즐', '큐어젯', '노보젯'].filter(function (p) { return 글.indexOf(p) >= 0; });
+  if (짚임.length === 1) { 고른제품 = 짚임[0]; 제품그리기(); 채운것.push('제품'); }
+
+  var el = $('붙임말');
+  el.textContent = 채운것.length
+    ? '접수 글을 알아봤습니다 — ' + 채운것.join('·') + ' 채웠습니다. 증상은 눌러서 골라 주세요.'
+    : '접수 글을 알아봤습니다. 나머지 칸은 눌러서 골라 주세요.';
+  보임(el, true);
+}
+
+$('내용').addEventListener('paste', function (e) {
+  var 클립 = e.clipboardData || window.clipboardData;
+  if (!클립) return;
+  var 글 = 클립.getData('text');
+  if (!글 || 글.indexOf('\n') < 0) return;      // 한 줄짜리는 그냥 붙는다
+  var 파싱 = 붙임파싱(글);
+  if (!파싱) return;
+  e.preventDefault();
+  붙임채우기(파싱);
+});
 
 /* ── 사진: 고르는 즉시 줄인다 ── */
 $('사진추가').onclick = function () { $('파일').click(); };
@@ -471,8 +548,8 @@ $('보내기').onclick = function () {
   var 이름 = $('이름').value;
   var 내용 = $('내용').value.trim();
   if (!이름) return 탈보임('이름을 골라 주세요.');
-  if (!고른지역) return 탈보임('어디인지 골라 주세요.');
   if (!고른제품) return 탈보임('무엇에 대한 것인지 골라 주세요.');
+  if (!고른유형) return 탈보임('어떤 증상인지 골라 주세요.');
   if (!내용) return 탈보임('무슨 일이 있었는지 적어 주세요.');
   탈보임('');
 
@@ -485,10 +562,12 @@ $('보내기').onclick = function () {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       이름: 이름,
-      지역: 고른지역,
       거래처표기: $('거래처').value.trim(),
+      연락처: $('연락처').value.trim(),
       제품: 고른제품,
+      유형: 고른유형,
       내용: 내용,
+      특이사항: $('특이사항').value.trim(),
       사진장수: 사진.length,
       동영상: !!동영상
     })
@@ -498,7 +577,7 @@ $('보내기').onclick = function () {
       if (!d || !d.ok) throw new Error(d && d.이유 ? d.이유 : '보내지 못했습니다');
       // 건은 이미 저장됐다. 여기서부터 실패해도 현장 목소리는 남는다 (SPEC §7)
       return 사진올리기(d.건_id, d.업로드 || []).then(function (올린수) {
-        끝내기(d.건_id, 올린수);
+        끝내기(d.건_id, d.기한, 올린수);
       });
     })
     .catch(function (e) {
@@ -534,8 +613,12 @@ function 사진올리기(건_id, 업로드) {
   });
 }
 
-function 끝내기(건_id, 올린수) {
+function 끝내기(건_id, 기한, 올린수) {
   var 말 = '접수번호 ' + 건_id + '번';
+  if (기한) {
+    var d = new Date(기한);
+    말 += ' · 기한 ' + (d.getMonth() + 1) + '/' + d.getDate();
+  }
   var 보낼수 = 사진.length + (동영상 ? 1 : 0);
   if (보낼수) {
     말 += 올린수 === 보낼수
@@ -551,13 +634,18 @@ function 끝내기(건_id, 올린수) {
 
 $('또').onclick = function () {
   $('거래처').value = '';
+  $('연락처').value = '';
   $('내용').value = '';
+  $('특이사항').value = '';
+  보임($('붙임말'), false);
   고른제품 = '';
+  고른유형 = '';
   사진 = [];
   동영상 = null;
   사진그리기();
   동영상그리기();
   제품그리기();
+  유형그리기();
   보내는중 = false;
   $('보내기').disabled = false;
   $('보내기').textContent = '보내기';
