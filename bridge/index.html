@@ -164,6 +164,13 @@
   .pill.meet{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent)}
   .pill.gray{color:var(--sub); background:var(--field)}
   .empty{padding:26px 0; text-align:center; font-size:14px; color:var(--sub)}
+  .stuck-g{padding:10px 0 4px; font-size:12px; font-weight:700; color:var(--sub)}
+  /* 세부업무 — 행 아래 붙는 조작 줄과 한 줄 추가 폼 */
+  .sub-act{display:flex; align-items:center; gap:8px; padding:0 2px 10px; flex-wrap:wrap}
+  .sub-act input[type=date]{flex:1; min-width:130px; margin:0}
+  .sub-new{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .sub-new input{margin:0}
+  .sub-new input:first-child{grid-column:1 / -1}
 
   /* 보고 일정 캘린더 */
   .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
@@ -354,6 +361,10 @@
       <div class="searchbar"><input type="text" id="q" placeholder="검색 · 제목 · 내용 · 이름" autocomplete="off"></div>
       <div class="board-cols">
         <div class="board-main">
+          <div class="card" id="cardStuck">
+            <h3 id="stuckHead">막힌 곳</h3>
+            <div class="dlist" id="stuckList"></div>
+          </div>
           <div class="card" id="cardMeet">
             <h3 id="meetHead">미팅</h3>
             <div class="dlist" id="meetList"></div>
@@ -463,7 +474,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608150920';
+  var 빌드버전_ = '202608290705';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -498,6 +509,32 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
+  /* 부팅 계측 — 주소 끝에 `?perf`를 붙였을 때만 돈다 (2026-08-19).
+     폰에서는 콘솔을 못 보므로 화면 아래에 찍는다. 임원이 쓰는 주소에는 안 붙으므로 화면은
+     한 픽셀도 안 바뀐다. 숫자는 문서 요청이 시작된 순간부터의 밀리초다.
+     쿼리 이름을 한글로 안 둔 이유: 폰 주소창에서 한글을 치기가 번거롭고, location.search는
+     퍼센트 인코딩된 채로 와서 비교가 한 겹 더 든다. */
+  const 계측켬_ = location.search.indexOf('perf') >= 0;
+  const 계측줄_ = [];
+  function 계측(라벨, ms){
+    if (!계측켬_) return;
+    계측줄_.push(라벨 + ' ' + Math.round(ms == null ? performance.now() : ms) + 'ms');
+    let box = $('계측판');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = '계측판';
+      box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.82);'
+        + 'color:#fff;font:12px/1.5 monospace;padding:6px 10px;white-space:pre-wrap';
+      document.body.appendChild(box);
+    }
+    box.textContent = 계측줄_.join('\n');
+  }
+  if (계측켬_) {
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (nav) 계측('화면 내려받기 끝', nav.responseEnd);
+    계측('스크립트 시작');
+  }
+
   let TOKEN = localStorage.getItem('brg_token') || '';
   let DEV = '';             // 기기 식별자 — 메일 인증을 마친 기기는 서버가 기억해 인증번호 생략 (6개월)
   try {
@@ -513,9 +550,11 @@
     }
   } catch (e) {}
   let DATA = null;          // 웹_초기데이터 결과
+  let 갱신대기_ = null;      // 방금 쓰기 응답에 실려 온 목록 갱신분 — refresh()가 소비한다
   let pendingLogin = null;  // {name, pin}
   let newFiles = [];        // 답변 첨부 대기 목록
   let LASTD = null;         // 상세 시트에 열려 있는 지시
+  let LASTS = [];           // 그 지시의 세부업무
   const FILTER = { q: '', member: '' };
   const PRIS = ['보통','중요','긴급'];
 
@@ -542,7 +581,13 @@
         // 본문이 JSON이 아니면 GAS가 HTML 오류 페이지를 낸 것이다 (배포 만료·권한 등).
         // 그 HTML을 그대로 토스트에 띄우면 아무도 못 읽으므로 여기서 사람 말로 바꾼다.
         try { r = JSON.parse(t); } catch (e) { return 실패('서버에 연결하지 못했습니다'); }
-        if (r && r.ok) res(r.data); else 실패(r && r.error);
+        if (r && r.ok) {
+          /* 쓰기 응답에 실려 온 목록 갱신분을 붙잡아 둔다 (2026-08-19) — Code.js 갱신얹기_.
+             뒤이어 부르는 refresh()가 이걸 쓰면 왕복이 하나 준다.
+             성공한 응답마다 덮어쓰므로(없으면 null) 묵은 갱신이 잘못 쓰일 자리가 없다. */
+          갱신대기_ = (r.data && r.data.갱신) || null;
+          res(r.data);
+        } else 실패(r && r.error);
       }).catch(e => 실패(e && e.message));
     });
   }
@@ -641,9 +686,11 @@
    * 낡음 예산을 정할 필요가 없는 구조다 — 낡은 것을 잠깐 보여주고 곧 진짜로 덮는다. */
   async function init(){
     show('vLoading');
+    계측('init');
     스냅샷받기_();            // 기다리지 않는다. 먼저 온 쪽이 먼저 그린다
     try {
       DATA = await gs('웹_초기데이터', TOKEN);
+      계측('GAS 초기데이터');
     } catch (e) {
       /* 스냅샷으로 이미 앱이 떠 있으면 로그인 화면으로 내쫓지 않는다 — 잠깐 끊긴 네트워크로
          쓰던 화면을 날리는 것이 더 나쁘다. 토큰이 죽은 경우라면 관문도 같은 규칙으로 401을
@@ -657,6 +704,7 @@
   function 그리기_(){
     renderMain();
     show('vMain');
+    계측('화면 그림');
     if (BOOT.d) { openDetail(BOOT.d); BOOT.d = null; }
   }
 
@@ -671,6 +719,7 @@
       body: JSON.stringify({ 토큰: TOKEN }),
     }).then(r => r.ok ? r.json() : null)   // 404 = 아직 안 구워졌다. 오류가 아니다
       .then(r => {
+        계측('스냅샷 도착');
         if (!r || !r.payload) return;
         if (DATA) return;                  // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
         // 모양이 어긋난 스냅샷은 아예 안 쓴다. 관문이 이중 인코딩된 문자열을 저장하면
@@ -702,9 +751,10 @@
     const s = DATA.stats;
     $('tiles').innerHTML =
       tile('진행 중', s.open, '') + tile('기한 임박', s.late, s.late ? 'bad' : '') +
-      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('최근 완료', s.doneWeek, 'ok');
+      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('막힘', s.stuck || 0, s.stuck ? 'bad' : '');
 
-    // 미팅 + 임원별 현황 + 목록 + 캘린더
+    // 막힌 곳 + 미팅 + 임원별 현황 + 목록 + 캘린더
+    renderStuck();
     renderMeet();
     renderMembers();
     renderLists();
@@ -749,6 +799,46 @@
   const meetPendingMine = () => MEETS().some(t => t.from === DATA.me.name && (t.status === '대기' || t.status === '역제안'));
   // 미래 확정 여부 — whenIso 'yyyy-MM-dd HH:mm'
   const meetUpcoming = t => t.status === '확정' && t.whenIso && new Date(t.whenIso.replace(' ', 'T')) >= new Date();
+
+  /* 막힌 곳 — 「지금 어디가 막혔는지」를 현황판 맨 위에 올린다.
+     정렬은 **정체일수 내림차순**이다. 기한 초과 순으로 놓으면 매일 진행 중인 장기 건이 위로 오고
+     한 달째 아무도 안 건드린 건이 아래로 밀린다 — 그게 지금까지의 화면이었다.
+     임원에게는 「내 차례」와 「대표님 확인 대기」를 나눠 준다. 공이 어디 있는지가 임원에겐 전부다. */
+  function renderStuck(){
+    const me = DATA.me;
+    const rows = (DATA.directives || []).filter(d => d.stuck)
+      .sort((a, b) => (b.stallDays || 0) - (a.stallDays || 0));
+    $('stuckHead').textContent = rows.length ? '막힌 곳 · ' + rows.length + '건' : '막힌 곳';
+    if (!rows.length) { $('stuckList').innerHTML = '<div class="empty">막힌 곳이 없습니다</div>'; return; }
+
+    let h = '';
+    if (me.manage) h = rows.map(stuckItemHtml).join('');
+    else {
+      /* 공은 사유가 정한다. 마지막 글쓴이로 가르면 두 방향 다 틀린다 —
+         내가 답한 뒤 세부업무가 지연되면 내 일인데 남의 일로 보이고,
+         미처리 미팅 요청 뒤에 누가 코멘트를 달면 대표 확인 대기인데 내 차례로 보인다.
+         '무진행'만은 사유가 공을 못 말해 주므로 그때만 마지막 글쓴이를 본다. */
+      const 대표대기 = d => d.stuckWhy === '대표 확인 대기'
+        || (d.stuckWhy === '무진행' && d.lastBy === me.name);
+      const 내차례 = rows.filter(d => !대표대기(d));
+      const 상대차례 = rows.filter(대표대기);
+      if (내차례.length) h += '<div class="stuck-g">내 차례</div>' + 내차례.map(stuckItemHtml).join('');
+      if (상대차례.length) h += '<div class="stuck-g">대표님 확인 대기</div>' + 상대차례.map(stuckItemHtml).join('');
+    }
+    $('stuckList').innerHTML = h;
+    $('stuckList').querySelectorAll('.ditem').forEach(el =>
+      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+  }
+
+  function stuckItemHtml(d){
+    const 상대 = d.owner === DATA.me.name ? d.who.join(', ') : d.owner;
+    // '대표 확인 대기'는 사유와 설명이 같은 말이다 — 칩에 이미 있으므로 줄에서는 뺀다
+    const 설명 = d.stuckText && d.stuckText !== d.stuckWhy ? ' · ' + d.stuckText : '';
+    return '<button class="ditem" data-id="' + d.id + '">'
+      + '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(상대 + 설명) + '</span></div>'
+      + '<div class="side"><span class="pill late">' + esc(d.stuckWhy) + '</span>'
+      + '<i class="dday over">' + d.stallDays + '일</i></div></button>';
+  }
 
   function renderMeet(){
     const me = DATA.me;
@@ -1217,8 +1307,12 @@
   function pillOf(d){
     if (d.status === '완료') return '<span class="pill done">완료</span>';
     if (d.status === '보류') return '<span class="pill gray">보류</span>';
-    if (d.meetPending || d.duePending) return '<span class="pill meet">' + (d.meetPending ? '미팅 요청' : '기한 조정') + '</span>';
+    // 역제안을 받은 쪽은 '미팅 요청'이 아니라 **고를 차례**다 — 막힌 곳 카드와 같은 말을 쓴다
+    if (d.meetPending || d.duePending) return '<span class="pill meet">'
+      + (d.meetChoose ? '일정 선택' : (d.meetPending ? '미팅 요청' : '기한 조정')) + '</span>';
     if (d.status === '답변 완료') return '<span class="pill done">답변 완료</span>';
+    // 막힌 건은 '기한 임박'보다 사유가 쓸모 있다 (기한 임박 위에 둔다)
+    if (d.stuck) return '<span class="pill late">' + esc(d.stuckWhy) + '</span>';
     if (d.dday != null && d.dday <= 1) return '<span class="pill late">기한 임박</span>';
     return '<span class="pill wait">답변 대기</span>';
   }
@@ -1233,7 +1327,9 @@
   function itemHtml(d){
     const other = d.owner === DATA.me.name ? d.who.join(', ') : d.owner;
     const sub = (d.kind === '요청' ? '요청 · ' : '') + other + (d.by ? ' (' + d.by + ' 대리)' : '') +
-      (d.dueKo ? ' · 기한 ' + d.dueKo : '') + (d.replyCount ? ' · 답변 ' + d.replyCount : '');
+      (d.dueKo ? ' · 기한 ' + d.dueKo : '') + (d.replyCount ? ' · 답변 ' + d.replyCount : '') +
+      // 진행률 — 어느 단계까지 왔는지. 서버가 세어 준 값이라 화면이 다시 세지 않는다
+      (d.subN ? ' · 세부 ' + d.subDone + '/' + d.subN + (d.subLate ? ' (지연 ' + d.subLate + ')' : '') : '');
     return '<button class="ditem" data-id="' + d.id + '">' +
       '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(sub) + '</span></div>' +
       '<div class="side">' + pillOf(d) + ddayBadge(d) + '</div></button>';
@@ -1323,25 +1419,40 @@
     busy(false);
   });
 
+  /* 쓰기 직후라면 서버가 이미 갱신분을 실어 보냈다 — 왕복을 안 낸다 (2026-08-19).
+     없을 때만 예전처럼 물어보므로, 갱신을 안 얹는 옛 배포에 붙어도 그냥 돈다. */
   async function refresh(){
+    if (갱신대기_) { DATA = 갱신대기_; 갱신대기_ = null; renderMain(); return; }
     try { DATA = await gs('웹_초기데이터', TOKEN); renderMain(); } catch (e) {}
   }
 
   // ── 상세 시트 ──
   async function openDetail(id){
     $('sheetBack').classList.remove('hide');
+
+    /* 부트에 대화가 실려 있으면 왕복 없이 연다 (2026-08-19).
+       `웹_초기데이터`가 어차피 시트에서 대화를 통째로 읽으므로 목록에 보이는 지시는 항상
+       여기 걸린다. 모양도 같다 — 양쪽 다 dirDto_·convDto_를 거쳐 나온다.
+       스냅샷으로 막 뜬 직후라면 잠깐 낡을 수 있는데, 옛 왕복도 「그 순간의 시트」를 보여줬을
+       뿐이라 다르지 않다. GAS 응답이 도착하면 DATA가 갈리고 다음에 열 때 새것으로 그려진다. */
+    const 캐시지시 = (DATA.directives || []).find(x => x.id === Number(id));
+    const 캐시대화 = DATA.convs && DATA.convs[id];
+    // subs는 없을 수 있다 — 옛 스냅샷(2026-08-29 이전)에는 이 키가 아예 없다
+    if (캐시지시 && 캐시대화) { renderDetail(캐시지시, 캐시대화, (DATA.subs && DATA.subs[id]) || []); return; }
+
     $('sheetBody').innerHTML = '<div class="grip"></div><div class="loading-full"><div class="spin"></div></div>';
     let r;
     try { r = await gs('웹_지시상세', TOKEN, id); }
     catch (e) { toast(e.message); closeSheet(); return; }
-    renderDetail(r.dir, r.convs);
+    renderDetail(r.dir, r.convs, r.subs || []);
   }
 
   function closeSheet(){ $('sheetBack').classList.add('hide'); newFiles = []; }
   $('sheetBack').addEventListener('click', e => { if (e.target === $('sheetBack')) closeSheet(); });
 
-  function renderDetail(d, convs){
+  function renderDetail(d, convs, subs){
     LASTD = d;
+    LASTS = subs || [];
     const me = DATA.me;
     const isAssignee = d.who.indexOf(me.name) >= 0;
     const openStatus = d.status === '답변 대기' || d.status === '답변 완료';
@@ -1353,6 +1464,9 @@
       + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
       + ' · ' + esc(d.pri) + '</div>'
       + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '');
+
+    // 세부업무 — 어느 단계까지 왔고 어디서 밀렸는지
+    h += subCardHtml(d, LASTS);
 
     // 스레드
     h += '<div class="thread">';
@@ -1397,6 +1511,7 @@
     // 입력 영역
     if (isAssignee && openStatus) h += replyFormHtml(d);
     else if (openStatus || me.manage) h += commentFormHtml(d);
+    if (isAssignee && openStatus && !me.manage) h += dueReqHtml(d);
     if (me.manage && openStatus) h += meetFormHtml(d);   // 대표도 미팅 제안 가능
     if (me.manage || isAssignee) h += ccFormHtml(d);     // 참조 공유 — 관련 직원에게 메일로만 전달
     if (me.manage || d.owner === me.name) h += manageBtnsHtml(d);
@@ -1408,14 +1523,73 @@
   const typePill = c =>
     c.type === '답변' ? '<span class="pill done">답변</span>' :
     c.type === '코멘트' ? '<span class="pill gray">코멘트</span>' :
+    c.type === '진행' ? '<span class="pill wait">진행</span>' :
     '<span class="pill meet">' + c.type + '</span>';
 
+  /* 세부업무 카드 — 상태(완료/지연/진행중)는 서버가 파생해 준다(세부상태_). 여기서 다시 세지 않는다.
+     ⚠ 접힘/펼침을 만들지 않는다 — 쓰기 한 번마다 renderMain이 innerHTML을 통째로 다시 써서 초기화된다. */
+  function subCardHtml(d, subs){
+    const me = DATA.me;
+    const 권한 = me.manage || d.owner === me.name || d.who.indexOf(me.name) >= 0;
+    const 진행 = subProgress(subs);
+    let h = '<div class="card"><h3>세부업무' + (진행 ? ' ' + 진행 : '') + '</h3><div class="dlist">';
+    if (!subs.length) h += '<div class="empty">아직 세부업무가 없습니다</div>';
+    subs.forEach(s => {
+      const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
+      const 누구 = [s.who.join(', '), s.vendor].filter(Boolean).join(' · ');
+      h += '<div class="ditem"><div class="txt"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+        + esc((누구 || '담당 미지정') + (s.dueKo ? ' · 마감 ' + s.dueKo : '') + (s.doneKo ? ' · 완료 ' + s.doneKo : ''))
+        + '</span></div><div class="side"><span class="pill ' + cls + '">' + esc(s.status) + '</span>'
+        + (s.status === '완료' || s.dday == null ? ''
+          : '<i class="dday' + (s.dday < 0 ? ' over' : s.dday <= 1 ? ' near' : '') + '">' + esc(s.ddayLabel) + '</i>')
+        + '</div></div>';
+      // 기한은 임원 재량이다 — 승인 버튼이 없다 (결정 6 앞단). 바꾸면 알림과 이력만 남는다
+      if (권한) h += '<div class="sub-act">'
+        + '<button class="btn-mini" data-sdone="' + s.id + '" data-v="' + (s.status === '완료' ? '0' : '1') + '">'
+        + (s.status === '완료' ? '완료 취소' : '완료') + '</button>'
+        + '<input type="date" data-sdue="' + s.id + '" value="' + esc(s.due || '') + '">'
+        + '<button class="btn-mini danger" data-sdel="' + s.id + '">삭제</button></div>';
+    });
+    h += '</div>';
+    if (권한) h += '<div class="row-label">세부업무 추가</div>'
+      + '<div class="sub-new"><input type="text" id="nsTitle" placeholder="세부업무 (예: 견적 수령)">'
+      + '<input type="text" id="nsWho" placeholder="담당 (내부)">'
+      + '<input type="text" id="nsVendor" placeholder="담당 (외부)">'
+      + '<input type="date" id="nsDue"></div>'
+      + '<button class="btn-quiet" id="nsAdd" style="margin-top:10px">추가</button>'
+      + '<div class="hint">세부업무 담당은 이름표입니다 — 적힌 사람에게 이 업무가 보이지는 않습니다.</div>';
+    return h + '</div>';
+  }
+
+  /** 진행률 배지 — 완료/전체, 지연이 있으면 그 수까지. 목록 줄에도 같은 숫자가 나간다 */
+  function subProgress(subs){
+    if (!subs || !subs.length) return '';
+    const done = subs.filter(s => s.status === '완료').length;
+    const late = subs.filter(s => s.status === '지연').length;
+    return '<span class="pill ' + (late ? 'late' : done === subs.length ? 'done' : 'gray') + '">'
+      + done + '/' + subs.length + (late ? ' · 지연 ' + late : '') + '</span>';
+  }
+
+  /* 상위 기한 변경 요청 — 답변 폼 안에도 같은 길이 있지만 **본문이 있어야만** 보낼 수 있어서
+     실사용 0건이었다. 여기가 단독 진입점이다. 대표님이 승인해야 바뀐다 (결정 6 뒷단). */
+  function dueReqHtml(d){
+    return '<div class="card"><h3>기한 변경 요청 <span style="font-weight:400">· 대표님 승인이 필요합니다</span></h3>'
+      + '<input type="date" id="drDue" value="' + esc(d.due || '') + '">'
+      + '<input type="text" id="drNote" placeholder="사유 (선택)" style="margin-top:8px">'
+      + '<button class="btn-quiet" id="drSend" style="margin-top:10px">승인 요청 보내기</button></div>';
+  }
+
   function replyFormHtml(d){
-    return '<div class="card"><h3>답변하기</h3>'
-      + '<textarea id="rBody" placeholder="답변을 입력하세요" rows="3"></textarea>'
+    /* '진행'은 대표께 내는 회신이 아니라 기록이다 — 상태를 '답변 완료'로 넘기지 않는다.
+       진입점이 답변 폼인 이유: 1448행이 담당 임원에게는 commentFormHtml을 아예 안 그린다. */
+    return '<div class="card"><h3>기록 남기기</h3>'
+      + '<div class="seg" id="rKind"><button class="on" data-v="답변">답변</button>'
+      + '<button data-v="진행">진행</button></div>'
+      + '<textarea id="rBody" placeholder="답변을 입력하세요" rows="3" style="margin-top:10px"></textarea>'
       + '<div class="row-label">첨부 자료</div>'
       + '<div class="chips" id="rFiles"><button class="chip" id="rAddFile">+ 파일 추가</button></div>'
       + '<input type="file" id="rFileInput" multiple class="hide">'
+      + '<div id="rExtra">'
       + '<div class="row-label">기한 회신</div>'
       + '<div class="seg" id="rDueSeg"><button class="on" data-v="ok">기한 내 가능</button><button data-v="change">조정 요청</button></div>'
       + '<div id="rDueBox" class="hide"><input type="date" id="rDueDate" style="margin-top:8px">'
@@ -1425,6 +1599,7 @@
         + '<div class="seg" id="rMeetSeg"><button class="on" data-v="">필요 없음</button><button data-v="meet">미팅 요청</button></div>'
         + '<div id="rMeetBox" class="hide"><input type="text" id="rMeetNote" placeholder="논의할 내용 (선택)" style="margin-top:8px">'
         + '<div class="hint">일정은 대표님이 옵션 2개를 제안하면 그중에서 선택하게 됩니다</div></div>')
+      + '</div>'
       + '<button class="btn-primary" id="rSend">답변 보내기</button></div>';
   }
 
@@ -1477,7 +1652,10 @@
 
   function manageBtnsHtml(d){
     let b = '<div class="card"><h3>지시 관리</h3><div class="chips">';
-    if (DATA.me.manage) {   // 완료·보류 등 상태 변경은 대표님만
+    /* 자기가 만들고 자기가 담당인 업무는 스스로 닫는다 (결정 7). 서버(웹_상태변경)와 같은 조건이어야
+       한다 — 서버만 열고 여기를 안 열면 임원에게는 그 길이 없는 것과 같다. */
+    const 내업무 = d.owner === DATA.me.name && d.who.length === 1 && d.who[0] === DATA.me.name;
+    if (DATA.me.manage || 내업무) {   // 대표가 낸 지시와 대표께 낸 요청은 계속 대표님 몫이다
       if (d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'완료\')">완료 처리</button>';
       if (d.status !== '보류' && d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'보류\')">보류</button>';
       if (d.status === '완료' || d.status === '보류') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'답변 대기\')">다시 진행</button>';
@@ -1562,6 +1740,13 @@
     MEET_NEED = null;
     const add = $('rAddFile');
     if (add) {
+      // '진행'은 기한 회신·미팅 요청을 타지 않는다 — 그 칸들을 접고 버튼 이름만 바꾼다
+      segInit('rKind', btn => {
+        const 진행 = btn.dataset.v === '진행';
+        $('rExtra').classList.toggle('hide', 진행);
+        $('rBody').placeholder = 진행 ? '진행 상황을 입력하세요 (상태는 바뀌지 않습니다)' : '답변을 입력하세요';
+        $('rSend').textContent = 진행 ? '진행 기록 남기기' : '답변 보내기';
+      });
       segInit('rDueSeg', btn => $('rDueBox').classList.toggle('hide', btn.dataset.v !== 'change'));
       if ($('rMeetSeg')) segInit('rMeetSeg', btn => $('rMeetBox').classList.toggle('hide', btn.dataset.v !== 'meet'));
       add.addEventListener('click', () => $('rFileInput').click());
@@ -1583,6 +1768,53 @@
       busy(true, '저장 중...');
       try { await gs('웹_코멘트등록', TOKEN, { id: d.id, body }); toast('코멘트가 등록되었습니다'); await reopen(d.id); }
       catch (e) { toast(e.message); }
+      busy(false);
+    });
+    /* 세부업무 — 완료 체크 · 기한 즉시 변경(승인 없음) · 삭제 · 한 줄 추가.
+       #sheetBody로 좁힌다 — 뒤에 있는 목록에도 같은 속성이 있으면 중복 바인딩된다 */
+    document.querySelectorAll('#sheetBody [data-sdone]').forEach(btn => btn.addEventListener('click', async () => {
+      busy(true, '저장 중...');
+      try { await gs('웹_세부완료', TOKEN, { id: Number(btn.dataset.sdone), done: btn.dataset.v === '1' }); await reopen(d.id); }
+      catch (e) { toast(e.message); }
+      busy(false);
+    }));
+    document.querySelectorAll('#sheetBody [data-sdue]').forEach(inp => inp.addEventListener('change', async () => {
+      busy(true, '기한 변경 중...');
+      try {
+        await gs('웹_세부수정', TOKEN, { id: Number(inp.dataset.sdue), due: inp.value });
+        toast('세부 기한을 바꿨습니다. 담당자에게 알림이 갑니다.');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    }));
+    document.querySelectorAll('#sheetBody [data-sdel]').forEach(btn => btn.addEventListener('click', async () => {
+      busy(true, '삭제 중...');
+      try { await gs('웹_세부삭제', TOKEN, Number(btn.dataset.sdel)); await reopen(d.id); }
+      catch (e) { toast(e.message); }
+      busy(false);
+    }));
+    const nsAdd = $('nsAdd');
+    if (nsAdd) nsAdd.addEventListener('click', async () => {
+      const title = $('nsTitle').value.trim();
+      if (!title) { toast('세부업무를 입력해 주세요'); return; }
+      busy(true, '추가 중...');
+      try {
+        await gs('웹_세부등록', TOKEN, { dirId: d.id, items: [{
+          title, who: $('nsWho').value.trim(), vendor: $('nsVendor').value.trim(), due: $('nsDue').value,
+        }] });
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+    const drSend = $('drSend');
+    if (drSend) drSend.addEventListener('click', async () => {
+      if (!$('drDue').value) { toast('바꿀 기한을 골라 주세요'); return; }
+      busy(true, '요청 전송 중...');
+      try {
+        await gs('웹_기한요청', TOKEN, { id: d.id, due: $('drDue').value, note: $('drNote').value.trim() });
+        toast('기한 변경 승인 요청을 보냈습니다.');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
       busy(false);
     });
     // 참조 공유 — 칩 렌더 + 추가 버튼
@@ -1637,7 +1869,18 @@
 
   async function sendReply(d){
     const body = $('rBody').value.trim();
-    if (!body && !newFiles.length) { toast('답변 내용을 입력해 주세요'); return; }
+    const 진행 = segVal('rKind') === '진행';
+    if (!body && !newFiles.length) { toast((진행 ? '진행' : '답변') + ' 내용을 입력해 주세요'); return; }
+    if (진행) {
+      busy(true, newFiles.length ? '파일 업로드 중...' : '기록 중...');
+      try {
+        await gs('웹_진행등록', TOKEN, { id: d.id, body, files: newFiles });
+        toast('진행 기록을 남겼습니다. 상태는 그대로입니다.');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+      return;
+    }
     const f = { id: d.id, body, files: newFiles };
     if (segVal('rDueSeg') === 'change') {
       if (!$('rDueDate').value) { toast('조정할 기한을 선택해 주세요'); return; }
