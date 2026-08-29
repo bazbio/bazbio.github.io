@@ -265,6 +265,11 @@ $('들어가기').onclick = function () {
 $('핀').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('들어가기').click(); });
 function 로그인탈(말) { var el = $('로그인탈'); el.textContent = 말; 보임(el, true); }
 
+/* 전체를 보는 사람인가 — 품질담당·대표. 유형(분류) 정정 권한이 여기 걸린다 */
+function 전체봄() {
+  return 세션.역할.indexOf('품질담당') >= 0 || 세션.역할.indexOf('대표') >= 0;
+}
+
 /* ── 건 나누기 ── */
 function 건들() { return (홈 && 홈.건들) || []; }
 function 진행중들() { return 건들().filter(function (g) { return g.상태 === '진행중'; }); }
@@ -544,7 +549,30 @@ function 건열기(건_id) {
       h += '<div class="안내">이 건은 ' + 새기기(g.등록자_이름) + ' 님이 올렸습니다 — 닫는 것은 올린 사람만 합니다.</div>';
     }
 
+    // 유형 고치기. 완료된 건도 고칠 수 있다 — 분류 정정이지 상태 변경이 아니다.
+    // 맨 아래에 둔다: 이 겹창의 주된 일은 완료를 찍는 것이고, 유형 정정은 가끔 하는 일이다.
+    var 유형고침 = d.내건 || 전체봄();
+    if (유형고침) {
+      h += '<div class="구분">증상 유형 — 잘못 골랐으면 고칩니다</div>' +
+        '<div class="알약들" id="유형무리"></div>' +
+        '<button class="버튼 흰" id="유형저장" style="margin-top:12px" disabled>다른 유형을 고르면 바뀝니다</button>';
+    }
+
     var 판 = 겹창(h);
+
+    if (판.querySelector('#유형무리')) {
+      var 고른유형 = g.유형;
+      var 유형저장 = 판.querySelector('#유형저장');
+      무리(판.querySelector('#유형무리'), (홈.유형 || []), g.유형, function (v) {
+        고른유형 = v;
+        유형저장.disabled = (v === g.유형);
+        유형저장.textContent = (v === g.유형) ? '다른 유형을 고르면 바뀝니다' : '이 유형으로 바꾸기';
+      });
+      유형저장.onclick = function () {
+        this.disabled = true;
+        행동({ 동작: '유형변경', 건_id: g.id, 유형: 고른유형 });
+      };
+    }
 
     if (판.querySelector('#구분무리')) {
       var 고른구분 = '';
