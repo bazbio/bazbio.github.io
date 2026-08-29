@@ -611,8 +611,15 @@ function 건열기(건_id) {
       (g.이관 ? '' : ' · 기한 ' + 날짜(g.기한)) + '</div>' +
       '<div style="font-size:15px;margin-top:10px;white-space:pre-wrap">' + 새기기(g.내용_원문) + '</div>';
     if (g.특이사항) h += '<div class="안내">특이사항 — ' + 새기기(g.특이사항) + '</div>';
-    if (g.연락처) h += '<div class="메타" style="margin-top:6px">연락처 ' +
-      '<a href="tel:' + 새기기(g.연락처) + '" style="color:var(--ink)">' + 새기기(g.연락처) + '</a></div>';
+    // 실물 8건 중 6건이 번호가 아니라 「원내 연락 필요」 같은 문장이다 — 그런 것에
+    // tel: 링크를 걸면 누를 수는 있는데 아무 데도 안 걸린다. 숫자가 있을 때만 건다
+    if (g.연락처) {
+      var 걸수있나 = /[0-9]{3}/.test(g.연락처);
+      h += '<div class="메타" style="margin-top:6px">연락처 ' +
+        (걸수있나
+          ? '<a href="tel:' + 새기기(g.연락처) + '" style="color:var(--ink)">' + 새기기(g.연락처) + '</a>'
+          : 새기기(g.연락처)) + '</div>';
+    }
 
     if ((d.사진 || []).length) {
       h += '<div class="사진띠">' + d.사진.map(function (p) {
