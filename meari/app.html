@@ -14,7 +14,8 @@
 /* ═══════════════════════════════════════════════════════════════
    메아리 앱 — 로그인 화면 (ADR 0028)
    디자인: 혼합안 v2 (2026-08-11 확정). 등록 화면(index.html)과 같은 토큰.
-   탭 셋: 현황(첫 화면) · 진행중 · 완료. 역할로 갈리지 않는다 — 열 명 한 팀이 같은 것을 본다.
+   탭: 현황(첫 화면) · 진행중 · 완료 — 역할로 갈리지 않는다. 열 명 한 팀이 같은 것을 본다.
+   여기에 품질담당·대표만 「관리」 탭이 하나 더 붙는다 (PIN 재발급).
    ═══════════════════════════════════════════════════════════════ */
 :root{
   --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
@@ -283,11 +284,15 @@ function 지연들() { return 진행중들().filter(function (g) { return g.지�
 // 첫 화면은 현황이다 — 열자마자 「지금 품질이 어떤가」가 보여야 한다 (2026-08-29 사용자 요청).
 // 진행중이 먼저면 매일 볼 사람에게는 편하지만, 이 장부를 만든 이유인 「무엇이 반복되고
 // 제 시간에 처리되는가」가 한 번 더 눌러야 나온다.
-var 탭목록 = [['현황', '현황'], ['진행중', '진행중'], ['완료', '완료']];
+function 탭목록() {
+  var 탭 = [['현황', '현황'], ['진행중', '진행중'], ['완료', '완료']];
+  if (전체봄()) 탭.push(['관리', '관리']);   // 품질담당·대표만 — PIN 재발급
+  return 탭;
+}
 
 function 탭그리기() {
   var 칸 = $('탭들'); 칸.textContent = '';
-  탭목록.forEach(function (t) {
+  탭목록().forEach(function (t) {
     var b = document.createElement('button');
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', String(t[0] === 지금탭));
@@ -354,7 +359,69 @@ function 본문그리기() {
   var 몸 = $('본문');
   if (지금탭 === '진행중') return 진행중그리기(몸);
   if (지금탭 === '완료') return 완료그리기(몸);
+  if (지금탭 === '관리') return 관리그리기(몸);
   return 현황그리기(몸);
+}
+
+/* ── 관리 (품질담당·대표) ────────────────────────────────────────
+   **PIN을 「보여주는」 화면이 아니다.** DB에는 SHA-256 해시만 있어 원래 값을 되돌릴 수 없다.
+   관리자가 언제나 할 수 있는 것은 「다시 주기」이고, 새 PIN은 여기서 한 번만 뜬다.
+   ────────────────────────────────────────────────────────────── */
+function 관리그리기(몸) {
+  var 들 = (홈 && 홈.계정들) || [];
+  var h = '<div class="안내">PIN은 <b>다시 볼 수 없습니다</b> — 저장된 것이 해시라서 ' +
+    '원리적으로 불가능합니다. 잊었거나 새로 주셔야 하면 여기서 <b>다시 발급</b>하세요. ' +
+    '새 PIN이 화면에 한 번 뜹니다.</div>' +
+    '<div class="구분">계정 ' + 들.length + '명</div>';
+  if (!들.length) h += '<div class="빈말"><b>명부를 불러오지 못했습니다</b></div>';
+  들.forEach(function (p) {
+    var 나 = (p.이름 === (홈.나 || {}).이름);
+    h += '<div class="카드">' +
+      '<span class="표식 회">' + 새기기(String(p.역할 || '').split(',').join(' · ')) + '</span>' +
+      (p.pin있음 ? '' : '<span class="표식 지연">PIN 없음</span>') +
+      (나 ? '<span class="표식 끝">나</span>' : '') +
+      '<div class="제목줄">' + 새기기(p.이름) + '</div>' +
+      '<button class="버튼 흰" data-재발급="' + 새기기(p.이름) + '" style="margin-top:8px">PIN 다시 발급</button>' +
+      '</div>';
+  });
+  몸.innerHTML = h;
+  몸.querySelectorAll('[data-재발급]').forEach(function (el) {
+    el.onclick = function () { PIN재발급(el.dataset.재발급); };
+  });
+}
+
+function PIN재발급(이름) {
+  var 나인가 = (이름 === (홈.나 || {}).이름);
+  var 물음 = 이름 + ' 님의 PIN을 다시 발급합니다.\n지금 쓰던 PIN은 즉시 죽습니다.';
+  if (나인가) 물음 += '\n\n본인 것이라 지금 로그인도 끊깁니다.';
+  if (!confirm(물음)) return;
+  부르기('/meari-act', { 토큰: 세션.토큰, 동작: 'PIN재발급', 대상: 이름 }).then(function (r) {
+    if (!r.ok) return alert(r.이유 || '재발급하지 못했습니다');
+    PIN보이기(r.이름, r.pin, r.나였다);
+    if (!r.나였다) 다시읽기();   // 「PIN 없음」 표시를 갱신한다. 내 것이면 토큰이 죽어 안 부른다
+  });
+}
+
+function PIN보이기(이름, pin, 나였다) {
+  var h = '<div class="구분">' + 새기기(이름) + ' 님의 새 PIN</div>' +
+    '<div style="font-size:44px;font-weight:700;letter-spacing:.14em;text-align:center;' +
+    'padding:18px 0;font-variant-numeric:tabular-nums">' + 새기기(pin) + '</div>' +
+    '<button class="버튼 검정" id="복사" style="width:100%">복사</button>' +
+    '<div class="안내">이 창을 닫으면 <b>다시 볼 수 없습니다.</b> 지금 전달하시거나 적어 두세요. ' +
+    '옛 PIN은 이미 죽었습니다.</div>';
+  if (나였다) {
+    h += '<div class="탈" style="margin-top:12px">본인 것을 바꿨습니다 — 지금 로그인이 끊겼습니다.</div>' +
+      '<button class="버튼 흰" id="다시로그인" style="width:100%">새 PIN으로 다시 로그인</button>';
+  }
+  var 판 = 겹창(h);
+  판.querySelector('#복사').onclick = function () {
+    var b = this;
+    if (!navigator.clipboard) { b.textContent = '복사가 안 됩니다 — 손으로 적어 주세요'; return; }
+    navigator.clipboard.writeText(pin)
+      .then(function () { b.textContent = '복사했습니다'; })
+      .catch(function () { b.textContent = '복사가 안 됩니다 — 손으로 적어 주세요'; });
+  };
+  if (판.querySelector('#다시로그인')) 판.querySelector('#다시로그인').onclick = 나가기;
 }
 
 function 진행중그리기(몸) {
