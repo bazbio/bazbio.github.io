@@ -23,6 +23,14 @@
     --accent:#0071E3; --accent-ink:#FFFFFF;
     --ok:#34C759; --warn:#FF9500; --bad:#FF3B30;
     --shadow:0 8px 30px rgba(0,0,0,.08);
+    /* 간트 막대 색 — 막대·마름모·범례가 이 넷만 본다 (따로 적으면 언젠가 서로 달라진다).
+       --ok를 그대로 채우면 흰 카드 위에서 2.2:1로 흐리다. 밝기만 낮춰 파생시킨 값이라
+       새 색을 들이는 것이 아니다 — 라이트 3.6:1 / 다크 4.8:1로 도형 기준(3:1)을 넘긴다.
+       --accent·--ok·--bad가 테마마다 갈리므로 여기서 var로 받아 두면 다크에서도 따라온다. */
+    --gt-wait:var(--accent);
+    --gt-done:color-mix(in srgb, var(--ok) 78%, #000);
+    --gt-late:color-mix(in srgb, var(--bad) 78%, #000);
+    --gt-hold:var(--sub);
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -195,6 +203,79 @@
   .cal-i.meet{color:var(--ok); background:color-mix(in srgb, var(--ok) 12%, transparent)}
   .cal-more{font-size:9px; font-weight:700; color:var(--sub); padding-left:4px}
 
+  /* ── 업무 일정 (간트) ──
+     왼쪽 라벨은 제자리에 붙어 있고 날짜 칸만 가로로 흐른다. 하루 폭(--gt-dw)과 바의 위치는
+     JS가 계산해 인라인으로 넣는다 — 그 둘 말고는 인라인 스타일을 쓰지 않는다. */
+  .gt-wrap{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; margin:0 -16px}
+  .gt{min-width:max-content; --gt-dw:34px}
+  .gt-row{display:flex; align-items:stretch; border-top:1px solid var(--line); width:100%; text-align:left}
+  .gt-row.head{border-top:0}
+  .gt-row.dir,.gt-row.sub{cursor:pointer}
+  .gt-row.dir:hover .gt-lab,.gt-row.sub:hover .gt-lab{background:var(--field)}
+  .gt-row.dir:hover .gt-lab b,.gt-row.sub:hover .gt-lab b{color:var(--accent)}
+  .gt-lab{position:sticky; left:0; z-index:2; flex:none; width:152px; min-width:152px;
+    padding:11px 12px 11px 16px; background:var(--card); border-right:1px solid var(--line);
+    transition:background .18s cubic-bezier(.16,1,.3,1)}
+  .gt-lab b{display:block; font-size:15px; font-weight:600; letter-spacing:-.01em; line-height:1.35;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    transition:color .18s cubic-bezier(.16,1,.3,1)}
+  .gt-lab span{display:block; font-size:12.5px; color:var(--sub); line-height:1.4;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .gt-row.sub .gt-lab{padding-left:32px}
+  .gt-row.sub .gt-lab b{font-size:14px; font-weight:500}
+  /* 구분 머리 — 가로로 흘러도 이름은 왼쪽에 남는다 */
+  .gt-grp{border-top:1px solid var(--line); padding:16px 16px 7px; background:var(--field)}
+  .gt-grp:first-child{border-top:0}
+  .gt-grp i{position:sticky; left:16px; display:inline-flex; align-items:center; gap:8px;
+    font-style:normal; font-size:14px; font-weight:700; color:var(--ink); letter-spacing:-.01em}
+  /* 건수 배지 — 액센트 계열은 어느 쪽으로 칠해도 4.5:1을 못 넘겼다 (흰 글씨 3.6 / 액센트 글씨 3.8).
+     구분 머리줄이 --field라, 배지만 --card로 띄우면 라이트 5.3:1 · 다크 5.9:1이 나온다 */
+  .gt-grp i em{font-style:normal; font-weight:700; color:var(--sub); background:var(--card);
+    border-radius:999px; padding:2px 9px; font-size:12px}
+  .gt-track{position:relative; flex:none; display:flex}
+  .gt-d{flex:none; width:var(--gt-dw); border-left:1px solid var(--line)}
+  .gt-d.we{background:color-mix(in srgb, var(--sub) 12%, transparent)}
+  .gt-d.today{background:color-mix(in srgb, var(--accent) 20%, transparent)}
+  .gt-row.head .gt-d{padding:7px 0 8px; text-align:center; font-size:12.5px; font-weight:700; color:var(--sub)}
+  /* 오늘 칸 머리 — 흰 글씨를 --accent 위에 얹으면 다크에서 3.6:1이라, 막대와 같은 방식으로 어둡게 깐다 */
+  .gt-row.head .gt-d.today{color:#FFFFFF; background:color-mix(in srgb, var(--accent) 78%, #000)}
+  .gt-mons{display:flex; padding-left:152px}
+  /* 라벨 폭은 하루폭()의 700px 문턱과 같이 움직인다 — 폰에서는 이름을 줄여 날짜를 더 보여준다 */
+  @media (min-width:700px){
+    .gt-lab{width:214px; min-width:214px}
+    .gt-mons{padding-left:214px}
+  }
+  .gt-mon{flex:none; font-size:12.5px; font-weight:700; color:var(--ink); padding:9px 0 3px 6px; border-left:1px solid var(--line)}
+  /* 막대 — 시작일~마감일. 색을 통째로 채운다 (연한 톤은 흰 카드 위에서 안 보인다).
+     완료는 초록, 지연은 빨강, 진행 중은 액센트, 보류는 회색 */
+  .gt-bar{position:absolute; top:50%; transform:translateY(-50%); height:20px; border-radius:999px;
+    background:var(--gt-wait)}
+  .gt-bar.done{background:var(--gt-done)}
+  .gt-bar.late{background:var(--gt-late)}
+  .gt-bar.hold{background:var(--gt-hold)}
+  /* 요약 막대(업무 줄) — 세부업무를 감싸는 띠라 얇고 각지게 해서 세부 막대와 구별한다 */
+  .gt-bar.roll{height:10px; border-radius:3px}
+  /* 창 밖으로 잘린 쪽은 모서리를 각지게 — 「여기서 끝난 게 아니라 잘렸다」는 표시 */
+  .gt-bar.cutL{border-top-left-radius:2px; border-bottom-left-radius:2px}
+  .gt-bar.cutR{border-top-right-radius:2px; border-bottom-right-radius:2px}
+  /* 기한만 있는 줄 — 기간이 없으니 그날 하나를 마름모로 찍는다 */
+  .gt-dot{position:absolute; top:50%; width:16px; height:16px; margin-left:calc((var(--gt-dw) - 16px) / 2);
+    transform:translateY(-50%) rotate(45deg); border-radius:3px; background:var(--gt-wait)}
+  .gt-dot.done{background:var(--gt-done)}
+  .gt-dot.late{background:var(--gt-late)}
+  .gt-dot.hold{background:var(--gt-hold)}
+  /* 창 밖에 있는 줄 — 빈 칸으로 두면 "일정이 없다"로 읽힌다. 어느 쪽에 있는지 화살표로 알린다 */
+  .gt-edge{position:absolute; top:50%; transform:translateY(-50%); font-size:16px; font-weight:800;
+    color:var(--sub); padding:0 4px}
+  .gt-edge.l{left:0}
+  .gt-edge.r{right:0}
+  .gt-legend{display:flex; flex-wrap:wrap; gap:8px 16px; padding:14px 2px 0; font-size:12.5px; color:var(--sub)}
+  .gt-legend span{display:inline-flex; align-items:center; gap:6px}
+  .gt-legend s{width:20px; height:11px; border-radius:999px; text-decoration:none}
+  .gt-legend s.w{background:var(--gt-wait)}
+  .gt-legend s.d{background:var(--gt-done)}
+  .gt-legend s.l{background:var(--gt-late)}
+
   /* 데스크톱: 현황판을 목록 + 캘린더 2단으로 */
   @media (min-width:1080px){
     .wrap{max-width:1104px}
@@ -202,6 +283,8 @@
     .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
     #tabNew{max-width:720px; margin:0 auto}
     .cal-d{min-height:64px}
+    .gt-lab{width:270px; min-width:270px}
+    .gt-mons{padding-left:270px}
   }
 
   /* 탭 (대표용) */
@@ -359,6 +442,22 @@
     <div id="tabBoard">
       <div class="tiles" id="tiles"></div>
       <div class="searchbar"><input type="text" id="q" placeholder="검색 · 제목 · 내용 · 이름" autocomplete="off"></div>
+      <!-- 업무 일정(간트)은 2단 밖에 둔다 — 데스크톱에서 캘린더 옆 676px에 갇히면 보이는 날이 반토막 난다 -->
+      <div class="card">
+        <div class="cal-head">
+          <h3 id="listLabel">업무 일정</h3>
+          <div class="cal-nav">
+            <button id="gtPrev" aria-label="앞 2주">&#8249;</button>
+            <b id="gtRange"></b>
+            <button id="gtNext" aria-label="뒤 2주">&#8250;</button>
+          </div>
+        </div>
+        <div class="gt-wrap" id="gtWrap"></div>
+        <div class="gt-legend">
+          <span><s class="w"></s>진행 중</span><span><s class="d"></s>완료</span><span><s class="l"></s>지연</span>
+          <span>◆ 기한만 정해진 줄</span>
+        </div>
+      </div>
       <div class="board-cols">
         <div class="board-main">
           <div class="card" id="cardStuck">
@@ -374,14 +473,6 @@
           <div class="card hide" id="cardMembers">
             <h3>임원별 현황 <span style="font-weight:400">· 카드를 누르면 상세가 열립니다</span></h3>
             <div id="memRows"></div>
-          </div>
-          <div class="card">
-            <h3 id="listLabel">진행 중인 지시</h3>
-            <div class="dlist" id="listOpen"></div>
-          </div>
-          <div class="card">
-            <h3>완료 · 보류</h3>
-            <div class="dlist" id="listClosed"></div>
           </div>
         </div>
         <aside class="board-side">
@@ -416,6 +507,10 @@
         <textarea id="newDetail" placeholder="배경이나 참고사항이 있으면 적어주세요" rows="2"></textarea>
         <div class="row-label" id="whoLabel">담당 임원</div>
         <div class="chips" id="newWho"></div>
+        <!-- 구분 — 업무 일정(간트)에서 줄을 묶는 갈래. 자유 입력이고, 이미 쓴 값은 목록으로 뜬다 -->
+        <div class="row-label">구분 (선택)</div>
+        <input type="text" id="newCat" list="catList" placeholder="예: 예산 · 조직 · 특허 · 국내영업" autocomplete="off">
+        <datalist id="catList"></datalist>
         <div class="row-label">기한</div>
         <div class="seg" id="newDueQuick">
           <button data-days="1">내일</button>
@@ -474,7 +569,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608290705';
+  var 빌드버전_ = '202608290919';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -745,7 +840,6 @@
     $('newTitle').placeholder = me.manage ? '지시 내용을 입력하세요' : '요청 내용을 입력하세요';
     $('btnNewSend').textContent = me.manage ? '지시 보내기' : '요청 보내기';
     $('newMeetWrap').classList.toggle('hide', !me.manage);   // 미팅 일시 지정은 대표/관리자만
-    $('listLabel').textContent = '진행 중';
 
     // 통계 타일
     const s = DATA.stats;
@@ -757,8 +851,13 @@
     renderStuck();
     renderMeet();
     renderMembers();
-    renderLists();
+    renderGantt();
     renderCal();
+
+    // 이미 쓰인 구분을 새 지시 폼의 후보로 — 같은 갈래를 사람마다 다른 말로 적으면 간트가 쪼개진다
+    const cats = DATA.directives.map(d => d.cat).filter(c => c && c !== '미분류')
+      .filter((c, i, a) => a.indexOf(c) === i).sort((a, b) => a.localeCompare(b, 'ko'));
+    $('catList').innerHTML = cats.map(c => '<option value="' + esc(c) + '">').join('');
 
     // 지시 명의 — 관리자만, 01_구성원에 '대표' 역할이 있을 때
     const boss = DATA.boss;
@@ -1172,7 +1271,7 @@
       el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
     $('mbFilter').addEventListener('click', () => {
       FILTER.member = name;
-      renderMembers(); renderLists();
+      renderMembers(); renderGantt();
       closeSheet();
       $('cardMembers').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -1182,57 +1281,211 @@
   function matchFilter(d){
     if (FILTER.member && d.who.indexOf(FILTER.member) < 0) return false;
     if (!FILTER.q) return true;
-    const hay = (d.title + ' ' + (d.detail || '') + ' ' + d.owner + ' ' + d.who.join(' ')).toLowerCase();
+    const hay = (d.title + ' ' + (d.detail || '') + ' ' + d.owner + ' ' + d.who.join(' ') + ' ' + (d.cat || '')).toLowerCase();
     return hay.indexOf(FILTER.q) >= 0;
   }
 
-  const titleOf = n => {
-    const m = (DATA.byMember || []).find(x => x.name === n) || (DATA.members || []).find(x => x.name === n);
-    return m && m.title ? m.title : '';
-  };
+  /* ── 업무 일정 (간트) ──
+     엑셀 Action Plan을 그대로 옮긴 표다. 구분으로 묶고, 업무 아래 세부업무를 들여 쓰고,
+     오른쪽에 시작일~마감일 막대를 그린다. 창은 28일이고 ‹ ›로 2주씩 민다.
+     상태(완료/지연/진행중)는 서버가 파생해 준다 — 여기서 다시 세지 않는다. */
+  /* 하루 폭은 JS가 정해 `--gt-dw`로 내려보낸다 — CSS에 따로 적으면 막대 좌표와 칸이 어긋난다.
+     좁은 화면에서 34px를 쓰면 4일치밖에 안 보여서, 폰에서는 칸을 좁힌다. */
+  const GT_DAYS = 28, DAYMS = 86400000;
+  const 하루폭 = () => (innerWidth < 700 ? 26 : 34);
+  let GT_DW = 하루폭();
+  let GT_FROM = null;                       // 창의 첫날 (자정)
+  const 자정 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const 날짜 = s => (s ? 자정(new Date(s + 'T00:00:00')) : null);
+  const 짧은날 = s => { const t = 날짜(s); return t ? (t.getMonth() + 1) + '/' + t.getDate() : ''; };
 
-  function renderLists(){
-    const filtered = DATA.directives.filter(matchFilter);
-    const filtering = FILTER.q || FILTER.member;
-    const open = filtered.filter(d => d.status === '답변 대기' || d.status === '답변 완료');
-    const closed = filtered.filter(d => d.status === '완료' || d.status === '보류');
-    $('listLabel').innerHTML = '진행 중' + (FILTER.member
+  function renderGantt(){
+    const today = 자정(new Date());
+    GT_DW = 하루폭();
+    if (!GT_FROM) GT_FROM = new Date(today.getTime() - 7 * DAYMS);
+    const 칸 = dt => Math.round((자정(dt) - GT_FROM) / DAYMS);   // 창 시작으로부터 며칠째
+    const 끝 = new Date(GT_FROM.getTime() + (GT_DAYS - 1) * DAYMS);
+    $('gtRange').textContent = 짧은날(iso(GT_FROM)) + ' – ' + 짧은날(iso(끝));
+    $('listLabel').innerHTML = '업무 일정' + (FILTER.member
       ? ' · ' + esc(FILTER.member) + ' <button class="chip" id="clearMf" style="margin-left:4px;padding:2px 10px;font-size:11px">해제</button>' : '');
     const clearMf = $('clearMf');
-    if (clearMf) clearMf.addEventListener('click', () => { FILTER.member = ''; renderMembers(); renderLists(); });
+    if (clearMf) clearMf.addEventListener('click', () => { FILTER.member = ''; renderMembers(); renderGantt(); });
 
-    let openHtml = '';
-    if (open.length && DATA.me.manage && !FILTER.member) {
-      // 대표/관리자 화면: 담당자별로 묶어서 구분 표시
-      const groups = {}, order = [];
-      open.forEach(d => {
-        const k = d.who.join(', ') || d.owner;
-        if (!groups[k]) { groups[k] = []; order.push(k); }
-        groups[k].push(d);
-      });
-      order.sort((a, b) =>
-        (titleOf(a) || '').localeCompare(titleOf(b) || '', 'ko') || a.localeCompare(b, 'ko'));
-      openHtml = order.map(k => {
-        const t = k.indexOf(',') < 0 ? titleOf(k) : '';
-        return '<div class="dgroup">' + deptChip(t) + '<b>' + esc(k) + '</b>'
-          + '<span class="cnt">' + groups[k].length + '건</span></div>'
-          + groups[k].map(itemHtml).join('');
-      }).join('');
-    } else if (open.length) {
-      openHtml = open.map(itemHtml).join('');
+    /* 완료·보류는 **보이는 기간과 겹칠 때만** 남긴다. 안 그러면 몇 달 전에 끝난 업무가
+       영영 쌓여 화면을 밀어낸다 (전에는 「완료·보류」 카드가 15건으로 잘랐다).
+       진행 중인 업무는 기간이 창 밖이어도 늘 보인다 — 놓치면 안 되는 쪽이라서다. */
+    const 줄들 = DATA.directives.filter(matchFilter).filter(d => {
+      if (d.status === '답변 대기' || d.status === '답변 완료') return true;
+      const 폭 = 기간(d);
+      // 날짜가 하나도 없으면 어느 창에서도 못 보게 된다 — 그런 업무는 늘 남긴다
+      if (!폭) return true;
+      return 폭.to >= GT_FROM && 폭.from <= 끝;
+    });
+    if (!줄들.length) {
+      $('gtWrap').innerHTML = '<div class="empty">'
+        + ((FILTER.q || FILTER.member) ? '조건에 맞는 업무가 없습니다'
+          : DATA.directives.length ? '이 기간에 표시할 업무가 없습니다 — ‹ › 로 기간을 옮겨 보세요'
+          : '아직 등록된 업무가 없습니다') + '</div>';
+      return;
     }
-    $('listOpen').innerHTML = openHtml
-      || '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '진행 중인 지시가 없습니다') + '</div>';
-    $('listClosed').innerHTML = closed.length ? (filtering ? closed : closed.slice(0, 15)).map(itemHtml).join('')
-      : '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '아직 없습니다') + '</div>';
-    // #meetList도 .dlist라서 전체 선택하면 미팅 항목에 openDetail이 중복 바인딩된다 — 지시 목록 두 곳만
-    document.querySelectorAll('#listOpen .ditem, #listClosed .ditem').forEach(el =>
+
+    // 구분으로 묶는다 — '미분류'는 맨 아래 (이름이 있는 갈래를 먼저 본다)
+    const 묶음 = {}, 갈래 = [];
+    줄들.forEach(d => {
+      const k = d.cat || '미분류';
+      if (!묶음[k]) { 묶음[k] = []; 갈래.push(k); }
+      묶음[k].push(d);
+    });
+    갈래.sort((a, b) => (a === '미분류') - (b === '미분류') || a.localeCompare(b, 'ko'));
+
+    let h = '<div class="gt" style="--gt-dw:' + GT_DW + 'px">' + 달머리(GT_FROM) + 날머리(GT_FROM, today);
+    갈래.forEach(k => {
+      h += '<div class="gt-grp"><i>' + esc(k) + '<em>' + 묶음[k].length + '건</em></i></div>';
+      묶음[k].sort((a, b) => {
+        const x = 첫날(a), y = 첫날(b);
+        return (x ? x.getTime() : Infinity) - (y ? y.getTime() : Infinity) || b.id - a.id;
+      }).forEach(d => { h += 지시줄(d, 칸, today); });
+    });
+    $('gtWrap').innerHTML = h + '</div>';
+    $('gtWrap').querySelectorAll('.gt-row[data-id]').forEach(el =>
       el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
   }
 
+  const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  const 세부들 = d => (DATA.subs || {})[d.id] || [];
+
+  /** 그 업무가 차지하는 기간 — 정렬(첫날)과 창 겹침 판정에 같이 쓴다.
+   *  세부업무의 날짜와 상위 기한을 통틀어 가장 이른 날 ~ 가장 늦은 날. 날짜가 하나도 없으면 null */
+  function 기간(d){
+    const 날들 = [];
+    세부들(d).forEach(s => { [날짜(s.start), 날짜(s.due), 날짜(s.done)].forEach(x => { if (x) 날들.push(x); }); });
+    // 완료일도 센다 — 기한 없이 끝난 업무는 이것 말고 일정 위에 놓을 자리가 없다
+    [날짜(d.due), 날짜(d.done)].forEach(x => { if (x) 날들.push(x); });
+    if (!날들.length) return null;
+    const t = 날들.map(x => x.getTime());
+    return { from: new Date(Math.min.apply(null, t)), to: new Date(Math.max.apply(null, t)) };
+  }
+  const 첫날 = d => { const p = 기간(d); return p ? p.from : null; };
+
+  function 달머리(from){
+    let h = '<div class="gt-mons">', i = 0;
+    while (i < GT_DAYS) {
+      const dt = new Date(from.getTime() + i * DAYMS);
+      let n = 0;
+      while (i + n < GT_DAYS && new Date(from.getTime() + (i + n) * DAYMS).getMonth() === dt.getMonth()) n++;
+      h += '<div class="gt-mon" style="width:' + (n * GT_DW) + 'px">' + (dt.getMonth() + 1) + '월</div>';
+      i += n;
+    }
+    return h + '</div>';
+  }
+
+  function 날머리(from, today){
+    let h = '<div class="gt-row head"><div class="gt-lab"><b>업무 · 세부업무</b><span>담당 · 기간</span></div><div class="gt-track">';
+    for (let i = 0; i < GT_DAYS; i++) {
+      const dt = new Date(from.getTime() + i * DAYMS);
+      h += '<div class="gt-d' + 날칸(dt, today) + '">' + dt.getDate() + '</div>';
+    }
+    return h + '</div></div>';
+  }
+
+  const 날칸 = (dt, today) => (dt.getDay() === 0 || dt.getDay() === 6 ? ' we' : '')
+    + (dt.getTime() === today.getTime() ? ' today' : '');
+
+  /** 업무 한 줄 + 그 아래 세부업무 줄들. 업무 막대는 세부업무 전체를 감싼 요약이다 */
+  function 지시줄(d, 칸, today){
+    const subs = 세부들(d);
+    const 상태 = d.status === '완료' ? 'done' : d.status === '보류' ? 'hold'
+      : (d.subLate || (d.dday != null && d.dday < 0)) ? 'late' : 'wait';
+    const 기간 = subs.length ? 감싸기(subs) : null;
+    const 요약 = [d.who.join(', ') || d.owner,
+      d.dueKo ? '기한 ' + d.dueKo : d.doneKo ? '완료 ' + d.doneKo : '기한 없음',
+      d.subN ? '세부 ' + d.subDone + '/' + d.subN : ''].filter(Boolean).join(' · ');
+
+    let h = '<button class="gt-row dir" data-id="' + d.id + '">'
+      + '<div class="gt-lab"><b>' + esc(d.title) + '</b><span>' + esc(요약) + '</span></div>'
+      + '<div class="gt-track">' + 바탕(today)
+      // 기한이 없으면 완료일에 찍는다. 둘 다 없으면 막대도 점도 없이 라벨만 남는다
+      + (기간 ? 막대(칸, 기간.from, 기간.to, 상태 + ' roll') : 점(칸, 날짜(d.due) || 날짜(d.done), 상태))
+      + '</div></button>';
+
+    subs.forEach(s => {
+      const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
+      /* 날짜를 안 넣고 완료만 체크한 세부업무가 흔하다 — 기한이 없으면 완료일이 그 자리를 대신한다.
+         안 그러면 그 줄은 라벨만 남고 일정 위에서 사라진다 (Codex 2026-08-30). */
+      const 시작 = 날짜(s.start), 끝 = 날짜(s.due) || 날짜(s.done);
+      const 누구 = [s.who.join(', '), s.vendor].filter(Boolean).join(' · ');
+      const 끝말 = s.due ? '마감 ' : '완료 ';
+      const 때 = 시작 && 끝 ? 짧은날(s.start) + '–' + 짧은날(s.due || s.done)
+        : 끝 ? 끝말 + 짧은날(s.due || s.done) : 시작 ? 짧은날(s.start) + '–' : '';
+      // 세부업무 줄도 누르면 부모 업무가 열린다 — 거기에 완료 체크·기한 변경이 있다
+      h += '<button class="gt-row sub" data-id="' + d.id + '">'
+        + '<div class="gt-lab"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+        + esc([누구 || '담당 미지정', 때].filter(Boolean).join(' · ')) + '</span></div>'
+        + '<div class="gt-track">' + 바탕(today)
+        + (시작 && 끝 ? 막대(칸, 시작, 끝, cls)
+          : 시작 ? 막대(칸, 시작, 시작, cls) : 점(칸, 끝, cls))
+        + '</div></button>';
+    });
+    return h;
+  }
+
+  /** 세부업무 전체를 감싸는 기간 — 업무 줄의 요약 막대 */
+  function 감싸기(subs){
+    // 날짜 없이 완료만 체크한 세부업무는 완료일이 그 줄의 날짜다 — 요약 막대도 그걸 감싸야 한다
+    const 시작들 = subs.map(s => 날짜(s.start) || 날짜(s.due) || 날짜(s.done)).filter(Boolean);
+    const 끝들 = subs.map(s => 날짜(s.due) || 날짜(s.done) || 날짜(s.start)).filter(Boolean);
+    if (!시작들.length || !끝들.length) return null;
+    return {
+      from: new Date(Math.min.apply(null, 시작들.map(x => x.getTime()))),
+      to: new Date(Math.max.apply(null, 끝들.map(x => x.getTime()))),
+    };
+  }
+
+  let 바탕캐시 = { key: '', html: '' };
+  function 바탕(today){
+    const key = iso(GT_FROM) + '|' + iso(today);
+    if (바탕캐시.key !== key) {
+      let h = '';
+      for (let i = 0; i < GT_DAYS; i++) h += '<div class="gt-d' + 날칸(new Date(GT_FROM.getTime() + i * DAYMS), today) + '"></div>';
+      바탕캐시 = { key: key, html: h };
+    }
+    return 바탕캐시.html;
+  }
+
+  /** 창 밖으로 나가는 막대는 잘라 그리고, 잘린 쪽 끝을 점선으로 표시한다.
+   *  통째로 밖이면 빈 줄이 되므로 어느 쪽에 있는지 화살표를 남긴다 — 빈 칸은 「일정 없음」으로 읽힌다 */
+  function 막대(칸, from, to, cls){
+    const a = 칸(from), b = 칸(to);
+    if (b < 0) return 바깥('l');
+    if (a > GT_DAYS - 1) return 바깥('r');
+    const 왼 = Math.max(a, 0), 오 = Math.min(b, GT_DAYS - 1);
+    const 자름 = (a < 0 ? ' cutL' : '') + (b > GT_DAYS - 1 ? ' cutR' : '');
+    return '<span class="gt-bar ' + cls + 자름 + '" style="left:' + (왼 * GT_DW + 2)
+      + 'px;width:' + ((오 - 왼 + 1) * GT_DW - 4) + 'px"></span>';
+  }
+
+  /** 기간 없이 기한만 있는 줄 — 그날에 마름모 하나 */
+  function 점(칸, dt, cls){
+    if (!dt) return '';
+    const i = 칸(dt);
+    if (i < 0) return 바깥('l');
+    if (i > GT_DAYS - 1) return 바깥('r');
+    return '<span class="gt-dot ' + cls + '" style="left:' + (i * GT_DW) + 'px"></span>';
+  }
+
+  const 바깥 = 쪽 => '<span class="gt-edge ' + 쪽 + '" title="이 창 밖에 있습니다">'
+    + (쪽 === 'l' ? '&#8249;' : '&#8250;') + '</span>';
+
+  $('gtPrev').addEventListener('click', () => { GT_FROM = new Date(GT_FROM.getTime() - 14 * DAYMS); renderGantt(); });
+  $('gtNext').addEventListener('click', () => { GT_FROM = new Date(GT_FROM.getTime() + 14 * DAYMS); renderGantt(); });
+
+  /* 폰을 돌리면 하루 폭이 바뀐다 — 다시 그리지 않으면 막대의 인라인 좌표가 옛 폭 그대로라 칸과 어긋난다.
+     폭이 실제로 달라졌을 때만 그린다 (스크롤·키보드가 올라와도 resize가 뜬다) */
+  addEventListener('resize', () => { if (DATA && GT_DW !== 하루폭()) renderGantt(); });
+
   $('q').addEventListener('input', () => {
     FILTER.q = $('q').value.trim().toLowerCase();
-    if (DATA) renderLists();
+    if (DATA) renderGantt();
   });
 
   // ── 보고 일정 캘린더 — 진행 중인 지시의 기한을 월 단위로 표시 ──
@@ -1399,8 +1652,8 @@
     busy(true, newDirFiles.length ? '파일 업로드 중...' : '지시를 보내는 중...');
     try {
       const asBoss = onBehalf();
-      await gs('웹_지시등록', TOKEN, { title, detail: $('newDetail').value.trim(), who, due, pri: segVal('newPri'), files: newDirFiles, meetAt, onBehalf: asBoss });
-      $('newTitle').value = ''; $('newDetail').value = '';
+      await gs('웹_지시등록', TOKEN, { title, detail: $('newDetail').value.trim(), who, due, cat: $('newCat').value.trim(), pri: segVal('newPri'), files: newDirFiles, meetAt, onBehalf: asBoss });
+      $('newTitle').value = ''; $('newDetail').value = ''; $('newCat').value = '';
       newDirFiles = []; renderNFileChips();
       $('newWho').querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
       $('nMeetD').value = '';
@@ -1547,7 +1800,8 @@
       if (권한) h += '<div class="sub-act">'
         + '<button class="btn-mini" data-sdone="' + s.id + '" data-v="' + (s.status === '완료' ? '0' : '1') + '">'
         + (s.status === '완료' ? '완료 취소' : '완료') + '</button>'
-        + '<input type="date" data-sdue="' + s.id + '" value="' + esc(s.due || '') + '">'
+        + '<input type="date" data-sstart="' + s.id + '" value="' + esc(s.start || '') + '" aria-label="시작일">'
+        + '<input type="date" data-sdue="' + s.id + '" value="' + esc(s.due || '') + '" aria-label="마감일">'
         + '<button class="btn-mini danger" data-sdel="' + s.id + '">삭제</button></div>';
     });
     h += '</div>';
@@ -1555,9 +1809,12 @@
       + '<div class="sub-new"><input type="text" id="nsTitle" placeholder="세부업무 (예: 견적 수령)">'
       + '<input type="text" id="nsWho" placeholder="담당 (내부)">'
       + '<input type="text" id="nsVendor" placeholder="담당 (외부)">'
-      + '<input type="date" id="nsDue"></div>'
+      // 시작일이 있어야 간트에 막대가 그려진다 — 마감일만 있으면 그날 마름모 하나로 찍힌다
+      + '<input type="date" id="nsStart" aria-label="시작일">'
+      + '<input type="date" id="nsDue" aria-label="마감일"></div>'
       + '<button class="btn-quiet" id="nsAdd" style="margin-top:10px">추가</button>'
-      + '<div class="hint">세부업무 담당은 이름표입니다 — 적힌 사람에게 이 업무가 보이지는 않습니다.</div>';
+      + '<div class="hint">왼쪽이 시작일, 오른쪽이 마감일입니다. 둘 다 넣으면 일정 막대로 보입니다.<br>'
+      + '세부업무 담당은 이름표입니다 — 적힌 사람에게 이 업무가 보이지는 않습니다.</div>';
     return h + '</div>';
   }
 
@@ -1778,6 +2035,16 @@
       catch (e) { toast(e.message); }
       busy(false);
     }));
+    /* 시작일은 기한이 아니다 — 승인도 알림 문구도 기한 쪽과 다르다.
+       서버(세부수정_)가 시작일 변경은 '기한 변경'이 아닌 '코멘트'로 남긴다 */
+    document.querySelectorAll('#sheetBody [data-sstart]').forEach(inp => inp.addEventListener('change', async () => {
+      busy(true, '저장 중...');
+      try {
+        await gs('웹_세부수정', TOKEN, { id: Number(inp.dataset.sstart), start: inp.value });
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    }));
     document.querySelectorAll('#sheetBody [data-sdue]').forEach(inp => inp.addEventListener('change', async () => {
       busy(true, '기한 변경 중...');
       try {
@@ -1800,7 +2067,8 @@
       busy(true, '추가 중...');
       try {
         await gs('웹_세부등록', TOKEN, { dirId: d.id, items: [{
-          title, who: $('nsWho').value.trim(), vendor: $('nsVendor').value.trim(), due: $('nsDue').value,
+          title, who: $('nsWho').value.trim(), vendor: $('nsVendor').value.trim(),
+          start: $('nsStart').value, due: $('nsDue').value,
         }] });
         await reopen(d.id);
       } catch (e) { toast(e.message); }
