@@ -274,10 +274,15 @@ function 전체봄() {
   return 세션.역할.indexOf('품질담당') >= 0 || 세션.역할.indexOf('대표') >= 0;
 }
 
-/* ── 건 나누기 ── */
+/* ── 건 나누기 ──
+   이관 건(0054)은 상태가 「완료」지만 **시계가 없다** — 지연·기한초과·소요일이 전부 null이다.
+   그룹웨어에서 옮겨 온 옛 접수라 처리 내역을 모르기 때문이다. 여기서 갈라 두지 않으면
+   「제 시간에 완료」가 100%로, 평균 소요일이 0일로 부풀어 오른다.
+   유형·병원·제품·월별 추이는 `건들()` 그대로 쓴다 — 그걸 보려고 가져온 것이다. */
 function 건들() { return (홈 && 홈.건들) || []; }
 function 진행중들() { return 건들().filter(function (g) { return g.상태 === '진행중'; }); }
-function 완료들() { return 건들().filter(function (g) { return g.상태 === '완료'; }); }
+function 완료들() { return 건들().filter(function (g) { return g.상태 === '완료' && !g.이관; }); }
+function 이관들() { return 건들().filter(function (g) { return g.이관; }); }
 function 지연들() { return 진행중들().filter(function (g) { return g.지연; }); }
 
 /* ── 탭 ── */
@@ -328,6 +333,8 @@ $('나가기').onclick = 나가기;
 
 /* ── 건 카드 ── */
 function 건배지(g) {
+  // 이관 건에는 기한도 소요일도 안 찍는다 — 없는 시계를 찍으면 거짓말이 된다
+  if (g.이관) return '<span class="표식 회">이관</span>';
   var h = '';
   if (g.상태 === '진행중') {
     if (g.지연) h += '<span class="표식 지연">' + g.지연일수 + '일 늦음</span>';
@@ -446,18 +453,29 @@ function 진행중그리기(몸) {
   건줄들걸기(몸);
 }
 
-function 완료그리기(몸) {
-  var 들 = 완료들();
+function 잘라그리기(들) {
   var h = '';
-  if (!들.length) h += '<div class="빈말"><b>완료된 접수가 없습니다</b></div>';
-  else {
-    h += '<div class="구분">완료 ' + 들.length + '건</div>';
-    들.slice(0, 완료표시최대).forEach(function (g) { h += 건줄(g); });
-    // 잘린 것을 조용히 숨기지 않는다 — 몇 건을 안 그렸는지 화면에 적는다
-    if (들.length > 완료표시최대) {
-      h += '<div class="메타" style="text-align:center;padding:10px 0">최근 ' + 완료표시최대 +
-           '건만 그렸습니다 · 나머지 ' + (들.length - 완료표시최대) + '건은 현황 탭의 숫자에 들어 있습니다</div>';
-    }
+  들.slice(0, 완료표시최대).forEach(function (g) { h += 건줄(g); });
+  // 잘린 것을 조용히 숨기지 않는다 — 몇 건을 안 그렸는지 화면에 적는다
+  if (들.length > 완료표시최대) {
+    h += '<div class="메타" style="text-align:center;padding:10px 0">최근 ' + 완료표시최대 +
+         '건만 그렸습니다 · 나머지 ' + (들.length - 완료표시최대) + '건은 현황 탭의 숫자에 들어 있습니다</div>';
+  }
+  return h;
+}
+
+function 완료그리기(몸) {
+  var 들 = 완료들(), 옛것 = 이관들();
+  var h = '';
+  if (!들.length && !옛것.length) h += '<div class="빈말"><b>완료된 접수가 없습니다</b></div>';
+  if (들.length) {
+    h += '<div class="구분">완료 ' + 들.length + '건</div>' + 잘라그리기(들);
+  }
+  // 이관은 아래로 내린다 — 수백 건이 위에 섞이면 이번 주에 닫은 건이 안 보인다
+  if (옛것.length) {
+    h += '<div class="구분">그룹웨어에서 옮겨 온 것 ' + 옛것.length + '건</div>' +
+      '<div class="메타" style="margin-bottom:8px">처리 내역이 없어 기한·소요일 집계에서는 뺐습니다. ' +
+      '유형·병원·제품 집계에는 들어 있습니다.</div>' + 잘라그리기(옛것);
   }
   몸.innerHTML = h;
   건줄들걸기(몸);
@@ -487,7 +505,7 @@ function 막대들(줄들, 전체, 빨간것) {
 }
 
 function 현황그리기(몸) {
-  var 전부 = 건들(), 진행 = 진행중들(), 완료 = 완료들(), 늦음 = 지연들();
+  var 전부 = 건들(), 진행 = 진행중들(), 완료 = 완료들(), 늦음 = 지연들(), 옛것 = 이관들();
   if (!전부.length) {
     몸.innerHTML = '<div class="빈말"><b>아직 쌓인 접수가 없습니다</b>' +
       '건이 올라오면 유형·처리속도·헛걸음 비율이 여기 나옵니다</div>';
@@ -506,7 +524,9 @@ function 현황그리기(몸) {
     '<div class="숫자"><div class="값">' + 이번달.length + '</div><div class="이름">이번 달 접수</div>' +
       '<div class="꼬리">누적 ' + 전부.length + '</div></div>' +
     '<div class="숫자"><div class="값">' + 진행.length + '</div><div class="이름">진행 중</div>' +
-      '<div class="꼬리">완료 ' + 완료.length + '</div></div>' +
+      // 이관 건수를 여기 적어 둔다 — 완료 수에서 뺐으니 어디에도 안 보이면 「사라진 것」이 된다
+      '<div class="꼬리">완료 ' + 완료.length + (옛것.length ? ' · 이관 ' + 옛것.length : '') +
+      '</div></div>' +
     '<div class="숫자' + (늦음.length ? ' 경보' : '') + '"><div class="값' + (늦음.length ? ' 빨' : '') + '">' +
       늦음.length + '</div><div class="이름">기한 넘김</div>' +
       '<div class="꼬리">5영업일 기준</div></div>' +
@@ -587,7 +607,8 @@ function 건열기(건_id) {
       '<div style="font-size:18px;font-weight:600;letter-spacing:-.02em;margin:6px 0 2px">' +
       새기기(g.유형) + ' · ' + 새기기(g.제품) + '</div>' +
       '<div class="메타">' + (g.거래처_표기 ? 새기기(g.거래처_표기) + ' · ' : '') +
-      새기기(g.등록자_이름) + ' · ' + 날짜(g.등록일시) + ' 접수 · 기한 ' + 날짜(g.기한) + '</div>' +
+      새기기(g.등록자_이름) + ' · ' + 날짜(g.등록일시) + ' 접수' +
+      (g.이관 ? '' : ' · 기한 ' + 날짜(g.기한)) + '</div>' +
       '<div style="font-size:15px;margin-top:10px;white-space:pre-wrap">' + 새기기(g.내용_원문) + '</div>';
     if (g.특이사항) h += '<div class="안내">특이사항 — ' + 새기기(g.특이사항) + '</div>';
     if (g.연락처) h += '<div class="메타" style="margin-top:6px">연락처 ' +
@@ -601,11 +622,14 @@ function 건열기(건_id) {
     }
 
     if (g.상태 === '완료') {
+      // 이관 건은 소요일이 null이다 — 가드가 없으면 「null일 걸림」이 찍힌다
+      var 언제 = (g.소요일 == null) ? '' :
+        '<span class="표식 회면">' + 날짜(g.완료일시) + ' 완료 · ' + g.소요일 + '일 걸림</span>';
       h += '<div class="구분">처리 결과</div>' +
-        '<div class="카드 요약"><span class="표식 회">' + 새기기(g.조치구분) + '</span>' +
-        '<span class="표식 회면">' + 날짜(g.완료일시) + ' 완료 · ' + g.소요일 + '일 걸림</span>' +
+        '<div class="카드 요약"><span class="표식 회">' + 새기기(g.조치구분) + '</span>' + 언제 +
         '<div style="font-size:14px;margin-top:5px">' + 새기기(g.조치내용) + '</div></div>';
-      if (d.내건) {
+      // 이관 건에는 되돌리기를 숨긴다 — 「진행중 + 이관」은 아무도 원하지 않는 상태다
+      if (d.내건 && !g.이관) {
         h += '<button class="버튼 빨글" id="되돌리기" style="margin-top:12px">잘못 눌렀습니다 — 진행 중으로 되돌리기</button>';
       }
     } else if (d.내건) {
