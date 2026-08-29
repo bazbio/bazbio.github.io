@@ -208,6 +208,9 @@ table.표 td.수{text-align:right; font-weight:600}
     <span class="마크">메아리</span>
     <div class="필그룹" id="탭들" role="tablist"></div>
     <span class="사람"><b id="내이름"></b></span>
+    <!-- 로그인하면 루트 주소가 이 화면으로 튀므로(index.html <head>), 등록으로 돌아가는 길이
+         화면 안에 있어야 한다. `?r`이 없으면 다시 여기로 되튄다. -->
+    <a class="나가기" href="index.html?r" style="text-decoration:none;white-space:nowrap">＋ 접수</a>
     <button class="나가기" id="나가기">나가기</button>
   </div>
   <main class="몸" id="본문"></main>
@@ -362,7 +365,7 @@ function 진행중그리기(몸) {
   var h = '';
   if (!늦은것.length && !남은것.length) {
     h += '<div class="빈말"><b>진행 중인 접수가 없습니다</b>' +
-         '<a href="index.html" style="color:var(--ink)">등록 화면</a>에서 올립니다</div>';
+         '<a href="index.html?r" style="color:var(--ink)">등록 화면</a>에서 올립니다</div>';
   }
   if (늦은것.length) {
     h += '<div class="구분">기한을 넘겼습니다 ' + 늦은것.length + '건</div>';

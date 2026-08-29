@@ -10,6 +10,23 @@
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" as="style" crossorigin
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script>
+/* 담당자가 주소만 치고 들어오면 현황으로 보낸다 (2026-08-29 사용자 결정).
+   「첫 화면은 품질 현황」이라는 요청이 이 화면(무로그인 등록)에는 걸 수 없어서다 —
+   로그인 없이 열리는 주소에 품질 데이터를 올릴 수는 없다.
+
+   ⚠ **QR은 `?r`을 달고 나간다.** 현장에서 QR을 찍으면 로그인한 적이 있어도 **언제나 등록 화면**이다.
+   안 그러면 영업사원 폰에 세션이 생긴 뒤로 QR이 현황으로 튀어 30초 등록이 깨진다.
+   `r`은 register다. 한글 질의문자열은 QR에서 퍼센트 인코딩돼 길어지고 스캐너에 따라 깨진다.
+
+   <head>에서 돌린다 — 본문이 그려진 뒤에 옮기면 등록 화면이 한 번 번쩍인다. */
+(function () {
+  if (/[?&]r(=|&|$)/.test(location.search)) return;   // QR로 왔다 — 등록 화면이 맞다
+  var 세션 = null;
+  try { 세션 = JSON.parse(localStorage.getItem('meari.세션')); } catch (e) {}
+  if (세션 && 세션.토큰) location.replace('app.html');
+})();
+</script>
 <style>
 /* ═══════════════════════════════════════════════════════════════
    메아리 등록 화면 — 폰 세로 한 손 기준 (SPEC §5.1)
