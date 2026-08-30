@@ -165,7 +165,7 @@
      흐름 ↔ N-Care 교체 (2026-08-12 사용자 요청) — 흐름은 더보기 안으로. */
   #nav-more { display:none; }
   @media (max-width: 899px) {
-    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow { display:none; }
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow, #nav-activity { display:none; }
     #nav-more { display:block; }
   }
   /* 더보기 화면 메뉴 */
@@ -832,6 +832,13 @@
   </div>
 </div></div>
 
+<!-- 활동현황 — 장비영업·교육영업팀 매일 활동내역 (현황 탭 「최근 활동」을 독립 탭으로 승격, 2026-08-30) -->
+<div class="view" id="view-activity"><div class="wrap">
+  <div id="actBody">
+    <div class="card empty">불러오는 중…</div>
+  </div>
+</div></div>
+
 <!-- Meta DB — 광고 문의함 (ADR 0002). 문의는 리드가 아니다.
      통화로 확인한 것만 [계획 등록]을 거쳐 리드로 승격된다 -->
 <div class="view" id="view-meta"><div class="wrap">
@@ -901,6 +908,11 @@
       <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
       <div class="mc">›</div>
     </div>
+    <div class="mrow" id="more-activity" onclick="show('activity')">
+      <div class="mi" style="background:#0e7490;">활</div>
+      <div class="mb2"><div class="mn">활동현황</div><div class="ms2">장비영업·교육영업팀 매일 활동</div></div>
+      <div class="mc">›</div>
+    </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
       <div class="mi" style="background:#4e5968;">?</div>
       <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
@@ -912,6 +924,7 @@
 <div class="nav">
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
   <button id="nav-dash" onclick="show('dash')">현황</button>
+  <button id="nav-activity" onclick="show('activity')">활동현황</button>
   <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
@@ -1010,6 +1023,7 @@ var LEADREP = '';
 var FAILROW = 0;
 var FAILNO = 0;   // 실패 모달을 연 리드의 no — 목록이 갈려도 놓치지 않는다 (8/14)
 var DASHTEAM = '전체';
+var ACTTEAM = '전체';   // 활동현황 탭 팀 필터 ('전체' | '장비영업팀' | '교육영업팀') — DASHTEAM(판매 라인)과 별개 축
 var DASHM = '';
 var DASHW = '';
 var DASHREP = '';
@@ -1195,7 +1209,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608240052-2792031';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608301050-4146b20';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1559,8 +1573,8 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow', 'activity'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'activity', 'guide', 'more', 'mine', 'meta', 'ncare'];
 var 현재뷰_ = 'home';
 function show(v) {
   현재뷰_ = v;
@@ -1594,6 +1608,8 @@ function show(v) {
   if (v === 'mat') { MATL ? renderMat() : loadMat(); }
   // 지난 달을 보고 있었으면 그 달로 다시 받는다 — 빈 ym은 이달이라 화면이 슬쩍 바뀐다
   if (v === 'dash') { if (DASH) { renderDash(); loadDash(DASH.past ? DASH.ym : '', true); } else loadDash(); }
+  // 활동현황은 현황 탭과 같은 DASH를 쓴다 — 별도 관문 없이 loadDash 하나로 두 탭이 같이 채워진다
+  if (v === 'activity') { if (DASH) { renderActivity(); loadDash(DASH.past ? DASH.ym : '', true); } else loadDash(); }
   if (v === 'evt') { if (EVT) { renderEvt(); loadEvt(true); } else loadEvt(); }
   if (v === 'kpi') { if (KPIT) { renderKpiTab(); loadKpiTab(true); } else loadKpiTab(); }
   if (v === 'mine') { if (MINE) { renderMine(); loadMine(true); } else loadMine(); }
@@ -5425,7 +5441,7 @@ function matDelete(row, no) {
 /** @param ym 'yyyy-MM'. 비우면 이번 달. 지난달이면 목표 없이 실적만 온다(웹_대시보드) */
 function loadDash(ym, 조용히) {
   읽기시작_(조용히, 'dashBody');
-  var 끝 = function(d) { DASH = d; 읽기끝_(조용히); renderDash(); };
+  var 끝 = function(d) { DASH = d; 읽기끝_(조용히); renderDash(); renderActivity(); };
   var 실패 = function(e) {
     읽기끝_(조용히);
     if (조용히) { console.warn('[현황 뒤따라 받기]', (e && e.message) || e); return; }
@@ -5761,17 +5777,28 @@ function renderDash() {
   }
   h += '</details>';
 
-  h += renderDashRecent(d, seg);
-
   document.getElementById('dashBody').innerHTML = h;
 }
 
-/* 최근 활동 — 월 탭 → 주차 탭 → 일별 카드 (같은 병원·같은 날 기록은 한 카드로 묶고, 완전 중복은 한 번만) */
-function renderDashRecent(d, seg) {
+/* ── 활동현황: 장비영업팀·교육영업팀 매일 활동 (현황 탭 「최근 활동」을 승격, 2026-08-30) ── */
+function actTeam(t) { ACTTEAM = t; renderActivity(); }
+function renderActivity() {
+  if (!DASH) return;
+  var h = '<div class="seg">'
+    + [['전체', '전체'], ['장비영업팀', '장비영업팀'], ['교육영업팀', '교육영업팀']].map(function(t) {
+        return '<div class="chip' + (ACTTEAM === t[0] ? ' on' : '') + '" onclick="actTeam(\'' + t[0] + '\')">' + t[1] + '</div>';
+      }).join('')
+    + '</div>';
+  h += renderDashRecent(DASH, ACTTEAM) || '<div class="card empty">최근 90일간 활동이 없습니다.</div>';
+  document.getElementById('actBody').innerHTML = h;
+}
+
+/* 최근 활동 — 월 탭 → 주차 탭 → 일별 카드 (같은 병원·같은 날 기록은 한 카드로 묶고, 완전 중복은 한 번만)
+   team: '전체' | '장비영업팀' | '교육영업팀' — 소속팀(l.team) 기준. 판매 라인(장비/N-Care) 필터는 현황 탭 쪽 축이라 여기선 안 쓴다 */
+function renderDashRecent(d, team) {
   var recent = (d.recent || []).filter(function(l) {
-    if (seg === '장비') return l.cat === '장비 판매';
-    if (seg === 'N-Care') return l.cat === 'N-Care';
-    return true;
+    if (team === '전체') return true;
+    return l.team === team;
   });
   if (!recent.length) return '';
   var h = kick('최근 활동 (최근 90일)');
@@ -5916,8 +5943,8 @@ function showHosp(hname) {
   }).withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_병원상세(TOKEN, hname);
 }
-function dashMonth(mk) { DASHM = mk; DASHW = ''; renderDash(); }
-function dashWeek(wk) { DASHW = wk; renderDash(); }
+function dashMonth(mk) { DASHM = mk; DASHW = ''; renderActivity(); }
+function dashWeek(wk) { DASHW = wk; renderActivity(); }
 function dashRep(n) { DASHREP = DASHREP === n ? '' : n; renderDash(); }
 
 /* (2026-07-25) N-Care 케어 보드 제거 — 현황 탭에서 혼란을 준다는 사용자 지시.
