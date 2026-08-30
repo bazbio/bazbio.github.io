@@ -8,7 +8,7 @@
      없으니 여기 있어야 한다 — 빠지면 휴대폰에서 화면이 데스크톱 폭으로 뜬다. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>브리지</title>
-<meta name="theme-color" content="#1C69D4">
+<meta name="theme-color" content="#0075de">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -16,27 +16,53 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<!-- Pretendard — Inter 메트릭 호환 한글 폰트 (노션 판, 2026-08-30). 오프라인·차단 시
+     아래 폰트 스택의 Apple SD Gothic Neo가 그대로 받는다 — 이 링크가 죽어도 화면은 안 죽는다. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root{
-    --bg:#F5F5F7; --card:#FFFFFF; --ink:#1D1D1F; --sub:#6E6E73;
-    --line:rgba(0,0,0,.08); --field:#F2F2F7;
-    --accent:#0071E3; --accent-ink:#FFFFFF;
-    --ok:#34C759; --warn:#FF9500; --bad:#FF3B30;
-    --shadow:0 8px 30px rgba(0,0,0,.08);
+    /* 노션 팔레트 (2026-08-30) — 웜 페이퍼 캔버스 + 흰 카드 + 헤어라인.
+       구조 액센트는 --accent 하나뿐이다. 스티커 팔레트(--stk-*)는 장식·상태 점 전용 —
+       버튼·레이아웃 채움에 쓰지 않는다. */
+    --bg:#f6f5f4; --card:#FFFFFF; --ink:#0d0d0c; --ink2:#31302e; --sub:#615d59; --faint:#a39e98;
+    --line:#e6e6e6; --field:#f1efed;
+    --accent:#0075de; --accent-press:#005bab; --accent-ink:#FFFFFF;
+    /* CTA 채움은 양 테마 공통 — 다크의 밝은 --accent 위 흰 글자는 4.5:1이 안 나온다 */
+    --cta:#0075de;
+    --ok:#1aae39; --warn:#dd5b00; --bad:#e03e3e;
+    /* barely-there 레이어드 섀도 — 카드는 헤어라인 보더가 주 경계다 */
+    --shadow:0 0 0 1px rgba(0,0,0,.02), 0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.03);
+    --stk-sky:#62aef0; --stk-purple:#d6b6f6; --stk-pink:#ff64c8;
+    --stk-orange:#dd5b00; --stk-teal:#2a9d99; --stk-green:#1aae39;
+    /* 라운드 사다리 — 입력 4 · 행 5 · 유틸 8 · 카드 12 · 대형 16 · CTA 필 */
+    --r-in:4px; --r-row:5px; --r-btn:8px; --r-card:12px; --r-lg:16px; --r-pill:9999px;
+    /* 간트 막대 색 — 막대·마름모·범례가 이 다섯만 본다 (따로 적으면 언젠가 서로 달라진다).
+       --ok·--bad를 그대로 채우면 흰 카드 위에서 도형 기준(3:1)이 안 나와 밝기만 낮춰 파생.
+       컨펌 대기(--gt-confirm)는 노션 퍼플 계열 솔리드 — 스티커 퍼플은 1.6:1이라 도형 불가. */
+    --gt-wait:var(--accent);
+    --gt-confirm:#9065b0;
+    --gt-done:color-mix(in srgb, var(--ok) 72%, #000);
+    --gt-late:color-mix(in srgb, var(--bad) 82%, #000);
+    --gt-hold:var(--sub);
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#161617; --card:#1D1D1F; --ink:#F5F5F7; --sub:#98989D;
-      --line:rgba(255,255,255,.12); --field:#2C2C2E;
-      --accent:#0A84FF; --shadow:0 8px 30px rgba(0,0,0,.45);
+      --bg:#191918; --card:#232322; --ink:#eeedeb; --ink2:#c9c6c1; --sub:#a5a19b; --faint:#75716b;
+      --line:rgba(255,255,255,.10); --field:#2c2b2a;
+      --accent:#4c9ff0; --accent-press:#82bdf5;
+      --ok:#3fbf5c; --warn:#f2915c; --bad:#ff7369;
+      --shadow:0 0 0 1px rgba(255,255,255,.04);
+      --gt-confirm:#b18ad2;
+      --gt-done:var(--ok);
+      --gt-late:var(--bad);
     }
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%}
   body{
     margin:0; background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Segoe UI","Malgun Gothic",sans-serif;
-    font-size:17px; line-height:1.47; min-height:100vh;
+    font-family:"Pretendard Variable","Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic",sans-serif;
+    font-size:16px; line-height:1.5; min-height:100vh;
   }
   button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
   input,textarea,select{font:inherit; color:var(--ink)}
@@ -60,14 +86,14 @@
   .topbar .who button{color:var(--accent); font-size:13px; font-weight:600}
 
   .page-head{display:flex; align-items:baseline; justify-content:space-between; padding:22px 2px 4px}
-  .page-head h1{margin:0; font-size:28px; font-weight:600; letter-spacing:-.02em}
+  .page-head h1{margin:0; font-size:28px; font-weight:700; letter-spacing:-.03em}
   .page-head time{font-size:13px; color:var(--sub); font-weight:500}
 
-  .card{background:var(--card); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-top:14px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; box-shadow:var(--shadow); margin-top:14px}
   .card h3{margin:0 0 12px; font-size:13px; font-weight:600; color:var(--sub); letter-spacing:.02em}
 
   textarea,input[type=date],input[type=datetime-local],input[type=text],input[type=tel],input[type=number],input[type=password]{
-    width:100%; border:0; background:var(--field); border-radius:12px;
+    width:100%; border:0; background:var(--field); border-radius:var(--r-in);
     padding:12px 14px; font-size:15px;
   }
   textarea{resize:none; min-height:64px}
@@ -79,29 +105,30 @@
     padding:7px 14px; border-radius:999px; background:var(--field);
     font-size:13px; font-weight:600; transition:background .15s,color .15s;
   }
-  .chip.on{background:var(--accent); color:var(--accent-ink)}
+  .chip.on{background:var(--cta); color:var(--accent-ink)}
 
-  .seg{display:flex; background:var(--field); border-radius:10px; padding:3px}
-  .seg button{flex:1; padding:8px 0; border-radius:8px; font-size:13px; font-weight:600; color:var(--sub); transition:background .15s,color .15s}
+  .seg{display:flex; background:var(--field); border-radius:var(--r-btn); padding:3px}
+  .seg button{flex:1; padding:8px 0; border-radius:6px; font-size:13px; font-weight:600; color:var(--sub); transition:background .15s,color .15s}
   .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.12)}
 
   /* 10분 단위 일시 선택: 날짜 + 시 + 분 */
   .dtrow{display:flex; gap:8px; margin-top:8px}
   .dtrow input[type=date]{flex:1.5; min-width:0}
-  .dtrow select{flex:1; min-width:0; border:0; background:var(--field); border-radius:12px; padding:12px 8px; font-size:15px; text-align:center}
+  .dtrow select{flex:1; min-width:0; border:0; background:var(--field); border-radius:var(--r-in); padding:12px 8px; font-size:15px; text-align:center}
 
   .btn-primary{
-    background:var(--accent); color:var(--accent-ink); border-radius:999px;
+    background:var(--cta); color:var(--accent-ink); border-radius:999px;
     padding:14px 0; font-size:16px; font-weight:600; width:100%; margin-top:14px; transition:transform .15s;
   }
   .btn-primary:disabled{opacity:.5; cursor:default}
   .btn-quiet{background:var(--field); color:var(--accent); border-radius:999px; padding:11px 0; font-size:14px; font-weight:600; width:100%; transition:transform .15s}
   .btn-mini{background:var(--field); color:var(--accent); border-radius:999px; padding:6px 14px; font-size:12px; font-weight:700; transition:transform .15s}
+  .btn-primary:active{background:var(--accent-press)}
   .btn-primary:active,.btn-quiet:active,.btn-mini:active,.chip:active{transform:scale(.95)}
 
   /* 통계 타일 */
   .tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px}
-  .tile{background:var(--card); border-radius:14px; padding:13px 14px; box-shadow:var(--shadow)}
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:var(--r-card); padding:13px 14px; box-shadow:var(--shadow)}
   .tile .k{font-size:11px; font-weight:600; color:var(--sub)}
   .tile .v{font-size:25px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:2px}
   .tile.warn .v{color:var(--warn)} .tile.bad .v{color:var(--bad)} .tile.ok .v{color:var(--ok)}
@@ -110,14 +137,14 @@
   /* 검색 */
   .searchbar{margin-top:14px}
   .searchbar input{
-    background:var(--card); box-shadow:var(--shadow); border-radius:14px;
+    background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow); border-radius:var(--r-btn);
   }
 
   /* 임원별 현황 — 카드 그리드 */
   .mgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
   @media (min-width:700px){ .mgrid{grid-template-columns:repeat(3,1fr)} }
   .mcard{
-    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 13px 12px;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--r-card); padding:13px 13px 12px;
     text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:8px;
     transition:transform .15s, box-shadow .15s;
   }
@@ -158,11 +185,23 @@
   .dday.soon{color:var(--warn)}
   .dday.near,.dday.over{color:var(--bad)}
   .pill{font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; white-space:nowrap; flex:none}
-  .pill.wait{color:var(--warn); background:color-mix(in srgb, var(--warn) 14%, transparent)}
-  .pill.done{color:var(--ok); background:color-mix(in srgb, var(--ok) 14%, transparent)}
-  .pill.late{color:var(--bad); background:color-mix(in srgb, var(--bad) 14%, transparent)}
-  .pill.meet{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  /* 상태 배지 — 틴트 배경 + 유색 글자. 글자 쪽은 4.5:1을 넘겨야 해서 틴트보다 어둡게 파생한다 */
+  .pill.todo{color:var(--sub); background:var(--field)}
+  .pill.doing{color:color-mix(in srgb, var(--accent) 80%, #000); background:color-mix(in srgb, var(--accent) 11%, transparent)}
+  .pill.confirm{color:color-mix(in srgb, var(--gt-confirm) 82%, #000); background:color-mix(in srgb, var(--gt-confirm) 13%, transparent)}
+  .pill.wait{color:color-mix(in srgb, var(--warn) 78%, #000); background:color-mix(in srgb, var(--warn) 14%, transparent)}
+  .pill.done{color:color-mix(in srgb, var(--ok) 72%, #000); background:color-mix(in srgb, var(--ok) 14%, transparent)}
+  .pill.late{color:color-mix(in srgb, var(--bad) 78%, #000); background:color-mix(in srgb, var(--bad) 12%, transparent)}
+  .pill.meet{color:color-mix(in srgb, var(--accent) 80%, #000); background:color-mix(in srgb, var(--accent) 12%, transparent)}
   .pill.gray{color:var(--sub); background:var(--field)}
+  @media (prefers-color-scheme: dark){
+    .pill.doing{color:color-mix(in srgb, var(--accent) 72%, #fff)}
+    .pill.confirm{color:color-mix(in srgb, var(--gt-confirm) 66%, #fff)}
+    .pill.wait{color:color-mix(in srgb, var(--warn) 72%, #fff)}
+    .pill.done{color:color-mix(in srgb, var(--ok) 70%, #fff)}
+    .pill.late{color:color-mix(in srgb, var(--bad) 68%, #fff)}
+    .pill.meet{color:color-mix(in srgb, var(--accent) 72%, #fff)}
+  }
   .empty{padding:26px 0; text-align:center; font-size:14px; color:var(--sub)}
   .stuck-g{padding:10px 0 4px; font-size:12px; font-weight:700; color:var(--sub)}
   /* 세부업무 — 행 아래 붙는 조작 줄과 한 줄 추가 폼 */
@@ -195,6 +234,130 @@
   .cal-i.meet{color:var(--ok); background:color-mix(in srgb, var(--ok) 12%, transparent)}
   .cal-more{font-size:9px; font-weight:700; color:var(--sub); padding-left:4px}
 
+  /* ── 업무 일정 (간트) ──
+     왼쪽 라벨은 제자리에 붙어 있고 날짜 칸만 가로로 흐른다. 하루 폭(--gt-dw)과 바의 위치는
+     JS가 계산해 인라인으로 넣는다 — 그 둘 말고는 인라인 스타일을 쓰지 않는다. */
+  .gt-wrap{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; margin:0 -16px}
+  .gt{min-width:max-content; --gt-dw:34px}
+  .gt-row{display:flex; align-items:stretch; border-top:1px solid var(--line); width:100%; text-align:left}
+  .gt-row.head{border-top:0}
+  .gt-row.dir,.gt-row.sub{cursor:pointer}
+  .gt-row.dir:hover .gt-lab,.gt-row.sub:hover .gt-lab{background:var(--field)}
+  .gt-row.dir:hover .gt-lab b,.gt-row.sub:hover .gt-lab b{color:var(--accent)}
+  .gt-lab{position:sticky; left:0; z-index:2; flex:none; width:152px; min-width:152px;
+    padding:11px 12px 11px 16px; background:var(--card); border-right:1px solid var(--line);
+    transition:background .18s cubic-bezier(.16,1,.3,1)}
+  .gt-lab b{display:block; font-size:15px; font-weight:600; letter-spacing:-.01em; line-height:1.35;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    transition:color .18s cubic-bezier(.16,1,.3,1)}
+  .gt-lab span{display:block; font-size:12.5px; color:var(--sub); line-height:1.4;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .gt-row.sub .gt-lab{padding-left:32px}
+  .gt-row.sub .gt-lab b{font-size:14px; font-weight:500}
+  /* 구분 머리 — 가로로 흘러도 이름은 왼쪽에 남는다 */
+  .gt-grp{border-top:1px solid var(--line); padding:16px 16px 7px; background:var(--field)}
+  .gt-grp:first-child{border-top:0}
+  .gt-grp i{position:sticky; left:16px; display:inline-flex; align-items:center; gap:8px;
+    font-style:normal; font-size:14px; font-weight:700; color:var(--ink); letter-spacing:-.01em}
+  /* 건수 배지 — 액센트 계열은 어느 쪽으로 칠해도 4.5:1을 못 넘겼다 (흰 글씨 3.6 / 액센트 글씨 3.8).
+     구분 머리줄이 --field라, 배지만 --card로 띄우면 라이트 5.3:1 · 다크 5.9:1이 나온다 */
+  .gt-grp i em{font-style:normal; font-weight:700; color:var(--sub); background:var(--card);
+    border-radius:999px; padding:2px 9px; font-size:12px}
+  .gt-track{position:relative; flex:none; display:flex}
+  .gt-d{flex:none; width:var(--gt-dw); border-left:1px solid var(--line)}
+  .gt-d.we{background:color-mix(in srgb, var(--sub) 12%, transparent)}
+  .gt-d.today{background:color-mix(in srgb, var(--accent) 20%, transparent)}
+  .gt-row.head .gt-d{padding:7px 0 8px; text-align:center; font-size:12.5px; font-weight:700; color:var(--sub)}
+  /* 오늘 칸 머리 — 흰 글씨를 --accent 위에 얹으면 다크에서 3.6:1이라, 막대와 같은 방식으로 어둡게 깐다 */
+  .gt-row.head .gt-d.today{color:#FFFFFF; background:color-mix(in srgb, var(--accent) 78%, #000)}
+  .gt-mons{display:flex; padding-left:152px}
+  /* 라벨 폭은 하루폭()의 700px 문턱과 같이 움직인다 — 폰에서는 이름을 줄여 날짜를 더 보여준다 */
+  @media (min-width:700px){
+    .gt-lab{width:214px; min-width:214px}
+    .gt-mons{padding-left:214px}
+  }
+  .gt-mon{flex:none; font-size:12.5px; font-weight:700; color:var(--ink); padding:9px 0 3px 6px; border-left:1px solid var(--line)}
+  /* 막대 — 시작일~마감일. 색을 통째로 채운다 (연한 톤은 흰 카드 위에서 안 보인다).
+     완료는 초록, 지연은 빨강, 진행 중은 액센트, 보류는 회색 */
+  .gt-bar{position:absolute; top:50%; transform:translateY(-50%); height:20px; border-radius:999px;
+    background:var(--gt-wait)}
+  .gt-bar.done{background:var(--gt-done)}
+  .gt-bar.late{background:var(--gt-late)}
+  .gt-bar.hold{background:var(--gt-hold)}
+  .gt-bar.confirm{background:var(--gt-confirm)}
+  /* 요약 막대(업무 줄) — 세부업무를 감싸는 띠라 얇고 각지게 해서 세부 막대와 구별한다 */
+  .gt-bar.roll{height:10px; border-radius:3px}
+  /* 창 밖으로 잘린 쪽은 모서리를 각지게 — 「여기서 끝난 게 아니라 잘렸다」는 표시 */
+  .gt-bar.cutL{border-top-left-radius:2px; border-bottom-left-radius:2px}
+  .gt-bar.cutR{border-top-right-radius:2px; border-bottom-right-radius:2px}
+  /* 기한만 있는 줄 — 기간이 없으니 그날 하나를 마름모로 찍는다 */
+  .gt-dot{position:absolute; top:50%; width:16px; height:16px; margin-left:calc((var(--gt-dw) - 16px) / 2);
+    transform:translateY(-50%) rotate(45deg); border-radius:3px; background:var(--gt-wait)}
+  .gt-dot.done{background:var(--gt-done)}
+  .gt-dot.late{background:var(--gt-late)}
+  .gt-dot.hold{background:var(--gt-hold)}
+  .gt-dot.confirm{background:var(--gt-confirm)}
+  /* 창 밖에 있는 줄 — 빈 칸으로 두면 "일정이 없다"로 읽힌다. 어느 쪽에 있는지 화살표로 알린다 */
+  .gt-edge{position:absolute; top:50%; transform:translateY(-50%); font-size:16px; font-weight:800;
+    color:var(--sub); padding:0 4px}
+  .gt-edge.l{left:0}
+  .gt-edge.r{right:0}
+  .gt-legend{display:flex; flex-wrap:wrap; gap:8px 16px; padding:14px 2px 0; font-size:12.5px; color:var(--sub)}
+  .gt-legend span{display:inline-flex; align-items:center; gap:6px}
+  .gt-legend s{width:20px; height:11px; border-radius:999px; text-decoration:none}
+  .gt-legend s.w{background:var(--gt-wait)}
+  .gt-legend s.c{background:var(--gt-confirm)}
+  .gt-legend s.d{background:var(--gt-done)}
+  .gt-legend s.l{background:var(--gt-late)}
+
+  /* ── 업무 표 (기본 뷰, 노션 판 2026-08-30) ──
+     폰에서는 2줄 카드로 접는다 — 가로 스크롤 표는 상태·신호등이 첫 화면 밖으로 밀린다. */
+  .viewbar{display:flex; align-items:center; justify-content:space-between; gap:10px 12px; flex-wrap:wrap; margin-bottom:12px}
+  .viewbar .vtabs{flex:none}
+  .viewbar .vtabs button{flex:none; padding:8px 18px}
+  .viewbar .vtype{flex:none; margin-right:auto}
+  .viewlabel{margin:0; font-size:12.5px; font-weight:600; color:var(--sub); display:flex; align-items:center; gap:6px}
+  .tbl{display:flex; flex-direction:column}
+  .tbl-h{display:none}
+  .tbl-g{display:flex; align-items:center; gap:8px; padding:14px 2px 6px; border-top:1px solid var(--line)}
+  .tbl-g:first-child{border-top:0; padding-top:4px}
+  .tbl-g i{font-style:normal; font-size:13.5px; font-weight:700; letter-spacing:-.01em}
+  .tbl-g em{font-style:normal; font-size:11.5px; font-weight:700; color:var(--sub); background:var(--field); border-radius:999px; padding:2px 9px}
+  .tbl-r{display:grid; width:100%; text-align:left; align-items:center; gap:3px 10px;
+    padding:11px 2px; border-top:1px solid var(--line); border-radius:var(--r-row);
+    grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"title st" "meta meta";
+    transition:background .18s cubic-bezier(.16,1,.3,1)}
+  .tbl-r:hover{background:var(--field)}
+  .tbl-g + .tbl-r{border-top:0}
+  .t-title{grid-area:title; font-size:15px; font-weight:600; letter-spacing:-.01em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .t-st{grid-area:st; justify-self:end}
+  .t-meta{grid-area:meta; display:flex; align-items:center; gap:10px; min-width:0;
+    font-size:12.5px; color:var(--sub)}
+  .t-who{flex:none}
+  .t-due{display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
+  .t-ms{display:inline-flex; align-items:center; gap:6px; margin-left:auto; white-space:nowrap;
+    font-variant-numeric:tabular-nums}
+  /* D-day 신호등 — 이모지 대신 팔레트를 따르는 점. 7일 초과 초록 · 3일 초과 주황 · 그 이하·지남 빨강 */
+  .tl{width:9px; height:9px; border-radius:50%; flex:none; display:inline-block}
+  .tl.g{background:var(--gt-done)}
+  .tl.o{background:var(--warn)}
+  .tl.r{background:var(--gt-late)}
+  .msbar{width:52px; height:4px; border-radius:99px; background:var(--field); overflow:hidden; display:inline-block}
+  .msbar i{display:block; height:100%; border-radius:99px; background:var(--gt-done)}
+  @media (min-width:700px){
+    .tbl-h{display:grid; grid-template-columns:minmax(0,1fr) 92px 92px 138px 96px; gap:0 10px;
+      padding:4px 2px 8px; border-bottom:1px solid var(--line); font-size:11.5px; font-weight:700; color:var(--sub)}
+    .tbl-r{grid-template-columns:minmax(0,1fr) 92px 92px 138px 96px;
+      grid-template-areas:"title who st due ms"; gap:0 10px; padding:12px 2px}
+    .tbl-h + .tbl-g{border-top:0}
+    .t-meta{display:contents}
+    .t-who{grid-area:who; font-size:13px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .t-st{grid-area:st; justify-self:start}
+    .t-due{grid-area:due; font-size:13px; color:var(--sub)}
+    .t-ms{grid-area:ms; margin-left:0; font-size:12.5px; color:var(--sub)}
+  }
+
   /* 데스크톱: 현황판을 목록 + 캘린더 2단으로 */
   @media (min-width:1080px){
     .wrap{max-width:1104px}
@@ -202,12 +365,14 @@
     .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
     #tabNew{max-width:720px; margin:0 auto}
     .cal-d{min-height:64px}
+    .gt-lab{width:270px; min-width:270px}
+    .gt-mons{padding-left:270px}
   }
 
   /* 탭 (대표용) */
-  .bigseg{display:flex; background:var(--field); border-radius:12px; padding:3px; margin-top:16px}
-  .bigseg button{flex:1; padding:11px 0; border-radius:10px; font-size:14px; font-weight:600; color:var(--sub)}
-  .bigseg button.on{background:var(--accent); color:#fff; box-shadow:0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent)}
+  .bigseg{display:flex; background:var(--field); border-radius:var(--r-btn); padding:3px; margin-top:16px}
+  .bigseg button{flex:1; padding:11px 0; border-radius:6px; font-size:14px; font-weight:600; color:var(--sub)}
+  .bigseg button.on{background:var(--cta); color:#fff; box-shadow:0 2px 8px color-mix(in srgb, var(--cta) 30%, transparent)}
 
   /* 상세 시트 */
   .sheet-back{
@@ -217,12 +382,12 @@
   @media (min-width:640px){ .sheet-back{align-items:center; padding:24px} }
   .sheet{
     background:var(--bg); width:100%; max-width:640px; max-height:92vh; overflow-y:auto;
-    border-radius:22px 22px 0 0; padding:10px 16px 34px;
+    border-radius:var(--r-lg) var(--r-lg) 0 0; padding:10px 16px 34px;
   }
-  @media (min-width:640px){ .sheet{border-radius:22px; padding:10px 22px 30px} }
+  @media (min-width:640px){ .sheet{border-radius:var(--r-lg); padding:10px 22px 30px} }
   .grip{width:38px; height:5px; border-radius:99px; background:var(--line); margin:6px auto 4px}
   .sheet-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 2px 2px}
-  .sheet-head h2{margin:0; font-size:21px; font-weight:600; letter-spacing:-.02em; line-height:1.3}
+  .sheet-head h2{margin:0; font-size:21px; font-weight:700; letter-spacing:-.02em; line-height:1.3}
   .sheet-head .close{color:var(--sub); font-size:15px; font-weight:600; flex:none; padding:4px 2px}
   .sheet-meta{font-size:13px; color:var(--sub); padding:4px 2px 0}
   .sheet-meta b{color:var(--ink); font-weight:600}
@@ -237,7 +402,7 @@
   .msg .m-body{font-size:14px; white-space:pre-wrap}
   .msg .files{display:flex; flex-direction:column; gap:6px; margin-top:8px}
   .msg .files a{
-    display:flex; align-items:center; gap:7px; background:var(--field); border-radius:10px;
+    display:flex; align-items:center; gap:7px; background:var(--field); border-radius:var(--r-btn);
     padding:8px 12px; font-size:13px; font-weight:600; color:var(--accent); text-decoration:none;
   }
   .msg .act{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap}
@@ -249,7 +414,7 @@
 
   .file-chip{
     display:inline-flex; align-items:center; gap:6px; background:var(--field);
-    border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; max-width:100%;
+    border-radius:var(--r-btn); padding:8px 12px; font-size:13px; font-weight:600; max-width:100%;
   }
   .file-chip span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .file-chip .x{color:var(--bad); font-weight:800; padding:0 2px}
@@ -257,7 +422,7 @@
   /* 로그인 */
   .login{max-width:360px; margin:0 auto; padding:12vh 24px 40px; text-align:center}
   .login .mark{
-    width:74px; height:74px; border-radius:22px; background:var(--accent); color:#fff;
+    width:74px; height:74px; border-radius:22px; background:var(--cta); color:#fff;
     font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center;
     margin:0 auto 18px; letter-spacing:-.02em;
   }
@@ -265,7 +430,7 @@
   .login p{color:var(--sub); font-size:14px; margin:0 0 26px}
   .login input{
     text-align:center; margin-top:12px; background:var(--card);
-    border:1.5px solid var(--line); border-radius:14px;
+    border:1.5px solid var(--line); border-radius:var(--r-btn);
     padding:15px 14px; font-size:17px;
   }
   .login input:focus{border-color:var(--accent); outline:none}
@@ -313,7 +478,7 @@
   @keyframes boot-note{from{opacity:0} to{opacity:1}}
 
   .busy{position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.15); display:flex; align-items:center; justify-content:center}
-  .busy .box{background:var(--card); border-radius:16px; padding:22px 30px; box-shadow:var(--shadow); text-align:center}
+  .busy .box{background:var(--card); border-radius:var(--r-lg); padding:22px 30px; box-shadow:var(--shadow); text-align:center}
   .busy p{margin:12px 0 0; font-size:13px; color:var(--sub)}
 </style>
 </head>
@@ -359,42 +524,70 @@
     <div id="tabBoard">
       <div class="tiles" id="tiles"></div>
       <div class="searchbar"><input type="text" id="q" placeholder="검색 · 제목 · 내용 · 이름" autocomplete="off"></div>
+      <!-- 본판 카드 — 표가 기본 뷰, 간트·캘린더는 전환 뷰다 (노션 판 2026-08-30).
+           gtWrap·calGrid 등 기존 id를 그대로 옮겨 renderGantt·renderCal은 무수정 흡수됐다. -->
+      <div class="card" id="cardView">
+        <div class="viewbar">
+          <div class="seg vtabs" id="viewTabs">
+            <button class="on" data-view="table">표</button>
+            <button data-view="gantt">간트</button>
+            <button data-view="cal">캘린더</button>
+          </div>
+          <!-- 유형 칩 — 임원 KPI만 모아 보는 자리 (노션 판 결정 3). 세 뷰에 똑같이 걸린다 -->
+          <div class="chips vtype" id="typeChips">
+            <button class="chip on" data-type="">전체</button>
+            <button class="chip" data-type="일반">일반</button>
+            <button class="chip" data-type="KPI">KPI</button>
+          </div>
+          <h3 id="listLabel" class="viewlabel"></h3>
+        </div>
+        <div id="viewTable">
+          <div class="tbl" id="tblWrap"></div>
+        </div>
+        <div id="viewGantt" class="hide">
+          <div class="cal-head">
+            <h3>업무 일정</h3>
+            <div class="cal-nav">
+              <button id="gtPrev" aria-label="앞 2주">&#8249;</button>
+              <b id="gtRange"></b>
+              <button id="gtNext" aria-label="뒤 2주">&#8250;</button>
+            </div>
+          </div>
+          <div class="gt-wrap" id="gtWrap"></div>
+          <div class="gt-legend">
+            <span><s class="w"></s>진행 중</span><span><s class="c"></s>컨펌 대기</span><span><s class="d"></s>완료</span><span><s class="l"></s>지연</span>
+            <span>◆ 기한만 정해진 줄</span>
+          </div>
+        </div>
+        <div id="viewCal" class="hide">
+          <div class="cal-head">
+            <h3>보고 일정</h3>
+            <div class="cal-nav">
+              <button id="calPrev" aria-label="이전 달">&#8249;</button>
+              <b id="calTitle"></b>
+              <button id="calNext" aria-label="다음 달">&#8250;</button>
+            </div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+      </div>
       <div class="board-cols">
         <div class="board-main">
           <div class="card" id="cardStuck">
             <h3 id="stuckHead">막힌 곳</h3>
             <div class="dlist" id="stuckList"></div>
           </div>
+          <div class="card hide" id="cardMembers">
+            <h3>임원별 현황 <span style="font-weight:400">· 카드를 누르면 상세가 열립니다</span></h3>
+            <div id="memRows"></div>
+          </div>
+        </div>
+        <aside class="board-side">
           <div class="card" id="cardMeet">
             <h3 id="meetHead">미팅</h3>
             <div class="dlist" id="meetList"></div>
             <button class="btn-quiet hide" id="btnMeetNew" style="margin-top:12px">대표님께 미팅 요청</button>
             <div class="hint hide" id="meetHint"></div>
-          </div>
-          <div class="card hide" id="cardMembers">
-            <h3>임원별 현황 <span style="font-weight:400">· 카드를 누르면 상세가 열립니다</span></h3>
-            <div id="memRows"></div>
-          </div>
-          <div class="card">
-            <h3 id="listLabel">진행 중인 지시</h3>
-            <div class="dlist" id="listOpen"></div>
-          </div>
-          <div class="card">
-            <h3>완료 · 보류</h3>
-            <div class="dlist" id="listClosed"></div>
-          </div>
-        </div>
-        <aside class="board-side">
-          <div class="card">
-            <div class="cal-head">
-              <h3>보고 일정</h3>
-              <div class="cal-nav">
-                <button id="calPrev" aria-label="이전 달">&#8249;</button>
-                <b id="calTitle"></b>
-                <button id="calNext" aria-label="다음 달">&#8250;</button>
-              </div>
-            </div>
-            <div class="cal-grid" id="calGrid"></div>
           </div>
         </aside>
       </div>
@@ -416,6 +609,13 @@
         <textarea id="newDetail" placeholder="배경이나 참고사항이 있으면 적어주세요" rows="2"></textarea>
         <div class="row-label" id="whoLabel">담당 임원</div>
         <div class="chips" id="newWho"></div>
+        <!-- 구분 — 업무 일정(간트)에서 줄을 묶는 갈래. 자유 입력이고, 이미 쓴 값은 목록으로 뜬다 -->
+        <div class="row-label">구분 (선택)</div>
+        <input type="text" id="newCat" list="catList" placeholder="예: 예산 · 조직 · 특허 · 국내영업" autocomplete="off">
+        <datalist id="catList"></datalist>
+        <!-- 유형 — 임원 KPI를 업무로 등록해 KPI 칩으로 모아 본다 (노션 판 결정 3) -->
+        <div class="row-label">유형</div>
+        <div class="seg" id="newType"><button class="on" data-v="일반">일반</button><button data-v="KPI">KPI</button></div>
         <div class="row-label">기한</div>
         <div class="seg" id="newDueQuick">
           <button data-days="1">내일</button>
@@ -474,7 +674,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608290705';
+  var 빌드버전_ = '202608300930';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -555,8 +755,17 @@
   let newFiles = [];        // 답변 첨부 대기 목록
   let LASTD = null;         // 상세 시트에 열려 있는 지시
   let LASTS = [];           // 그 지시의 세부업무
-  const FILTER = { q: '', member: '' };
+  const FILTER = { q: '', member: '', type: '' };
   const PRIS = ['보통','중요','긴급'];
+  // 열린 상태 3종 — 상태 5종 판(2026-08-30)의 「아직 안 끝난」 쪽
+  const isOpen = s => s === '시작 전' || s === '진행 중' || s === '컨펌 대기';
+  /* 관문에 구워진 옛 부트 스냅샷은 옛 상태 어휘(답변 대기/답변 완료)를 들고 온다 —
+     서버 상태정규화_와 같은 매핑. 새 서버 응답에는 헛돈다 (이미 새 어휘다). */
+  function 상태정규화(data){
+    const map = { '답변 대기': '시작 전', '답변 완료': '진행 중' };
+    ((data && data.directives) || []).forEach(d => { d.status = map[d.status] || d.status || '시작 전'; });
+    return data;
+  }
 
   /* 서버 호출 통로 (ADR 0008). 호출부 24곳은 한 줄도 안 바뀐다 — 이 함수만 갈아끼웠다.
    *
@@ -694,8 +903,16 @@
     } catch (e) {
       /* 스냅샷으로 이미 앱이 떠 있으면 로그인 화면으로 내쫓지 않는다 — 잠깐 끊긴 네트워크로
          쓰던 화면을 날리는 것이 더 나쁘다. 토큰이 죽은 경우라면 관문도 같은 규칙으로 401을
-         내므로 스냅샷이 애초에 안 그려졌고, 그러면 여기서 로그인으로 간다. */
-      if (!그린부트_) { localStorage.removeItem('brg_token'); TOKEN = ''; show('vLogin'); }
+         내므로 스냅샷이 애초에 안 그려졌고, 그러면 여기서 로그인으로 간다.
+         단 **인증 만료로 판명되면** 스냅샷이 떠 있어도 내쫓는다 — 관문이 먼저 응답한 좁은
+         틈에 스냅샷이 그려졌을 수 있고, 권한을 잃은 사람에게 마지막 화면을 계속 보여 주면
+         안 된다 (Codex 리뷰 2026-08-30). 네트워크 오류는 지금처럼 화면을 지킨다. */
+      const 인증만료 = /세션이 만료|다시 로그인/.test(String(e && e.message || ''));
+      if (!그린부트_ || 인증만료) {
+        localStorage.removeItem('brg_token'); TOKEN = ''; DATA = null;
+        show('vLogin');
+        if (인증만료) toast('세션이 만료되었습니다. 다시 로그인해 주세요.');
+      }
       return;
     }
     그리기_();
@@ -711,21 +928,26 @@
   /* 관문을 직접 부르는 유일한 자리. `gs()`는 GAS 디스패처 전용이라 다른 주소를 태울 수 없고,
      이 호출은 GAS 호출을 **대체**하는 게 아니라 나란히 나가는 것이라 그 안에 낄 자리가 없다. */
   function 스냅샷받기_(){
+    /* 응답은 **이 요청을 보낸 토큰**에 묶인다. 그 사이 인증 만료로 내쫓겼거나(TOKEN='')
+       다른 사람으로 재로그인했으면(TOKEN이 다른 값) 늦게 도착한 이 응답은 남의 화면이다 —
+       DATA가 비었다는 이유로 그리면 안 된다 (Codex 2026-08-30, 두 번에 걸쳐 잡았다). */
+    const 요청토큰 = TOKEN;
     fetch(GATE_URL + '/bridge-boot', {
       method: 'POST',
       // text/plain이라야 CORS 사전요청이 없다. 토큰 안의 한글은 본문이라 그대로 실린다
       // (헤더였다면 ASCII 제한에 걸린다 — 관문이 토큰을 본문으로 받는 이유가 그것이다)
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ 토큰: TOKEN }),
+      body: JSON.stringify({ 토큰: 요청토큰 }),
     }).then(r => r.ok ? r.json() : null)   // 404 = 아직 안 구워졌다. 오류가 아니다
       .then(r => {
         계측('스냅샷 도착');
         if (!r || !r.payload) return;
+        if (TOKEN !== 요청토큰) return;    // 만료·로그아웃·재로그인 — 죽은 요청의 응답이다
         if (DATA) return;                  // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
         // 모양이 어긋난 스냅샷은 아예 안 쓴다. 관문이 이중 인코딩된 문자열을 저장하면
         // 여기가 undefined로 터지는데, 아래 catch가 삼켜 조용히 느려지기만 한다
         if (!r.payload.me) throw new Error('스냅샷 모양이 아닙니다');
-        DATA = r.payload;
+        DATA = 상태정규화(r.payload);
         // 그리다 실패하면 DATA를 되돌린다. 세워 둔 채 던지면 뒤에 온 GAS 응답이 「이미 그렸다」로
         // 착각할 여지가 생긴다
         try { 그리기_(); 그린부트_ = true; } catch (e) { DATA = null; throw e; }
@@ -745,20 +967,25 @@
     $('newTitle').placeholder = me.manage ? '지시 내용을 입력하세요' : '요청 내용을 입력하세요';
     $('btnNewSend').textContent = me.manage ? '지시 보내기' : '요청 보내기';
     $('newMeetWrap').classList.toggle('hide', !me.manage);   // 미팅 일시 지정은 대표/관리자만
-    $('listLabel').textContent = '진행 중';
 
     // 통계 타일
     const s = DATA.stats;
+    // 컨펌 대기 — 대표에게는 「내가 컨펌할 것」, 임원에게는 「내가 보고해 둔 것」.
+    // s.confirm이 없는 옛 부트 스냅샷은 0으로 받는다
     $('tiles').innerHTML =
       tile('진행 중', s.open, '') + tile('기한 임박', s.late, s.late ? 'bad' : '') +
-      tile('답변 대기', s.wait, s.wait ? 'warn' : '') + tile('막힘', s.stuck || 0, s.stuck ? 'bad' : '');
+      tile('컨펌 대기', s.confirm || 0, s.confirm ? 'warn' : '') + tile('막힘', s.stuck || 0, s.stuck ? 'bad' : '');
 
     // 막힌 곳 + 미팅 + 임원별 현황 + 목록 + 캘린더
     renderStuck();
     renderMeet();
     renderMembers();
-    renderLists();
-    renderCal();
+    renderBoard();
+
+    // 이미 쓰인 구분을 새 지시 폼의 후보로 — 같은 갈래를 사람마다 다른 말로 적으면 간트가 쪼개진다
+    const cats = DATA.directives.map(d => d.cat).filter(c => c && c !== '미분류')
+      .filter((c, i, a) => a.indexOf(c) === i).sort((a, b) => a.localeCompare(b, 'ko'));
+    $('catList').innerHTML = cats.map(c => '<option value="' + esc(c) + '">').join('');
 
     // 지시 명의 — 관리자만, 01_구성원에 '대표' 역할이 있을 때
     const boss = DATA.boss;
@@ -1137,7 +1364,7 @@
   // 해당 임원의 진행 중 지시 가운데 가장 임박한 기한
   function nextDueOf(name){
     const list = DATA.directives.filter(d => d.who.indexOf(name) >= 0
-      && (d.status === '답변 대기' || d.status === '답변 완료') && d.dday != null);
+      && isOpen(d.status) && d.dday != null);
     return list.length ? list.reduce((a, b) => (a.dday <= b.dday ? a : b)) : null;
   }
 
@@ -1145,7 +1372,7 @@
   function openMember(name){
     const m = (DATA.byMember || []).find(x => x.name === name);
     const mine = DATA.directives.filter(d => d.who.indexOf(name) >= 0);
-    const open = mine.filter(d => d.status === '답변 대기' || d.status === '답변 완료')
+    const open = mine.filter(d => isOpen(d.status))
       .sort((a, b) => (a.dday == null ? 999 : a.dday) - (b.dday == null ? 999 : b.dday));
     const done = mine.filter(d => d.status === '완료').slice(0, 5);
 
@@ -1172,7 +1399,7 @@
       el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
     $('mbFilter').addEventListener('click', () => {
       FILTER.member = name;
-      renderMembers(); renderLists();
+      renderMembers(); renderBoard();
       closeSheet();
       $('cardMembers').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -1181,59 +1408,317 @@
   // 지시 목록 (검색·필터 반영)
   function matchFilter(d){
     if (FILTER.member && d.who.indexOf(FILTER.member) < 0) return false;
+    if (FILTER.type && (d.type || '일반') !== FILTER.type) return false;
     if (!FILTER.q) return true;
-    const hay = (d.title + ' ' + (d.detail || '') + ' ' + d.owner + ' ' + d.who.join(' ')).toLowerCase();
+    const hay = (d.title + ' ' + (d.detail || '') + ' ' + d.owner + ' ' + d.who.join(' ') + ' ' + (d.cat || '')).toLowerCase();
     return hay.indexOf(FILTER.q) >= 0;
   }
 
-  const titleOf = n => {
-    const m = (DATA.byMember || []).find(x => x.name === n) || (DATA.members || []).find(x => x.name === n);
-    return m && m.title ? m.title : '';
-  };
+  /* ── 본판 뷰 전환 (노션 판 2026-08-30) — 표가 기본, 간트·캘린더는 전환 뷰 ──
+     뷰 선택만 기억한다(brg_view). 유형·검색 필터는 세션 한정 — 남겨 두면
+     「업무가 사라졌다」로 읽히는 사고가 된다. */
+  const VIEWS = { table: 'viewTable', gantt: 'viewGantt', cal: 'viewCal' };
+  let VIEW = 'table';
+  try { VIEW = localStorage.getItem('brg_view') || 'table'; } catch (e) {}
+  if (!VIEWS[VIEW]) VIEW = 'table';
 
-  function renderLists(){
-    const filtered = DATA.directives.filter(matchFilter);
-    const filtering = FILTER.q || FILTER.member;
-    const open = filtered.filter(d => d.status === '답변 대기' || d.status === '답변 완료');
-    const closed = filtered.filter(d => d.status === '완료' || d.status === '보류');
-    $('listLabel').innerHTML = '진행 중' + (FILTER.member
-      ? ' · ' + esc(FILTER.member) + ' <button class="chip" id="clearMf" style="margin-left:4px;padding:2px 10px;font-size:11px">해제</button>' : '');
+  function renderBoard(){
+    Object.keys(VIEWS).forEach(v => $(VIEWS[v]).classList.toggle('hide', v !== VIEW));
+    $('viewTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === VIEW));
+    // 임원 필터 표시는 뷰 공통이다 — 어느 뷰에서든 걸려 있으면 보이고 풀 수 있어야 한다
+    $('listLabel').innerHTML = FILTER.member
+      ? esc(FILTER.member) + ' 필터 <button class="chip" id="clearMf" style="padding:2px 10px;font-size:11px">해제</button>' : '';
     const clearMf = $('clearMf');
-    if (clearMf) clearMf.addEventListener('click', () => { FILTER.member = ''; renderMembers(); renderLists(); });
+    if (clearMf) clearMf.addEventListener('click', () => { FILTER.member = ''; renderMembers(); renderBoard(); });
+    if (VIEW === 'gantt') renderGantt();
+    else if (VIEW === 'cal') renderCal();
+    else renderTable();
+  }
 
-    let openHtml = '';
-    if (open.length && DATA.me.manage && !FILTER.member) {
-      // 대표/관리자 화면: 담당자별로 묶어서 구분 표시
-      const groups = {}, order = [];
-      open.forEach(d => {
-        const k = d.who.join(', ') || d.owner;
-        if (!groups[k]) { groups[k] = []; order.push(k); }
-        groups[k].push(d);
-      });
-      order.sort((a, b) =>
-        (titleOf(a) || '').localeCompare(titleOf(b) || '', 'ko') || a.localeCompare(b, 'ko'));
-      openHtml = order.map(k => {
-        const t = k.indexOf(',') < 0 ? titleOf(k) : '';
-        return '<div class="dgroup">' + deptChip(t) + '<b>' + esc(k) + '</b>'
-          + '<span class="cnt">' + groups[k].length + '건</span></div>'
-          + groups[k].map(itemHtml).join('');
-      }).join('');
-    } else if (open.length) {
-      openHtml = open.map(itemHtml).join('');
+  /* 구분으로 묶는다 — '미분류'는 맨 아래 (이름 있는 갈래를 먼저 본다). 표·간트 공용 */
+  function 갈래묶기_(rows){
+    const 묶음 = {}, 갈래 = [];
+    rows.forEach(d => {
+      const k = d.cat || '미분류';
+      if (!묶음[k]) { 묶음[k] = []; 갈래.push(k); }
+      묶음[k].push(d);
+    });
+    갈래.sort((a, b) => (a === '미분류') - (b === '미분류') || a.localeCompare(b, 'ko'));
+    return { 묶음: 묶음, 갈래: 갈래 };
+  }
+
+  // 저장된 상태 그대로의 배지 — 막힘 사유·미팅 칩(pillOf)과 달리 표는 상태만 말한다
+  function 상태필(d){
+    const cls = { '시작 전': 'todo', '진행 중': 'doing', '컨펌 대기': 'confirm', '완료': 'done', '보류': 'gray' }[d.status] || 'todo';
+    return '<span class="pill ' + cls + '">' + esc(d.status) + '</span>';
+  }
+
+  /* D-day 신호등 (쇼츠 규칙): 7일 초과 🟢 · 3일 초과 🟠 · 그 이하·지남 🔴.
+     일이 끝났거나(컨펌 대기·완료·보류) 기한이 없으면 안 찍는다.
+     마일스톤이 지연된 업무는 상위 기한이 아무리 멀어도 🔴 — 병목 우선순위(세부 지연 > 상위 기한)와
+     같은 말을 해야 초록불 옆에 「세부 지연」 칩이 뜨는 모순이 안 생긴다. */
+  function 신호등(d){
+    if (d.dday == null || (d.status !== '시작 전' && d.status !== '진행 중')) return '';
+    const c = d.subLate ? 'r' : d.dday > 7 ? 'g' : d.dday > 3 ? 'o' : 'r';
+    const 말 = c === 'g' ? '여유' : c === 'o' ? '주의' : '임박';
+    return '<i class="tl ' + c + '" role="img" aria-label="' + 말 + '"></i>';
+  }
+
+  /* 업무 표 — 열린 업무는 전부, 완료는 최근 14일, 보류는 항상 (완료가 영영 쌓여
+     화면을 밀어내는 문제는 간트 창 필터와 같은 취지로 여기서도 자른다) */
+  function renderTable(){
+    const rows = DATA.directives.filter(matchFilter).filter(d => {
+      if (isOpen(d.status) || d.status === '보류') return true;
+      const done = 날짜(d.done);
+      return done ? (자정(new Date()) - done) / DAYMS <= 14 : true;
+    });
+    if (!rows.length) {
+      $('tblWrap').innerHTML = '<div class="empty">'
+        + ((FILTER.q || FILTER.member) ? '조건에 맞는 업무가 없습니다' : '아직 등록된 업무가 없습니다') + '</div>';
+      return;
     }
-    $('listOpen').innerHTML = openHtml
-      || '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '진행 중인 지시가 없습니다') + '</div>';
-    $('listClosed').innerHTML = closed.length ? (filtering ? closed : closed.slice(0, 15)).map(itemHtml).join('')
-      : '<div class="empty">' + (filtering ? '조건에 맞는 지시가 없습니다' : '아직 없습니다') + '</div>';
-    // #meetList도 .dlist라서 전체 선택하면 미팅 항목에 openDetail이 중복 바인딩된다 — 지시 목록 두 곳만
-    document.querySelectorAll('#listOpen .ditem, #listClosed .ditem').forEach(el =>
+    const 차례 = { '시작 전': 0, '진행 중': 0, '컨펌 대기': 1, '보류': 2, '완료': 3 };
+    const { 묶음, 갈래 } = 갈래묶기_(rows);
+    let h = '<div class="tbl-h"><span>업무</span><span>담당</span><span>상태</span><span>마감</span><span>마일스톤</span></div>';
+    갈래.forEach(k => {
+      h += '<div class="tbl-g"><i>' + esc(k) + '</i><em>' + 묶음[k].length + '건</em></div>';
+      묶음[k].sort((a, b) =>
+        (차례[a.status] || 0) - (차례[b.status] || 0)
+        || (a.dday == null ? 999 : a.dday) - (b.dday == null ? 999 : b.dday)
+        || b.id - a.id
+      ).forEach(d => { h += 표줄(d); });
+    });
+    $('tblWrap').innerHTML = h;
+    $('tblWrap').querySelectorAll('.tbl-r[data-id]').forEach(el =>
       el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
   }
 
+  function 표줄(d){
+    const 담당 = d.who.join(', ') || d.owner;
+    const 마감 = d.due
+      ? 신호등(d) + '<span>' + 짧은날(d.due) + '</span>' + ddayBadge(d)
+      : (d.doneKo ? '<span>완료 ' + esc(짧은날(d.done)) + '</span>' : '<span>—</span>');
+    const ms = d.subN
+      ? '<span class="msbar"><i style="width:' + Math.round(d.subDone / d.subN * 100) + '%"></i></span>' + d.subDone + '/' + d.subN
+      : '—';
+    return '<button class="tbl-r" data-id="' + d.id + '">'
+      + '<b class="t-title">'
+      + (d.type === 'KPI' ? '<span class="pill meet" style="margin-right:6px">KPI</span>' : '')
+      + (d.pri === '긴급' ? '<span class="pill late" style="margin-right:6px">긴급</span>' : '')
+      + esc(d.title) + '</b>'
+      + '<span class="t-meta">'
+      + '<span class="t-who">' + esc(담당) + '</span>'
+      + '<span class="t-st">' + 상태필(d) + '</span>'
+      + '<span class="t-due">' + 마감 + '</span>'
+      + '<span class="t-ms">' + ms + '</span>'
+      + '</span></button>';
+  }
+
+  /* ── 업무 일정 (간트) ──
+     엑셀 Action Plan을 그대로 옮긴 표다. 구분으로 묶고, 업무 아래 세부업무를 들여 쓰고,
+     오른쪽에 시작일~마감일 막대를 그린다. 창은 28일이고 ‹ ›로 2주씩 민다.
+     상태(완료/지연/진행중)는 서버가 파생해 준다 — 여기서 다시 세지 않는다. */
+  /* 하루 폭은 JS가 정해 `--gt-dw`로 내려보낸다 — CSS에 따로 적으면 막대 좌표와 칸이 어긋난다.
+     좁은 화면에서 34px를 쓰면 4일치밖에 안 보여서, 폰에서는 칸을 좁힌다. */
+  const GT_DAYS = 28, DAYMS = 86400000;
+  const 하루폭 = () => (innerWidth < 700 ? 26 : 34);
+  let GT_DW = 하루폭();
+  let GT_FROM = null;                       // 창의 첫날 (자정)
+  const 자정 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const 날짜 = s => (s ? 자정(new Date(s + 'T00:00:00')) : null);
+  const 짧은날 = s => { const t = 날짜(s); return t ? (t.getMonth() + 1) + '/' + t.getDate() : ''; };
+
+  function renderGantt(){
+    const today = 자정(new Date());
+    GT_DW = 하루폭();
+    if (!GT_FROM) GT_FROM = new Date(today.getTime() - 7 * DAYMS);
+    const 칸 = dt => Math.round((자정(dt) - GT_FROM) / DAYMS);   // 창 시작으로부터 며칠째
+    const 끝 = new Date(GT_FROM.getTime() + (GT_DAYS - 1) * DAYMS);
+    $('gtRange').textContent = 짧은날(iso(GT_FROM)) + ' – ' + 짧은날(iso(끝));
+
+    /* 완료·보류는 **보이는 기간과 겹칠 때만** 남긴다. 안 그러면 몇 달 전에 끝난 업무가
+       영영 쌓여 화면을 밀어낸다 (전에는 「완료·보류」 카드가 15건으로 잘랐다).
+       진행 중인 업무는 기간이 창 밖이어도 늘 보인다 — 놓치면 안 되는 쪽이라서다. */
+    const 줄들 = DATA.directives.filter(matchFilter).filter(d => {
+      if (isOpen(d.status)) return true;
+      const 폭 = 기간(d);
+      // 날짜가 하나도 없으면 어느 창에서도 못 보게 된다 — 그런 업무는 늘 남긴다
+      if (!폭) return true;
+      return 폭.to >= GT_FROM && 폭.from <= 끝;
+    });
+    if (!줄들.length) {
+      $('gtWrap').innerHTML = '<div class="empty">'
+        + ((FILTER.q || FILTER.member) ? '조건에 맞는 업무가 없습니다'
+          : DATA.directives.length ? '이 기간에 표시할 업무가 없습니다 — ‹ › 로 기간을 옮겨 보세요'
+          : '아직 등록된 업무가 없습니다') + '</div>';
+      return;
+    }
+
+    const { 묶음, 갈래 } = 갈래묶기_(줄들);
+
+    let h = '<div class="gt" style="--gt-dw:' + GT_DW + 'px">' + 달머리(GT_FROM) + 날머리(GT_FROM, today);
+    갈래.forEach(k => {
+      h += '<div class="gt-grp"><i>' + esc(k) + '<em>' + 묶음[k].length + '건</em></i></div>';
+      묶음[k].sort((a, b) => {
+        const x = 첫날(a), y = 첫날(b);
+        return (x ? x.getTime() : Infinity) - (y ? y.getTime() : Infinity) || b.id - a.id;
+      }).forEach(d => { h += 지시줄(d, 칸, today); });
+    });
+    $('gtWrap').innerHTML = h + '</div>';
+    $('gtWrap').querySelectorAll('.gt-row[data-id]').forEach(el =>
+      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+  }
+
+  const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  const 세부들 = d => (DATA.subs || {})[d.id] || [];
+
+  /** 그 업무가 차지하는 기간 — 정렬(첫날)과 창 겹침 판정에 같이 쓴다.
+   *  세부업무의 날짜와 상위 기한을 통틀어 가장 이른 날 ~ 가장 늦은 날. 날짜가 하나도 없으면 null */
+  function 기간(d){
+    const 날들 = [];
+    세부들(d).forEach(s => { [날짜(s.start), 날짜(s.due), 날짜(s.done)].forEach(x => { if (x) 날들.push(x); }); });
+    // 완료일도 센다 — 기한 없이 끝난 업무는 이것 말고 일정 위에 놓을 자리가 없다
+    [날짜(d.due), 날짜(d.done)].forEach(x => { if (x) 날들.push(x); });
+    if (!날들.length) return null;
+    const t = 날들.map(x => x.getTime());
+    return { from: new Date(Math.min.apply(null, t)), to: new Date(Math.max.apply(null, t)) };
+  }
+  const 첫날 = d => { const p = 기간(d); return p ? p.from : null; };
+
+  function 달머리(from){
+    let h = '<div class="gt-mons">', i = 0;
+    while (i < GT_DAYS) {
+      const dt = new Date(from.getTime() + i * DAYMS);
+      let n = 0;
+      while (i + n < GT_DAYS && new Date(from.getTime() + (i + n) * DAYMS).getMonth() === dt.getMonth()) n++;
+      h += '<div class="gt-mon" style="width:' + (n * GT_DW) + 'px">' + (dt.getMonth() + 1) + '월</div>';
+      i += n;
+    }
+    return h + '</div>';
+  }
+
+  function 날머리(from, today){
+    let h = '<div class="gt-row head"><div class="gt-lab"><b>업무 · 마일스톤</b><span>담당 · 기간</span></div><div class="gt-track">';
+    for (let i = 0; i < GT_DAYS; i++) {
+      const dt = new Date(from.getTime() + i * DAYMS);
+      h += '<div class="gt-d' + 날칸(dt, today) + '">' + dt.getDate() + '</div>';
+    }
+    return h + '</div></div>';
+  }
+
+  const 날칸 = (dt, today) => (dt.getDay() === 0 || dt.getDay() === 6 ? ' we' : '')
+    + (dt.getTime() === today.getTime() ? ' today' : '');
+
+  /** 업무 한 줄 + 그 아래 세부업무 줄들. 업무 막대는 세부업무 전체를 감싼 요약이다 */
+  function 지시줄(d, 칸, today){
+    const subs = 세부들(d);
+    // 컨펌 대기는 지연 판정보다 먼저다 — 보고를 마친 업무가 빨갛게 나오면 임원이 헛쫓긴다
+    const 상태 = d.status === '완료' ? 'done' : d.status === '보류' ? 'hold'
+      : d.status === '컨펌 대기' ? 'confirm'
+      : (d.subLate || (d.dday != null && d.dday < 0)) ? 'late' : 'wait';
+    const 기간 = subs.length ? 감싸기(subs) : null;
+    const 요약 = [d.who.join(', ') || d.owner,
+      d.dueKo ? '기한 ' + d.dueKo : d.doneKo ? '완료 ' + d.doneKo : '기한 없음',
+      d.subN ? '마일스톤 ' + d.subDone + '/' + d.subN : ''].filter(Boolean).join(' · ');
+
+    let h = '<button class="gt-row dir" data-id="' + d.id + '">'
+      + '<div class="gt-lab"><b>' + esc(d.title) + '</b><span>' + esc(요약) + '</span></div>'
+      + '<div class="gt-track">' + 바탕(today)
+      // 기한이 없으면 완료일에 찍는다. 둘 다 없으면 막대도 점도 없이 라벨만 남는다
+      + (기간 ? 막대(칸, 기간.from, 기간.to, 상태 + ' roll') : 점(칸, 날짜(d.due) || 날짜(d.done), 상태))
+      + '</div></button>';
+
+    subs.forEach(s => {
+      const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
+      /* 날짜를 안 넣고 완료만 체크한 세부업무가 흔하다 — 기한이 없으면 완료일이 그 자리를 대신한다.
+         안 그러면 그 줄은 라벨만 남고 일정 위에서 사라진다 (Codex 2026-08-30). */
+      const 시작 = 날짜(s.start), 끝 = 날짜(s.due) || 날짜(s.done);
+      const 누구 = [s.who.join(', '), s.vendor].filter(Boolean).join(' · ');
+      const 끝말 = s.due ? '마감 ' : '완료 ';
+      const 때 = 시작 && 끝 ? 짧은날(s.start) + '–' + 짧은날(s.due || s.done)
+        : 끝 ? 끝말 + 짧은날(s.due || s.done) : 시작 ? 짧은날(s.start) + '–' : '';
+      // 세부업무 줄도 누르면 부모 업무가 열린다 — 거기에 완료 체크·기한 변경이 있다
+      h += '<button class="gt-row sub" data-id="' + d.id + '">'
+        + '<div class="gt-lab"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+        + esc([누구 || '담당 미지정', 때].filter(Boolean).join(' · ')) + '</span></div>'
+        + '<div class="gt-track">' + 바탕(today)
+        + (시작 && 끝 ? 막대(칸, 시작, 끝, cls)
+          : 시작 ? 막대(칸, 시작, 시작, cls) : 점(칸, 끝, cls))
+        + '</div></button>';
+    });
+    return h;
+  }
+
+  /** 세부업무 전체를 감싸는 기간 — 업무 줄의 요약 막대 */
+  function 감싸기(subs){
+    // 날짜 없이 완료만 체크한 세부업무는 완료일이 그 줄의 날짜다 — 요약 막대도 그걸 감싸야 한다
+    const 시작들 = subs.map(s => 날짜(s.start) || 날짜(s.due) || 날짜(s.done)).filter(Boolean);
+    const 끝들 = subs.map(s => 날짜(s.due) || 날짜(s.done) || 날짜(s.start)).filter(Boolean);
+    if (!시작들.length || !끝들.length) return null;
+    return {
+      from: new Date(Math.min.apply(null, 시작들.map(x => x.getTime()))),
+      to: new Date(Math.max.apply(null, 끝들.map(x => x.getTime()))),
+    };
+  }
+
+  let 바탕캐시 = { key: '', html: '' };
+  function 바탕(today){
+    const key = iso(GT_FROM) + '|' + iso(today);
+    if (바탕캐시.key !== key) {
+      let h = '';
+      for (let i = 0; i < GT_DAYS; i++) h += '<div class="gt-d' + 날칸(new Date(GT_FROM.getTime() + i * DAYMS), today) + '"></div>';
+      바탕캐시 = { key: key, html: h };
+    }
+    return 바탕캐시.html;
+  }
+
+  /** 창 밖으로 나가는 막대는 잘라 그리고, 잘린 쪽 끝을 점선으로 표시한다.
+   *  통째로 밖이면 빈 줄이 되므로 어느 쪽에 있는지 화살표를 남긴다 — 빈 칸은 「일정 없음」으로 읽힌다 */
+  function 막대(칸, from, to, cls){
+    const a = 칸(from), b = 칸(to);
+    if (b < 0) return 바깥('l');
+    if (a > GT_DAYS - 1) return 바깥('r');
+    const 왼 = Math.max(a, 0), 오 = Math.min(b, GT_DAYS - 1);
+    const 자름 = (a < 0 ? ' cutL' : '') + (b > GT_DAYS - 1 ? ' cutR' : '');
+    return '<span class="gt-bar ' + cls + 자름 + '" style="left:' + (왼 * GT_DW + 2)
+      + 'px;width:' + ((오 - 왼 + 1) * GT_DW - 4) + 'px"></span>';
+  }
+
+  /** 기간 없이 기한만 있는 줄 — 그날에 마름모 하나 */
+  function 점(칸, dt, cls){
+    if (!dt) return '';
+    const i = 칸(dt);
+    if (i < 0) return 바깥('l');
+    if (i > GT_DAYS - 1) return 바깥('r');
+    return '<span class="gt-dot ' + cls + '" style="left:' + (i * GT_DW) + 'px"></span>';
+  }
+
+  const 바깥 = 쪽 => '<span class="gt-edge ' + 쪽 + '" title="이 창 밖에 있습니다">'
+    + (쪽 === 'l' ? '&#8249;' : '&#8250;') + '</span>';
+
+  $('gtPrev').addEventListener('click', () => { GT_FROM = new Date(GT_FROM.getTime() - 14 * DAYMS); renderGantt(); });
+  $('gtNext').addEventListener('click', () => { GT_FROM = new Date(GT_FROM.getTime() + 14 * DAYMS); renderGantt(); });
+
+  /* 폰을 돌리면 하루 폭이 바뀐다 — 다시 그리지 않으면 막대의 인라인 좌표가 옛 폭 그대로라 칸과 어긋난다.
+     폭이 실제로 달라졌을 때만 그린다 (스크롤·키보드가 올라와도 resize가 뜬다) */
+  addEventListener('resize', () => { if (DATA && VIEW === 'gantt' && GT_DW !== 하루폭()) renderGantt(); });
+
   $('q').addEventListener('input', () => {
     FILTER.q = $('q').value.trim().toLowerCase();
-    if (DATA) renderLists();
+    if (DATA) renderBoard();
   });
+
+  segInit('viewTabs', btn => {
+    VIEW = btn.dataset.view;
+    try { localStorage.setItem('brg_view', VIEW); } catch (e) {}
+    renderBoard();
+  });
+
+  $('typeChips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+    FILTER.type = b.dataset.type;
+    $('typeChips').querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b));
+    renderBoard();
+  }));
 
   // ── 보고 일정 캘린더 — 진행 중인 지시의 기한을 월 단위로 표시 ──
   let CAL = null;   // 표시 중인 달 {y, m}
@@ -1244,7 +1729,8 @@
 
     const byDay = {};
     DATA.directives
-      .filter(d => d.due && (d.status === '답변 대기' || d.status === '답변 완료' || d.status === '완료'))
+      .filter(matchFilter)   // 검색·임원 필터가 뷰 셋에 똑같이 걸린다 (노션 판)
+      .filter(d => d.due && (isOpen(d.status) || d.status === '완료'))
       .forEach(d => {
         const dt = new Date(d.due + 'T00:00:00');
         if (dt.getFullYear() === CAL.y && dt.getMonth() === CAL.m)
@@ -1307,19 +1793,21 @@
   function pillOf(d){
     if (d.status === '완료') return '<span class="pill done">완료</span>';
     if (d.status === '보류') return '<span class="pill gray">보류</span>';
+    // 컨펌 대기는 미팅·기한 칩보다 먼저다 — 보고가 끝난 업무의 나머지 사정은 낡은 정보다
+    if (d.status === '컨펌 대기') return '<span class="pill confirm">컨펌 대기</span>';
     // 역제안을 받은 쪽은 '미팅 요청'이 아니라 **고를 차례**다 — 막힌 곳 카드와 같은 말을 쓴다
     if (d.meetPending || d.duePending) return '<span class="pill meet">'
       + (d.meetChoose ? '일정 선택' : (d.meetPending ? '미팅 요청' : '기한 조정')) + '</span>';
-    if (d.status === '답변 완료') return '<span class="pill done">답변 완료</span>';
     // 막힌 건은 '기한 임박'보다 사유가 쓸모 있다 (기한 임박 위에 둔다)
     if (d.stuck) return '<span class="pill late">' + esc(d.stuckWhy) + '</span>';
     if (d.dday != null && d.dday <= 1) return '<span class="pill late">기한 임박</span>';
-    return '<span class="pill wait">답변 대기</span>';
+    if (d.status === '진행 중') return '<span class="pill doing">진행 중</span>';
+    return '<span class="pill todo">시작 전</span>';
   }
 
-  // 진행 중인 지시의 남은 기한 배지 (D-3 · D-DAY · D+2)
+  // 진행 중인 지시의 남은 기한 배지 (D-3 · D-DAY · D+2) — 컨펌 대기는 일이 끝난 상태라 뺀다
   function ddayBadge(d){
-    if (d.dday == null || (d.status !== '답변 대기' && d.status !== '답변 완료')) return '';
+    if (d.dday == null || (d.status !== '시작 전' && d.status !== '진행 중')) return '';
     const cls = d.dday < 0 ? 'over' : d.dday <= 1 ? 'near' : d.dday <= 3 ? 'soon' : '';
     return '<i class="dday ' + cls + '">' + d.ddayLabel + '</i>';
   }
@@ -1329,7 +1817,7 @@
     const sub = (d.kind === '요청' ? '요청 · ' : '') + other + (d.by ? ' (' + d.by + ' 대리)' : '') +
       (d.dueKo ? ' · 기한 ' + d.dueKo : '') + (d.replyCount ? ' · 답변 ' + d.replyCount : '') +
       // 진행률 — 어느 단계까지 왔는지. 서버가 세어 준 값이라 화면이 다시 세지 않는다
-      (d.subN ? ' · 세부 ' + d.subDone + '/' + d.subN + (d.subLate ? ' (지연 ' + d.subLate + ')' : '') : '');
+      (d.subN ? ' · 마일스톤 ' + d.subDone + '/' + d.subN + (d.subLate ? ' (지연 ' + d.subLate + ')' : '') : '');
     return '<button class="ditem" data-id="' + d.id + '">' +
       '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(sub) + '</span></div>' +
       '<div class="side">' + pillOf(d) + ddayBadge(d) + '</div></button>';
@@ -1347,6 +1835,7 @@
 
   segInit('newDueQuick', btn => $('newDue').classList.toggle('hide', btn.dataset.days !== ''));
   segInit('newPri');
+  segInit('newType');
   segInit('newMeetSeg', btn => $('newMeetBox').classList.toggle('hide', btn.dataset.v !== 'set'));
   segInit('newAsSeg', () => renderWhoChips());
   $('newMeetBox').innerHTML = dtPickHtml('nMeet')
@@ -1399,8 +1888,9 @@
     busy(true, newDirFiles.length ? '파일 업로드 중...' : '지시를 보내는 중...');
     try {
       const asBoss = onBehalf();
-      await gs('웹_지시등록', TOKEN, { title, detail: $('newDetail').value.trim(), who, due, pri: segVal('newPri'), files: newDirFiles, meetAt, onBehalf: asBoss });
-      $('newTitle').value = ''; $('newDetail').value = '';
+      await gs('웹_지시등록', TOKEN, { title, detail: $('newDetail').value.trim(), who, due, cat: $('newCat').value.trim(), type: segVal('newType'), pri: segVal('newPri'), files: newDirFiles, meetAt, onBehalf: asBoss });
+      $('newTitle').value = ''; $('newDetail').value = ''; $('newCat').value = '';
+      $('newType').querySelector('[data-v="일반"]').click();
       newDirFiles = []; renderNFileChips();
       $('newWho').querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
       $('nMeetD').value = '';
@@ -1455,17 +1945,20 @@
     LASTS = subs || [];
     const me = DATA.me;
     const isAssignee = d.who.indexOf(me.name) >= 0;
-    const openStatus = d.status === '답변 대기' || d.status === '답변 완료';
+    const openStatus = isOpen(d.status);
 
     let h = '<div class="grip"></div>'
       + '<div class="sheet-head"><h2>' + esc(d.title) + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
       + '<div class="sheet-meta"><b>' + esc(d.owner) + '</b>' + (d.by ? ' <span class="proxy">' + esc(d.by) + ' 대리</span>' : '')
       + ' ' + (d.kind === '요청' ? '요청 · 받는 사람' : '지시 · 담당') + ' <b>' + esc(d.who.join(', ')) + '</b>'
       + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
-      + ' · ' + esc(d.pri) + '</div>'
+      + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '') + '</div>'
       + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '');
 
-    // 세부업무 — 어느 단계까지 왔고 어디서 밀렸는지
+    // 컨펌 줄 · 전달 줄 — 대표·관리자는 컨펌/반려, 담당은 보고 취소, 자기 업무는 대표님께 전달
+    h += actionBarHtml(d, convs);
+
+    // 마일스톤 — 어느 단계까지 왔고 어디서 밀렸는지
     h += subCardHtml(d, LASTS);
 
     // 스레드
@@ -1503,6 +1996,10 @@
         if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
         if (c.files && c.files.length) h += '<div class="files">' + c.files.map(f =>
           '<a href="' + esc(f.url) + '" target="_blank" rel="noopener">&#128206; ' + esc(f.name) + '</a>').join('') + '</div>';
+        // 완료 보고의 처리 상태 — 컨펌/반려/철회/보류됨이 handled 칸에 남는다 (기한 승인 관행)
+        if (c.type === '완료 보고' && c.handled)
+          h += '<div class="m-body" style="color:var(--sub);font-weight:600;font-size:13px">'
+            + esc(c.handled === '보류됨' ? c.handled : c.handled + '됨') + '</div>';
       }
       h += '</div>';
     });
@@ -1523,8 +2020,44 @@
   const typePill = c =>
     c.type === '답변' ? '<span class="pill done">답변</span>' :
     c.type === '코멘트' ? '<span class="pill gray">코멘트</span>' :
-    c.type === '진행' ? '<span class="pill wait">진행</span>' :
+    c.type === '진행' ? '<span class="pill doing">진행</span>' :
+    c.type === '완료 보고' ? '<span class="pill confirm">완료 보고</span>' :
+    c.type === '전달' ? '<span class="pill doing">전달</span>' :
     '<span class="pill meet">' + c.type + '</span>';
+
+  /* 컨펌 줄 (노션 판 결정 5) — 임원의 완료 보고에 대표가 답하는 자리.
+     상태 확인은 서버가 잠금 안에서 다시 한다 — 여기 버튼은 낡았을 수 있는 화면일 뿐이다. */
+  function actionBarHtml(d, convs){
+    const me = DATA.me;
+    if (d.status === '컨펌 대기') {
+      if (me.manage) {
+        return '<div class="card"><h3>완료 컨펌 <span style="font-weight:400">· 담당이 업무를 끝냈다고 보고했습니다</span></h3>'
+          + '<input type="text" id="cfNote" placeholder="반려 사유 (반려할 때만, 선택)">'
+          + '<div style="display:flex;gap:8px;margin-top:10px">'
+          + '<button class="btn-primary" id="cfOk" style="margin-top:0;flex:1.4">완료 컨펌</button>'
+          + '<button class="btn-quiet" id="cfNo" style="flex:1">반려 · 다시 진행</button></div></div>';
+      }
+      if (d.who.indexOf(me.name) >= 0) {
+        return '<div class="card"><h3>컨펌 대기</h3>'
+          + '<div class="hint">완료 보고를 올렸습니다 — 대표님 컨펌을 기다리는 중입니다.</div>'
+          + '<button class="btn-quiet" id="cfCancel" style="margin-top:10px">보고 취소 · 다시 진행</button></div>';
+      }
+      return '';
+    }
+    /* 전달 줄 (옵션2 결정 6) — 임원 자기 업무는 마일스톤을 짠 뒤 대표님께 알린다.
+       업무는 생성 즉시 보이지만, 전달이 「계획이 섰다」는 인지 시점의 기록이다. */
+    const 자기업무 = !me.manage && d.owner === me.name && d.who.length === 1 && d.who[0] === me.name;
+    if (자기업무 && (d.status === '시작 전' || d.status === '진행 중')) {
+      const 전달됨 = (convs || []).some(c => c.type === '전달');
+      return '<div class="card"><h3>대표님께 전달</h3>'
+        + '<div class="hint">' + (전달됨
+          ? '이미 전달했습니다. 계획이 크게 바뀌었으면 다시 전달할 수 있습니다.'
+          : '마일스톤을 짠 뒤 전달하면 대표님께 메일이 갑니다. 전달 없이 완료 보고로 바로 가도 됩니다.') + '</div>'
+        + '<input type="text" id="fwNote" placeholder="한 줄 메모 (선택)" style="margin-top:8px">'
+        + '<button class="btn-quiet" id="fwSend" style="margin-top:10px">' + (전달됨 ? '다시 전달' : '대표님께 전달') + '</button></div>';
+    }
+    return '';
+  }
 
   /* 세부업무 카드 — 상태(완료/지연/진행중)는 서버가 파생해 준다(세부상태_). 여기서 다시 세지 않는다.
      ⚠ 접힘/펼침을 만들지 않는다 — 쓰기 한 번마다 renderMain이 innerHTML을 통째로 다시 써서 초기화된다. */
@@ -1532,8 +2065,8 @@
     const me = DATA.me;
     const 권한 = me.manage || d.owner === me.name || d.who.indexOf(me.name) >= 0;
     const 진행 = subProgress(subs);
-    let h = '<div class="card"><h3>세부업무' + (진행 ? ' ' + 진행 : '') + '</h3><div class="dlist">';
-    if (!subs.length) h += '<div class="empty">아직 세부업무가 없습니다</div>';
+    let h = '<div class="card"><h3>마일스톤' + (진행 ? ' ' + 진행 : '') + '</h3><div class="dlist">';
+    if (!subs.length) h += '<div class="empty">아직 마일스톤이 없습니다</div>';
     subs.forEach(s => {
       const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
       const 누구 = [s.who.join(', '), s.vendor].filter(Boolean).join(' · ');
@@ -1547,17 +2080,21 @@
       if (권한) h += '<div class="sub-act">'
         + '<button class="btn-mini" data-sdone="' + s.id + '" data-v="' + (s.status === '완료' ? '0' : '1') + '">'
         + (s.status === '완료' ? '완료 취소' : '완료') + '</button>'
-        + '<input type="date" data-sdue="' + s.id + '" value="' + esc(s.due || '') + '">'
+        + '<input type="date" data-sstart="' + s.id + '" value="' + esc(s.start || '') + '" aria-label="시작일">'
+        + '<input type="date" data-sdue="' + s.id + '" value="' + esc(s.due || '') + '" aria-label="마감일">'
         + '<button class="btn-mini danger" data-sdel="' + s.id + '">삭제</button></div>';
     });
     h += '</div>';
-    if (권한) h += '<div class="row-label">세부업무 추가</div>'
-      + '<div class="sub-new"><input type="text" id="nsTitle" placeholder="세부업무 (예: 견적 수령)">'
+    if (권한) h += '<div class="row-label">마일스톤 추가</div>'
+      + '<div class="sub-new"><input type="text" id="nsTitle" placeholder="마일스톤 (예: 견적 수령)">'
       + '<input type="text" id="nsWho" placeholder="담당 (내부)">'
       + '<input type="text" id="nsVendor" placeholder="담당 (외부)">'
-      + '<input type="date" id="nsDue"></div>'
+      // 시작일이 있어야 간트에 막대가 그려진다 — 마감일만 있으면 그날 마름모 하나로 찍힌다
+      + '<input type="date" id="nsStart" aria-label="시작일">'
+      + '<input type="date" id="nsDue" aria-label="마감일"></div>'
       + '<button class="btn-quiet" id="nsAdd" style="margin-top:10px">추가</button>'
-      + '<div class="hint">세부업무 담당은 이름표입니다 — 적힌 사람에게 이 업무가 보이지는 않습니다.</div>';
+      + '<div class="hint">왼쪽이 시작일, 오른쪽이 마감일입니다. 둘 다 넣으면 일정 막대로 보입니다.<br>'
+      + '마일스톤 담당은 이름표입니다 — 적힌 사람에게 이 업무가 보이지는 않습니다.</div>';
     return h + '</div>';
   }
 
@@ -1580,12 +2117,16 @@
   }
 
   function replyFormHtml(d){
-    /* '진행'은 대표께 내는 회신이 아니라 기록이다 — 상태를 '답변 완료'로 넘기지 않는다.
-       진입점이 답변 폼인 이유: 1448행이 담당 임원에게는 commentFormHtml을 아예 안 그린다. */
+    /* 기록 세그 2종 (노션 판): '진행' = 수시 보고 — 기한 조정·미팅 요청을 함께 낼 수 있다.
+       '완료 보고' = 끝맺음 → 컨펌 대기. 옛 '답변'은 은퇴했다 (서버 웹_답변등록은 호환으로 남는다).
+       컨펌 대기 중에는 진행 기록만 남길 수 있다 — 보고를 겹쳐 올릴 자리가 없다. */
+    const 보고가능 = d.status !== '컨펌 대기';
     return '<div class="card"><h3>기록 남기기</h3>'
-      + '<div class="seg" id="rKind"><button class="on" data-v="답변">답변</button>'
-      + '<button data-v="진행">진행</button></div>'
-      + '<textarea id="rBody" placeholder="답변을 입력하세요" rows="3" style="margin-top:10px"></textarea>'
+      + (보고가능
+        ? '<div class="seg" id="rKind"><button class="on" data-v="진행">진행</button>'
+          + '<button data-v="완료 보고">완료 보고</button></div>'
+        : '')
+      + '<textarea id="rBody" placeholder="진행 상황을 입력하세요" rows="3" style="margin-top:10px"></textarea>'
       + '<div class="row-label">첨부 자료</div>'
       + '<div class="chips" id="rFiles"><button class="chip" id="rAddFile">+ 파일 추가</button></div>'
       + '<input type="file" id="rFileInput" multiple class="hide">'
@@ -1600,7 +2141,7 @@
         + '<div id="rMeetBox" class="hide"><input type="text" id="rMeetNote" placeholder="논의할 내용 (선택)" style="margin-top:8px">'
         + '<div class="hint">일정은 대표님이 옵션 2개를 제안하면 그중에서 선택하게 됩니다</div></div>')
       + '</div>'
-      + '<button class="btn-primary" id="rSend">답변 보내기</button></div>';
+      + '<button class="btn-primary" id="rSend">진행 기록 남기기</button></div>';
   }
 
   // 미팅 일정 제안 (대표/관리자) — 옵션 2개 중 상대방이 선택
@@ -1652,13 +2193,12 @@
 
   function manageBtnsHtml(d){
     let b = '<div class="card"><h3>지시 관리</h3><div class="chips">';
-    /* 자기가 만들고 자기가 담당인 업무는 스스로 닫는다 (결정 7). 서버(웹_상태변경)와 같은 조건이어야
-       한다 — 서버만 열고 여기를 안 열면 임원에게는 그 길이 없는 것과 같다. */
-    const 내업무 = d.owner === DATA.me.name && d.who.length === 1 && d.who[0] === DATA.me.name;
-    if (DATA.me.manage || 내업무) {   // 대표가 낸 지시와 대표께 낸 요청은 계속 대표님 몫이다
+    /* 노션 판(2026-08-30): 「임원 자기 완료」는 뒤집혔다 — 임원은 완료 보고(기록 폼)만 남고,
+       직접 완료·보류는 대표·관리자 전용이다. 서버(웹_상태변경)와 같은 조건이어야 한다. */
+    if (DATA.me.manage) {
       if (d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'완료\')">완료 처리</button>';
       if (d.status !== '보류' && d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'보류\')">보류</button>';
-      if (d.status === '완료' || d.status === '보류') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'답변 대기\')">다시 진행</button>';
+      if (d.status === '완료' || d.status === '보류') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'진행 중\')">다시 진행</button>';
     }
     b += '<button class="chip" onclick="editDir()">수정</button>';
     if (DATA.me.manage) b += '<button class="chip" onclick="followUp()">후속 지시</button>';
@@ -1741,11 +2281,12 @@
     const add = $('rAddFile');
     if (add) {
       // '진행'은 기한 회신·미팅 요청을 타지 않는다 — 그 칸들을 접고 버튼 이름만 바꾼다
-      segInit('rKind', btn => {
-        const 진행 = btn.dataset.v === '진행';
-        $('rExtra').classList.toggle('hide', 진행);
-        $('rBody').placeholder = 진행 ? '진행 상황을 입력하세요 (상태는 바뀌지 않습니다)' : '답변을 입력하세요';
-        $('rSend').textContent = 진행 ? '진행 기록 남기기' : '답변 보내기';
+      if ($('rKind')) segInit('rKind', btn => {
+        const 보고 = btn.dataset.v === '완료 보고';
+        // 기한 조정·미팅 요청은 진행 기록의 부속이다 — 완료 보고에는 접는다
+        $('rExtra').classList.toggle('hide', 보고);
+        $('rBody').placeholder = 보고 ? '완료 내용을 입력하세요 — 대표님 컨펌 대기가 됩니다' : '진행 상황을 입력하세요';
+        $('rSend').textContent = 보고 ? '완료 보고 올리기' : '진행 기록 남기기';
       });
       segInit('rDueSeg', btn => $('rDueBox').classList.toggle('hide', btn.dataset.v !== 'change'));
       if ($('rMeetSeg')) segInit('rMeetSeg', btn => $('rMeetBox').classList.toggle('hide', btn.dataset.v !== 'meet'));
@@ -1761,6 +2302,42 @@
       });
       $('rSend').addEventListener('click', () => sendReply(d));
     }
+    // 컨펌 줄 — 대표·관리자의 컨펌/반려, 담당의 보고 취소
+    const cfOk = $('cfOk');
+    if (cfOk) {
+      const 답 = async ok => {
+        const note = $('cfNote') ? $('cfNote').value.trim() : '';
+        busy(true, ok ? '컨펌 중...' : '반려 중...');
+        try {
+          await gs('웹_컨펌', TOKEN, { id: d.id, ok: ok, note: note });
+          toast(ok ? '완료로 처리했습니다' : '반려했습니다 — 진행 중으로 돌아갑니다');
+          await reopen(d.id);
+        } catch (e) { toast(e.message); }
+        busy(false);
+      };
+      cfOk.addEventListener('click', () => 답(true));
+      $('cfNo').addEventListener('click', () => 답(false));
+    }
+    const cfCancel = $('cfCancel');
+    if (cfCancel) cfCancel.addEventListener('click', async () => {
+      busy(true, '취소 중...');
+      try {
+        await gs('웹_보고취소', TOKEN, { id: d.id });
+        toast('보고를 취소했습니다 — 진행 중으로 돌아갑니다.');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+    const fwSend = $('fwSend');
+    if (fwSend) fwSend.addEventListener('click', async () => {
+      busy(true, '전달 중...');
+      try {
+        await gs('웹_전달', TOKEN, { id: d.id, note: $('fwNote').value.trim() });
+        toast('대표님께 전달했습니다.');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
     const cSend = $('cSend');
     if (cSend) cSend.addEventListener('click', async () => {
       const body = $('cBody').value.trim();
@@ -1778,11 +2355,21 @@
       catch (e) { toast(e.message); }
       busy(false);
     }));
+    /* 시작일은 기한이 아니다 — 승인도 알림 문구도 기한 쪽과 다르다.
+       서버(세부수정_)가 시작일 변경은 '기한 변경'이 아닌 '코멘트'로 남긴다 */
+    document.querySelectorAll('#sheetBody [data-sstart]').forEach(inp => inp.addEventListener('change', async () => {
+      busy(true, '저장 중...');
+      try {
+        await gs('웹_세부수정', TOKEN, { id: Number(inp.dataset.sstart), start: inp.value });
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    }));
     document.querySelectorAll('#sheetBody [data-sdue]').forEach(inp => inp.addEventListener('change', async () => {
       busy(true, '기한 변경 중...');
       try {
         await gs('웹_세부수정', TOKEN, { id: Number(inp.dataset.sdue), due: inp.value });
-        toast('세부 기한을 바꿨습니다. 담당자에게 알림이 갑니다.');
+        toast('마일스톤 기한을 바꿨습니다. 담당자에게 알림이 갑니다.');
         await reopen(d.id);
       } catch (e) { toast(e.message); }
       busy(false);
@@ -1796,11 +2383,12 @@
     const nsAdd = $('nsAdd');
     if (nsAdd) nsAdd.addEventListener('click', async () => {
       const title = $('nsTitle').value.trim();
-      if (!title) { toast('세부업무를 입력해 주세요'); return; }
+      if (!title) { toast('마일스톤을 입력해 주세요'); return; }
       busy(true, '추가 중...');
       try {
         await gs('웹_세부등록', TOKEN, { dirId: d.id, items: [{
-          title, who: $('nsWho').value.trim(), vendor: $('nsVendor').value.trim(), due: $('nsDue').value,
+          title, who: $('nsWho').value.trim(), vendor: $('nsVendor').value.trim(),
+          start: $('nsStart').value, due: $('nsDue').value,
         }] });
         await reopen(d.id);
       } catch (e) { toast(e.message); }
@@ -1869,18 +2457,18 @@
 
   async function sendReply(d){
     const body = $('rBody').value.trim();
-    const 진행 = segVal('rKind') === '진행';
-    if (!body && !newFiles.length) { toast((진행 ? '진행' : '답변') + ' 내용을 입력해 주세요'); return; }
-    if (진행) {
-      busy(true, newFiles.length ? '파일 업로드 중...' : '기록 중...');
+    const 보고 = $('rKind') && segVal('rKind') === '완료 보고';
+    if (보고) {
+      busy(true, newFiles.length ? '파일 업로드 중...' : '보고 전송 중...');
       try {
-        await gs('웹_진행등록', TOKEN, { id: d.id, body, files: newFiles });
-        toast('진행 기록을 남겼습니다. 상태는 그대로입니다.');
+        await gs('웹_완료보고', TOKEN, { id: d.id, body, files: newFiles });
+        toast('완료 보고를 올렸습니다 — 대표님 컨펌 대기가 됩니다.');
         await reopen(d.id);
       } catch (e) { toast(e.message); }
       busy(false);
       return;
     }
+    if (!body && !newFiles.length) { toast('진행 내용을 입력해 주세요'); return; }
     const f = { id: d.id, body, files: newFiles };
     if (segVal('rDueSeg') === 'change') {
       if (!$('rDueDate').value) { toast('조정할 기한을 선택해 주세요'); return; }
@@ -1889,10 +2477,10 @@
     if ($('rMeetSeg') && segVal('rMeetSeg') === 'meet') {
       f.meetNeed = true; f.meetNote = $('rMeetNote').value.trim();
     }
-    busy(true, newFiles.length ? '파일 업로드 중...' : '답변 전송 중...');
+    busy(true, newFiles.length ? '파일 업로드 중...' : '기록 중...');
     try {
-      await gs('웹_답변등록', TOKEN, f);
-      toast('답변이 전송되었습니다. ' + d.owner + '님께 알림이 갑니다.');
+      await gs('웹_진행등록', TOKEN, f);
+      toast('진행 기록을 남겼습니다.');
       await reopen(d.id);
     } catch (e) { toast(e.message); }
     busy(false);
