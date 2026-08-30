@@ -181,6 +181,8 @@
   .ditem .txt b{display:block; font-size:15px; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .ditem .txt span{font-size:12px; color:var(--sub)}
   .ditem .side{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none}
+  .ditem.ms-done{opacity:.5}
+  .ditem.ms-done .txt b{text-decoration:line-through; text-decoration-color:var(--faint)}
   .dday{font-size:11px; font-weight:800; font-style:normal; color:var(--sub); letter-spacing:.02em}
   .dday.soon{color:var(--warn)}
   .dday.near,.dday.over{color:var(--bad)}
@@ -317,20 +319,25 @@
   .viewbar .vtabs button{flex:none; padding:8px 18px}
   .viewbar .vtype{flex:none; margin-right:auto}
   .viewlabel{margin:0; font-size:12.5px; font-weight:600; color:var(--sub); display:flex; align-items:center; gap:6px}
-  .tbl{display:flex; flex-direction:column}
+  .tbl{display:flex; flex-direction:column; gap:14px}
   .tbl-h{display:none}
-  .tbl-g{display:flex; align-items:center; gap:8px; width:100%; padding:14px 2px 6px;
-    border-top:1px solid var(--line); text-align:left; cursor:pointer}
-  .tbl-g:first-child{border-top:0; padding-top:4px}
-  .tbl-g i{font-style:normal; font-size:13.5px; font-weight:700; letter-spacing:-.01em}
-  .tbl-g em{font-style:normal; font-size:11.5px; font-weight:700; color:var(--sub); background:var(--field); border-radius:999px; padding:2px 9px}
-  .tbl-g .chev{margin-left:auto; color:var(--sub); font-size:12px}
+  /* 부문 카드 — 헤더(파란 액센트 배경)와 그 아래 업무 줄을 한 테두리 안에 담아 "부문 블록"으로
+     보이게 한다(2026-08-30, "헤더와 업무 줄이 안 갈린다" 피드백). radius는 카드 등급(--r-card),
+     안쪽 tbl-r은 각지게 둬 카드 하나로 읽히게 한다(overflow:hidden으로 헤더 위쪽만 둥글게 남는다) */
+  .tbl-grp{border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; background:var(--card)}
+  .tbl-g{display:flex; align-items:center; gap:8px; width:100%; padding:12px 14px;
+    background:color-mix(in srgb, var(--accent) 10%, var(--card)); text-align:left; cursor:pointer;
+    transition:background .18s cubic-bezier(.16,1,.3,1)}
+  .tbl-g:hover{background:color-mix(in srgb, var(--accent) 16%, var(--card))}
+  .tbl-g i{font-style:normal; font-size:13.5px; font-weight:700; letter-spacing:-.01em; color:var(--accent)}
+  .tbl-g em{font-style:normal; font-size:11.5px; font-weight:700; color:var(--accent);
+    background:color-mix(in srgb, var(--accent) 18%, var(--card)); border-radius:999px; padding:2px 9px}
+  .tbl-g .chev{margin-left:auto; color:var(--accent); font-size:12px}
   .tbl-r{display:grid; width:100%; text-align:left; align-items:center; gap:3px 10px; cursor:pointer;
-    padding:11px 2px; border-top:1px solid var(--line); border-radius:var(--r-row);
+    padding:11px 14px; border-top:1px solid var(--line);
     grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"title st" "meta meta";
     transition:background .18s cubic-bezier(.16,1,.3,1)}
   .tbl-r:hover{background:var(--field)}
-  .tbl-g + .tbl-r{border-top:0}
   .t-title{grid-area:title; font-size:15px; font-weight:600; letter-spacing:-.01em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .t-st{grid-area:st; justify-self:end}
@@ -350,10 +357,9 @@
   .msbar i{display:block; height:100%; border-radius:99px; background:var(--gt-done)}
   @media (min-width:700px){
     .tbl-h{display:grid; grid-template-columns:minmax(0,1fr) 92px 92px 138px 96px; gap:0 10px;
-      padding:4px 2px 8px; border-bottom:1px solid var(--line); font-size:11.5px; font-weight:700; color:var(--sub)}
+      padding:4px 14px 8px; font-size:11.5px; font-weight:700; color:var(--sub)}
     .tbl-r{grid-template-columns:minmax(0,1fr) 92px 92px 138px 96px;
-      grid-template-areas:"title who st due ms"; gap:0 10px; padding:12px 2px}
-    .tbl-h + .tbl-g{border-top:0}
+      grid-template-areas:"title who st due ms"; gap:0 10px; padding:12px 14px}
     .t-meta{display:contents}
     .t-who{grid-area:who; font-size:13px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
     .t-st{grid-area:st; justify-self:start}
@@ -677,7 +683,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608301050';
+  var 빌드버전_ = '202608301108';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -1498,16 +1504,22 @@
     const 차례 = { '시작 전': 0, '진행 중': 0, '컨펌 대기': 1, '보류': 2, '완료': 3 };
     const { 묶음, 갈래 } = 갈래묶기_(rows);
     let h = '<div class="tbl-h"><span>업무</span><span>담당</span><span>상태</span><span>마감</span><span>마일스톤</span></div>';
+    // 부문 헤더를 카드로 감싼다(2026-08-30 grilling) — 헤더와 업무 줄이 밋밋한 구분선 하나로만
+    // 갈려서 "부문과 하위 업무가 구분이 안 간다"는 피드백을 받았다. 헤더에 액센트 10% 배경을
+    // 얹고 그 아래 업무 줄을 같은 카드 테두리 안에 넣어 한 블록으로 보이게 한다.
     갈래.forEach(k => {
       const 접힘 = COLLAPSED.has(k);
-      h += '<button class="tbl-g' + (접힘 ? ' collapsed' : '') + '" data-group="' + esc(k) + '">'
+      h += '<div class="tbl-grp">'
+        + '<button class="tbl-g' + (접힘 ? ' collapsed' : '') + '" data-group="' + esc(k) + '">'
         + '<i>' + esc(k) + '</i><em>' + 묶음[k].length + '건</em><span class="chev">' + (접힘 ? '▸' : '▾') + '</span></button>';
-      if (접힘) return;
-      묶음[k].sort((a, b) =>
-        (차례[a.status] || 0) - (차례[b.status] || 0)
-        || (a.dday == null ? 999 : a.dday) - (b.dday == null ? 999 : b.dday)
-        || b.id - a.id
-      ).forEach(d => { h += 표줄(d); });
+      if (!접힘) {
+        h += 묶음[k].sort((a, b) =>
+          (차례[a.status] || 0) - (차례[b.status] || 0)
+          || (a.dday == null ? 999 : a.dday) - (b.dday == null ? 999 : b.dday)
+          || b.id - a.id
+        ).map(표줄).join('');
+      }
+      h += '</div>';
     });
     $('tblWrap').innerHTML = h;
     $('tblWrap').querySelectorAll('.tbl-r[data-id]').forEach(el =>
@@ -2099,7 +2111,8 @@
     subs.forEach(s => {
       const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
       const 누구 = [s.who.join(', '), s.vendor].filter(Boolean).join(' · ');
-      h += '<div class="ditem"><div class="txt"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+      // 완료된 마일스톤은 흐리게 — 진행 중인 것과 한눈에 구분되게(2026-08-30 grilling)
+      h += '<div class="ditem' + (s.status === '완료' ? ' ms-done' : '') + '"><div class="txt"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
         + esc((누구 || '담당 미지정') + (s.dueKo ? ' · 마감 ' + s.dueKo : '') + (s.doneKo ? ' · 완료 ' + s.doneKo : ''))
         + '</span></div><div class="side"><span class="pill ' + cls + '">' + esc(s.status) + '</span>'
         + (s.status === '완료' || s.dday == null ? ''
