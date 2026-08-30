@@ -165,7 +165,7 @@
      흐름 ↔ N-Care 교체 (2026-08-12 사용자 요청) — 흐름은 더보기 안으로. */
   #nav-more { display:none; }
   @media (max-width: 899px) {
-    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow, #nav-activity { display:none; }
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow { display:none; }
     #nav-more { display:block; }
   }
   /* 더보기 화면 메뉴 */
@@ -832,13 +832,6 @@
   </div>
 </div></div>
 
-<!-- 활동현황 — 장비영업·교육영업팀 매일 활동내역 (현황 탭 「최근 활동」을 독립 탭으로 승격, 2026-08-30) -->
-<div class="view" id="view-activity"><div class="wrap">
-  <div id="actBody">
-    <div class="card empty">불러오는 중…</div>
-  </div>
-</div></div>
-
 <!-- Meta DB — 광고 문의함 (ADR 0002). 문의는 리드가 아니다.
      통화로 확인한 것만 [계획 등록]을 거쳐 리드로 승격된다 -->
 <div class="view" id="view-meta"><div class="wrap">
@@ -908,11 +901,6 @@
       <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
       <div class="mc">›</div>
     </div>
-    <div class="mrow" id="more-activity" onclick="show('activity')">
-      <div class="mi" style="background:#0e7490;">활</div>
-      <div class="mb2"><div class="mn">활동현황</div><div class="ms2">장비영업·교육영업팀 매일 활동</div></div>
-      <div class="mc">›</div>
-    </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
       <div class="mi" style="background:#4e5968;">?</div>
       <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
@@ -924,7 +912,6 @@
 <div class="nav">
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
   <button id="nav-dash" onclick="show('dash')">현황</button>
-  <button id="nav-activity" onclick="show('activity')">활동현황</button>
   <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
@@ -1023,7 +1010,7 @@ var LEADREP = '';
 var FAILROW = 0;
 var FAILNO = 0;   // 실패 모달을 연 리드의 no — 목록이 갈려도 놓치지 않는다 (8/14)
 var DASHTEAM = '전체';
-var ACTTEAM = '전체';   // 활동현황 탭 팀 필터 ('전체' | '장비영업팀' | '교육영업팀') — DASHTEAM(판매 라인)과 별개 축
+var ACTTEAM = '전체';   // 현황 탭 활동현황 구역의 팀 필터 ('전체' | '장비영업팀' | '교육영업팀') — DASHTEAM(판매 라인)과 별개 축
 var DASHM = '';
 var DASHW = '';
 var DASHREP = '';
@@ -1209,7 +1196,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202608301050-4146b20';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202608302330-344e086';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1573,8 +1560,8 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow', 'activity'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'activity', 'guide', 'more', 'mine', 'meta', 'ncare'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'];
 var 현재뷰_ = 'home';
 function show(v) {
   현재뷰_ = v;
@@ -1608,8 +1595,6 @@ function show(v) {
   if (v === 'mat') { MATL ? renderMat() : loadMat(); }
   // 지난 달을 보고 있었으면 그 달로 다시 받는다 — 빈 ym은 이달이라 화면이 슬쩍 바뀐다
   if (v === 'dash') { if (DASH) { renderDash(); loadDash(DASH.past ? DASH.ym : '', true); } else loadDash(); }
-  // 활동현황은 현황 탭과 같은 DASH를 쓴다 — 별도 관문 없이 loadDash 하나로 두 탭이 같이 채워진다
-  if (v === 'activity') { if (DASH) { renderActivity(); loadDash(DASH.past ? DASH.ym : '', true); } else loadDash(); }
   if (v === 'evt') { if (EVT) { renderEvt(); loadEvt(true); } else loadEvt(); }
   if (v === 'kpi') { if (KPIT) { renderKpiTab(); loadKpiTab(true); } else loadKpiTab(); }
   if (v === 'mine') { if (MINE) { renderMine(); loadMine(true); } else loadMine(); }
@@ -5028,8 +5013,9 @@ function ncDdayLabel_(dday) {
   return dday === 0 ? '오늘' : (dday < 0 ? 'D+' + Math.abs(dday) : 'D-' + dday);
 }
 
-/* 만료 관리 (P54-2, 2026-08-22) — Pool 병원의 N-Care 구독 만료를 「이미 만료」·「D-60 임박」
-   두 구간으로 보여준다. 담당자 요약 줄은 필터(NCSEG)와 무관하게 전체 담당자를 놓고 계산한다
+/* 만료 관리 (P54-2, 2026-08-22 / 임박 기준 2026-08-31 6개월로 변경) — Pool 병원의 N-Care 구독
+   만료를 「이미 만료」·「6개월 임박」 두 구간으로 보여준다. 임박 창은 N-Care 의무가입 기간(6개월
+   = 180일)과 맞춘다. 담당자 요약 줄은 필터(NCSEG)와 무관하게 전체 담당자를 놓고 계산한다
    — 어느 담당자를 눌러도 되게 하려면 이미 한 명으로 좁혀진 mine으로는 못 만든다. */
 function renderNcareExp(d, mine) {
   var 전체만료 = (d.pool || []).filter(function(p) { return p.expOn; });
@@ -5045,7 +5031,7 @@ function renderNcareExp(d, mine) {
     var k = 요약키(p.rep);
     if (!요약[k]) 요약[k] = { rep: k, 임박: 0, 임박없음: 0, 만료: 0, 이탈: 0 };
     if (p.dDay < 0) 요약[k].만료++;
-    else if (p.dDay <= 60) { 요약[k].임박++; if (!p.defended) 요약[k].임박없음++; }
+    else if (p.dDay <= 180) { 요약[k].임박++; if (!p.defended) 요약[k].임박없음++; }
   });
   전체이탈.forEach(function(c) {
     var k = 요약키(c.rep);
@@ -5061,7 +5047,7 @@ function renderNcareExp(d, mine) {
         return '<div style="padding:10px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="NCSEG=\'' + r.rep + '\';renderNcare()">'
           + '<b style="font-size:14px;color:#191f28;">' + esc(r.rep) + '</b>'
           + '<div style="margin-top:3px;font-size:12.5px;color:#5f6b7a;">'
-          + 'D-60 임박 <b style="color:#191f28;">' + r.임박 + '</b>곳'
+          + '6개월 임박 <b style="color:#191f28;">' + r.임박 + '</b>곳'
           + (r.임박없음 ? ' <span class="tag-red" style="margin-left:2px;">방어없음 ' + r.임박없음 + '</span>' : '')
           + ' · 이미 만료 <b style="color:' + (r.만료 ? '#d0223a' : '#191f28') + ';">' + r.만료 + '</b>곳'
           + ' · 이탈 <b style="color:' + (r.이탈 ? '#d0223a' : '#191f28') + ';">' + r.이탈 + '</b>곳'
@@ -5071,7 +5057,7 @@ function renderNcareExp(d, mine) {
 
   var 대상 = mine.filter(function(p) { return p.expOn; });
   var 만료됨 = 대상.filter(function(p) { return p.dDay < 0; }).sort(function(a, b) { return b.dDay - a.dDay; });
-  var 임박 = 대상.filter(function(p) { return p.dDay >= 0 && p.dDay <= 60; }).sort(function(a, b) { return a.dDay - b.dDay; });
+  var 임박 = 대상.filter(function(p) { return p.dDay >= 0 && p.dDay <= 180; }).sort(function(a, b) { return a.dDay - b.dDay; });
 
   /* 한 줄에 다 욱여넣으면 375px에서 넘친다(실측) — 단계별 목록처럼 두 줄로 가른다:
      1줄 = 병원 정보, 2줄 = 등급·방어·D-day 배지(오른쪽 정렬은 justify-content로, margin-left:auto 안 씀). */
@@ -5098,7 +5084,7 @@ function renderNcareExp(d, mine) {
   };
 
   h += kick('이미 만료 ' + 만료됨.length + '곳', true) + 목록(만료됨);
-  h += kick('D-60 임박 ' + 임박.length + '곳') + 목록(임박);
+  h += kick('6개월 임박 ' + 임박.length + '곳') + 목록(임박);
 
   var 이탈대상 = 전체이탈.filter(function(c) {
     return NCSEG === '전체' || (NCSEG === '미지정' ? !c.rep : c.rep === NCSEG);
@@ -5225,6 +5211,7 @@ function ncOpen(id) {
       + '<button class="btn" onclick="ncGradeSave(' + p.id + ')">등급 저장</button>';
   }
   if (!me.viewer) h += '<button class="btn pri" onclick="ncPlan(' + p.id + ')">방문 계획 잡기</button>';
+  if (canEdit) h += '<button class="btn ghost" onclick="ncExpire(' + p.id + ')">만료 처리</button>';
   h += '</div>';
 
   h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">전환 이력</div>'
@@ -5275,6 +5262,15 @@ function ncAssign(id) {
 }
 function ncGradeSave(id) {
   ncAct_({ 토큰: TOKEN, 동작: '등급변경', id: id, grade: document.getElementById('ncGrade').value }, function() { ncOpen(id); });
+}
+/* 만료 처리 — 자동화(노즐구독만료_적재.mjs)와 같은 동작을 담당자가 CSV 반입 없이 직접 건다.
+   Pool의 expires_on/tier가 비워지고 이탈(ncare_churn) 목록으로 옮겨진다 — Pool 행 자체는 남는다. */
+function ncExpire(id) {
+  if (!confirm('이 병원을 만료 처리할까요? 이탈 목록으로 옮겨지고, 만료 관리 화면에서는 빠집니다.')) return;
+  ncAct_({ 토큰: TOKEN, 동작: '만료처리', id: id }, function(r) {
+    ncChurnRowSet_(r.churn);
+    document.getElementById('hospModal').style.display = 'none';
+  });
 }
 
 /* 방문 계획 잡기 — 계획 폼에 병원명을 채워 넘긴다 (metaPlan과 같은 동선, 승격 연결만 없다) */
@@ -5441,7 +5437,7 @@ function matDelete(row, no) {
 /** @param ym 'yyyy-MM'. 비우면 이번 달. 지난달이면 목표 없이 실적만 온다(웹_대시보드) */
 function loadDash(ym, 조용히) {
   읽기시작_(조용히, 'dashBody');
-  var 끝 = function(d) { DASH = d; 읽기끝_(조용히); renderDash(); renderActivity(); };
+  var 끝 = function(d) { DASH = d; 읽기끝_(조용히); renderDash(); };
   var 실패 = function(e) {
     읽기끝_(조용히);
     if (조용히) { console.warn('[현황 뒤따라 받기]', (e && e.message) || e); return; }
@@ -5463,8 +5459,6 @@ function kick(label, red) {
    "숫자만 보이고 어느 병원인지 모르겠다"는 불편을 없앤다 */
 var GOALOPEN = '';
 function goalList(key) { GOALOPEN = (GOALOPEN === key ? '' : key); renderDash(); }
-var ROWOPEN = '';   // 담당자별 표에서 펼친 행 ('장비|김동진' 꼴)
-function rowList(key) { ROWOPEN = (ROWOPEN === key ? '' : key); renderDash(); }
 function goalCard(label, o, dayPassed, dayTotal, key) {
   o = o || {};
   var done = Number(o.done) || 0, goal = Number(o.goal) || 0;
@@ -5509,16 +5503,6 @@ function goalCard(label, o, dayPassed, dayTotal, key) {
         ? '오늘 기준 <b class="ok">+' + gap + '</b>'
         : '오늘 기준 <b class="bad">' + gap + '</b>'))
     + '</span></div>');
-}
-
-/* 라인별 담당 명단 — 서버 CONFIG(SALES_LINES) 기준. 전체는 두 라인 합집합 */
-function dashRoster(d, seg) {
-  var L = d.lines || {};
-  if (seg === '장비') return (L['장비'] || []).slice();
-  if (seg === 'N-Care') return (L['N-Care'] || []).slice();
-  var out = (L['장비'] || []).slice();
-  (L['N-Care'] || []).forEach(function(n) { if (out.indexOf(n) < 0) out.push(n); });
-  return out;
 }
 
 /* 목표 입력 상태 경고 — 현황·KPI 탭 공용. 서버 목표점검_()가 준 목록을 문장으로 편다.
@@ -5669,132 +5653,23 @@ function renderDash() {
     }
   }
 
-  // ── ② 담당자별 목표 대비 달성 ──
-  var mcell = function(a, t) {
-    a = Number(a) || 0; t = Number(t) || 0;
-    var pct = t ? Math.round(a / t * 100) : null;
-    return '<b>' + a + '</b> <span style="color:#5f6b7a;">/ ' + (t || '-') + '</span>'
-      + (pct == null ? '' : ' <b style="font-size:11px;color:' + (pct >= 100 ? '#05754a' : (pct >= 50 ? '#1b64da' : '#d22030')) + ';">' + pct + '%</b>');
-  };
-  var byName = {};
-  (d.month && d.month.rows || []).forEach(function(m) { byName[String(m.name).trim()] = m; });
-  var roster = dashRoster(d, seg);
-  var L = d.lines || {};
-  var lineOf = function(n) {
-    var e = (L['장비'] || []).indexOf(n) > -1, c = (L['N-Care'] || []).indexOf(n) > -1;
-    return e && c ? '겸업' : (e ? '장비' : (c ? '노즐' : ''));
-  };
-
-  // 장비와 N-Care를 표 하나에 섞으면 라인이 다른 담당자에게 '0 / -'만 줄줄이 남는다.
-  // 표를 갈라서 각 라인의 담당자만 보여준다. 칸을 누르면 그 병원 목록이 펼쳐진다
-  var missing = [];
-  var 실적표 = function(제목, 라인, 필드) {
-    var 명단 = roster.filter(function(n) {
-      if (라인 === '장비') return (L['장비'] || []).indexOf(n) > -1;
-      return (L['N-Care'] || []).indexOf(n) > -1;
-    });
-    if (!명단.length) return '';
-    var t = kick(제목);
-    t += '<div class="card"><table class="dt"><thead><tr><th>담당자</th>'
-      + (seg === '전체' ? '<th class="c">라인</th>' : '')
-      + '<th class="c">' + (라인 === '장비' ? '장비 판매' : 'N-Care 가입') + '</th></tr></thead><tbody>';
-    명단.forEach(function(n) {
-      var m = byName[n];
-      if (!m && missing.indexOf(n) < 0) missing.push(n);
-      var mm = m || {};
-      var list = (라인 === '장비' ? mm.saleList : mm.ncareList) || [];
-      var key = 라인 + '|' + n;
-      var open = ROWOPEN === key;
-      t += '<tr' + (list.length ? ' style="cursor:pointer;" onclick="rowList(\'' + esc(key) + '\')"' : '') + '>'
-        + '<td><b>' + esc(n) + '</b>' + (m ? '' : ' <span style="font-size:11px;color:#5f6b7a;">미등록</span>')
-        + (list.length ? ' <span style="font-size:11px;color:#1b64da;">' + (open ? '▲' : '▼') + '</span>' : '') + '</td>'
-        + (seg === '전체' ? '<td class="c"><span style="font-size:11.5px;color:#4e5968;">' + lineOf(n) + '</span></td>' : '')
-        + '<td class="c">' + mcell(필드 === 'sale' ? mm.sale : mm.ncare, 필드 === 'sale' ? mm.tgtE : mm.tgtN) + '</td></tr>';
-      if (open) {
-        t += '<tr><td colspan="' + (seg === '전체' ? 3 : 2) + '" style="background:#f9fafb;">'
-          + list.map(function(x) { return '<div style="font-size:12.5px;color:#4e5968;padding:2px 0;">' + esc(x) + '</div>'; }).join('')
-          + '</td></tr>';
-      }
-    });
-    return t + '</tbody></table></div>';
-  };
-  if (seg !== 'N-Care') h += 실적표('담당자별 장비 판매', '장비', 'sale');
-  if (seg !== '장비') h += 실적표('담당자별 N-Care 가입', 'N-Care', 'ncare');
-  if (missing.length) {
-    h += '<div class="gnote">' + esc(missing.join(', ')) + ' — 01_담당자정보에 등록되지 않아 실적이 집계되지 않습니다.</div>';
-  }
-
-  // ── ③ 장비 판매 채널 (09_과거실적 공식 수치) ──
-  if (seg !== 'N-Care' && (d.equipCh || []).length) {
-    var ct = { d: 0, l: 0 };
-    h += kick('장비 판매 — 직판 / 딜러 (월별)');
-    h += '<div class="card"><table class="dt"><thead><tr><th>월</th><th class="c">직판</th><th class="c">딜러</th><th class="c">합계</th></tr></thead><tbody>';
-    d.equipCh.forEach(function(c) {
-      ct.d += c.direct; ct.l += c.dealer;
-      h += '<tr><td><b>' + esc(c.ym.slice(5)) + '월</b></td>'
-        + '<td class="c">' + (c.direct || '-') + '</td>'
-        + '<td class="c">' + (c.dealer || '-') + '</td>'
-        + '<td class="c"><b class="blue">' + (c.direct + c.dealer || '-') + '</b></td></tr>';
-    });
-    h += '<tr style="background:#FAFAFC;"><td><b>누적</b></td>'
-      + '<td class="c"><b>' + ct.d + '</b></td><td class="c"><b>' + ct.l + '</b></td>'
-      + '<td class="c"><b class="blue">' + (ct.d + ct.l) + '</b></td></tr>';
-    h += '</tbody></table></div>';
-  }
-
-  // ── ④ 방문 활동 — 보조 지표라 접어 둔다 ──
-  var pick = function(s, base) {
-    return seg === '장비' ? (s[base + 'E'] || 0) : seg === 'N-Care' ? (s[base + 'N'] || 0) : (s[base] || 0);
-  };
-  var stats = (d.week.stats || []).filter(function(s) {
-    return seg === '전체' || pick(s, 'plan') + pick(s, 'done') + pick(s, 'logs') > 0;
-  });
-  var tPlan = 0, tDone = 0, tStale = 0;
-  stats.forEach(function(s) { tPlan += pick(s, 'plan'); tDone += pick(s, 'done'); tStale += s.stale; });
-  var tRate = tPlan ? Math.round(tDone / tPlan * 100) : 0;
-
-  h += '<details class="sub"><summary>방문 활동 <span class="cnt">이번 주 ' + esc(d.period)
-    + ' · 계획 ' + tPlan + ' · 완료 ' + tDone + (tStale ? ' · 미기록 ' + tStale : '') + '</span></summary>';
-  h += '<div class="tiles" style="margin-top:6px;">'
-    + '<div class="tile"><div class="t">계획 방문</div><div class="n">' + tPlan + '</div></div>'
-    + '<div class="tile"><div class="t">완료</div><div class="n blue">' + tDone + '</div></div>'
-    + '<div class="tile"><div class="t">달성률</div><div class="n ' + (tRate >= 80 ? 'blue' : (tRate >= 50 ? '' : 'red')) + '">' + tRate + '%</div></div>'
-    + '<div class="tile"><div class="t">미기록</div><div class="n ' + (tStale ? 'red' : '') + '">' + tStale + '</div></div>'
-    + '</div>';
-  h += '<div class="card" style="margin-top:12px;"><table class="dt"><thead><tr><th>담당자</th><th class="c">계획</th><th class="c">완료</th><th class="c">달성률</th><th class="c">활동</th><th class="c">미기록</th></tr></thead><tbody>';
-  stats.forEach(function(s) {
-    var p = pick(s, 'plan'), dn = pick(s, 'done');
-    var r = p ? Math.round(dn / p * 100) : null;
-    h += '<tr><td><b>' + esc(s.name) + '</b> <span style="font-size:11px;color:#5f6b7a;">' + esc(s.team || '') + '</span></td>'
-      + '<td class="c">' + p + '</td><td class="c">' + dn + '</td>'
-      + '<td class="c">' + (r === null ? '-' : '<b class="' + (r >= 80 ? 'blue' : (r >= 50 ? '' : 'red')) + '">' + r + '%</b>') + '</td>'
-      + '<td class="c">' + pick(s, 'logs') + '</td>'
-      + '<td class="c">' + (s.stale ? '<b class="red">' + s.stale + '</b>' : '0') + '</td></tr>';
-  });
-  h += '</tbody></table></div>';
-  if (seg !== '전체') {
-    h += '<div class="gnote">계획·기록의 판매 카테고리(장비 판매/N-Care) 기준 — 카테고리 없이 저장된 활동은 전체에서만 보입니다. 미기록은 전체 기준.</div>';
-  }
-  h += '</details>';
-
-  document.getElementById('dashBody').innerHTML = h;
-}
-
-/* ── 활동현황: 장비영업팀·교육영업팀 매일 활동 (현황 탭 「최근 활동」을 승격, 2026-08-30) ── */
-function actTeam(t) { ACTTEAM = t; renderActivity(); }
-function renderActivity() {
-  if (!DASH) return;
-  var h = '<div class="seg">'
+  // ── ② 활동현황 — 장비영업·교육영업팀 매일 활동 (2026-08-31, 현황 탭에 병합).
+  //    담당자별 장비·N-Care 실적표 · 장비판매 직판/딜러 채널표 · 방문 활동 접힌 요약은
+  //    "크게 의미가 없다"는 사용자 판단으로 이 자리에서 지우고 활동현황으로 바꿨다. ──
+  h += kick('활동현황');
+  h += '<div class="seg">'
     + [['전체', '전체'], ['장비영업팀', '장비영업팀'], ['교육영업팀', '교육영업팀']].map(function(t) {
         return '<div class="chip' + (ACTTEAM === t[0] ? ' on' : '') + '" onclick="actTeam(\'' + t[0] + '\')">' + t[1] + '</div>';
       }).join('')
     + '</div>';
-  h += renderDashRecent(DASH, ACTTEAM) || '<div class="card empty">최근 90일간 활동이 없습니다.</div>';
-  document.getElementById('actBody').innerHTML = h;
+  h += renderDashRecent(d, ACTTEAM) || '<div class="card empty">최근 90일간 활동이 없습니다.</div>';
+
+  document.getElementById('dashBody').innerHTML = h;
 }
+function actTeam(t) { ACTTEAM = t; renderDash(); }
 
 /* 최근 활동 — 월 탭 → 주차 탭 → 일별 카드 (같은 병원·같은 날 기록은 한 카드로 묶고, 완전 중복은 한 번만)
-   team: '전체' | '장비영업팀' | '교육영업팀' — 소속팀(l.team) 기준. 판매 라인(장비/N-Care) 필터는 현황 탭 쪽 축이라 여기선 안 쓴다 */
+   team: '전체' | '장비영업팀' | '교육영업팀' — 소속팀(l.team) 기준. 판매 라인(장비/N-Care) 필터는 위 목표 진척 구역의 축이라 여기선 안 쓴다 */
 function renderDashRecent(d, team) {
   var recent = (d.recent || []).filter(function(l) {
     if (team === '전체') return true;
@@ -5943,8 +5818,8 @@ function showHosp(hname) {
   }).withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_병원상세(TOKEN, hname);
 }
-function dashMonth(mk) { DASHM = mk; DASHW = ''; renderActivity(); }
-function dashWeek(wk) { DASHW = wk; renderActivity(); }
+function dashMonth(mk) { DASHM = mk; DASHW = ''; renderDash(); }
+function dashWeek(wk) { DASHW = wk; renderDash(); }
 function dashRep(n) { DASHREP = DASHREP === n ? '' : n; renderDash(); }
 
 /* (2026-07-25) N-Care 케어 보드 제거 — 현황 탭에서 혼란을 준다는 사용자 지시.
