@@ -670,7 +670,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608302244';
+  var 빌드버전_ = '202608310051';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -1993,7 +1993,14 @@
       + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '') + '</div>'
       + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '');
 
-    // 컨펌 줄 · 전달 줄 — 대표·관리자는 컨펌/반려, 담당은 보고 취소, 자기 업무는 대표님께 전달
+    /* 완료 기준 — 담당이 「무엇이 되면 끝인가」를 세우는 자리. 대표의 컨펌이 이걸 잰다.
+       아래 카드(컨펌·계획 확인)가 이미 기준을 싣고 있으면 위에 또 내지 않는다 —
+       한 화면에 같은 문장이 두 번 나온다. 담당의 편집 폼은 성격이 달라 그대로 둔다. */
+    const 아래에있다 = me.manage && (d.status === '컨펌 대기'
+      || (convs || []).some(c => c.type === '전달' && !c.handled));
+    h += goalCardHtml(d, isAssignee && openStatus, 아래에있다);
+
+    // 컨펌 줄 · 계획 확인 줄 · 전달 줄
     h += actionBarHtml(d, convs);
 
     // 마일스톤 — 어느 단계까지 왔고 어디서 밀렸는지
@@ -2034,8 +2041,9 @@
         if (c.body) h += '<div class="m-body">' + esc(c.body) + '</div>';
         if (c.files && c.files.length) h += '<div class="files">' + c.files.map(f =>
           '<a href="' + esc(f.url) + '" target="_blank" rel="noopener">&#128206; ' + esc(f.name) + '</a>').join('') + '</div>';
-        // 완료 보고의 처리 상태 — 컨펌/반려/철회/보류됨이 handled 칸에 남는다 (기한 승인 관행)
-        if (c.type === '완료 보고' && c.handled)
+        /* 처리 상태 — 완료 보고는 컨펌/반려/철회/보류됨, 전달은 승인/보완요청이
+           handled 칸에 남는다 (기한 승인 관행) */
+        if ((c.type === '완료 보고' || c.type === '전달') && c.handled)
           h += '<div class="m-body" style="color:var(--sub);font-weight:600;font-size:13px">'
             + esc(c.handled === '보류됨' ? c.handled : c.handled + '됨') + '</div>';
       }
@@ -2068,6 +2076,21 @@
     c.type === '전달' ? '<span class="pill doing">전달</span>' :
     '<span class="pill meet">' + c.type + '</span>';
 
+  /* 완료 기준 — 「무엇이 되면 이 업무가 끝인가」. **담당만 쓴다** (서버도 담당만 통과시킨다).
+     대표가 기준이 마음에 안 들면 고쳐 주는 것이 아니라 계획 보완요청으로 되돌린다 —
+     그래야 「누가 정한 기준인가」가 흐려지지 않는다.
+     남이 볼 때는 비어 있으면 카드를 안 낸다. 빈 카드는 화면만 차지하고 할 일을 못 준다. */
+  function goalCardHtml(d, editable, 아래에있다){
+    if (!editable) return d.goal && !아래에있다
+      ? '<div class="card"><h3>완료 기준</h3><div class="detail-body">' + esc(d.goal) + '</div></div>'
+      : '';
+    return '<div class="card"><h3>완료 기준 <span style="font-weight:400">· 무엇이 되면 이 업무가 끝나나요</span></h3>'
+      + '<textarea id="glText" rows="2" placeholder="예) 기획안 초안을 대표님께 보고하고 컨펌받는다">'
+      + esc(d.goal || '') + '</textarea>'
+      + '<button class="btn-quiet" id="glSave" style="margin-top:10px">'
+      + (d.goal ? '완료 기준 수정' : '완료 기준 저장') + '</button></div>';
+  }
+
   /* 컨펌 줄 (노션 판 결정 5) — 임원의 완료 보고에 대표가 답하는 자리.
      상태 확인은 서버가 잠금 안에서 다시 한다 — 여기 버튼은 낡았을 수 있는 화면일 뿐이다. */
   function actionBarHtml(d, convs){
@@ -2075,6 +2098,10 @@
     if (d.status === '컨펌 대기') {
       if (me.manage) {
         return '<div class="card"><h3>완료 컨펌 <span style="font-weight:400">· 담당이 업무를 끝냈다고 보고했습니다</span></h3>'
+          // 컨펌은 완료 기준을 재는 일이다 — 판단 근거를 버튼 바로 위에 둔다
+          + (d.goal
+            ? '<div class="row-label">완료 기준</div><div class="detail-body">' + esc(d.goal) + '</div>'
+            : '<div class="hint">완료 기준이 적혀 있지 않은 업무입니다 — 보고 내용만 보고 판단하셔야 합니다.</div>')
           + '<input type="text" id="cfNote" placeholder="반려 사유 (반려할 때만, 선택)">'
           + '<div style="display:flex;gap:8px;margin-top:10px">'
           + '<button class="btn-primary" id="cfOk" style="margin-top:0;flex:1.4">완료 컨펌</button>'
@@ -2087,6 +2114,17 @@
       }
       return '';
     }
+    /* 계획 확인 줄 — 전달의 짝이다. 이게 없던 동안 「이 계획으로 갑시다」·「이건 다시」가
+       앱 밖(메일·구두)에서 돌았다. 상태는 안 바꾼다 (결정 5: 전달은 기록이다) —
+       승인·보완요청은 전달 대화의 handled에 남고, 보완요청은 담당 화면에서 병목이 된다. */
+    if (me.manage && (convs || []).some(c => c.type === '전달' && !c.handled)) {
+      return '<div class="card"><h3>계획 확인 <span style="font-weight:400">· 담당이 계획을 세워 전달했습니다</span></h3>'
+        + (d.goal ? '<div class="row-label">완료 기준</div><div class="detail-body">' + esc(d.goal) + '</div>' : '')
+        + '<input type="text" id="plNote" placeholder="보완요청 사유 (되돌릴 때는 필수)">'
+        + '<div style="display:flex;gap:8px;margin-top:10px">'
+        + '<button class="btn-primary" id="plOk" style="margin-top:0;flex:1.4">계획 승인</button>'
+        + '<button class="btn-quiet" id="plNo" style="flex:1">보완요청</button></div></div>';
+    }
     /* 전달 줄 (옵션2 결정 6) — 임원 자기 업무는 마일스톤을 짠 뒤 대표님께 알린다.
        업무는 생성 즉시 보이지만, 전달이 「계획이 섰다」는 인지 시점의 기록이다. */
     const 자기업무 = !me.manage && d.owner === me.name && d.who.length === 1 && d.who[0] === me.name;
@@ -2095,7 +2133,7 @@
       return '<div class="card"><h3>대표님께 전달</h3>'
         + '<div class="hint">' + (전달됨
           ? '이미 전달했습니다. 계획이 크게 바뀌었으면 다시 전달할 수 있습니다.'
-          : '마일스톤을 짠 뒤 전달하면 대표님께 메일이 갑니다. 전달 없이 완료 보고로 바로 가도 됩니다.') + '</div>'
+          : '완료 기준을 적고 마일스톤을 짠 뒤 전달하면 대표님께 메일이 갑니다. 전달 없이 완료 보고로 바로 가도 됩니다.') + '</div>'
         + '<input type="text" id="fwNote" placeholder="한 줄 메모 (선택)" style="margin-top:8px">'
         + '<button class="btn-quiet" id="fwSend" style="margin-top:10px">' + (전달됨 ? '다시 전달' : '대표님께 전달') + '</button></div>';
     }
@@ -2372,6 +2410,34 @@
       } catch (e) { toast(e.message); }
       busy(false);
     });
+    // 완료 기준 — 담당만 이 버튼이 그려진다 (goalCardHtml). 서버가 다시 판정한다
+    const glSave = $('glSave');
+    if (glSave) glSave.addEventListener('click', async () => {
+      busy(true, '저장 중...');
+      try {
+        const r = await gs('웹_완료기준', TOKEN, { id: d.id, goal: $('glText').value.trim() });
+        toast(r.changed ? '완료 기준을 저장했습니다' : '변경된 내용이 없습니다');
+        await reopen(d.id);
+      } catch (e) { toast(e.message); }
+      busy(false);
+    });
+    // 계획 확인 — 전달의 짝. 승인/보완요청 (컨펌/반려와 같은 모양)
+    const plOk = $('plOk');
+    if (plOk) {
+      const 답 = async ok => {
+        const note = $('plNote') ? $('plNote').value.trim() : '';
+        if (!ok && !note) { toast('어디를 보완해야 하는지 적어 주세요'); return; }
+        busy(true, ok ? '승인 중...' : '보완요청 중...');
+        try {
+          await gs('웹_계획응답', TOKEN, { id: d.id, ok: ok, note: note });
+          toast(ok ? '계획을 승인했습니다' : '보완을 요청했습니다 — 담당자 화면에 뜹니다');
+          await reopen(d.id);
+        } catch (e) { toast(e.message); }
+        busy(false);
+      };
+      plOk.addEventListener('click', () => 답(true));
+      $('plNo').addEventListener('click', () => 답(false));
+    }
     const fwSend = $('fwSend');
     if (fwSend) fwSend.addEventListener('click', async () => {
       busy(true, '전달 중...');
