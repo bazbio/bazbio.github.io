@@ -671,7 +671,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608312212';
+  var 빌드버전_ = '202608312231';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -2470,20 +2470,42 @@
         e.target.value = '';
         renderFileChips();
       });
-      $('rSend').addEventListener('click', () => sendReply(d));
+      $('rSend').addEventListener('click', () => sendReply(d, convs, subs));
     }
     // 컨펌 줄 — 대표·관리자의 컨펌/반려, 담당의 보고 취소
+    // 낙관적 UI (속도 개선 2단계 잔여 슬라이스) — 미처리 '완료 보고'를 즉시 handled로 그리고
+    // 상태도 서버와 같은 규칙(완료 컨펌→완료, 반려→진행 중)으로 올려 그린다.
     const cfOk = $('cfOk');
     if (cfOk) {
-      const 답 = async ok => {
+      const 답 = ok => {
         const note = $('cfNote') ? $('cfNote').value.trim() : '';
-        busy(true, ok ? '컨펌 중...' : '반려 중...');
-        try {
-          await gs('웹_컨펌', TOKEN, { id: d.id, ok: ok, note: note });
-          toast(ok ? '완료로 처리했습니다' : '반려했습니다 — 진행 중으로 돌아갑니다');
-          await reopen(d.id);
-        } catch (e) { toast(e.message); }
-        busy(false);
+        const 미처리보고 = (convs || []).filter(c => c.type === '완료 보고' && !c.handled);
+        const 이전handled = 미처리보고.map(c => c.handled);
+        const 이전상태 = d.status, 이전완료일 = d.done;
+        const now = new Date();
+        const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '코멘트',
+          body: ok ? '완료 컨펌' + (note ? ': ' + note : '') : '반려: ' + (note || '보완 후 다시 보고해 주세요'),
+          files: [], when: '', when2: '', handled: '' };
+        optimisticSend(d, convs, subs, {
+          btnId: ok ? 'cfOk' : 'cfNo', draftId: 'cfNote', draftVal: note,
+          apply: () => {
+            미처리보고.forEach(c => { c.handled = ok ? '컨펌' : '반려'; });
+            convs.push(임시);
+            d.status = ok ? '완료' : '진행 중';
+            if (ok) d.done = iso(now);
+          },
+          rollback: () => {
+            미처리보고.forEach((c, i) => { c.handled = 이전handled[i]; });
+            const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1);
+            d.status = 이전상태; d.done = 이전완료일;
+          },
+          call: () => gs('웹_컨펌', TOKEN, { id: d.id, ok: ok, note: note }),
+          onOk: async () => {
+            toast(ok ? '완료로 처리했습니다' : '반려했습니다 — 진행 중으로 돌아갑니다');
+            await reopen(d.id);
+          },
+        });
       };
       cfOk.addEventListener('click', () => 답(true));
       $('cfNo').addEventListener('click', () => 답(false));
@@ -2518,31 +2540,64 @@
       });
     });
     // 계획 확인 — 전달의 짝. 승인/보완요청 (컨펌/반려와 같은 모양)
+    // 낙관적 UI (속도 개선 2단계 잔여 슬라이스) — 미처리 '전달'들을 즉시 handled로 그리고,
+    // 승인이면 상태도 '진행 중'으로 올려 그린다(자동진행_과 같은 조건: 자동진행_은 서버가
+    // '시작 전'일 때만 올리므로, 화면도 그 경우에만 올려야 서버와 어긋나지 않는다).
     const plOk = $('plOk');
     if (plOk) {
-      const 답 = async ok => {
+      const 답 = ok => {
         const note = $('plNote') ? $('plNote').value.trim() : '';
         if (!ok && !note) { toast('어디를 보완해야 하는지 적어 주세요'); return; }
-        busy(true, ok ? '승인 중...' : '보완요청 중...');
-        try {
-          await gs('웹_계획응답', TOKEN, { id: d.id, ok: ok, note: note });
-          toast(ok ? '계획을 승인했습니다' : '보완을 요청했습니다 — 담당자 화면에 뜹니다');
-          await reopen(d.id);
-        } catch (e) { toast(e.message); }
-        busy(false);
+        const 미처리전달 = (convs || []).filter(c => c.type === '전달' && !c.handled);
+        const 이전handled = 미처리전달.map(c => c.handled);
+        const 이전상태 = d.status;
+        const now = new Date();
+        const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '코멘트',
+          body: ok ? '계획 승인' + (note ? ': ' + note : '') : '계획 보완요청: ' + note,
+          files: [], when: '', when2: '', handled: '' };
+        optimisticSend(d, convs, subs, {
+          btnId: ok ? 'plOk' : 'plNo', draftId: 'plNote', draftVal: note,
+          apply: () => {
+            미처리전달.forEach(c => { c.handled = ok ? '승인' : '보완요청'; });
+            convs.push(임시);
+            if (ok && d.status === '시작 전') d.status = '진행 중';
+          },
+          rollback: () => {
+            미처리전달.forEach((c, i) => { c.handled = 이전handled[i]; });
+            const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1);
+            d.status = 이전상태;
+          },
+          call: () => gs('웹_계획응답', TOKEN, { id: d.id, ok: ok, note: note }),
+          onOk: async () => {
+            toast(ok ? '계획을 승인했습니다' : '보완을 요청했습니다 — 담당자 화면에 뜹니다');
+            await reopen(d.id);
+          },
+        });
       };
       plOk.addEventListener('click', () => 답(true));
       $('plNo').addEventListener('click', () => 답(false));
     }
+    // 낙관적 UI (속도 개선 2단계 잔여 슬라이스) — 미처리 '전달'을 즉시 그려 "대표님 컨펌 요청"
+    // 카드를 "컨펌을 요청했습니다" 대기 문구로 바꾼다. 상태는 안 건드린다(서버도 안 건드린다 —
+    // ADR 0031: 전달은 기록이지 상태가 아니다).
     const fwSend = $('fwSend');
-    if (fwSend) fwSend.addEventListener('click', async () => {
-      busy(true, '컨펌 요청 중...');
-      try {
-        await gs('웹_전달', TOKEN, { id: d.id, note: $('fwNote').value.trim() });
-        toast('대표님께 컨펌을 요청했습니다.');
-        await reopen(d.id);
-      } catch (e) { toast(e.message); }
-      busy(false);
+    if (fwSend) fwSend.addEventListener('click', () => {
+      const note = $('fwNote').value.trim();
+      const now = new Date();
+      const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '전달',
+        body: note, files: [], when: '', when2: '', handled: '' };
+      optimisticSend(d, convs, subs, {
+        btnId: 'fwSend', draftId: 'fwNote', draftVal: note,
+        apply: () => { convs.push(임시); },
+        rollback: () => { const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1); },
+        call: () => gs('웹_전달', TOKEN, { id: d.id, note }),
+        onOk: async () => {
+          toast('대표님께 컨펌을 요청했습니다.');
+          await reopen(d.id);
+        },
+      });
     });
     const cSend = $('cSend');
     // 낙관적 UI (속도 개선 2단계) — 스레드에 즉시 붙이고, 실패하면 그 줄만 뗀다.
@@ -2669,17 +2724,29 @@
     r.readAsDataURL(f);
   });
 
-  async function sendReply(d){
+  async function sendReply(d, convs, subs){
     const body = $('rBody').value.trim();
     const 보고 = $('rKind') && segVal('rKind') === '완료 보고';
     if (보고) {
-      busy(true, newFiles.length ? '파일 업로드 중...' : '보고 전송 중...');
-      try {
-        await gs('웹_완료보고', TOKEN, { id: d.id, body, files: newFiles });
-        toast('완료 보고를 올렸습니다 — 대표님 컨펌 대기가 됩니다.');
-        await reopen(d.id);
-      } catch (e) { toast(e.message); }
-      busy(false);
+      // 낙관적 UI (속도 개선 2단계 잔여 슬라이스) — 상태를 즉시 '컨펌 대기'로 그린다.
+      // 첨부파일은 서버가 Drive URL을 매기기 전이라 낙관적 카드에는 안 싣는다(files:[]) —
+      // 실패해도 되돌릴 파일 칩이 없으므로 첨부 재선택은 실패 시 사용자가 다시 한다.
+      const 파일들 = newFiles;   // apply()가 renderDetail→bindDetail을 거쳐 newFiles를 비우기 전에 캡처
+      const 이전상태 = d.status;
+      const now = new Date();
+      const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '완료 보고',
+        body, files: [], when: '', when2: '', handled: '' };
+      optimisticSend(d, convs, subs, {
+        btnId: 'rSend', draftId: 'rBody', draftVal: body,
+        apply: () => { convs.push(임시); d.status = '컨펌 대기'; },
+        rollback: () => { const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1); d.status = 이전상태; },
+        call: () => gs('웹_완료보고', TOKEN, { id: d.id, body, files: 파일들 }),
+        onOk: async () => {
+          toast('완료 보고를 올렸습니다 — 대표님 컨펌 대기가 됩니다.');
+          await reopen(d.id);
+        },
+      });
       return;
     }
     if (!body && !newFiles.length) { toast('진행 내용을 입력해 주세요'); return; }
