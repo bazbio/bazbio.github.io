@@ -919,16 +919,21 @@ function 토스트(글, 액션) {
 function 완료토글(h) {
   var 원본상태 = h.상태, 원본상태변경일 = h.상태변경일;
   var 다음 = h.상태 === '완료' ? '진행중' : '완료';
-  서버('웹_수정', h.id, { 상태: 다음 }).then(function (갱신) {
-    갈아끼우기(갱신);
-    if (다음 === '완료') {
-      // 「완료」 방향만 되돌리기를 준다 — 눌렀다 5초 안에 되돌리면 상태변경일도
-      // 되돌리기 이전의 원래 값으로 복원돼야 한다 (토글을 다시 태우면 오늘로 덮인다).
-      토스트('완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 상태되돌리기(갱신.id, 다음, 원본상태, 원본상태변경일); } });
-    } else {
-      토스트('진행중으로 되돌렸습니다');
-    }
-  }).catch(실패알림);
+  낙관적_({
+    apply: function () { h.상태 = 다음; },
+    rollback: function () { h.상태 = 원본상태; h.상태변경일 = 원본상태변경일; },
+    call: function () { return 서버('웹_수정', h.id, { 상태: 다음 }); },
+    onOk: function (갱신) {
+      갈아끼우기(갱신);
+      if (다음 === '완료') {
+        // 「완료」 방향만 되돌리기를 준다 — 눌렀다 5초 안에 되돌리면 상태변경일도
+        // 되돌리기 이전의 원래 값으로 복원돼야 한다 (토글을 다시 태우면 오늘로 덮인다).
+        토스트('완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 상태되돌리기(갱신.id, 다음, 원본상태, 원본상태변경일); } });
+      } else {
+        토스트('진행중으로 되돌렸습니다');
+      }
+    },
+  });
 }
 
 /**
@@ -936,11 +941,21 @@ function 완료토글(h) {
  * 5초 안에 다른 곳(다른 탭 등)에서 이미 상태를 바꿔놨다면 그 변경을
  * 오래된 스냅샷으로 덮어쓰지 않는다 (2026-08-29 Codex 리뷰로 발견).
  */
-function 상태되돌리기(id, 기대상태, 상태, 상태변경일) {
-  서버('웹_수정', id, { 기대상태: 기대상태, 상태: 상태, 상태변경일: 상태변경일 }).then(function (갱신) {
-    갈아끼우기(갱신);
-    토스트(갱신.상태 === 상태 ? '되돌렸습니다' : '그 사이 상태가 바뀌어 되돌리지 못했습니다');
-  }).catch(실패알림);
+function 상태되돌리기(id, 기대상태, 되돌릴상태, 되돌릴상태변경일) {
+  // 매개변수 이름을 전역 상태 객체와 겹치지 않게 둔다 — 겹치면 아래 상태.할일이
+  // 전역이 아니라 이 매개변수를 가리켜 버린다(gas-mock-harness로 실제로 걸림).
+  var h = 상태.할일.filter(function (x) { return x.id === id; })[0];
+  if (!h) return;
+  var 원본상태 = h.상태, 원본상태변경일 = h.상태변경일;
+  낙관적_({
+    apply: function () { h.상태 = 되돌릴상태; h.상태변경일 = 되돌릴상태변경일; },
+    rollback: function () { h.상태 = 원본상태; h.상태변경일 = 원본상태변경일; },
+    call: function () { return 서버('웹_수정', id, { 기대상태: 기대상태, 상태: 되돌릴상태, 상태변경일: 되돌릴상태변경일 }); },
+    onOk: function (갱신) {
+      갈아끼우기(갱신);
+      토스트(갱신.상태 === 되돌릴상태 ? '되돌렸습니다' : '그 사이 상태가 바뀌어 되돌리지 못했습니다');
+    },
+  });
 }
 
 function 갈아끼우기(갱신) {
@@ -951,7 +966,24 @@ function 갈아끼우기(갱신) {
   그리기();
 }
 
-function 실패알림(e) { 토스트('실패했습니다 — ' + (e && e.message ? e.message : e)); }
+/**
+ * 공용 낙관적 쓰기 (속도 개선, 2026-09-01). 클릭 즉시 로컬 상태를 반영해 다시 그리고,
+ * 서버 호출은 뒤에서 돈다. 실패하면 rollback()으로 되돌리고 토스트로만 알린다 —
+ * 브리지의 optimisticSend와 달리 모달을 다시 열어 입력을 복원하지 않는다(결정 3-A):
+ * 책상은 모달이 이미 닫힌 채로 진행하는 가벼운 도구라, 실패(드문 경로)는 사용자가
+ * 다시 열어 고치는 편이 재시도 흐름을 새로 만드는 것보다 단순하다.
+ */
+function 낙관적_(opts) {
+  opts.apply();
+  그리기();
+  opts.call().then(function (결과) {
+    if (opts.onOk) opts.onOk(결과);
+  }, function (e) {
+    opts.rollback();
+    그리기();
+    토스트('실패했습니다 — ' + (e && e.message ? e.message : e));
+  });
+}
 
 // ── 세부업무 ────────────────────────────────────────────────
 function 세부갈아끼우기(갱신) {
@@ -964,11 +996,17 @@ function 세부갈아끼우기(갱신) {
 
 function 세부완료토글(sub) {
   var 다음완료 = !세부완료(sub);
-  서버('웹_세부업무완료토글', sub.id).then(function (갱신) {
-    세부갈아끼우기(갱신);
-    if (다음완료) 토스트('세부업무를 완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 세부완료토글(갱신); } });
-    else 토스트('세부업무를 진행중으로 되돌렸습니다');
-  }).catch(실패알림);
+  var 이전완료일 = sub.완료일;
+  낙관적_({
+    apply: function () { sub.완료일 = 다음완료 ? 상태.오늘 : ''; },
+    rollback: function () { sub.완료일 = 이전완료일; },
+    call: function () { return 서버('웹_세부업무완료토글', sub.id); },
+    onOk: function (갱신) {
+      세부갈아끼우기(갱신);
+      if (다음완료) 토스트('세부업무를 완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 세부완료토글(갱신); } });
+      else 토스트('세부업무를 진행중으로 되돌렸습니다');
+    },
+  });
 }
 
 function 세부모달열기(업무id, sub) {
@@ -1008,44 +1046,50 @@ function 세부모달저장() {
   };
   if (!항목.세부업무) { 토스트('세부업무를 적어 주세요'); document.getElementById('sf세부업무').focus(); return; }
 
-  var 단추 = document.getElementById('세부모달저장');
-  단추.disabled = true; 단추.textContent = '저장 중';
-
   var 신규 = !세부편집중.id;
   var 부모id = 세부편집중.부모id;
-  var id = 세부편집중.id;
 
-  var 요청 = 신규
-    ? 서버('웹_세부업무추가', 부모id, 항목)
-    : 서버('웹_세부업무수정', id, 항목);
-
-  요청.then(function (결과) {
-    /* 시트 반영은 이 시점에 이미 끝났다. 아래 화면 갱신을 같은 catch에 묶으면
-       그리기() 쪽 오류를 「저장 실패」로 잘못 알리게 되고, 사용자가 다시 눌러
-       시트에 같은 세부업무가 중복으로 쌓인다 — 그래서 성공 처리부터 끝낸다. */
-    토스트('세부업무를 저장했습니다');
-    세부모달닫기();
-    단추.disabled = false; 단추.textContent = '저장';
-    try {
-      if (신규) { 펼친것[부모id] = true; 상태.세부업무.push(결과); 그리기(); }
-      else 세부갈아끼우기(결과);
-    } catch (e) {
-      console.error('세부업무는 저장됐지만 화면 갱신에 실패했습니다 — 새로고침하세요', e);
-    }
-  }).catch(function (e) {
-    실패알림(e);
-    단추.disabled = false; 단추.textContent = '저장';
-  });
+  if (신규) {
+    // 순서는 서버가 부모별 최댓값+1로 매긴다 — 실제 값이 올 때까지 목록 맨 끝에 둔다.
+    var 새것 = Object.assign({ id: '임시-' + Date.now(), 업무id: 부모id, 순서: 9999 }, 항목);
+    낙관적_({
+      apply: function () { 펼친것[부모id] = true; 상태.세부업무.push(새것); },
+      rollback: function () { 상태.세부업무 = 상태.세부업무.filter(function (x) { return x !== 새것; }); },
+      call: function () { return 서버('웹_세부업무추가', 부모id, 항목); },
+      onOk: function (실제) {
+        var i = 상태.세부업무.indexOf(새것);
+        if (i >= 0) 상태.세부업무[i] = 실제;
+        그리기();
+      },
+    });
+  } else {
+    var id = 세부편집중.id;
+    var s = 상태.세부업무.filter(function (x) { return x.id === id; })[0];
+    var 이전 = {};
+    Object.keys(항목).forEach(function (k) { 이전[k] = s[k]; });
+    낙관적_({
+      apply: function () { Object.keys(항목).forEach(function (k) { s[k] = 항목[k]; }); },
+      rollback: function () { Object.keys(이전).forEach(function (k) { s[k] = 이전[k]; }); },
+      call: function () { return 서버('웹_세부업무수정', id, 항목); },
+      onOk: 세부갈아끼우기,
+    });
+  }
+  토스트('세부업무를 저장했습니다');
+  세부모달닫기();
 }
 
 function 세부모달삭제() {
   if (!세부편집중 || !세부편집중.id) return;
   if (!confirm('이 세부업무를 지웁니다. 되돌릴 수 없습니다.')) return;
   var id = 세부편집중.id;
-  서버('웹_세부업무삭제', id).then(function () {
-    상태.세부업무 = 상태.세부업무.filter(function (s) { return s.id !== id; });
-    그리기(); 토스트('지웠습니다'); 세부모달닫기();
-  }).catch(실패알림);
+  var 지운것 = 상태.세부업무.filter(function (s) { return s.id === id; });
+  낙관적_({
+    apply: function () { 상태.세부업무 = 상태.세부업무.filter(function (s) { return s.id !== id; }); },
+    rollback: function () { 상태.세부업무 = 상태.세부업무.concat(지운것); },
+    call: function () { return 서버('웹_세부업무삭제', id); },
+  });
+  토스트('지웠습니다');
+  세부모달닫기();
 }
 
 // ── 모달 ────────────────────────────────────────────────────
@@ -1088,30 +1132,52 @@ function 모달저장() {
   };
   if (!항목.할일) { 토스트('할 일을 적어 주세요'); document.getElementById('f할일').focus(); return; }
 
-  var 단추 = document.getElementById('모달저장');
-  단추.disabled = true; 단추.textContent = '저장 중';
-
-  var 일 = 편집중
-    ? 서버('웹_수정', 편집중.id, 항목).then(갈아끼우기)
-    : 서버('웹_추가', 항목).then(function (새것) { 상태.할일.push(새것); 그리기(); });
-
-  일.then(function () {
-    토스트(항목.마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
-    모달닫기();
-  }).catch(실패알림).then(function () {
-    단추.disabled = false; 단추.textContent = '저장';
-  });
+  if (편집중) {
+    var h = 편집중;
+    var 이전 = {};
+    Object.keys(항목).forEach(function (k) { 이전[k] = h[k]; });
+    낙관적_({
+      apply: function () { Object.keys(항목).forEach(function (k) { h[k] = 항목[k]; }); },
+      rollback: function () { Object.keys(이전).forEach(function (k) { h[k] = 이전[k]; }); },
+      call: function () { return 서버('웹_수정', h.id, 항목); },
+      onOk: 갈아끼우기,
+    });
+  } else {
+    var 새것 = Object.assign({ id: '임시-' + Date.now(), 상태: '진행중', 생성일: 상태.오늘, 상태변경일: '' }, 항목);
+    낙관적_({
+      apply: function () { 상태.할일.push(새것); },
+      rollback: function () { 상태.할일 = 상태.할일.filter(function (x) { return x !== 새것; }); },
+      call: function () { return 서버('웹_추가', 항목); },
+      onOk: function (실제) {
+        var i = 상태.할일.indexOf(새것);
+        if (i >= 0) 상태.할일[i] = 실제;
+        그리기();
+      },
+    });
+  }
+  토스트(항목.마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
+  모달닫기();
 }
 
 function 모달삭제() {
   if (!편집중) return;
   if (!confirm('이 할 일을 지웁니다. 되돌릴 수 없습니다.')) return;
   var id = 편집중.id;
-  서버('웹_삭제', id).then(function () {
-    상태.할일 = 상태.할일.filter(function (h) { return h.id !== id; });
-    상태.세부업무 = 상태.세부업무.filter(function (s) { return s.업무id !== id; }); // 서버도 함께 지운다
-    그리기(); 토스트('지웠습니다'); 모달닫기();
-  }).catch(실패알림);
+  var 지운할일 = 상태.할일.filter(function (h) { return h.id === id; });
+  var 지운세부 = 상태.세부업무.filter(function (s) { return s.업무id === id; });
+  낙관적_({
+    apply: function () {
+      상태.할일 = 상태.할일.filter(function (h) { return h.id !== id; });
+      상태.세부업무 = 상태.세부업무.filter(function (s) { return s.업무id !== id; }); // 서버도 함께 지운다
+    },
+    rollback: function () {
+      상태.할일 = 상태.할일.concat(지운할일);
+      상태.세부업무 = 상태.세부업무.concat(지운세부);
+    },
+    call: function () { return 서버('웹_삭제', id); },
+  });
+  토스트('지웠습니다');
+  모달닫기();
 }
 
 // ── 받은함 ──────────────────────────────────────────────────
@@ -1125,20 +1191,31 @@ function 받은함닫기() {
   document.getElementById('받은함패널').setAttribute('aria-hidden', 'true');
   document.getElementById('스크림').classList.remove('on');
 }
+/**
+ * 받은함 줄이 파싱돼 어떤 할 일이 될지는 서버(받은함_파싱_)만 안다 — 그 로직을
+ * 화면에 다시 옮기면 두 갈래로 갈라질 위험이 있어(메아리이관.mjs가 이미 겪은 문제),
+ * 보드에 새 항목을 얹는 것까지는 낙관적으로 하지 않는다. 대신 줄이 목록에서
+ * 즉시 사라지는 것만 낙관적으로 반영한다 — 클릭 반응 자체는 이걸로 충분히 빨라진다.
+ */
 function 받은함올리기(줄, 마감일) {
-  서버('웹_받은함올리기', 줄, 마감일).then(function (새것) {
-    상태.할일.push(새것);
-    상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; });
-    그리기();
-    토스트(마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
-  }).catch(실패알림);
+  var 항목 = 상태.받은함.filter(function (x) { return x.줄 === 줄; })[0];
+  낙관적_({
+    apply: function () { 상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; }); },
+    rollback: function () { if (항목) 상태.받은함.push(항목); },
+    call: function () { return 서버('웹_받은함올리기', 줄, 마감일); },
+    onOk: function (새것) { 상태.할일.push(새것); 그리기(); },
+  });
+  토스트(마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
 }
 function 받은함버리기(줄) {
   if (!confirm('받은함에서 지웁니다. 보드에는 남지 않습니다.')) return;
-  서버('웹_받은함버리기', 줄).then(function () {
-    상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; });
-    그리기(); 토스트('받은함에서 지웠습니다');
-  }).catch(실패알림);
+  var 항목 = 상태.받은함.filter(function (x) { return x.줄 === 줄; })[0];
+  낙관적_({
+    apply: function () { 상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; }); },
+    rollback: function () { if (항목) 상태.받은함.push(항목); },
+    call: function () { return 서버('웹_받은함버리기', 줄); },
+  });
+  토스트('받은함에서 지웠습니다');
 }
 
 // ── 시작 ────────────────────────────────────────────────────
