@@ -190,6 +190,16 @@
   .dnum.we { color: #adb5bd; }
   .dnum.td { color: #fff; font-weight: 800; background: var(--today-mark); }
 
+  /* 일정 오버레이 — 칸(18px)보다 글자가 기니 오른쪽으로 흘려서 보여준다(ADR 0003) */
+  .grow.head.sched .days { min-height: 22px; }
+  .sched-label {
+    grid-row: 1; position: relative; z-index: 2; justify-self: start; align-self: center;
+    background: none; border: none; padding: 1px 4px; margin: 0;
+    font-size: 10.5px; font-weight: 700; color: var(--accent-strong);
+    white-space: nowrap; overflow: visible; cursor: pointer; max-width: none;
+  }
+  .sched-label:hover { text-decoration: underline; }
+
   /* 부모 업무 막대는 진하고 굵게, 세부업무 막대는 옅고 가늘게 — 계층이 색만으론 안 보이던 것을 해결 */
   .bar-item {
     grid-row: 1; align-self: center; height: 14px; border-radius: var(--pill);
@@ -336,6 +346,24 @@
       </div>
     </section>
 
+    <section id="일정섹션" class="hidden">
+      <div class="shead">
+        <h2>일정</h2><span class="n" id="일정수"></span>
+        <span style="margin-left:auto"></span>
+        <button class="btn ghost sm" id="일정추가">+ 일정 추가</button>
+      </div>
+      <p class="ssub">날짜·시각에 묶인 회의·방문. 간트와 같은 범위 — 지난 일정은 자동으로 빠집니다.</p>
+      <div class="card">
+        <div class="table-wrap"><table id="일정표">
+          <thead><tr>
+            <th style="width:96px">날짜</th><th style="width:72px">시각</th>
+            <th>제목</th><th style="width:140px">장소</th>
+          </tr></thead>
+          <tbody id="일정몸통"></tbody>
+        </table></div>
+      </div>
+    </section>
+
     <section id="대기섹션" class="hidden">
       <div class="shead"><h2>대기</h2><span class="n" id="대기수"></span></div>
       <p class="ssub">마감일이 없는 일. 오래 묵은 것부터. 28일이 넘으면 생사 판정 대상입니다.</p>
@@ -463,6 +491,39 @@
   </div>
 </div>
 
+<div class="modal-wrap hidden" id="일정모달틀">
+  <div class="modal" id="일정모달">
+    <header><h3 id="일정모달제목">일정 추가</h3></header>
+    <div class="body">
+      <div class="two">
+        <div class="field">
+          <label for="if날짜">날짜</label>
+          <input id="if날짜" type="date">
+        </div>
+        <div class="field">
+          <label for="if시작시각">시작시각</label>
+          <input id="if시작시각" type="time">
+          <div class="hint">비워도 됩니다 — 시간 미정 일정.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="if제목">제목</label>
+        <input id="if제목" type="text" placeholder="이사회 · 등기 소집 등">
+      </div>
+      <div class="field">
+        <label for="if장소">장소</label>
+        <input id="if장소" type="text" placeholder="비워도 됩니다">
+      </div>
+    </div>
+    <footer>
+      <button class="btn danger hidden" id="일정모달삭제">삭제</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="일정모달취소">취소</button>
+      <button class="btn primary" id="일정모달저장">저장</button>
+    </footer>
+  </div>
+</div>
+
 <div class="toast" id="토스트"></div>
 
 <script>
@@ -520,9 +581,10 @@ function 서버_fetch(이름, 인자) {
   });
 }
 
-var 상태 = { 오늘: '', 축: { 시작: '', 일수: 42 }, 할일: [], 세부업무: [], 받은함: [], 받은함있음: true };
+var 상태 = { 오늘: '', 축: { 시작: '', 일수: 42 }, 할일: [], 세부업무: [], 일정: [], 받은함: [], 받은함있음: true };
 var 편집중 = null;   // null이면 새로 추가
 var 세부편집중 = null;      // { 부모id, id }, id가 null이면 새로 추가
+var 일정편집중 = null;      // null이면 새로 추가
 var 펼친것 = {};            // { [업무id]: true } — 다시 그려도 펼침 상태를 기억한다
 
 // ── 날짜 (전부 'YYYY-MM-DD' 문자열로 다룬다) ─────────────────
@@ -537,6 +599,25 @@ function 차이(a, b) { return Math.round((파싱(b) - 파싱(a)) / 86400000); }
 function 지연인가(h) { return h.상태 !== '완료' && h.마감일 && h.마감일 < 상태.오늘; }
 function 이번인가(h) { return !!h.마감일; }
 function 나이(h) { return h.멈춘날 ? 차이(h.멈춘날, 상태.오늘) : null; }
+
+/**
+ * 표시 범위 안의 일정만 — 간트와 같은 6주 창이고, 지난 일정은 「지연」과 같은 방식으로
+ * 저장하지 않고 날짜만 견줘 뺀다(ADR 0003). 오늘 것은 아직 지나지 않았으니 남는다.
+ */
+function 이번일정() {
+  var 끝 = 더하기(상태.축.시작, 상태.축.일수 - 1);
+  return 상태.일정.filter(function (i) { return i.날짜 >= 상태.오늘 && i.날짜 <= 끝; })
+    .sort(function (a, b) {
+      if (a.날짜 !== b.날짜) return a.날짜 < b.날짜 ? -1 : 1;
+      return (a.시작시각 || '99:99') < (b.시작시각 || '99:99') ? -1 : 1;
+    });
+}
+/** 오버레이용 — 날짜별로 묶는다. 하루 안에서는 이번일정()이 이미 시각순으로 정렬해 뒀다. */
+function 일정맵_(일정목록) {
+  var 맵 = {};
+  일정목록.forEach(function (i) { (맵[i.날짜] = 맵[i.날짜] || []).push(i); });
+  return 맵;
+}
 
 function 세부업무목록(업무id) {
   return 상태.세부업무.filter(function (s) { return s.업무id === 업무id; })
@@ -580,7 +661,11 @@ function 그리기() {
   document.getElementById('이번수').textContent = 이번.length + '건';
   document.getElementById('대기수').textContent = 대기.length + '건';
 
-  간트그리기(이번);
+  var 일정 = 이번일정();
+  document.getElementById('일정수').textContent = 일정.length + '건';
+
+  간트그리기(이번, 일정맵_(일정));
+  일정목록그리기(일정);
   대기그리기(대기);
   받은함그리기();
   자동완성채우기();
@@ -591,7 +676,8 @@ function 요일붙인오늘() {
   return 상태.오늘 + ' (' + 요일 + ')';
 }
 
-function 간트그리기(이번) {
+function 간트그리기(이번, 일정맵) {
+  일정맵 = 일정맵 || {};
   var g = document.getElementById('간트');
   var 빔 = document.getElementById('이번빔');
   g.innerHTML = '';
@@ -638,6 +724,35 @@ function 간트그리기(이번) {
   일줄.appendChild(일칸);
   일줄.appendChild(요소('div', 'c act', '완료'));
   g.appendChild(일줄);
+
+  // 일정 오버레이 — 셀이 18px라 글자가 다 안 들어간다. 넘치는 대로 오른쪽으로 흘려서
+  // 짧은 제목은 그대로 읽히게 둔다(칸 폭에 맞춰 자르면 아무것도 안 보인다).
+  var 일정있는날 = Object.keys(일정맵);
+  if (일정있는날.length) {
+    var 일정줄 = 요소('div', 'grow head sched');
+    일정줄.appendChild(요소('div', 'c'));
+    일정줄.appendChild(요소('div', 'c'));
+    일정줄.appendChild(요소('div', 'c'));
+    var 일정칸 = 요소('div', 'days');
+    for (var si = 0; si < 일수; si++) {
+      var 그날 = 더하기(시작, si);
+      var 그날일정 = 일정맵[그날];
+      if (!그날일정 || !그날일정.length) continue;
+      var 라벨글 = 그날일정[0].제목 + (그날일정.length > 1 ? ' +' + (그날일정.length - 1) : '');
+      var 라벨 = 요소('button', 'sched-label', 라벨글);
+      라벨.style.gridColumn = (si + 1);
+      라벨.title = 그날일정.map(function (i) { return (i.시작시각 ? i.시작시각 + ' ' : '') + i.제목; }).join('\n');
+      라벨.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var 섹션 = document.getElementById('일정섹션');
+        if (섹션) 섹션.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      일정칸.appendChild(라벨);
+    }
+    일정줄.appendChild(일정칸);
+    일정줄.appendChild(요소('div', 'c act'));
+    g.appendChild(일정줄);
+  }
 
   이번.forEach(function (h) {
     var 세부 = 세부업무목록(h.id);
@@ -740,6 +855,26 @@ function 완료버튼(h, 토글함수) {
   var b = 요소('button', 'donebtn' + (완료됨 ? ' on' : ''), 완료됨 ? '완료됨 · 되돌리기' : '완료');
   b.addEventListener('click', function (e) { e.stopPropagation(); 토글함수(); });
   return b;
+}
+
+/** 일정이 하나도 없으면 섹션째 접는다 — 대기와 같은 관례. */
+function 일정목록그리기(일정) {
+  var 몸통 = document.getElementById('일정몸통');
+  document.getElementById('일정섹션').classList.toggle('hidden', 일정.length === 0);
+  몸통.innerHTML = '';
+
+  일정.forEach(function (i) {
+    var tr = document.createElement('tr');
+    tr.appendChild(요소('td', 'num', i.날짜));
+    tr.appendChild(요소('td', 'num', i.시작시각 || '—'));
+    var td3 = 요소('td', 'task', '');
+    td3.appendChild(요소('button', 'txt', i.제목));
+    td3.querySelector('.txt').addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(i); });
+    tr.appendChild(td3);
+    tr.appendChild(요소('td', '', i.장소 || '—'));
+    tr.addEventListener('click', function () { 일정모달열기(i); });
+    몸통.appendChild(tr);
+  });
 }
 
 /** 대기 항목이 하나도 없으면 섹션째 접는다 — 빈 상태 안내문 대신 그 자리를 간트에 돌려준다
@@ -1180,6 +1315,86 @@ function 모달삭제() {
   모달닫기();
 }
 
+// ── 일정 ────────────────────────────────────────────────────
+function 일정모달열기(i) {
+  일정편집중 = i || null;
+  document.getElementById('일정모달제목').textContent = i ? '일정 고치기' : '일정 추가';
+  document.getElementById('if날짜').value = i ? i.날짜 : 상태.오늘;
+  document.getElementById('if시작시각').value = i ? i.시작시각 : '';
+  document.getElementById('if제목').value = i ? i.제목 : '';
+  document.getElementById('if장소').value = i ? i.장소 : '';
+  document.getElementById('일정모달삭제').classList.toggle('hidden', !i);
+
+  document.getElementById('일정모달틀').classList.remove('hidden');
+  document.getElementById('스크림').classList.add('on');
+  requestAnimationFrame(function () {
+    document.getElementById('일정모달').classList.add('on');
+    document.getElementById(i ? 'if제목' : 'if날짜').focus();
+  });
+}
+
+function 일정모달닫기() {
+  document.getElementById('일정모달').classList.remove('on');
+  document.getElementById('스크림').classList.remove('on');
+  setTimeout(function () { document.getElementById('일정모달틀').classList.add('hidden'); }, 200);
+  일정편집중 = null;
+}
+
+function 일정모달저장() {
+  var 항목 = {
+    날짜: document.getElementById('if날짜').value,
+    시작시각: document.getElementById('if시작시각').value,
+    제목: document.getElementById('if제목').value.trim(),
+    장소: document.getElementById('if장소').value.trim(),
+  };
+  if (!항목.날짜) { 토스트('날짜를 정해 주세요'); document.getElementById('if날짜').focus(); return; }
+  if (!항목.제목) { 토스트('제목을 적어 주세요'); document.getElementById('if제목').focus(); return; }
+
+  if (일정편집중) {
+    var i = 일정편집중;
+    var 이전 = {};
+    Object.keys(항목).forEach(function (k) { 이전[k] = i[k]; });
+    낙관적_({
+      apply: function () { Object.keys(항목).forEach(function (k) { i[k] = 항목[k]; }); },
+      rollback: function () { Object.keys(이전).forEach(function (k) { i[k] = 이전[k]; }); },
+      call: function () { return 서버('웹_일정수정', i.id, 항목); },
+      onOk: function (실제) {
+        var idx = 상태.일정.indexOf(i);
+        if (idx >= 0) 상태.일정[idx] = 실제;
+        그리기();
+      },
+    });
+  } else {
+    var 새것 = Object.assign({ id: '임시-' + Date.now() }, 항목);
+    낙관적_({
+      apply: function () { 상태.일정.push(새것); },
+      rollback: function () { 상태.일정 = 상태.일정.filter(function (x) { return x !== 새것; }); },
+      call: function () { return 서버('웹_일정추가', 항목); },
+      onOk: function (실제) {
+        var idx = 상태.일정.indexOf(새것);
+        if (idx >= 0) 상태.일정[idx] = 실제;
+        그리기();
+      },
+    });
+  }
+  토스트('일정을 저장했습니다');
+  일정모달닫기();
+}
+
+function 일정모달삭제() {
+  if (!일정편집중) return;
+  if (!confirm('이 일정을 지웁니다. 되돌릴 수 없습니다.')) return;
+  var id = 일정편집중.id;
+  var 지운것 = 상태.일정.filter(function (x) { return x.id === id; });
+  낙관적_({
+    apply: function () { 상태.일정 = 상태.일정.filter(function (x) { return x.id !== id; }); },
+    rollback: function () { 상태.일정 = 상태.일정.concat(지운것); },
+    call: function () { return 서버('웹_일정삭제', id); },
+  });
+  토스트('지웠습니다');
+  일정모달닫기();
+}
+
 // ── 받은함 ──────────────────────────────────────────────────
 function 받은함열기() {
   document.getElementById('받은함패널').classList.add('on');
@@ -1228,8 +1443,12 @@ document.getElementById('받은함닫기').addEventListener('click', 받은함�
 document.getElementById('세부모달취소').addEventListener('click', 세부모달닫기);
 document.getElementById('세부모달저장').addEventListener('click', 세부모달저장);
 document.getElementById('세부모달삭제').addEventListener('click', 세부모달삭제);
-document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 받은함닫기(); });
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 받은함닫기(); } });
+document.getElementById('일정추가').addEventListener('click', function () { 일정모달열기(null); });
+document.getElementById('일정모달취소').addEventListener('click', 일정모달닫기);
+document.getElementById('일정모달저장').addEventListener('click', 일정모달저장);
+document.getElementById('일정모달삭제').addEventListener('click', 일정모달삭제);
+document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); } });
 
 서버('웹_초기데이터').then(function (d) {
   상태 = d;
