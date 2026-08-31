@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<!-- 생성물 — 고치지 마세요. 원본은 책상/gas/웹앱.html 이고,
+     `node 책상/dev/Pages_생성.js` 로 다시 만듭니다. -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>책상 · BAZ</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  /* ── 책상 토큰 ──────────────────────────────────────────────
+     책상은 자체 팔레트를 갖는다. 곳간·SalesON의 값을 가져다 쓰지 않는다
+     (사내 GAS 웹앱은 각자 독립된 스타일이라는 규약). */
+  :root {
+    --accent: #4263eb; --accent-strong: #364fc7; --accent-soft: #edf0ff;
+    --late: #e03131; --late-soft: #fff0f0;
+    --done: #adb5bd;
+    --today-mark: #f08c00;
+    --ink: #212529; --ink-70: #495057; --ink-45: #6c757d;
+    --canvas: #ffffff; --page: #f8f9fa; --line: #e9ecef; --line-soft: #f1f3f5;
+    --weekend: #fafbfc;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --pill: 999px;
+    --shadow: 0 20px 60px -15px rgba(16, 24, 40, .06);
+    --shadow-sm: 0 2px 8px rgba(16, 24, 40, .04);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --cell: 18px;
+    --today-x: 0;
+  }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Malgun Gothic', sans-serif;
+    background: var(--page); color: var(--ink);
+    font-size: 15px; line-height: 1.6; letter-spacing: -0.01em;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ── 상단 바 ─────────────────────────────────────────────── */
+  .bar {
+    position: sticky; top: 0; z-index: 40;
+    background: rgba(255, 255, 255, .86); backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; gap: 14px; padding: 0 20px; height: 56px;
+  }
+  .bar .brand { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+  .bar .today { font-size: 13px; color: var(--ink-45); }
+  .bar .spacer { margin-left: auto; }
+  .btn {
+    border: none; border-radius: var(--r-md); padding: 9px 14px;
+    font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+    background: var(--line-soft); color: var(--ink-70);
+    transition: transform .16s var(--ease), background .16s var(--ease);
+    min-height: 40px;
+  }
+  .btn:hover { background: var(--line); transform: scale(1.02); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-strong); }
+  .btn.ghost { background: transparent; color: var(--ink-45); }
+  .btn.ghost:hover { background: var(--line-soft); }
+  .btn.danger { background: transparent; color: var(--late); }
+  .btn.danger:hover { background: var(--late-soft); }
+  .btn.sm { padding: 6px 10px; font-size: 13px; min-height: 34px; border-radius: var(--r-sm); }
+  .inbox-btn { position: relative; }
+  .inbox-btn .count {
+    display: inline-block; margin-left: 6px; min-width: 20px; padding: 0 6px;
+    background: var(--accent); color: #fff; border-radius: var(--pill);
+    font-size: 12px; font-weight: 700; line-height: 20px; text-align: center;
+  }
+
+  main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 96px; }
+
+  /* ── 요약 칩 ─────────────────────────────────────────────── */
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+  .chip {
+    display: inline-flex; align-items: baseline; gap: 7px;
+    background: var(--canvas); border: 1px solid var(--line);
+    border-radius: var(--pill); padding: 7px 15px; font-size: 13px; color: var(--ink-45);
+  }
+  .chip b { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+  .chip.late b { color: var(--late); }
+  .chip.late { border-color: #ffc9c9; background: var(--late-soft); }
+
+  /* ── 섹션 ────────────────────────────────────────────────── */
+  section { margin-bottom: 40px; }
+  .shead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .shead h2 { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; word-break: keep-all; }
+  .shead .n { font-size: 14px; color: var(--ink-45); font-variant-numeric: tabular-nums; }
+  .ssub { font-size: 13px; color: var(--ink-45); margin-bottom: 14px; word-break: keep-all; }
+  .card { background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+
+  .empty { padding: 40px 24px; text-align: center; color: var(--ink-45); font-size: 14px; word-break: keep-all; }
+  .empty b { display: block; color: var(--ink-70); font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+
+  /* ── 간트 ────────────────────────────────────────────────── */
+  .gantt-wrap { overflow-x: auto; }
+  .gantt { min-width: 1120px; }
+  .grow {
+    display: grid;
+    grid-template-columns: 96px minmax(200px, 1fr) 88px calc(42 * var(--cell)) 132px;
+    align-items: stretch;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .grow.body.sub { background: var(--page); }
+  .grow.body.sub .c.task { padding-left: 28px; font-weight: 500; }
+  .grow.body.sub .c.task .txt { font-size: 12.5px; }
+  .grow:last-child { border-bottom: none; }
+  .grow.head { background: var(--page); border-bottom: 1px solid var(--line); }
+  .grow.head .c { color: var(--ink-45); font-size: 12px; font-weight: 700; letter-spacing: 0; }
+  .grow.body:hover { background: #fcfcfd; }
+  .c { padding: 10px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+  .c.proj { color: var(--ink-45); font-size: 12px; }
+  .c.proj span {
+    display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: var(--line-soft); border-radius: var(--r-sm); padding: 2px 8px; font-weight: 600; color: var(--ink-70);
+  }
+  .c.task { font-weight: 600; letter-spacing: -0.015em; }
+  /* 편집을 여는 진짜 단추다 — 행 클릭은 마우스 편의고, 키보드는 이쪽으로 온다 */
+  .txt {
+    background: none; border: none; padding: 0; font: inherit; color: inherit;
+    text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .c.task.done .txt { color: var(--ink-45); text-decoration: line-through; }
+  td.task .txt { white-space: normal; word-break: keep-all; }
+  .c.who { color: var(--ink-45); font-size: 12px; }
+  .c.who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 세부업무 펼치기 — 있는 행에만 붙는다 */
+  .expand {
+    flex: none; width: 18px; height: 18px; border-radius: 5px; background: none; border: none;
+    color: var(--ink-45); display: inline-flex; align-items: center; justify-content: center;
+    transition: transform .16s var(--ease), background .16s var(--ease); padding: 0; margin-right: 4px;
+  }
+  .expand:hover { background: var(--line-soft); }
+  .expand svg { width: 13px; height: 13px; transition: transform .16s var(--ease); }
+  .expand.open svg { transform: rotate(90deg); }
+
+  /* 완료 버튼 — 행 맨 오른쪽. 이 화면에서 가장 자주 눌러야 하는 단추다 (결정 20).
+     간트가 42일 폭이라 가로 스크롤이 늘 생긴다 — 오른쪽 끝까지 밀어야 보이던 것을
+     막으려고 스크롤 컨테이너 안에서 오른쪽에 고정한다(2026-08-31, 사용자 피드백). */
+  .c.act {
+    justify-content: flex-end; position: sticky; right: 0; z-index: 3;
+    background: var(--canvas); box-shadow: -6px 0 8px -6px rgba(16, 24, 40, .12);
+  }
+  .grow.head .c.act { background: var(--page); box-shadow: none; }
+  .grow.body.sub .c.act { background: var(--page); }
+  .grow.body:hover .c.act { background: #fcfcfd; }
+  .donebtn {
+    flex: none; border: none; border-radius: var(--r-sm); padding: 7px 11px;
+    font-size: 12.5px; font-weight: 700; letter-spacing: -0.01em;
+    background: var(--accent); color: #fff; white-space: nowrap;
+    transition: transform .16s var(--ease), background .16s var(--ease);
+  }
+  .donebtn:hover { background: var(--accent-strong); transform: scale(1.03); }
+  .donebtn:active { transform: scale(0.97); }
+  .donebtn.on { background: var(--line-soft); color: var(--ink-45); }
+  .donebtn.on:hover { background: var(--line); }
+  .subadd {
+    background: none; border: none; color: var(--ink-45); font-size: 12.5px; font-weight: 600;
+    padding: 8px 12px 8px 28px; text-align: left; width: 100%;
+  }
+  .subadd:hover { color: var(--accent); background: var(--line-soft); }
+
+  /* 날짜 격자 — 주말 음영과 세로줄을 배경으로 그린다 (셀 DOM을 만들지 않는다) */
+  .days {
+    position: relative;
+    display: grid; grid-template-columns: repeat(42, var(--cell));
+    background-image:
+      repeating-linear-gradient(to right, var(--weekend) 0 calc(2 * var(--cell)), transparent calc(2 * var(--cell)) calc(7 * var(--cell))),
+      repeating-linear-gradient(to right, var(--line-soft) 0 1px, transparent 1px var(--cell));
+    background-position: calc(5 * var(--cell)) 0, 0 0;
+  }
+  /* 오늘 칸 — 선이 아니라 칸 전체를 채운다(2026-08-31, 사용자 피드백: 「네모칸을 채워줘」).
+     막대 위에 얹히므로 옅게 — 그 칸의 막대·숫자가 가려지면 안 된다. */
+  .days::after {
+    content: ''; position: absolute; top: 0; bottom: 0;
+    left: calc(var(--today-x) * var(--cell)); width: var(--cell);
+    background: var(--today-mark); opacity: .16; pointer-events: none;
+  }
+  .grow.head .days { background-image: none; }
+
+  .mon { grid-row: 1; font-size: 11px; font-weight: 700; color: var(--ink-45); padding: 6px 0 2px 6px; border-left: 1px solid var(--line); }
+  .dnum {
+    grid-row: 1; font-size: 10px; color: var(--ink-45); text-align: center;
+    padding: 2px 0 6px; font-variant-numeric: tabular-nums;
+  }
+  .dnum.we { color: #adb5bd; }
+  .dnum.td { color: #fff; font-weight: 800; background: var(--today-mark); }
+
+  /* 부모 업무 막대는 진하고 굵게, 세부업무 막대는 옅고 가늘게 — 계층이 색만으론 안 보이던 것을 해결 */
+  .bar-item {
+    grid-row: 1; align-self: center; height: 14px; border-radius: var(--pill);
+    background: var(--accent); margin: 0 1px; min-width: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .18);
+    transition: filter .16s var(--ease);
+  }
+  .bar-item.late { background: var(--late); }
+  .bar-item.done { background: var(--done); }
+  .grow.body:hover .bar-item { filter: brightness(1.08); }
+  .grow.body.sub .bar-item { height: 9px; opacity: .68; box-shadow: none; }
+  .days.row { min-height: 40px; align-items: center; }
+
+  /* ── 대기 표 ─────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--line-soft); }
+  th { background: var(--page); color: var(--ink-45); font-size: 12px; font-weight: 700; border-bottom: 1px solid var(--line); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fcfcfd; }
+  td.task { font-weight: 600; letter-spacing: -0.015em; word-break: keep-all; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .age { display: inline-block; padding: 2px 9px; border-radius: var(--pill); background: var(--line-soft); color: var(--ink-70); font-weight: 700; font-size: 12px; }
+  .age.old { background: var(--late-soft); color: var(--late); }
+  .why { color: var(--ink-45); font-size: 12px; white-space: nowrap; }
+  .wait-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+  tr.subrow td { background: var(--page); font-size: 12.5px; color: var(--ink-70); }
+  tr.subrow td.task { padding-left: 34px; font-weight: 500; }
+
+  /* ── 패널·모달 ───────────────────────────────────────────── */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(16, 24, 40, .28); z-index: 60;
+    opacity: 0; pointer-events: none; transition: opacity .2s var(--ease);
+  }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); z-index: 70;
+    background: var(--canvas); box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform .24s var(--ease);
+  }
+  .panel.on { transform: translateX(0); }
+  .panel header, .modal header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px; border-bottom: 1px solid var(--line-soft);
+  }
+  .panel header h3, .modal header h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+  .panel .body { flex: 1; overflow-y: auto; padding: 16px 20px 32px; }
+
+  .inbox-item { border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; margin-bottom: 10px; }
+  .inbox-item .meta { font-size: 12px; color: var(--ink-45); margin-top: 4px; }
+  .inbox-item .t { font-weight: 700; letter-spacing: -0.015em; word-break: keep-all; }
+  .inbox-item .row { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+
+  .modal-wrap {
+    position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center;
+    padding: 20px; pointer-events: none;
+  }
+  .modal {
+    width: min(520px, 100%); max-height: 88vh; overflow: hidden;
+    background: var(--canvas); border-radius: var(--r-lg); box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    transform: translateY(10px) scale(.98); opacity: 0;
+    transition: transform .22s var(--ease), opacity .22s var(--ease);
+    pointer-events: auto;
+  }
+  .modal.on { transform: none; opacity: 1; }
+  .modal .body { padding: 18px 20px; overflow-y: auto; }
+  .modal footer { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line-soft); }
+  .modal footer .spacer { margin-left: auto; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-45); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md);
+    background: var(--canvas); min-height: 42px;
+    transition: border-color .16s var(--ease);
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); outline: none; }
+  .field .hint { font-size: 12px; color: var(--ink-45); margin-top: 5px; word-break: keep-all; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── 상태 ────────────────────────────────────────────────── */
+  .loading, .error { padding: 56px 24px; text-align: center; color: var(--ink-45); font-size: 14px; }
+  .error b { display: block; color: var(--late); font-weight: 700; margin-bottom: 6px; }
+  .spin { width: 22px; height: 22px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 12px; animation: sp .7s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; z-index: 90;
+    transform: translate(-50%, 12px); opacity: 0; pointer-events: none;
+    background: var(--ink); color: #fff; padding: 11px 18px; border-radius: var(--pill);
+    font-size: 14px; font-weight: 600; box-shadow: var(--shadow);
+    transition: transform .2s var(--ease), opacity .2s var(--ease);
+  }
+  .toast.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .toast .undo {
+    background: none; border: none; color: #fff; font-weight: 700; font-size: 14px;
+    text-decoration: underline; text-underline-offset: 2px; margin-left: 12px; padding: 0;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 640px) {
+    main { padding: 20px 14px 80px; }
+    .bar { padding: 0 14px; gap: 10px; }
+    .bar .today { display: none; }
+    .two { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="brand">책상</span>
+  <span class="today tnum" id="오늘표시"></span>
+  <span class="spacer"></span>
+  <button class="btn inbox-btn" id="받은함열기">받은함<span class="count hidden" id="받은함수">0</span></button>
+  <button class="btn primary" id="새로추가">+ 새 할 일</button>
+</div>
+
+<main>
+  <div id="로딩" class="loading"><div class="spin"></div>불러오는 중</div>
+  <div id="오류" class="error hidden"><b>불러오지 못했습니다</b><span id="오류문"></span></div>
+
+  <div id="본문" class="hidden">
+    <div class="summary">
+      <span class="chip">이번 <b class="tnum" id="칩이번">0</b>건</span>
+      <span class="chip late" id="칩지연칸">지연 <b class="tnum" id="칩지연">0</b>건</span>
+      <span class="chip">대기 <b class="tnum" id="칩대기">0</b>건</span>
+    </div>
+
+    <section>
+      <div class="shead"><h2>이번</h2><span class="n" id="이번수"></span></div>
+      <p class="ssub">마감일이 있는 일. 막대는 시작일부터 마감일까지 기계가 그린다.</p>
+      <div class="card">
+        <div class="gantt-wrap"><div class="gantt" id="간트"></div></div>
+        <div class="empty hidden" id="이번빔">
+          <b>「이번」이 비어 있습니다</b>
+          아래 「대기」에서 마감일을 정해 올리거나, 새 할 일을 마감일과 함께 넣으세요.
+        </div>
+      </div>
+    </section>
+
+    <section id="대기섹션" class="hidden">
+      <div class="shead"><h2>대기</h2><span class="n" id="대기수"></span></div>
+      <p class="ssub">마감일이 없는 일. 오래 묵은 것부터. 28일이 넘으면 생사 판정 대상입니다.</p>
+      <div class="card">
+        <div class="table-wrap"><table id="대기표">
+          <thead><tr>
+            <th style="width:110px">프로젝트</th><th>할 일</th>
+            <th style="width:96px">기다리는 대상</th><th style="width:88px">멈춘 날</th>
+            <th style="width:72px">나이</th><th style="width:104px">사유</th><th style="width:176px"></th>
+          </tr></thead>
+          <tbody id="대기몸통"></tbody>
+        </table></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="scrim" id="스크림"></div>
+
+<aside class="panel" id="받은함패널" aria-hidden="true">
+  <header>
+    <h3>받은함</h3>
+    <span class="spacer" style="margin-left:auto"></span>
+    <button class="btn ghost sm" id="받은함닫기">닫기</button>
+  </header>
+  <div class="body" id="받은함몸통"></div>
+</aside>
+
+<div class="modal-wrap hidden" id="모달틀">
+  <div class="modal" id="모달">
+    <header><h3 id="모달제목">새 할 일</h3></header>
+    <div class="body">
+      <div class="field">
+        <label for="f할일">할 일</label>
+        <input id="f할일" type="text" placeholder="한 줄로. 「무엇을 한다」">
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="f프로젝트">프로젝트</label>
+          <input id="f프로젝트" type="text" list="프로젝트목록" placeholder="등대 · 곳간 · IR Deck">
+          <datalist id="프로젝트목록"></datalist>
+        </div>
+        <div class="field">
+          <label for="f대상">기다리는 대상</label>
+          <input id="f대상" type="text" list="대상목록" placeholder="나">
+          <datalist id="대상목록"></datalist>
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="f시작일">시작일</label>
+          <input id="f시작일" type="date">
+          <div class="hint">비워도 됩니다 — 마감일 하루짜리 막대가 됩니다.</div>
+        </div>
+        <div class="field">
+          <label for="f마감일">마감일</label>
+          <input id="f마감일" type="date">
+          <div class="hint">비우면 「대기」로 갑니다.</div>
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="f멈춘날">멈춘 날</label>
+          <input id="f멈춘날" type="date">
+        </div>
+        <div class="field">
+          <label for="f사유">사유</label>
+          <select id="f사유">
+            <option value=""></option>
+            <option>요청 전</option><option>응답 대기</option><option>선행 대기</option>
+            <option>결정 대기</option><option>사유 미상</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <footer>
+      <button class="btn danger hidden" id="모달삭제">삭제</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="모달취소">취소</button>
+      <button class="btn primary" id="모달저장">저장</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal-wrap hidden" id="세부모달틀">
+  <div class="modal" id="세부모달">
+    <header><h3 id="세부모달제목">세부업무 추가</h3></header>
+    <div class="body">
+      <div class="field">
+        <label for="sf세부업무">세부업무</label>
+        <input id="sf세부업무" type="text" placeholder="한 줄로. 「기획」 「개발」 「검증」…">
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="sf담당내부">담당(내부)</label>
+          <input id="sf담당내부" type="text" placeholder="유영환">
+        </div>
+        <div class="field">
+          <label for="sf담당외부">담당(외부)</label>
+          <input id="sf담당외부" type="text" placeholder="비워도 됩니다">
+        </div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="sf시작일">시작일</label>
+          <input id="sf시작일" type="date">
+        </div>
+        <div class="field">
+          <label for="sf마감일">마감일</label>
+          <input id="sf마감일" type="date">
+          <div class="hint">비우면 막대가 안 그려집니다.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sf메모">메모</label>
+        <input id="sf메모" type="text" placeholder="비워도 됩니다">
+      </div>
+    </div>
+    <footer>
+      <button class="btn danger hidden" id="세부모달삭제">삭제</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="세부모달취소">취소</button>
+      <button class="btn primary" id="세부모달저장">저장</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="토스트"></div>
+
+<script>
+// ── 서버 ────────────────────────────────────────────────────
+/* 화면이 GAS 밖(GitHub Pages)으로 나오면 google.script.run이 없다. 대신 Code.gs의
+ * doPost 디스패처를 fetch로 부른다. GAS가 doGet으로 이 화면을 서빙하는 롤백 경로에는
+ * google.script.run이 있으므로 그쪽에서는 그걸 그대로 쓴다 (곳간과 같은 방식). */
+var API_URL = 'https://script.google.com/macros/s/AKfycbykZGrMPBaucjcGC5YN4GdoOHxnekrXfI0mY6hjrJp78uzPsxVDO62naHtddAI4jmlqbg/exec';
+var API_TIMEOUT = 15000;
+
+/* 통로 판정. GAS가 doGet으로 서빙하면 google.script.run이 있고, Pages에서는 없다.
+ * ⚠ 하네스는 여러 앱 공용이라 fetch 모드에서도 google.script.run을 정의한다 —
+ *   그래서 목이 window.__TRANSPORT__로 이 판정을 덮을 수 있게 열어 둔다. */
+function 통로_() {
+  if (window.__TRANSPORT__) return window.__TRANSPORT__;
+  return (typeof google !== 'undefined' && google.script && google.script.run) ? 'gsrun' : 'fetch';
+}
+
+function 서버(이름) {
+  var 인자 = Array.prototype.slice.call(arguments, 1);
+  if (통로_() !== 'gsrun') return 서버_fetch(이름, 인자);
+  return new Promise(function (성공, 실패) {
+    google.script.run.withSuccessHandler(성공).withFailureHandler(실패)[이름].apply(null, 인자);
+  });
+}
+
+/**
+ * fetch 경로. Code.gs의 doPost가 {ok:true,data} 또는 {ok:false,error}로 응답한다.
+ * 여기서 가장 중요한 것은 오류 문구를 잃지 않는 것이다 — 실패 핸들러가 e.message를
+ * 토스트로 띄우므로, 디스패처가 실어 보낸 문구를 Error로 되살려야 그 동작이 산다.
+ */
+function 서버_fetch(이름, 인자) {
+  return new Promise(function (성공, 실패) {
+    var 끝난 = false;
+    var 완료 = function (fn) { return function (v) { if (!끝난) { 끝난 = true; fn(v); } }; };
+    var 실패됨 = 완료(function (msg) { 실패(new Error(msg)); });
+    var 타이머 = setTimeout(function () { 실패됨('응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.'); }, API_TIMEOUT);
+    fetch(API_URL, {
+      method: 'POST',
+      // text/plain이라야 CORS 사전요청이 없다(왕복이 하나 줄어든다).
+      // 본문은 percent-encoding해 순수 ASCII로 보낸다 — GAS가 POST 본문을 UTF-8로
+      // 안 읽어서 한글이 깨진다. 서버가 decodeURIComponent로 되돌린다.
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: encodeURIComponent(JSON.stringify({ fn: 이름, args: 인자 })),
+    }).then(function (r) { return r.text(); }).then(function (본문) {
+      clearTimeout(타이머);
+      var 응답;
+      try { 응답 = JSON.parse(본문); } catch (e) { 실패됨('서버 응답을 읽지 못했습니다.'); return; }
+      if (응답 && 응답.ok) 완료(성공)(응답.data);
+      else 실패됨((응답 && 응답.error) || '알 수 없는 오류입니다.');
+    }).catch(function (e) {
+      clearTimeout(타이머);
+      실패됨((e && e.message) || String(e));
+    });
+  });
+}
+
+var 상태 = { 오늘: '', 축: { 시작: '', 일수: 42 }, 할일: [], 세부업무: [], 받은함: [], 받은함있음: true };
+var 편집중 = null;   // null이면 새로 추가
+var 세부편집중 = null;      // { 부모id, id }, id가 null이면 새로 추가
+var 펼친것 = {};            // { [업무id]: true } — 다시 그려도 펼침 상태를 기억한다
+
+// ── 날짜 (전부 'YYYY-MM-DD' 문자열로 다룬다) ─────────────────
+function 파싱(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function 찍기(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function 더하기(s, n) { var d = 파싱(s); d.setDate(d.getDate() + n); return 찍기(d); }
+function 차이(a, b) { return Math.round((파싱(b) - 파싱(a)) / 86400000); }
+
+// ── 파생값 (시트에 저장하지 않는다) ─────────────────────────
+function 지연인가(h) { return h.상태 !== '완료' && h.마감일 && h.마감일 < 상태.오늘; }
+function 이번인가(h) { return !!h.마감일; }
+function 나이(h) { return h.멈춘날 ? 차이(h.멈춘날, 상태.오늘) : null; }
+
+function 세부업무목록(업무id) {
+  return 상태.세부업무.filter(function (s) { return s.업무id === 업무id; })
+    .sort(function (a, b) { return a.순서 - b.순서; });
+}
+function 세부완료(s) { return !!s.완료일; }
+function 세부지연(s) { return !세부완료(s) && s.마감일 && s.마감일 < 상태.오늘; }
+
+/**
+ * 세부업무 펼침 토글. 개수가 0이어도 항상 보여준다 —
+ * 그래야 세부업무가 하나도 없는 할 일도 펼쳐서 첫 건을 추가할 수 있다.
+ */
+function 세부펼침토글(업무id, 개수) {
+  var 토글 = 요소('button', 'expand' + (펼친것[업무id] ? ' open' : ''));
+  토글.title = 개수 ? '세부업무 ' + 개수 + '건' : '세부업무 추가';
+  토글.setAttribute('aria-label', 토글.title);
+  토글.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
+  토글.addEventListener('click', function (e) { e.stopPropagation(); 펼친것[업무id] = !펼친것[업무id]; 그리기(); });
+  return 토글;
+}
+
+// ── 그리기 ──────────────────────────────────────────────────
+function 요소(태그, 클래스, 글) {
+  var e = document.createElement(태그);
+  if (클래스) e.className = 클래스;
+  if (글 !== undefined) e.textContent = 글;
+  return e;
+}
+
+function 그리기() {
+  var 이번 = 상태.할일.filter(이번인가).sort(function (a, b) { return a.마감일 < b.마감일 ? -1 : a.마감일 > b.마감일 ? 1 : 0; });
+  var 대기 = 상태.할일.filter(function (h) { return !이번인가(h); })
+    .sort(function (a, b) { return (나이(b) || 0) - (나이(a) || 0); });
+  var 지연 = 이번.filter(지연인가);
+
+  document.getElementById('오늘표시').textContent = 요일붙인오늘();
+  document.getElementById('칩이번').textContent = 이번.length;
+  document.getElementById('칩지연').textContent = 지연.length;
+  document.getElementById('칩대기').textContent = 대기.length;
+  document.getElementById('칩지연칸').classList.toggle('hidden', 지연.length === 0);
+  document.getElementById('이번수').textContent = 이번.length + '건';
+  document.getElementById('대기수').textContent = 대기.length + '건';
+
+  간트그리기(이번);
+  대기그리기(대기);
+  받은함그리기();
+  자동완성채우기();
+}
+
+function 요일붙인오늘() {
+  var 요일 = ['일', '월', '화', '수', '목', '금', '토'][파싱(상태.오늘).getDay()];
+  return 상태.오늘 + ' (' + 요일 + ')';
+}
+
+function 간트그리기(이번) {
+  var g = document.getElementById('간트');
+  var 빔 = document.getElementById('이번빔');
+  g.innerHTML = '';
+  g.parentNode.classList.toggle('hidden', 이번.length === 0);
+  빔.classList.toggle('hidden', 이번.length !== 0);
+  if (!이번.length) return;
+
+  var 시작 = 상태.축.시작, 일수 = 상태.축.일수;
+  var 오늘칸 = 차이(시작, 상태.오늘);
+  document.documentElement.style.setProperty('--today-x', 오늘칸 >= 0 && 오늘칸 < 일수 ? 오늘칸 : -99);
+
+  // 머리글 — 월 라벨 줄과 일 숫자 줄
+  var 월줄 = 요소('div', 'grow head');
+  월줄.appendChild(요소('div', 'c'));
+  월줄.appendChild(요소('div', 'c'));
+  월줄.appendChild(요소('div', 'c'));
+  var 월칸 = 요소('div', 'days');
+  var i = 0;
+  while (i < 일수) {
+    var d = 파싱(더하기(시작, i));
+    var 길이 = 0;
+    while (i + 길이 < 일수 && 파싱(더하기(시작, i + 길이)).getMonth() === d.getMonth()) 길이++;
+    var m = 요소('div', 'mon', (d.getMonth() + 1) + '월');
+    m.style.gridColumn = (i + 1) + ' / span ' + 길이;
+    월칸.appendChild(m);
+    i += 길이;
+  }
+  월줄.appendChild(월칸);
+  월줄.appendChild(요소('div', 'c'));
+  g.appendChild(월줄);
+
+  var 일줄 = 요소('div', 'grow head');
+  일줄.appendChild(요소('div', 'c proj', '프로젝트'));
+  일줄.appendChild(요소('div', 'c task', '할 일'));
+  일줄.appendChild(요소('div', 'c who', '기다리는 대상'));
+  var 일칸 = 요소('div', 'days');
+  for (var k = 0; k < 일수; k++) {
+    var 날 = 더하기(시작, k), dd = 파싱(날);
+    var 주말 = dd.getDay() === 0 || dd.getDay() === 6;
+    var n = 요소('div', 'dnum' + (주말 ? ' we' : '') + (날 === 상태.오늘 ? ' td' : ''), String(dd.getDate()));
+    n.style.gridColumn = (k + 1);
+    일칸.appendChild(n);
+  }
+  일줄.appendChild(일칸);
+  일줄.appendChild(요소('div', 'c act', '완료'));
+  g.appendChild(일줄);
+
+  이번.forEach(function (h) {
+    var 세부 = 세부업무목록(h.id);
+    var 줄 = 요소('div', 'grow body');
+    줄.dataset.id = h.id;
+
+    var c1 = 요소('div', 'c proj');
+    if (h.프로젝트) c1.appendChild(요소('span', '', h.프로젝트));
+    줄.appendChild(c1);
+
+    var c2 = 요소('div', 'c task' + (h.상태 === '완료' ? ' done' : ''));
+    c2.appendChild(세부펼침토글(h.id, 세부.length));
+    var 글 = 요소('button', 'txt', h.할일);
+    글.addEventListener('click', function (e) { e.stopPropagation(); 모달열기(h); });
+    c2.appendChild(글);
+    줄.appendChild(c2);
+
+    var c3 = 요소('div', 'c who');
+    c3.appendChild(요소('span', '', h.기다리는대상 || '나'));
+    줄.appendChild(c3);
+
+    var 칸 = 요소('div', 'days row');
+    var 시작일 = h.시작일 && h.시작일 <= h.마감일 ? h.시작일 : h.마감일;
+    var s = 차이(시작, 시작일), e2 = 차이(시작, h.마감일);
+    if (e2 >= 0 && s <= 일수 - 1) {
+      var from = Math.max(0, s), to = Math.min(일수 - 1, e2);
+      var 막대 = 요소('div', 'bar-item' + (h.상태 === '완료' ? ' done' : 지연인가(h) ? ' late' : ''));
+      막대.style.gridColumn = (from + 1) + ' / span ' + (to - from + 1);
+      막대.title = h.할일 + ' · ' + (h.시작일 ? h.시작일 + ' ~ ' : '') + h.마감일;
+      칸.appendChild(막대);
+    }
+    줄.appendChild(칸);
+
+    var c5 = 요소('div', 'c act');
+    c5.appendChild(완료버튼(h, function () { return 완료토글(h); }));
+    줄.appendChild(c5);
+
+    줄.addEventListener('click', function () { 모달열기(h); });
+    g.appendChild(줄);
+
+    if (펼친것[h.id]) {
+      세부.forEach(function (sub) { g.appendChild(세부간트행(sub, 시작, 일수)); });
+      g.appendChild(세부추가행(h.id, 5));
+    }
+  });
+}
+
+/** 세부업무 한 건의 간트 행. 날짜가 없으면 막대 칸이 빈 채로 끝난다. */
+function 세부간트행(sub, 축시작, 일수) {
+  var 줄 = 요소('div', 'grow body sub');
+
+  줄.appendChild(요소('div', 'c proj'));
+
+  var c2 = 요소('div', 'c task' + (세부완료(sub) ? ' done' : ''));
+  var 글 = 요소('button', 'txt', sub.세부업무);
+  글.addEventListener('click', function (e) { e.stopPropagation(); 세부모달열기(sub.업무id, sub); });
+  c2.appendChild(글);
+  줄.appendChild(c2);
+
+  var 담당 = [sub.담당내부, sub.담당외부].filter(Boolean).join(' · ');
+  var c3 = 요소('div', 'c who');
+  c3.appendChild(요소('span', '', 담당 || '—'));
+  줄.appendChild(c3);
+
+  var 칸 = 요소('div', 'days row');
+  if (sub.마감일) {
+    var 시작일 = sub.시작일 && sub.시작일 <= sub.마감일 ? sub.시작일 : sub.마감일;
+    var s = 차이(축시작, 시작일), e2 = 차이(축시작, sub.마감일);
+    if (e2 >= 0 && s <= 일수 - 1) {
+      var from = Math.max(0, s), to = Math.min(일수 - 1, e2);
+      var 막대 = 요소('div', 'bar-item' + (세부완료(sub) ? ' done' : 세부지연(sub) ? ' late' : ''));
+      막대.style.gridColumn = (from + 1) + ' / span ' + (to - from + 1);
+      막대.title = sub.세부업무 + ' · ' + (sub.시작일 ? sub.시작일 + ' ~ ' : '') + sub.마감일;
+      칸.appendChild(막대);
+    }
+  }
+  줄.appendChild(칸);
+
+  var c5 = 요소('div', 'c act');
+  c5.appendChild(완료버튼({ 상태: 세부완료(sub) ? '완료' : '진행중' }, function () { return 세부완료토글(sub); }));
+  줄.appendChild(c5);
+
+  줄.addEventListener('click', function () { 세부모달열기(sub.업무id, sub); });
+  return 줄;
+}
+
+/** 「+ 세부업무 추가」 행. 그리드 칸 수만큼 span해서 한 줄로 편다. */
+function 세부추가행(업무id, 칸수) {
+  var 줄 = 요소('div', 'grow body sub');
+  줄.style.gridTemplateColumns = '1fr';
+  var 버튼 = 요소('button', 'subadd', '+ 세부업무 추가');
+  버튼.addEventListener('click', function (e) { e.stopPropagation(); 세부모달열기(업무id, null); });
+  줄.appendChild(버튼);
+  return 줄;
+}
+
+/** 완료/되돌리기 공용 버튼. 파란 「완료」 ↔ 회색 「완료됨 · 되돌리기」 (결정 20). */
+function 완료버튼(h, 토글함수) {
+  var 완료됨 = h.상태 === '완료';
+  var b = 요소('button', 'donebtn' + (완료됨 ? ' on' : ''), 완료됨 ? '완료됨 · 되돌리기' : '완료');
+  b.addEventListener('click', function (e) { e.stopPropagation(); 토글함수(); });
+  return b;
+}
+
+/** 대기 항목이 하나도 없으면 섹션째 접는다 — 빈 상태 안내문 대신 그 자리를 간트에 돌려준다
+ * (2026-08-31, 사용자 피드백). 항목이 생기면 다시 나타난다. */
+function 대기그리기(대기) {
+  var 몸통 = document.getElementById('대기몸통');
+  document.getElementById('대기섹션').classList.toggle('hidden', 대기.length === 0);
+  몸통.innerHTML = '';
+
+  대기.forEach(function (h) {
+    var 세부 = 세부업무목록(h.id);
+    var tr = document.createElement('tr');
+    var 나 = 나이(h);
+
+    var td1 = document.createElement('td');
+    if (h.프로젝트) { var sp = 요소('span', '', h.프로젝트); sp.style.color = 'var(--ink-45)'; td1.appendChild(sp); }
+    tr.appendChild(td1);
+
+    var td2 = 요소('td', 'task', '');
+    td2.appendChild(세부펼침토글(h.id, 세부.length));
+    var 글 = 요소('button', 'txt', h.할일);
+    글.addEventListener('click', function (e) { e.stopPropagation(); 모달열기(h); });
+    td2.appendChild(글); tr.appendChild(td2);
+    tr.appendChild(요소('td', '', h.기다리는대상 || '나'));
+    tr.appendChild(요소('td', 'num', h.멈춘날 || '—'));
+
+    var td5 = 요소('td', 'num');
+    if (나 === null) { td5.textContent = '—'; }
+    else { td5.appendChild(요소('span', 'age' + (나 >= 28 ? ' old' : ''), 나 + '일')); }
+    tr.appendChild(td5);
+
+    tr.appendChild(요소('td', 'why', h.사유 || '—'));
+
+    var td7 = 요소('td', 'wait-actions');
+    td7.appendChild(완료버튼(h, function () { return 완료토글(h); }));
+    var b = 요소('button', 'btn sm', '마감일 정하기');
+    b.addEventListener('click', function (e) { e.stopPropagation(); 모달열기(h, true); });
+    td7.appendChild(b);
+    tr.appendChild(td7);
+
+    tr.addEventListener('click', function () { 모달열기(h); });
+    몸통.appendChild(tr);
+
+    if (펼친것[h.id]) {
+      세부.forEach(function (sub) { 몸통.appendChild(세부대기행(sub)); });
+      몸통.appendChild(세부추가행_표(h.id));
+    }
+  });
+}
+
+/** 대기 표의 세부업무 행 — 날짜 격자가 없으니 막대 없이 텍스트로만 편다. */
+function 세부대기행(sub) {
+  var tr = document.createElement('tr');
+  tr.className = 'subrow';
+
+  tr.appendChild(document.createElement('td'));
+
+  var td2 = 요소('td', 'task', '');
+  var 글 = 요소('button', 'txt', sub.세부업무);
+  글.addEventListener('click', function (e) { e.stopPropagation(); 세부모달열기(sub.업무id, sub); });
+  td2.appendChild(글);
+  tr.appendChild(td2);
+
+  var 담당 = [sub.담당내부, sub.담당외부].filter(Boolean).join(' · ');
+  tr.appendChild(요소('td', '', 담당 || '—'));
+  tr.appendChild(요소('td', 'num', sub.마감일 || '—'));
+  tr.appendChild(document.createElement('td'));
+  tr.appendChild(document.createElement('td'));
+
+  var td7 = 요소('td', 'wait-actions');
+  td7.appendChild(완료버튼({ 상태: 세부완료(sub) ? '완료' : '진행중' }, function () { return 세부완료토글(sub); }));
+  tr.appendChild(td7);
+
+  tr.addEventListener('click', function () { 세부모달열기(sub.업무id, sub); });
+  return tr;
+}
+
+function 세부추가행_표(업무id) {
+  var tr = document.createElement('tr');
+  tr.className = 'subrow';
+  var td = 요소('td');
+  td.colSpan = 7;
+  var 버튼 = 요소('button', 'subadd', '+ 세부업무 추가');
+  버튼.addEventListener('click', function (e) { e.stopPropagation(); 세부모달열기(업무id, null); });
+  td.appendChild(버튼);
+  tr.appendChild(td);
+  return tr;
+}
+
+function 받은함그리기() {
+  var 수 = 상태.받은함.length;
+  var 배지 = document.getElementById('받은함수');
+  배지.textContent = 수;
+  배지.classList.toggle('hidden', 수 === 0);
+
+  var 몸통 = document.getElementById('받은함몸통');
+  몸통.innerHTML = '';
+
+  if (!상태.받은함있음) {
+    var 없음 = 요소('div', 'empty');
+    없음.appendChild(요소('b', '', '받은함 파일이 없습니다'));
+    없음.appendChild(document.createTextNode('드라이브의 책상 폴더에 받은함.md가 아직 없습니다. Claude가 한 줄이라도 쓰면 생깁니다.'));
+    몸통.appendChild(없음);
+    return;
+  }
+  if (!수) {
+    var 빔 = 요소('div', 'empty');
+    빔.appendChild(요소('b', '', '받은함이 비었습니다'));
+    빔.appendChild(document.createTextNode('세션이 끝날 때 Claude가 여기에 할 일을 넣습니다.'));
+    몸통.appendChild(빔);
+    return;
+  }
+
+  상태.받은함.forEach(function (줄) {
+    var 칸 = 요소('div', 'inbox-item');
+    if (줄.프로젝트) {
+      var p = 요소('div', 'meta', 줄.프로젝트);
+      p.style.marginTop = '0'; p.style.marginBottom = '4px'; p.style.fontWeight = '700';
+      칸.appendChild(p);
+    }
+    칸.appendChild(요소('div', 't', 줄.할일));
+    var 메타 = [줄.기다리는대상, 줄.멈춘날, 줄.사유].filter(Boolean).join(' · ');
+    if (메타) 칸.appendChild(요소('div', 'meta', 메타));
+
+    var 줄틀 = 요소('div', 'row');
+    var 날 = document.createElement('input');
+    날.type = 'date'; 날.style.flex = '1'; 날.style.minWidth = '140px';
+    날.style.padding = '7px 10px'; 날.style.border = '1px solid var(--line)';
+    날.style.borderRadius = 'var(--r-sm)'; 날.setAttribute('aria-label', '마감일');
+    줄틀.appendChild(날);
+
+    var 올리기 = 요소('button', 'btn primary sm', '올리기');
+    올리기.addEventListener('click', function () { 받은함올리기(줄.줄, 날.value); });
+    줄틀.appendChild(올리기);
+
+    var 버리기 = 요소('button', 'btn danger sm', '버리기');
+    버리기.addEventListener('click', function () { 받은함버리기(줄.줄); });
+    줄틀.appendChild(버리기);
+
+    칸.appendChild(줄틀);
+    칸.appendChild(요소('div', 'meta', '마감일을 비우면 「대기」로 갑니다.'));
+    몸통.appendChild(칸);
+  });
+}
+
+function 자동완성채우기() {
+  ['프로젝트', '기다리는대상'].forEach(function (키, i) {
+    var 목록 = document.getElementById(i === 0 ? '프로젝트목록' : '대상목록');
+    var 본 = {};
+    상태.할일.forEach(function (h) { if (h[키]) 본[h[키]] = 1; });
+    목록.innerHTML = '';
+    Object.keys(본).sort().forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; 목록.appendChild(o);
+    });
+  });
+}
+
+// ── 동작 ────────────────────────────────────────────────────
+/**
+ * 액션(되돌리기)이 있으면 5초, 없으면 2.2초 뜬다.
+ * 확인 대화 대신 이 토스트로 오작동을 막는다 (결정 20).
+ */
+function 토스트(글, 액션) {
+  var t = document.getElementById('토스트');
+  t.innerHTML = '';
+  t.appendChild(document.createTextNode(글));
+  if (액션) {
+    var b = 요소('button', 'undo', 액션.글);
+    b.addEventListener('click', function () { t.classList.remove('on'); 액션.클릭(); });
+    t.appendChild(b);
+  }
+  t.classList.add('on');
+  clearTimeout(t._타이머);
+  t._타이머 = setTimeout(function () { t.classList.remove('on'); }, 액션 ? 5000 : 2200);
+}
+
+function 완료토글(h) {
+  var 원본상태 = h.상태, 원본상태변경일 = h.상태변경일;
+  var 다음 = h.상태 === '완료' ? '진행중' : '완료';
+  서버('웹_수정', h.id, { 상태: 다음 }).then(function (갱신) {
+    갈아끼우기(갱신);
+    if (다음 === '완료') {
+      // 「완료」 방향만 되돌리기를 준다 — 눌렀다 5초 안에 되돌리면 상태변경일도
+      // 되돌리기 이전의 원래 값으로 복원돼야 한다 (토글을 다시 태우면 오늘로 덮인다).
+      토스트('완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 상태되돌리기(갱신.id, 다음, 원본상태, 원본상태변경일); } });
+    } else {
+      토스트('진행중으로 되돌렸습니다');
+    }
+  }).catch(실패알림);
+}
+
+/**
+ * 기대상태(방금 내가 완료로 바꾼 그 상태)가 지금도 그대로일 때만 되돌린다.
+ * 5초 안에 다른 곳(다른 탭 등)에서 이미 상태를 바꿔놨다면 그 변경을
+ * 오래된 스냅샷으로 덮어쓰지 않는다 (2026-08-29 Codex 리뷰로 발견).
+ */
+function 상태되돌리기(id, 기대상태, 상태, 상태변경일) {
+  서버('웹_수정', id, { 기대상태: 기대상태, 상태: 상태, 상태변경일: 상태변경일 }).then(function (갱신) {
+    갈아끼우기(갱신);
+    토스트(갱신.상태 === 상태 ? '되돌렸습니다' : '그 사이 상태가 바뀌어 되돌리지 못했습니다');
+  }).catch(실패알림);
+}
+
+function 갈아끼우기(갱신) {
+  if (!갱신) return;
+  for (var i = 0; i < 상태.할일.length; i++) {
+    if (상태.할일[i].id === 갱신.id) { 상태.할일[i] = 갱신; break; }
+  }
+  그리기();
+}
+
+function 실패알림(e) { 토스트('실패했습니다 — ' + (e && e.message ? e.message : e)); }
+
+// ── 세부업무 ────────────────────────────────────────────────
+function 세부갈아끼우기(갱신) {
+  if (!갱신) return;
+  for (var i = 0; i < 상태.세부업무.length; i++) {
+    if (상태.세부업무[i].id === 갱신.id) { 상태.세부업무[i] = 갱신; break; }
+  }
+  그리기();
+}
+
+function 세부완료토글(sub) {
+  var 다음완료 = !세부완료(sub);
+  서버('웹_세부업무완료토글', sub.id).then(function (갱신) {
+    세부갈아끼우기(갱신);
+    if (다음완료) 토스트('세부업무를 완료로 옮겼습니다', { 글: '되돌리기', 클릭: function () { 세부완료토글(갱신); } });
+    else 토스트('세부업무를 진행중으로 되돌렸습니다');
+  }).catch(실패알림);
+}
+
+function 세부모달열기(업무id, sub) {
+  세부편집중 = { 부모id: 업무id, id: sub ? sub.id : null };
+  document.getElementById('세부모달제목').textContent = sub ? '세부업무 고치기' : '세부업무 추가';
+  document.getElementById('sf세부업무').value = sub ? sub.세부업무 : '';
+  document.getElementById('sf담당내부').value = sub ? sub.담당내부 : '';
+  document.getElementById('sf담당외부').value = sub ? sub.담당외부 : '';
+  document.getElementById('sf시작일').value = sub ? sub.시작일 : '';
+  document.getElementById('sf마감일').value = sub ? sub.마감일 : '';
+  document.getElementById('sf메모').value = sub ? sub.메모 : '';
+  document.getElementById('세부모달삭제').classList.toggle('hidden', !sub);
+
+  document.getElementById('세부모달틀').classList.remove('hidden');
+  document.getElementById('스크림').classList.add('on');
+  requestAnimationFrame(function () {
+    document.getElementById('세부모달').classList.add('on');
+    document.getElementById('sf세부업무').focus();
+  });
+}
+
+function 세부모달닫기() {
+  document.getElementById('세부모달').classList.remove('on');
+  document.getElementById('스크림').classList.remove('on');
+  setTimeout(function () { document.getElementById('세부모달틀').classList.add('hidden'); }, 200);
+  세부편집중 = null;
+}
+
+function 세부모달저장() {
+  var 항목 = {
+    세부업무: document.getElementById('sf세부업무').value.trim(),
+    담당내부: document.getElementById('sf담당내부').value.trim(),
+    담당외부: document.getElementById('sf담당외부').value.trim(),
+    시작일: document.getElementById('sf시작일').value,
+    마감일: document.getElementById('sf마감일').value,
+    메모: document.getElementById('sf메모').value.trim(),
+  };
+  if (!항목.세부업무) { 토스트('세부업무를 적어 주세요'); document.getElementById('sf세부업무').focus(); return; }
+
+  var 단추 = document.getElementById('세부모달저장');
+  단추.disabled = true; 단추.textContent = '저장 중';
+
+  var 신규 = !세부편집중.id;
+  var 부모id = 세부편집중.부모id;
+  var id = 세부편집중.id;
+
+  var 요청 = 신규
+    ? 서버('웹_세부업무추가', 부모id, 항목)
+    : 서버('웹_세부업무수정', id, 항목);
+
+  요청.then(function (결과) {
+    /* 시트 반영은 이 시점에 이미 끝났다. 아래 화면 갱신을 같은 catch에 묶으면
+       그리기() 쪽 오류를 「저장 실패」로 잘못 알리게 되고, 사용자가 다시 눌러
+       시트에 같은 세부업무가 중복으로 쌓인다 — 그래서 성공 처리부터 끝낸다. */
+    토스트('세부업무를 저장했습니다');
+    세부모달닫기();
+    단추.disabled = false; 단추.textContent = '저장';
+    try {
+      if (신규) { 펼친것[부모id] = true; 상태.세부업무.push(결과); 그리기(); }
+      else 세부갈아끼우기(결과);
+    } catch (e) {
+      console.error('세부업무는 저장됐지만 화면 갱신에 실패했습니다 — 새로고침하세요', e);
+    }
+  }).catch(function (e) {
+    실패알림(e);
+    단추.disabled = false; 단추.textContent = '저장';
+  });
+}
+
+function 세부모달삭제() {
+  if (!세부편집중 || !세부편집중.id) return;
+  if (!confirm('이 세부업무를 지웁니다. 되돌릴 수 없습니다.')) return;
+  var id = 세부편집중.id;
+  서버('웹_세부업무삭제', id).then(function () {
+    상태.세부업무 = 상태.세부업무.filter(function (s) { return s.id !== id; });
+    그리기(); 토스트('지웠습니다'); 세부모달닫기();
+  }).catch(실패알림);
+}
+
+// ── 모달 ────────────────────────────────────────────────────
+function 모달열기(h, 마감일에집중) {
+  편집중 = h || null;
+  document.getElementById('모달제목').textContent = h ? '할 일 고치기' : '새 할 일';
+  document.getElementById('f할일').value = h ? h.할일 : '';
+  document.getElementById('f프로젝트').value = h ? h.프로젝트 : '';
+  document.getElementById('f대상').value = h ? (h.기다리는대상 || '나') : '나';
+  document.getElementById('f시작일').value = h ? h.시작일 : '';
+  document.getElementById('f마감일').value = h ? h.마감일 : '';
+  document.getElementById('f멈춘날').value = h ? h.멈춘날 : 상태.오늘;
+  document.getElementById('f사유').value = h ? h.사유 : '';
+  document.getElementById('모달삭제').classList.toggle('hidden', !h);
+
+  document.getElementById('모달틀').classList.remove('hidden');
+  document.getElementById('스크림').classList.add('on');
+  requestAnimationFrame(function () {
+    document.getElementById('모달').classList.add('on');
+    document.getElementById(마감일에집중 ? 'f마감일' : 'f할일').focus();
+  });
+}
+
+function 모달닫기() {
+  document.getElementById('모달').classList.remove('on');
+  document.getElementById('스크림').classList.remove('on');
+  setTimeout(function () { document.getElementById('모달틀').classList.add('hidden'); }, 200);
+  편집중 = null;
+}
+
+function 모달저장() {
+  var 항목 = {
+    할일: document.getElementById('f할일').value.trim(),
+    프로젝트: document.getElementById('f프로젝트').value.trim(),
+    기다리는대상: document.getElementById('f대상').value.trim() || '나',
+    시작일: document.getElementById('f시작일').value,
+    마감일: document.getElementById('f마감일').value,
+    멈춘날: document.getElementById('f멈춘날').value,
+    사유: document.getElementById('f사유').value,
+  };
+  if (!항목.할일) { 토스트('할 일을 적어 주세요'); document.getElementById('f할일').focus(); return; }
+
+  var 단추 = document.getElementById('모달저장');
+  단추.disabled = true; 단추.textContent = '저장 중';
+
+  var 일 = 편집중
+    ? 서버('웹_수정', 편집중.id, 항목).then(갈아끼우기)
+    : 서버('웹_추가', 항목).then(function (새것) { 상태.할일.push(새것); 그리기(); });
+
+  일.then(function () {
+    토스트(항목.마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
+    모달닫기();
+  }).catch(실패알림).then(function () {
+    단추.disabled = false; 단추.textContent = '저장';
+  });
+}
+
+function 모달삭제() {
+  if (!편집중) return;
+  if (!confirm('이 할 일을 지웁니다. 되돌릴 수 없습니다.')) return;
+  var id = 편집중.id;
+  서버('웹_삭제', id).then(function () {
+    상태.할일 = 상태.할일.filter(function (h) { return h.id !== id; });
+    상태.세부업무 = 상태.세부업무.filter(function (s) { return s.업무id !== id; }); // 서버도 함께 지운다
+    그리기(); 토스트('지웠습니다'); 모달닫기();
+  }).catch(실패알림);
+}
+
+// ── 받은함 ──────────────────────────────────────────────────
+function 받은함열기() {
+  document.getElementById('받은함패널').classList.add('on');
+  document.getElementById('받은함패널').setAttribute('aria-hidden', 'false');
+  document.getElementById('스크림').classList.add('on');
+}
+function 받은함닫기() {
+  document.getElementById('받은함패널').classList.remove('on');
+  document.getElementById('받은함패널').setAttribute('aria-hidden', 'true');
+  document.getElementById('스크림').classList.remove('on');
+}
+function 받은함올리기(줄, 마감일) {
+  서버('웹_받은함올리기', 줄, 마감일).then(function (새것) {
+    상태.할일.push(새것);
+    상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; });
+    그리기();
+    토스트(마감일 ? '「이번」에 올렸습니다' : '「대기」에 넣었습니다');
+  }).catch(실패알림);
+}
+function 받은함버리기(줄) {
+  if (!confirm('받은함에서 지웁니다. 보드에는 남지 않습니다.')) return;
+  서버('웹_받은함버리기', 줄).then(function () {
+    상태.받은함 = 상태.받은함.filter(function (x) { return x.줄 !== 줄; });
+    그리기(); 토스트('받은함에서 지웠습니다');
+  }).catch(실패알림);
+}
+
+// ── 시작 ────────────────────────────────────────────────────
+document.getElementById('새로추가').addEventListener('click', function () { 모달열기(null); });
+document.getElementById('모달취소').addEventListener('click', 모달닫기);
+document.getElementById('모달저장').addEventListener('click', 모달저장);
+document.getElementById('모달삭제').addEventListener('click', 모달삭제);
+document.getElementById('받은함열기').addEventListener('click', 받은함열기);
+document.getElementById('받은함닫기').addEventListener('click', 받은함닫기);
+document.getElementById('세부모달취소').addEventListener('click', 세부모달닫기);
+document.getElementById('세부모달저장').addEventListener('click', 세부모달저장);
+document.getElementById('세부모달삭제').addEventListener('click', 세부모달삭제);
+document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 받은함닫기(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 받은함닫기(); } });
+
+서버('웹_초기데이터').then(function (d) {
+  상태 = d;
+  document.getElementById('로딩').classList.add('hidden');
+  document.getElementById('본문').classList.remove('hidden');
+  그리기();
+}).catch(function (e) {
+  document.getElementById('로딩').classList.add('hidden');
+  document.getElementById('오류').classList.remove('hidden');
+  document.getElementById('오류문').textContent = e && e.message ? e.message : String(e);
+});
+</script>
+</body>
+</html>
