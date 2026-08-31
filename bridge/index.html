@@ -110,6 +110,7 @@
   .seg{display:flex; background:var(--field); border-radius:var(--r-btn); padding:3px}
   .seg button{flex:1; padding:8px 0; border-radius:6px; font-size:13px; font-weight:600; color:var(--sub); transition:background .15s,color .15s}
   .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .seg button:disabled{opacity:.4; cursor:default}
 
   /* 10분 단위 일시 선택: 날짜 + 시 + 분 */
   .dtrow{display:flex; gap:8px; margin-top:8px}
@@ -670,7 +671,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608310419';
+  var 빌드버전_ = '202608312212';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -749,8 +750,7 @@
   let 갱신대기_ = null;      // 방금 쓰기 응답에 실려 온 목록 갱신분 — refresh()가 소비한다
   let pendingLogin = null;  // {name, pin}
   let newFiles = [];        // 답변 첨부 대기 목록
-  let LASTD = null;         // 상세 시트에 열려 있는 지시
-  let LASTS = [];           // 그 지시의 세부업무
+  let LASTD = null;         // 상세 시트에 열려 있는 지시 — 낙관적 쓰기의 스테일 가드로도 쓴다
   const FILTER = { q: '', member: '', type: '' };
   const COLLAPSED = new Set();   // 간트에서 접힌 부문 그룹 — 세션 한정, 기본은 전부 펼침
   const PRIS = ['보통','중요','긴급'];
@@ -1998,6 +1998,11 @@
     let r;
     try { r = await gs('웹_지시상세', TOKEN, id); }
     catch (e) { toast(e.message); closeSheet(); return; }
+    // DATA 캐시에 되먹여 둔다 — 안 그러면 이 왕복으로 받은 배열과 DATA.convs[id]가
+    // 서로 다른 배열이 되어, 지금 여는 이 배열에 밀어 넣는 낙관적 코멘트가 곧바로
+    // 닫았다 다시 열 때(캐시 경로) 사라진다.
+    if (DATA.convs) DATA.convs[id] = r.convs;
+    if (DATA.subs) DATA.subs[id] = r.subs || [];
     renderDetail(r.dir, r.convs, r.subs || [], focusAdd);
   }
 
@@ -2006,7 +2011,7 @@
 
   function renderDetail(d, convs, subs, focusAdd){
     LASTD = d;
-    LASTS = subs || [];
+    subs = subs || [];
     const me = DATA.me;
     const isAssignee = d.who.indexOf(me.name) >= 0;
     const openStatus = isOpen(d.status);
@@ -2030,7 +2035,7 @@
     h += actionBarHtml(d, convs);
 
     // 마일스톤 — 어느 단계까지 왔고 어디서 밀렸는지
-    h += subCardHtml(d, LASTS);
+    h += subCardHtml(d, subs);
 
     // 스레드
     h += '<div class="thread">';
@@ -2086,7 +2091,7 @@
     if (me.manage || d.owner === me.name) h += manageBtnsHtml(d);
 
     $('sheetBody').innerHTML = h;
-    bindDetail(d);
+    bindDetail(d, convs, subs);
     // 간트의 '+ 세부업무 추가' 진입점 — 권한이 없어 카드가 안 그려졌으면 nsTitle이 없다, 조용히 무시
     if (focusAdd) {
       const el = $('nsTitle');
@@ -2151,17 +2156,26 @@
         + '<button class="btn-primary" id="plOk" style="margin-top:0;flex:1.4">계획 승인</button>'
         + '<button class="btn-quiet" id="plNo" style="flex:1">보완요청</button></div></div>';
     }
-    /* 전달 줄 (옵션2 결정 6) — 임원 자기 업무는 마일스톤을 짠 뒤 대표님께 알린다.
-       업무는 생성 즉시 보이지만, 전달이 「계획이 섰다」는 인지 시점의 기록이다. */
-    const 자기업무 = !me.manage && d.owner === me.name && d.who.length === 1 && d.who[0] === me.name;
-    if (자기업무 && (d.status === '시작 전' || d.status === '진행 중')) {
-      const 전달됨 = (convs || []).some(c => c.type === '전달');
-      return '<div class="card"><h3>대표님께 전달</h3>'
-        + '<div class="hint">' + (전달됨
-          ? '이미 전달했습니다. 계획이 크게 바뀌었으면 다시 전달할 수 있습니다.'
-          : '완료 기준을 적고 마일스톤을 짠 뒤 전달하면 대표님께 메일이 갑니다. 전달 없이 완료 보고로 바로 가도 됩니다.') + '</div>'
+    /* 대표님 컨펌 요청 (ADR 0031) — 계획 컨펌이 시작의 관문이다: 웹_계획응답(ok=true)만이
+       '시작 전'을 '진행 중'으로 올린다. 대표 지시(옵션1)·임원 자기 업무(옵션2) 공통 —
+       담당이면 누구나 뜬다(옵션 구분 없음). status==='시작 전'일 때만 뜬다: 컨펌되면
+       '진행 중'으로 넘어가 이 카드가 자연히 사라진다. */
+    if (!me.manage && d.who.indexOf(me.name) >= 0 && d.status === '시작 전') {
+      const 전달들 = (convs || []).filter(c => c.type === '전달');
+      const 마지막전달 = 전달들[전달들.length - 1];
+      // 마지막 전달이 미처리면 대표 응답을 기다리는 중 — 다시 보낼 게 없으니 폼을 접는다
+      if (마지막전달 && !마지막전달.handled) {
+        return '<div class="card"><h3>대표님 컨펌 요청</h3>'
+          + '<div class="hint">컨펌을 요청했습니다 — 대표님이 승인하면 업무가 시작됩니다.</div></div>';
+      }
+      // 보완요청으로 되돌아온 것이면 재요청, 처음이면 최초 요청 — 문구만 갈린다
+      const 보완요청됨 = 마지막전달 && 마지막전달.handled === '보완요청';
+      return '<div class="card"><h3>대표님 컨펌 요청</h3>'
+        + '<div class="hint">' + (보완요청됨
+          ? '보완 요청을 반영해 계획을 고친 뒤 다시 요청해 주세요.'
+          : '완료 기준을 적고 마일스톤을 짠 뒤 컨펌을 요청하면 대표님께 메일이 갑니다. 컨펌 전에는 완료 보고를 올릴 수 없습니다.') + '</div>'
         + '<input type="text" id="fwNote" placeholder="한 줄 메모 (선택)" style="margin-top:8px">'
-        + '<button class="btn-quiet" id="fwSend" style="margin-top:10px">' + (전달됨 ? '다시 전달' : '대표님께 전달') + '</button></div>';
+        + '<button class="btn-quiet" id="fwSend" style="margin-top:10px">' + (보완요청됨 ? '컨펌 다시 요청' : '대표님 컨펌 요청') + '</button></div>';
     }
     return '';
   }
@@ -2227,12 +2241,15 @@
   function replyFormHtml(d){
     /* 기록 세그 2종 (노션 판): '진행' = 수시 보고 — 기한 조정·미팅 요청을 함께 낼 수 있다.
        '완료 보고' = 끝맺음 → 컨펌 대기. 옛 '답변'은 은퇴했다 (서버 웹_답변등록은 호환으로 남는다).
-       컨펌 대기 중에는 진행 기록만 남길 수 있다 — 보고를 겹쳐 올릴 자리가 없다. */
+       컨펌 대기 중에는 진행 기록만 남길 수 있다 — 보고를 겹쳐 올릴 자리가 없다.
+       시작 전(계획 컨펌 전)에도 세그 자체는 보이되 완료 보고만 비활성 — 서버(웹_완료보고)가
+       ADR 0031로 거절하는 걸 버튼에서부터 보여준다. 진행 기록은 이 관문 앞에서도 남길 수 있다. */
     const 보고가능 = d.status !== '컨펌 대기';
+    const 완료보고가능 = 보고가능 && d.status !== '시작 전';
     return '<div class="card"><h3>기록 남기기</h3>'
       + (보고가능
         ? '<div class="seg" id="rKind"><button class="on" data-v="진행">진행</button>'
-          + '<button data-v="완료 보고">완료 보고</button></div>'
+          + '<button data-v="완료 보고"' + (완료보고가능 ? '' : ' disabled title="계획 컨펌을 먼저 받아야 완료 보고를 올릴 수 있습니다"') + '>완료 보고</button></div>'
         : '')
       + '<textarea id="rBody" placeholder="진행 상황을 입력하세요" rows="3" style="margin-top:10px"></textarea>'
       + '<div class="row-label">첨부 자료</div>'
@@ -2383,7 +2400,52 @@
 
   let MEET_NEED = null;   // '일정 제안하기'로 응답 중인 미팅 요청 대화 ID
 
-  function bindDetail(d){
+  /* #sheetBody 안의 입력칸 스냅샷/복원 — 낙관적 재렌더는 상세 전체를 다시 그리므로,
+     지금 손보는 필드 말고도 사용자가 동시에 채워 둔 다른 입력(예: 컨펌 반려 사유)이
+     같이 지워진다. 재렌더 직전 값을 떠 뒀다가 직후 되돌린다. */
+  function snapshotSheetInputs(){
+    const m = {};
+    document.querySelectorAll('#sheetBody input, #sheetBody textarea').forEach(el => { if (el.id) m[el.id] = el.value; });
+    return m;
+  }
+  function restoreSheetInputs(snap, exceptId){
+    Object.keys(snap).forEach(id => {
+      if (id === exceptId) return;
+      const el = $(id);
+      if (el) el.value = snap[id];
+    });
+  }
+
+  /* 공용 낙관적 쓰기 — 클릭 즉시 반영하고, 쓰기 자체가 실패했을 때만 되돌린다.
+     d는 스테일 가드용 참조다: 요청이 도는 사이 사용자가 다른 지시를 열면(LASTD가 바뀌면)
+     응답이 와도 지금 보고 있는 다른 지시 위에 이 결과를 덮어 그리지 않는다 — 캐시만 갱신한다.
+     쓰기 자체 실패와 쓰기 후속(재조회) 실패를 구분한다 — 후속 실패로 이미 성공한 쓰기를
+     되돌린 것처럼 보이면 안 된다. draftId/draftVal은 실패 시 되돌릴 입력칸과 사용자가
+     쓰던 값 — 코멘트처럼 비우는 폼, 완료 기준처럼 곧바로 새 값을 보여주는 폼 모두 쓴다. */
+  function optimisticSend(d, convs, subs, { btnId, apply, rollback, call, onOk, draftId, draftVal }){
+    const 스냅 = snapshotSheetInputs();
+    apply();
+    renderDetail(d, convs, subs);
+    restoreSheetInputs(스냅, draftId);
+    const btn = $(btnId);
+    if (btn) btn.disabled = true;
+    call().then(async r => {
+      if (LASTD !== d) { await refresh(); return; }
+      try { await onOk(r); }
+      catch (e) { toast('저장은 됐지만 새로고침에 실패했습니다 — 새로고침해 주세요'); }
+    }, e => {
+      rollback();
+      if (LASTD === d) {
+        const 스냅2 = snapshotSheetInputs();
+        renderDetail(d, convs, subs);
+        restoreSheetInputs(스냅2, null);
+        if (draftId) { const el = $(draftId); if (el) el.value = draftVal || ''; }
+      }
+      toast(e.message);
+    });
+  }
+
+  function bindDetail(d, convs, subs){
     newFiles = [];
     MEET_NEED = null;
     const add = $('rAddFile');
@@ -2438,14 +2500,22 @@
     });
     // 완료 기준 — 담당만 이 버튼이 그려진다 (goalCardHtml). 서버가 다시 판정한다
     const glSave = $('glSave');
-    if (glSave) glSave.addEventListener('click', async () => {
-      busy(true, '저장 중...');
-      try {
-        const r = await gs('웹_완료기준', TOKEN, { id: d.id, goal: $('glText').value.trim() });
-        toast(r.changed ? '완료 기준을 저장했습니다' : '변경된 내용이 없습니다');
-        await reopen(d.id);
-      } catch (e) { toast(e.message); }
-      busy(false);
+    // 낙관적 UI (속도 개선 2단계) — GAS 왕복(1.7초+)을 기다리지 않고 즉시 카드를 새 값으로
+    // 다시 그린다. 실패하면 이전 값으로 되돌린다. 변경 없음(r.changed===false)이면
+    // 이미 낙관적으로 그려 둔 값이 맞으니 재조회 없이 토스트만 띄운다.
+    if (glSave) glSave.addEventListener('click', () => {
+      const 새값 = $('glText').value.trim();
+      const 이전값 = d.goal;
+      optimisticSend(d, convs, subs, {
+        btnId: 'glSave', draftId: 'glText', draftVal: 새값,
+        apply: () => { d.goal = 새값; },
+        rollback: () => { d.goal = 이전값; },
+        call: () => gs('웹_완료기준', TOKEN, { id: d.id, goal: 새값 }),
+        onOk: async r => {
+          toast(r.changed ? '완료 기준을 저장했습니다' : '변경된 내용이 없습니다');
+          if (r.changed) await reopen(d.id);
+        },
+      });
     });
     // 계획 확인 — 전달의 짝. 승인/보완요청 (컨펌/반려와 같은 모양)
     const plOk = $('plOk');
@@ -2466,22 +2536,29 @@
     }
     const fwSend = $('fwSend');
     if (fwSend) fwSend.addEventListener('click', async () => {
-      busy(true, '전달 중...');
+      busy(true, '컨펌 요청 중...');
       try {
         await gs('웹_전달', TOKEN, { id: d.id, note: $('fwNote').value.trim() });
-        toast('대표님께 전달했습니다.');
+        toast('대표님께 컨펌을 요청했습니다.');
         await reopen(d.id);
       } catch (e) { toast(e.message); }
       busy(false);
     });
     const cSend = $('cSend');
-    if (cSend) cSend.addEventListener('click', async () => {
+    // 낙관적 UI (속도 개선 2단계) — 스레드에 즉시 붙이고, 실패하면 그 줄만 뗀다.
+    if (cSend) cSend.addEventListener('click', () => {
       const body = $('cBody').value.trim();
       if (!body) { toast('내용을 입력해 주세요'); return; }
-      busy(true, '저장 중...');
-      try { await gs('웹_코멘트등록', TOKEN, { id: d.id, body }); toast('코멘트가 등록되었습니다'); await reopen(d.id); }
-      catch (e) { toast(e.message); }
-      busy(false);
+      const now = new Date();
+      const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '코멘트', body, files: [], when: '', when2: '', handled: '' };
+      optimisticSend(d, convs, subs, {
+        btnId: 'cSend', draftId: 'cBody', draftVal: body,
+        apply: () => { convs.push(임시); },
+        rollback: () => { const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1); },
+        call: () => gs('웹_코멘트등록', TOKEN, { id: d.id, body }),
+        onOk: async () => { toast('코멘트가 등록되었습니다'); await reopen(d.id); },
+      });
     });
     /* 세부업무 — 완료 체크 · 기한 즉시 변경(승인 없음) · 삭제 · 한 줄 추가.
        #sheetBody로 좁힌다 — 뒤에 있는 목록에도 같은 속성이 있으면 중복 바인딩된다 */
