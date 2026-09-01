@@ -387,8 +387,11 @@
 
   /* 데스크톱: 현황판을 목록 + 캘린더 2단으로 */
   @media (min-width:1080px){
-    .wrap{max-width:1104px}
-    .topbar-in{max-width:1104px}
+    /* 1104px 고정이던 것을 푼다(2026-09-01 피드백) — 1890px 모니터에서 좌우 400px씩이 빈 채였다.
+       상한 1600px은 남겨 둔다: 무한정 늘리면 통계 카드 넉 장이 각각 500px가 되고 검색창 한 줄이
+       화면을 가로지른다. 넓힌 폭은 아래 일수_()가 간트 날짜 칸으로 돌려 쓴다. */
+    .wrap{max-width:min(1600px, 100%)}
+    .topbar-in{max-width:min(1600px, 100%)}
     .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
     #tabNew{max-width:720px; margin:0 auto}
     .cal-d{min-height:64px}
@@ -705,7 +708,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202609010053';
+  var 빌드버전_ = '202609010123';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -1586,8 +1589,25 @@
      상태(완료/지연/진행중)는 서버가 파생해 준다 — 여기서 다시 세지 않는다. */
   /* 하루 폭은 JS가 정해 `--gt-dw`로 내려보낸다 — CSS에 따로 적으면 막대 좌표와 칸이 어긋난다.
      좁은 화면에서 34px를 쓰면 4일치밖에 안 보여서, 폰에서는 칸을 좁힌다. */
-  const GT_DAYS = 28, DAYMS = 86400000;
+  const DAYMS = 86400000;
   const 하루폭 = () => (innerWidth < 700 ? 26 : 34);
+  /* 라벨 칸 폭 — CSS의 세 단(152/260/310)과 같은 문턱을 쓴다. 여기서 어긋나면 날짜 칸 수가
+     실제 남는 폭과 달라져 표가 넘치거나 덜 찬다. CSS를 고치면 여기도 같이 고친다. */
+  const 라벨폭 = () => (innerWidth >= 1080 ? 310 : innerWidth >= 700 ? 260 : 152);
+  /* 보여줄 날짜 수 — 28일 고정이던 것을 창에 맞춘다(2026-09-01 피드백). 폭을 넓혀도 날짜 수가
+     그대로면 표 오른쪽만 비고 여백은 그대로다. 최소 28일은 지킨다: 좁은 화면에서 더 줄이면
+     한 달짜리 업무가 통째로 창 밖으로 나가 화살표만 남는다. */
+  const 일수_ = () => {
+    /* 실제 그려진 폭에서 잰다 — 창 폭에서 어림하면 스크롤바 둘(페이지·간트 자체)이 빠지지 않아
+       29px쯤 넘쳐 가로 스크롤바가 생긴다(실측). 첫 렌더나 숨은 뷰에서는 0이 나오므로 그때만 어림한다. */
+    const 박스 = document.getElementById('gtWrap');
+    /* 어림값에서 34px을 더 뺀다 — 스크롤바 둘(페이지·간트) 몫이다. 첫 렌더는 vMain이 아직
+       숨은 채라 실측이 0이고, 그 뒤로 다시 그리지 않으므로 이 어림값이 사실상 평소 값이다.
+       덜 채우는 쪽으로 틀리는 건 몇 px 여백이지만, 넘치는 쪽으로 틀리면 가로 스크롤바가 생긴다. */
+    const 폭 = (박스 && 박스.clientWidth) || (Math.min(1600, innerWidth) - 32 - 34);
+    return Math.max(28, Math.floor((폭 - 라벨폭()) / 하루폭()));
+  };
+  let GT_DAYS = 일수_();
   let GT_DW = 하루폭();
   let GT_FROM = null;                       // 창의 첫날 (자정)
   const 자정 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -1597,6 +1617,7 @@
   function renderGantt(){
     const today = 자정(new Date());
     GT_DW = 하루폭();
+    GT_DAYS = 일수_();
     if (!GT_FROM) GT_FROM = new Date(today.getTime() - 7 * DAYMS);
     const 칸 = dt => Math.round((자정(dt) - GT_FROM) / DAYMS);   // 창 시작으로부터 며칠째
     const 끝 = new Date(GT_FROM.getTime() + (GT_DAYS - 1) * DAYMS);
@@ -1823,7 +1844,7 @@
 
   let 바탕캐시 = { key: '', html: '' };
   function 바탕(today){
-    const key = iso(GT_FROM) + '|' + iso(today);
+    const key = iso(GT_FROM) + '|' + iso(today) + '|' + GT_DAYS + '|' + GT_DW;
     if (바탕캐시.key !== key) {
       let h = '';
       for (let i = 0; i < GT_DAYS; i++) h += '<div class="gt-d' + 날칸(new Date(GT_FROM.getTime() + i * DAYMS), today) + '"></div>';
@@ -1861,7 +1882,9 @@
 
   /* 폰을 돌리면 하루 폭이 바뀐다 — 다시 그리지 않으면 막대의 인라인 좌표가 옛 폭 그대로라 칸과 어긋난다.
      폭이 실제로 달라졌을 때만 그린다 (스크롤·키보드가 올라와도 resize가 뜬다) */
-  addEventListener('resize', () => { if (DATA && VIEW === 'gantt' && GT_DW !== 하루폭()) renderGantt(); });
+  addEventListener('resize', () => {
+    if (DATA && VIEW === 'gantt' && (GT_DW !== 하루폭() || GT_DAYS !== 일수_())) renderGantt();
+  });
 
   $('q').addEventListener('input', () => {
     FILTER.q = $('q').value.trim().toLowerCase();
