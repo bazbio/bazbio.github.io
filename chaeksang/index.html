@@ -270,6 +270,10 @@
   .modal .body { padding: 18px 20px; overflow-y: auto; }
   .modal footer { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line-soft); }
   .modal footer .spacer { margin-left: auto; }
+  /* 브리지 연동 줄 (ADR 0004) — 모달 바닥 바로 위. 「이 항목의 주인이 어느 앱인가」를 말한다 */
+  .modal .연동줄 { margin: 0 20px 4px; padding: 10px 12px; border-radius: 10px;
+    background: var(--면2, #f2f2f7); color: var(--글2, #6b6b70); font-size: 13px; line-height: 1.45; }
+  .modal .연동줄.hidden { display: none; }
 
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-45); margin-bottom: 5px; }
@@ -439,8 +443,12 @@
         </div>
       </div>
     </div>
+    <!-- 브리지 연동 (ADR 0004). 연동된 항목은 주인을 밝히고, 안 된 항목에는 올리는 버튼만 둔다.
+         거울이면 입력칸을 통째로 잠근다 — 여기서 고쳐도 다음 갱신에 조용히 덮이기 때문이다. -->
+    <div class="연동줄 hidden" id="연동줄"><span id="연동글"></span></div>
     <footer>
       <button class="btn danger hidden" id="모달삭제">삭제</button>
+      <button class="btn ghost hidden" id="모달연동">브리지로 올리기</button>
       <span class="spacer"></span>
       <button class="btn ghost" id="모달취소">취소</button>
       <button class="btn primary" id="모달저장">저장</button>
@@ -1239,6 +1247,7 @@ function 모달열기(h, 마감일에집중) {
   document.getElementById('f멈춘날').value = h ? h.멈춘날 : 상태.오늘;
   document.getElementById('f사유').value = h ? h.사유 : '';
   document.getElementById('모달삭제').classList.toggle('hidden', !h);
+  연동줄그리기(h);
 
   document.getElementById('모달틀').classList.remove('hidden');
   document.getElementById('스크림').classList.add('on');
@@ -1246,6 +1255,68 @@ function 모달열기(h, 마감일에집중) {
     document.getElementById('모달').classList.add('on');
     document.getElementById(마감일에집중 ? 'f마감일' : 'f할일').focus();
   });
+}
+
+/* 브리지 연동 줄 (ADR 0004).
+   - 안 묶인 항목: 「브리지로 올리기」 버튼만.
+   - 책상이 원본: 배지 + 「연동 끊기」. 여기서 그대로 고치면 되고, 저장할 때 브리지로 밀린다.
+   - 브리지가 원본(거울): 입력칸을 전부 잠근다. 상태·완료도 브리지가 정한다(§3) —
+     열어 두면 눌러 놓고 왜 안 바뀌는지 모르게 된다. */
+function 연동줄그리기(h) {
+  var 줄 = document.getElementById('연동줄');
+  var 글 = document.getElementById('연동글');
+  var 연동버튼 = document.getElementById('모달연동');
+  var 거울 = !!(h && h.연동주인 === '거울');
+
+  ['f할일', 'f프로젝트', 'f대상', 'f시작일', 'f마감일', 'f멈춘날', 'f사유'].forEach(function (id) {
+    document.getElementById(id).disabled = 거울;
+  });
+  document.getElementById('모달저장').classList.toggle('hidden', 거울);
+  document.getElementById('모달삭제').classList.toggle('hidden', !h || !!(h && h.브리지id));
+
+  if (!h) {
+    줄.classList.add('hidden');
+    연동버튼.classList.add('hidden');
+    return;
+  }
+  if (!h.브리지id) {
+    줄.classList.add('hidden');
+    연동버튼.classList.remove('hidden');
+    연동버튼.textContent = '브리지로 올리기';
+    연동버튼.onclick = 브리지로올리기;
+    return;
+  }
+  줄.classList.remove('hidden');
+  글.textContent = 거울
+    ? '브리지가 원본입니다 — 브리지에서 고쳐 주세요. 여기서는 읽기만 됩니다.'
+    : '브리지에 올라간 업무입니다. 여기서 고치면 브리지에도 반영됩니다 (완료는 따로 처리하셔야 합니다).';
+  연동버튼.classList.remove('hidden');
+  연동버튼.textContent = '연동 끊기';
+  연동버튼.onclick = 연동끊기;
+}
+
+function 브리지로올리기() {
+  var h = 편집중;
+  if (!h) return;
+  서버('웹_브리지로올리기', h.id).then(function (r) {
+    h.브리지id = r.브리지ID;
+    h.연동주인 = '원본';
+    토스트('브리지로 올렸습니다');
+    연동줄그리기(h);
+    그리기();
+  }).catch(function (e) { 토스트(e.message); });
+}
+
+function 연동끊기() {
+  var h = 편집중;
+  if (!h) return;
+  서버('웹_연동끊기', h.id).then(function () {
+    h.브리지id = '';
+    h.연동주인 = '';
+    토스트('연동을 끊었습니다');
+    연동줄그리기(h);
+    그리기();
+  }).catch(function (e) { 토스트(e.message); });
 }
 
 function 모달닫기() {
