@@ -240,8 +240,16 @@
   /* ── 업무 일정 (간트) ──
      왼쪽 라벨은 제자리에 붙어 있고 날짜 칸만 가로로 흐른다. 하루 폭(--gt-dw)과 바의 위치는
      JS가 계산해 인라인으로 넣는다 — 그 둘 말고는 인라인 스타일을 쓰지 않는다. */
-  .gt-wrap{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; margin:0 -16px}
+  /* 간트는 자체 스크롤 영역이다(2026-09-01) — 세로도 여기서 흘러야 날짜 머리를 sticky로 붙일 수
+     있다. 예전처럼 페이지가 세로를 맡고 여기는 overflow-y:hidden이면, 머리는 스크롤되지 않는
+     제 상자에 붙으므로 sticky를 걸어도 화면에 남지 않는다. */
+  .gt-wrap{overflow:auto; -webkit-overflow-scrolling:touch; margin:0 -16px;
+    max-height:calc(100vh - 210px); min-height:320px; overscroll-behavior:contain}
   .gt{min-width:max-content; --gt-dw:34px}
+  /* 달머리·날머리를 한 덩어리로 묶어 붙인다 — 둘을 따로 sticky로 걸면 아래쪽 top 값에 달머리
+     높이를 px로 어림해 넣어야 하고, 글꼴이 바뀌는 날 그 값이 곧 어긋난다 */
+  .gt-head{position:sticky; top:0; z-index:5; background:var(--card)}
+  .gt-head .gt-lab{z-index:6}
   .gt-row{display:flex; align-items:stretch; border-top:1px solid var(--line); width:100%; text-align:left}
   .gt-row.head{border-top:0}
   .gt-row.dir,.gt-row.sub{cursor:pointer}
@@ -258,8 +266,32 @@
   /* 상태 배지 줄(2026-08-30 야간, 표 통합) — 업무 표의 상태 배지·D-day 점을 간트 줄로 옮겨 온 자리.
      .gt-lab span의 nowrap·ellipsis를 이 줄만 되돌린다(플렉스 두 아이콘뿐이라 넘칠 일이 없다) */
   .gt-lab .gt-badges{display:flex; align-items:center; gap:6px; white-space:normal; overflow:visible; margin-top:2px}
-  .gt-row.sub .gt-lab{padding-left:32px}
+  /* 업무 줄과 마일스톤 줄을 확실히 가른다(2026-09-01) — 예전에는 들여쓰기 16px과 글자 1px
+     차이뿐이라 「구분이 안 간다」는 피드백이 나왔다. 업무는 띄우고(옅은 배경 + 왼쪽 부문색 띠 +
+     굵은 제목), 마일스톤은 낮춘다(카드 배경 그대로 + 깊은 들여쓰기 + 세로 연결선). */
+  .gt-row.dir .gt-lab{background:var(--field); border-left:3px solid var(--dept-c, var(--sub)); padding-left:13px}
+  .gt-row.dir:hover .gt-lab{background:color-mix(in srgb, var(--dept-c, var(--sub)) 14%, var(--field))}
+  .gt-row.dir .gt-lab b{font-size:15.5px; font-weight:700}
+  /* 마일스톤 — 세로 연결선이 「이건 위 업무에 딸린 것」이라고 말한다. 마지막 줄만 반쯤 그으면
+     계층이 끝나는 자리가 보이지만, 뒤에 '+ 세부업무 추가' 줄이 붙어 판정이 어긋난다 */
+  .gt-row.sub .gt-lab{padding-left:48px}
+  .gt-row.sub .gt-lab::before{content:''; position:absolute; left:20px; top:0; bottom:0; border-left:2px solid var(--line)}
   .gt-row.sub .gt-lab b{font-size:14px; font-weight:500}
+  /* 완료한 마일스톤도 업무 줄(.gt-done)과 같은 시각 언어 — 흐리게 + 취소선 */
+  .gt-row.sub.ms-done .gt-lab b{text-decoration:line-through; text-decoration-color:var(--faint)}
+  .gt-row.sub.ms-done .gt-lab b,.gt-row.sub.ms-done .gt-lab span{opacity:.5}
+  /* 업무별 마일스톤 접기(2026-09-01) — 마일스톤 넷씩 달린 업무가 몇 개만 있어도 한 화면에서
+     넘친다. .gt-row.dir이 button이라 안에 button을 또 못 넣는다 — span으로 두고 줄 클릭
+     처리에서 가려낸다(완료 체크박스도 같은 이유로 span이다) */
+  .gt-lab .gt-sub-toggle{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
+    margin-right:3px; border-radius:5px; font-size:10px; color:var(--sub); vertical-align:1px}
+  .gt-lab .gt-sub-toggle:hover{background:var(--line); color:var(--ink)}
+  /* 마일스톤 완료 체크(2026-09-01) — 예전에는 상세시트를 열어야만 눌렀다. 권한이 없으면 안 그린다 */
+  .gt-lab .gt-chk{position:absolute; left:26px; top:50%; transform:translateY(-50%); width:16px; height:16px;
+    border:2px solid var(--faint); border-radius:5px; background:var(--card);
+    display:flex; align-items:center; justify-content:center; font-size:11px; color:transparent}
+  .gt-lab .gt-chk:hover{border-color:var(--accent)}
+  .gt-lab .gt-chk.on{background:var(--gt-done); border-color:var(--gt-done); color:#FFFFFF}
   /* 세부업무 인라인 추가 진입점(2026-08-30, 책상 스타일 grilling) — 상세시트를 열어
      '한 줄 추가' 폼으로 스크롤+포커스한다. 완료·보류 지시, 권한 없는 사용자에게는 안 그린다 */
   .gt-row.subadd{cursor:pointer}
@@ -302,18 +334,19 @@
   .gt-mons{display:flex; padding-left:152px}
   /* 라벨 폭은 하루폭()의 700px 문턱과 같이 움직인다 — 폰에서는 이름을 줄여 날짜를 더 보여준다 */
   @media (min-width:700px){
-    .gt-lab{width:214px; min-width:214px}
-    .gt-mons{padding-left:214px}
+    .gt-lab{width:260px; min-width:260px}
+    .gt-mons{padding-left:260px}
   }
   .gt-mon{flex:none; font-size:12.5px; font-weight:700; color:var(--ink); padding:9px 0 3px 6px; border-left:1px solid var(--line)}
   /* 막대 — 시작일~마감일. 색을 통째로 채운다 (연한 톤은 흰 카드 위에서 안 보인다).
      완료는 초록, 지연은 빨강, 진행 중은 액센트, 보류는 회색 */
   .gt-bar{position:absolute; top:50%; transform:translateY(-50%); height:20px; border-radius:999px;
     background:var(--gt-wait)}
-  .gt-bar.done{background:var(--gt-done)}
+  /* 막대는 3색만 쓴다(2026-09-01) — 상태 5색과 부문 6색이 한 화면에 섞여 「눈에 안 들어온다」는
+     피드백이 나왔다. 띄어야 할 건 「지금 문제인 것」뿐이라, 끝났거나(완료) 멈춘 것(보류·컨펌
+     대기)은 전부 중립 회색으로 가라앉힌다 — 그 셋을 가르는 일은 상태 배지가 맡는다 */
   .gt-bar.late{background:var(--gt-late)}
-  .gt-bar.hold{background:var(--gt-hold)}
-  .gt-bar.confirm{background:var(--gt-confirm)}
+  .gt-bar.done,.gt-bar.hold,.gt-bar.confirm{background:var(--gt-hold)}
   /* 요약 막대(업무 줄) — 세부업무를 감싸는 띠라 얇고 각지게 해서 세부 막대와 구별한다 */
   .gt-bar.roll{height:10px; border-radius:3px}
   /* 창 밖으로 잘린 쪽은 모서리를 각지게 — 「여기서 끝난 게 아니라 잘렸다」는 표시 */
@@ -322,10 +355,8 @@
   /* 기한만 있는 줄 — 기간이 없으니 그날 하나를 마름모로 찍는다 */
   .gt-dot{position:absolute; top:50%; width:16px; height:16px; margin-left:calc((var(--gt-dw) - 16px) / 2);
     transform:translateY(-50%) rotate(45deg); border-radius:3px; background:var(--gt-wait)}
-  .gt-dot.done{background:var(--gt-done)}
   .gt-dot.late{background:var(--gt-late)}
-  .gt-dot.hold{background:var(--gt-hold)}
-  .gt-dot.confirm{background:var(--gt-confirm)}
+  .gt-dot.done,.gt-dot.hold,.gt-dot.confirm{background:var(--gt-hold)}
   /* 창 밖에 있는 줄 — 빈 칸으로 두면 "일정이 없다"로 읽힌다. 어느 쪽에 있는지 화살표로 알린다 */
   .gt-edge{position:absolute; top:50%; transform:translateY(-50%); font-size:16px; font-weight:800;
     color:var(--sub); padding:0 4px}
@@ -335,9 +366,8 @@
   .gt-legend span{display:inline-flex; align-items:center; gap:6px}
   .gt-legend s{width:20px; height:11px; border-radius:999px; text-decoration:none}
   .gt-legend s.w{background:var(--gt-wait)}
-  .gt-legend s.c{background:var(--gt-confirm)}
-  .gt-legend s.d{background:var(--gt-done)}
   .gt-legend s.l{background:var(--gt-late)}
+  .gt-legend s.h{background:var(--gt-hold)}
 
   /* ── 뷰 전환 바 (노션 판 2026-08-30 → 간트 단일 뷰 2026-08-30 야간 통합) ── */
   .viewbar{display:flex; align-items:center; justify-content:space-between; gap:10px 12px; flex-wrap:wrap; margin-bottom:12px}
@@ -362,8 +392,8 @@
     .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
     #tabNew{max-width:720px; margin:0 auto}
     .cal-d{min-height:64px}
-    .gt-lab{width:270px; min-width:270px}
-    .gt-mons{padding-left:270px}
+    .gt-lab{width:310px; min-width:310px}
+    .gt-mons{padding-left:310px}
   }
 
   /* 탭 (대표용) */
@@ -389,6 +419,10 @@
   .sheet-meta{font-size:13px; color:var(--sub); padding:4px 2px 0}
   .sheet-meta b{color:var(--ink); font-weight:600}
   .detail-body{font-size:14.5px; white-space:pre-wrap; padding:10px 2px 0}
+  /* 책상 연동 줄 (ADR 0004) — 배지 하나와 버튼 하나가 전부다. 이 줄이 「이 업무의 주인이
+     어느 앱인가」를 말한다. 원본이면 여기서 고치는 게 맞고, 거울이면 반대편에서 고쳐야 한다 */
+  .linkbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 2px 0; font-size:13px; color:var(--sub)}
+  .linkbar .pill{flex:none}
 
   /* 대화 스레드 */
   .thread{display:flex; flex-direction:column; gap:10px; margin-top:8px}
@@ -548,7 +582,7 @@
           </div>
           <div class="gt-wrap" id="gtWrap"></div>
           <div class="gt-legend">
-            <span><s class="w"></s>진행 중</span><span><s class="c"></s>컨펌 대기</span><span><s class="d"></s>완료</span><span><s class="l"></s>지연</span>
+            <span><s class="w"></s>진행 중</span><span><s class="l"></s>지연</span><span><s class="h"></s>완료 · 보류 · 컨펌 대기</span>
             <span>◆ 기한만 정해진 줄</span>
           </div>
         </div>
@@ -671,7 +705,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202608312231';
+  var 빌드버전_ = '202609010053';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -753,6 +787,7 @@
   let LASTD = null;         // 상세 시트에 열려 있는 지시 — 낙관적 쓰기의 스테일 가드로도 쓴다
   const FILTER = { q: '', member: '', type: '' };
   const COLLAPSED = new Set();   // 간트에서 접힌 부문 그룹 — 세션 한정, 기본은 전부 펼침
+  const MS_COLLAPSED = new Set();// 마일스톤을 접은 업무의 id — 부문 접기와 같은 규칙(세션 한정)
   const PRIS = ['보통','중요','긴급'];
   // 열린 상태 3종 — 상태 5종 판(2026-08-30)의 「아직 안 끝난」 쪽
   const isOpen = s => s === '시작 전' || s === '진행 중' || s === '컨펌 대기';
@@ -825,6 +860,16 @@
     });
   }
   const segVal = id => { const b = $(id).querySelector('button.on'); return b ? (b.dataset.v !== undefined ? b.dataset.v : b.textContent.trim()) : ''; };
+  // value에 해당하는 버튼을 켬(on) 상태로만 바꾼다 — segInit의 onChange는 안 부른다(호출부가 필요한 후속 UI를 직접 처리)
+  function segSet(id, value){
+    const box = $(id);
+    if (!box) return null;
+    const btn = Array.from(box.querySelectorAll('button')).find(b => (b.dataset.v !== undefined ? b.dataset.v : b.textContent.trim()) === value);
+    if (!btn) return null;
+    box.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    return btn;
+  }
 
   // ── 10분 단위 일시 선택 (날짜 + 시 + 분) ──
   function dtPickHtml(id){
@@ -1582,7 +1627,8 @@
 
     const { 묶음, 갈래 } = 갈래묶기_(줄들);
 
-    let h = '<div class="gt" style="--gt-dw:' + GT_DW + 'px">' + 달머리(GT_FROM) + 날머리(GT_FROM, today);
+    let h = '<div class="gt" style="--gt-dw:' + GT_DW + 'px">'
+      + '<div class="gt-head">' + 달머리(GT_FROM) + 날머리(GT_FROM, today) + '</div>';
     let 색순번 = 0;
     갈래.forEach(k => {
       // 부문색(2026-08-30 야간, 표 통합) — '미분류'는 팔레트를 안 쓰고 --sub 중립(CSS 기본값)로 남는다
@@ -1595,12 +1641,24 @@
         묶음[k].sort((a, b) => {
           const x = 첫날(a), y = 첫날(b);
           return (x ? x.getTime() : Infinity) - (y ? y.getTime() : Infinity) || b.id - a.id;
-        }).forEach(d => { h += 지시줄(d, 칸, today); });
+        }).forEach(d => { h += 지시줄(d, 칸, today, 색); });
       }
     });
     $('gtWrap').innerHTML = h + '</div>';
     $('gtWrap').querySelectorAll('.gt-row[data-id]:not(.subadd)').forEach(el =>
-      el.addEventListener('click', () => openDetail(Number(el.dataset.id))));
+      el.addEventListener('click', e => {
+        /* 줄 전체가 button이라 그 안에 button을 또 못 넣는다 — 접기 화살표와 완료 체크는 span이고,
+           눌린 자리가 그 둘 중 하나면 상세를 열지 않고 그 일만 한다 */
+        const t = e.target.closest('[data-mstoggle],[data-sdone]');
+        if (t && t.dataset.mstoggle !== undefined) {
+          const mid = Number(t.dataset.mstoggle);
+          if (MS_COLLAPSED.has(mid)) MS_COLLAPSED.delete(mid); else MS_COLLAPSED.add(mid);
+          renderGantt();
+          return;
+        }
+        if (t && t.dataset.sdone !== undefined) { 마일스톤완료(Number(t.dataset.sdone), t.dataset.v === '1'); return; }
+        openDetail(Number(el.dataset.id));
+      }));
     $('gtWrap').querySelectorAll('.gt-row.subadd[data-id]').forEach(el =>
       el.addEventListener('click', () => openDetail(Number(el.dataset.id), true)));
     $('gtWrap').querySelectorAll('.gt-grp[data-group]').forEach(el =>
@@ -1654,12 +1712,15 @@
     + (dt.getTime() === today.getTime() ? ' today' : '');
 
   /** 업무 한 줄 + 그 아래 세부업무 줄들. 업무 막대는 세부업무 전체를 감싼 요약이다 */
-  function 지시줄(d, 칸, today){
+  function 지시줄(d, 칸, today, 색){
     const subs = 세부들(d);
-    // 세부업무 추가 권한은 상세시트 마일스톤 카드(subCardHtml)와 같은 규칙 — 완료·보류는 제외(2026-08-30)
+    /* 권한은 상세시트 마일스톤 카드(subCardHtml)와 같은 규칙이다 — 마일스톤 완료 체크가 거기와
+       같은 쓰기(웹_세부완료)라, 한쪽에서만 눌리면 안 된다. 세부업무 추가만 완료·보류를 더
+       제외한다(2026-08-30) */
     const me = DATA.me;
-    const 세부추가가능 = (me.manage || d.owner === me.name || d.who.indexOf(me.name) >= 0)
-      && d.status !== '완료' && d.status !== '보류';
+    const 권한 = me.manage || d.owner === me.name || d.who.indexOf(me.name) >= 0;
+    const 세부추가가능 = 권한 && d.status !== '완료' && d.status !== '보류';
+    const 접힘 = MS_COLLAPSED.has(d.id);
     // 컨펌 대기는 지연 판정보다 먼저다 — 보고를 마친 업무가 빨갛게 나오면 임원이 헛쫓긴다
     const 상태 = d.status === '완료' ? 'done' : d.status === '보류' ? 'hold'
       : d.status === '컨펌 대기' ? 'confirm'
@@ -1673,22 +1734,28 @@
       d.dueKo ? '기한 ' + esc(d.dueKo) : d.doneKo ? '완료 ' + esc(d.doneKo) : '기한 없음',
       ms].filter(Boolean).join(' · ');
 
-    let h = '<button class="gt-row dir' + (d.status === '완료' ? ' gt-done' : '') + '" data-id="' + d.id + '">'
+    let h = '<button class="gt-row dir' + (d.status === '완료' ? ' gt-done' : '') + '" data-id="' + d.id + '"'
+      + (색 ? ' style="--dept-c:var(--stk-' + 색 + ')"' : '') + '>'
       + '<div class="gt-lab"><b>'
+      // 마일스톤이 달린 업무만 접기를 그린다 — 없는 줄에 화살표를 두면 눌러도 아무 일이 없다
+      + (subs.length ? '<span class="gt-sub-toggle" data-mstoggle="' + d.id + '" title="마일스톤 '
+        + (접힘 ? '펼치기' : '접기') + '">' + (접힘 ? '&#9656;' : '&#9662;') + '</span>' : '')
       // KPI·긴급 태그도 표에서 옮겨 왔다(2026-08-30 야간) — 제목 앞에서 바로 눈에 띄어야 한다
       + (d.type === 'KPI' ? '<span class="pill meet" style="margin-right:5px">KPI</span>' : '')
       + (d.pri === '긴급' ? '<span class="pill late" style="margin-right:5px">긴급</span>' : '')
       + esc(d.title) + '</b>'
       + '<span>' + 요약 + '</span>'
-      // 상태 배지 + D-day 신호등도 표에서 옮겨 왔다 — 막대 색만으로는 "구분이 안 간다"는 피드백 대응
-      + '<span class="gt-badges">' + 상태필(d) + 신호등(d) + '</span></div>'
+      /* 상태 배지만 남긴다 — D-day 신호등은 뗐다(2026-09-01). 「지연·컨펌 대기」는 배지가 이미
+         말하던 것이라 같은 말이 두 번 있던 자리다. 받은함 카드에는 배지가 없어 거기는 그대로 쓴다 */
+      + '<span class="gt-badges">' + 상태필(d) + '</span></div>'
       + '<div class="gt-track">' + 바탕(today)
       // 기한이 없으면 완료일에 찍는다. 둘 다 없으면 막대도 점도 없이 라벨만 남는다
       + (기간 ? 막대(칸, 기간.from, 기간.to, 상태 + ' roll') : 점(칸, 날짜(d.due) || 날짜(d.done), 상태))
       + '</div></button>';
 
-    subs.forEach(s => {
-      const cls = s.status === '완료' ? 'done' : s.status === '지연' ? 'late' : 'wait';
+    if (!접힘) subs.forEach(s => {
+      const 완료 = s.status === '완료';
+      const cls = 완료 ? 'done' : s.status === '지연' ? 'late' : 'wait';
       /* 날짜를 안 넣고 완료만 체크한 세부업무가 흔하다 — 기한이 없으면 완료일이 그 자리를 대신한다.
          안 그러면 그 줄은 라벨만 남고 일정 위에서 사라진다 (Codex 2026-08-30). */
       const 시작 = 날짜(s.start), 끝 = 날짜(s.due) || 날짜(s.done);
@@ -1697,18 +1764,49 @@
       const 때 = 시작 && 끝 ? 짧은날(s.start) + '–' + 짧은날(s.due || s.done)
         : 끝 ? 끝말 + 짧은날(s.due || s.done) : 시작 ? 짧은날(s.start) + '–' : '';
       // 세부업무 줄도 누르면 부모 업무가 열린다 — 거기에 완료 체크·기한 변경이 있다
-      h += '<button class="gt-row sub" data-id="' + d.id + '">'
-        + '<div class="gt-lab"><b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+      h += '<button class="gt-row sub' + (완료 ? ' ms-done' : '') + '" data-id="' + d.id + '">'
+        + '<div class="gt-lab">'
+        + (권한 ? '<span class="gt-chk' + (완료 ? ' on' : '') + '" data-sdone="' + s.id + '" data-v="'
+          + (완료 ? '0' : '1') + '" title="' + (완료 ? '완료 취소' : '완료 처리') + '">&#10003;</span>' : '')
+        + '<b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
         + esc([누구 || '담당 미지정', 때].filter(Boolean).join(' · ')) + '</span></div>'
         + '<div class="gt-track">' + 바탕(today)
         + (시작 && 끝 ? 막대(칸, 시작, 끝, cls)
           : 시작 ? 막대(칸, 시작, 시작, cls) : 점(칸, 끝, cls))
         + '</div></button>';
     });
-    if (세부추가가능) h += '<button class="gt-row subadd" data-id="' + d.id + '">'
+    if (세부추가가능 && !접힘) h += '<button class="gt-row subadd" data-id="' + d.id + '">'
       + '<div class="gt-lab"><b>+ 세부업무 추가</b></div>'
       + '<div class="gt-track">' + 바탕(today) + '</div></button>';
     return h;
+  }
+
+  /* 간트 줄에서 바로 누르는 마일스톤 완료(2026-09-01) — 예전에는 상세시트를 열어야만 눌렀다.
+     쓰기는 상세시트와 같은 `웹_세부완료`다. 낙관적으로 먼저 그리고 실패하면 되돌린다 —
+     상태·완료일·진행률의 진짜 값은 성공 뒤 refresh()가 서버에서 다시 받아 온다. */
+  let 세부완료중_ = false;
+  async function 마일스톤완료(sid, 완료){
+    if (세부완료중_) return;                    // 연타로 같은 줄에 두 번 쓰지 않는다
+    const d = DATA.directives.find(x => 세부들(x).some(s => s.id === sid));
+    if (!d) return;
+    const s = 세부들(d).find(x => x.id === sid);
+    const 이전 = { status: s.status, done: s.done, subDone: d.subDone };
+    const today = 자정(new Date());
+    // 서버 세부상태_와 같은 판정 — 완료를 풀면 마감일이 지났는지에 따라 지연/진행중으로 돌아간다
+    s.status = 완료 ? '완료' : (s.due && 날짜(s.due) < today ? '지연' : '진행중');
+    s.done = 완료 ? iso(today) : '';
+    d.subDone = Math.max(0, d.subDone + (완료 ? 1 : -1));
+    세부완료중_ = true;
+    renderGantt();
+    try {
+      await gs('웹_세부완료', TOKEN, { id: sid, done: 완료 });
+      await refresh();
+    } catch (e) {
+      s.status = 이전.status; s.done = 이전.done; d.subDone = 이전.subDone;
+      renderGantt();
+      toast(e.message);
+    }
+    세부완료중_ = false;
   }
 
   /** 세부업무 전체를 감싸는 기간 — 업무 줄의 요약 막대 */
@@ -2022,7 +2120,8 @@
       + ' ' + (d.kind === '요청' ? '요청 · 받는 사람' : '지시 · 담당') + ' <b>' + esc(d.who.join(', ')) + '</b>'
       + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
       + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '') + '</div>'
-      + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '');
+      + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '')
+      + linkBarHtml(d);
 
     /* 완료 기준 — 담당이 「무엇이 되면 끝인가」를 세우는 자리. 대표의 컨펌이 이걸 잰다.
        아래 카드(컨펌·계획 확인)가 이미 기준을 싣고 있으면 위에 또 내지 않는다 —
@@ -2124,6 +2223,28 @@
 
   /* 컨펌 줄 (노션 판 결정 5) — 임원의 완료 보고에 대표가 답하는 자리.
      상태 확인은 서버가 잠금 안에서 다시 한다 — 여기 버튼은 낡았을 수 있는 화면일 뿐이다. */
+  /* 책상 연동 줄 (ADR 0004). 연동된 업무는 배지로 주인을 밝히고, 안 된 업무에는 내리는
+     버튼만 둔다. 원본 앱으로 가는 링크는 아직 안 붙인다 — 책상 주소는 그 자체가 열쇠라
+     (인증이 없다) 전사 화면에 실을 수 없다. 주인만 보이게 하는 길은 따로 정해야 한다. */
+  function linkBarHtml(d){
+    const me = DATA.me;
+    /* 버튼은 책상 주인에게만 보인다 — 책상은 개인 보드라 남이 눌러도 서버가 거절한다.
+       배지와 문구는 모두에게 보인다: 「왜 이 업무를 여기서 못 고치나」를 설명하는 자리다. */
+    const 권한 = !!me.deskLink && (me.manage || d.owner === me.name || d.who.indexOf(me.name) >= 0);
+    if (d.deskId) {
+      const 원본책상 = d.linkRole === '거울';
+      return '<div class="linkbar">'
+        + '<span class="pill ' + (원본책상 ? 'gray' : 'meet') + '">책상 연동</span>'
+        + (원본책상 ? '원본은 <b>책상</b>에 있습니다 — 제목·기한·마일스톤은 책상에서 고쳐 주세요.'
+          : '원본은 <b>브리지</b>입니다 — 책상에는 읽기 전용으로 비칩니다.')
+        + (권한 ? '<button class="btn-mini" id="lkOff" style="margin-left:auto">연동 끊기</button>' : '')
+        + '</div>';
+    }
+    if (!권한) return '';
+    return '<div class="linkbar">내 책상으로 내려 한 화면에서 볼 수 있습니다.'
+      + '<button class="btn-mini" id="lkOn" style="margin-left:auto">책상으로 내리기</button></div>';
+  }
+
   function actionBarHtml(d, convs){
     const me = DATA.me;
     if (d.status === '컨펌 대기') {
@@ -2422,7 +2543,7 @@
      쓰기 자체 실패와 쓰기 후속(재조회) 실패를 구분한다 — 후속 실패로 이미 성공한 쓰기를
      되돌린 것처럼 보이면 안 된다. draftId/draftVal은 실패 시 되돌릴 입력칸과 사용자가
      쓰던 값 — 코멘트처럼 비우는 폼, 완료 기준처럼 곧바로 새 값을 보여주는 폼 모두 쓴다. */
-  function optimisticSend(d, convs, subs, { btnId, apply, rollback, call, onOk, draftId, draftVal }){
+  function optimisticSend(d, convs, subs, { btnId, apply, rollback, call, onOk, draftId, draftVal, onFail }){
     const 스냅 = snapshotSheetInputs();
     apply();
     renderDetail(d, convs, subs);
@@ -2440,6 +2561,7 @@
         renderDetail(d, convs, subs);
         restoreSheetInputs(스냅2, null);
         if (draftId) { const el = $(draftId); if (el) el.value = draftVal || ''; }
+        if (onFail) onFail();
       }
       toast(e.message);
     });
@@ -2642,6 +2764,20 @@
       } catch (e) { toast(e.message); }
       busy(false);
     }));
+    const lkOn = $('lkOn');
+    if (lkOn) lkOn.addEventListener('click', async () => {
+      busy(true, '책상으로 내리는 중...');
+      try { await gs('웹_책상으로내리기', TOKEN, d.id); toast('책상으로 내렸습니다.'); await reopen(d.id); }
+      catch (e) { toast(e.message); }
+      busy(false);
+    });
+    const lkOff = $('lkOff');
+    if (lkOff) lkOff.addEventListener('click', async () => {
+      busy(true, '연동 끊는 중...');
+      try { await gs('웹_지시연동끊기', TOKEN, d.id); toast('연동을 끊었습니다.'); await reopen(d.id); }
+      catch (e) { toast(e.message); }
+      busy(false);
+    });
     document.querySelectorAll('#sheetBody [data-sdel]').forEach(btn => btn.addEventListener('click', async () => {
       busy(true, '삭제 중...');
       try { await gs('웹_세부삭제', TOKEN, Number(btn.dataset.sdel)); await reopen(d.id); }
@@ -2746,25 +2882,53 @@
           toast('완료 보고를 올렸습니다 — 대표님 컨펌 대기가 됩니다.');
           await reopen(d.id);
         },
+        // 실패 시 재렌더(bindDetail)가 newFiles를 비우고 rKind 세그를 기본값('진행')으로
+        // 되돌리므로, 첨부 칩과 '완료 보고' 선택 상태를 여기서 되살린다.
+        onFail: () => {
+          newFiles = 파일들.slice();
+          renderFileChips();
+          if (segSet('rKind', '완료 보고')) {
+            $('rExtra').classList.add('hide');
+            $('rBody').placeholder = '완료 내용을 입력하세요 — 대표님 컨펌 대기가 됩니다';
+            $('rSend').textContent = '완료 보고 올리기';
+          }
+        },
       });
       return;
     }
     if (!body && !newFiles.length) { toast('진행 내용을 입력해 주세요'); return; }
-    const f = { id: d.id, body, files: newFiles };
-    if (segVal('rDueSeg') === 'change') {
+    const 파일들 = newFiles;   // apply()가 renderDetail→bindDetail을 거쳐 newFiles를 비우기 전에 캡처
+    const f = { id: d.id, body, files: 파일들 };
+    const 기한변경 = segVal('rDueSeg') === 'change';
+    if (기한변경) {
       if (!$('rDueDate').value) { toast('조정할 기한을 선택해 주세요'); return; }
       f.dueProposed = $('rDueDate').value; f.dueNote = $('rDueNote').value.trim();
     }
-    if ($('rMeetSeg') && segVal('rMeetSeg') === 'meet') {
-      f.meetNeed = true; f.meetNote = $('rMeetNote').value.trim();
-    }
-    busy(true, newFiles.length ? '파일 업로드 중...' : '기록 중...');
-    try {
-      await gs('웹_진행등록', TOKEN, f);
-      toast('진행 기록을 남겼습니다.');
-      await reopen(d.id);
-    } catch (e) { toast(e.message); }
-    busy(false);
+    const 미팅요청 = $('rMeetSeg') && segVal('rMeetSeg') === 'meet';
+    if (미팅요청) { f.meetNeed = true; f.meetNote = $('rMeetNote').value.trim(); }
+    // 낙관적 UI (속도 개선 3단계) — '진행' 대화만 즉시 그린다. 기한 조정·미팅 요청 부가
+    // 대화는 표시 형식(when 등)이 서버 산출이라 낙관적으로 못 그리며, onOk의 reopen()이 채운다.
+    const now = new Date();
+    const ts = iso(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    const 임시 = { id: '임시' + Date.now(), dirId: d.id, ts, author: DATA.me.name, type: '진행',
+      body, files: [], when: '', when2: '', handled: '' };
+    optimisticSend(d, convs, subs, {
+      btnId: 'rSend', draftId: 'rBody', draftVal: body,
+      apply: () => { convs.push(임시); },
+      rollback: () => { const i = convs.indexOf(임시); if (i >= 0) convs.splice(i, 1); },
+      call: () => gs('웹_진행등록', TOKEN, f),
+      onOk: async () => {
+        toast('진행 기록을 남겼습니다.');
+        await reopen(d.id);
+      },
+      // 실패 시 재렌더가 첨부 칩을 비우고 기한 조정·미팅 요청 세그를 기본값으로 되돌리므로 복원한다.
+      onFail: () => {
+        newFiles = 파일들.slice();
+        renderFileChips();
+        if (기한변경 && segSet('rDueSeg', 'change')) $('rDueBox').classList.remove('hide');
+        if (미팅요청 && segSet('rMeetSeg', 'meet')) $('rMeetBox').classList.remove('hide');
+      },
+    });
   }
 
   async function reopen(id, focusAdd){ await refresh(); openDetail(id, focusAdd); }
