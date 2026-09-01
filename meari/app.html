@@ -20,8 +20,10 @@
 :root{
   --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
   --canvas:#ffffff; --grouped:#f7f7f8; --card:#f5f5f6; --hair:#e5e7eb; --hair2:#d1d5db;
-  --red:#b42318; --red-bg:#f9f1f0; --amber:#8a6116; --amber-bg:#f9f6ee;
-  --청:#4c6b8a; --청-bg:#f1f4f8;
+  --red:#dc2626; --red-bg:#fef2f2; --amber:#b45309; --amber-bg:#fef6e7;
+  --green:#15803d; --green-bg:#eafaf0;
+  --청:#2f5fd6; --청-bg:#eef3fc;
+  --그림자:0 1px 2px rgba(17,17,17,.04), 0 8px 22px -14px rgba(17,17,17,.14);
   --r-btn:8px; --r-card:12px; --pill:9999px;
   --곡선:cubic-bezier(0.16,1,0.3,1);
 }
@@ -67,16 +69,21 @@ button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit
 .필그룹 .수{color:var(--red); font-weight:700; margin-left:3px}
 
 /* ── 몸 ── */
-.몸{max-width:760px; margin:0 auto; padding:16px 16px 80px}
+.몸{max-width:1100px; margin:0 auto; padding:16px 16px 80px}
+@media(min-width:900px){ .몸{padding:28px 32px 96px} }
 .구분{font-size:12px; font-weight:600; color:var(--muted); margin:22px 0 8px;
       display:flex; align-items:center; gap:10px}
 .구분:after{content:''; flex:1; height:1px; background:var(--hair)}
+.카드목록{display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px}
+@media(min-width:860px){ .카드목록{grid-template-columns:repeat(2,1fr)} }
 .카드{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
-      padding:14px 16px; margin-bottom:10px}
-.카드.누름{cursor:pointer; transition:border-color .18s var(--곡선)}
+      padding:14px 16px; margin-bottom:10px; box-shadow:var(--그림자)}
+.카드목록 > .카드{margin-bottom:0}
+.카드.누름{cursor:pointer; transition:border-color .18s var(--곡선), box-shadow .18s var(--곡선)}
+.카드.누름:hover{border-color:var(--hair2); box-shadow:0 2px 4px rgba(17,17,17,.05), 0 12px 28px -16px rgba(17,17,17,.2)}
 .카드.누름:active{transform:scale(.995)}
-.카드.요약{background:var(--card); border-color:transparent}
-.카드.늦음{border-color:#e6cfcb; background:var(--red-bg)}
+.카드.요약{background:var(--card); border-color:transparent; box-shadow:none}
+.카드.늦음{border-color:#f3c6c6; background:var(--red-bg)}
 .메타{font-size:12.5px; color:var(--muted)}
 .제목줄{font-size:15px; font-weight:600; letter-spacing:-.015em; margin:2px 0}
 .빈말{color:var(--muted); text-align:center; padding:44px 0 36px; font-size:14px}
@@ -86,20 +93,20 @@ button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit
 .표식{display:inline-block; font-size:11.5px; font-weight:600; padding:2.5px 10px;
       border-radius:var(--pill); vertical-align:1px; margin-right:3px}
 .표식.지연{background:var(--red); color:#fff}
-.표식.임박{background:var(--amber-bg); color:var(--amber); border:1px solid #e6dbb8}
-.표식.끝{background:var(--청-bg); color:var(--청); border:1px solid #ccd9e4}
+.표식.임박{background:var(--amber-bg); color:var(--amber); border:1px solid #f2ddb8}
+.표식.끝{background:var(--green-bg); color:var(--green); border:1px solid #bfe6cd}
 .표식.회{background:#fff; color:var(--muted); border:1px solid var(--hair)}
 .표식.회면{background:var(--card); color:var(--body); border:1px solid transparent}
 
 /* 숫자 타일 */
 .숫자들{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:4px 0 6px}
 .숫자{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
-      padding:14px 10px 12px; text-align:center}
+      padding:14px 10px 12px; text-align:center; box-shadow:var(--그림자)}
 .숫자 .값{font-size:28px; font-weight:700; letter-spacing:-.04em; line-height:1.05}
 .숫자 .값.빨{color:var(--red)} .숫자 .값.주{color:var(--amber)}
 .숫자 .이름{font-size:11.5px; color:var(--muted); font-weight:500; margin-top:3px}
 .숫자 .꼬리{font-size:11px; color:var(--faint); margin-top:1px}
-.숫자.경보{background:var(--red-bg); border-color:#e6cfcb}
+.숫자.경보{background:var(--red-bg); border-color:#f3c6c6}
 @media(max-width:520px){ .숫자들{grid-template-columns:repeat(2,1fr)} }
 
 /* 가로 막대 — 유형·조치구분·거래처 */
@@ -285,6 +292,17 @@ function 완료들() { return 건들().filter(function (g) { return g.상태 ===
 function 이관들() { return 건들().filter(function (g) { return g.이관; }); }
 function 지연들() { return 진행중들().filter(function (g) { return g.지연; }); }
 
+/* 진행중 탭 전용 분류 — 제품 컬럼과 다르다. 큐어젯·노보젯 같은 본체 구분이 아니라
+   현장에서 실제로 고장 나는 부위(핸드피스·노즐·풋스위치)로 묶어 달라는 요청(2026-09-01).
+   유형 이름에 그 말이 있으면 그 칸으로, 없으면 기타다. 표에 없는 값이라 서버에 안 묻는다. */
+function 분류(g) {
+  var s = String(g.유형 || '');
+  if (s.indexOf('핸드피스') >= 0) return '핸드피스';
+  if (s.indexOf('노즐') >= 0) return '노즐';
+  if (s.indexOf('풋스위치') >= 0) return '풋스위치';
+  return '기타';
+}
+
 /* ── 탭 ── */
 // 첫 화면은 현황이다 — 열자마자 「지금 품질이 어떤가」가 보여야 한다 (2026-08-29 사용자 요청).
 // 진행중이 먼저면 매일 볼 사람에게는 편하지만, 이 장부를 만든 이유인 「무엇이 반복되고
@@ -432,30 +450,36 @@ function PIN보이기(이름, pin, 나였다) {
 }
 
 function 진행중그리기(몸) {
-  var 늦은것 = 지연들();
-  var 남은것 = 진행중들().filter(function (g) { return !g.지연; })
-    .sort(function (a, b) { return String(a.기한).localeCompare(String(b.기한)); });
+  var 전부 = 진행중들();
+  var 늦음 = 전부.filter(function (g) { return g.지연; }).length;
 
-  var h = '';
-  if (!늦은것.length && !남은것.length) {
-    h += '<div class="빈말"><b>진행 중인 접수가 없습니다</b>' +
-         '<a href="index.html?r" style="color:var(--ink)">등록 화면</a>에서 올립니다</div>';
+  if (!전부.length) {
+    몸.innerHTML = '<div class="빈말"><b>진행 중인 접수가 없습니다</b>' +
+      '<a href="index.html?r" style="color:var(--ink)">등록 화면</a>에서 올립니다</div>';
+    return;
   }
-  if (늦은것.length) {
-    h += '<div class="구분">기한을 넘겼습니다 ' + 늦은것.length + '건</div>';
-    늦은것.sort(function (a, b) { return b.지연일수 - a.지연일수; }).forEach(function (g) { h += 건줄(g); });
-  }
-  if (남은것.length) {
-    h += '<div class="구분">진행 중 ' + 남은것.length + '건 — 기한이 가까운 것부터</div>';
-    남은것.forEach(function (g) { h += 건줄(g); });
-  }
+
+  var h = '<div class="메타" style="margin-bottom:4px">진행 중 ' + 전부.length + '건' +
+    (늦음 ? ' · <span style="color:var(--red);font-weight:600">기한 넘김 ' + 늦음 + '건</span>' : '') + '</div>';
+
+  var 분류순서 = ['핸드피스', '노즐', '풋스위치', '기타'];
+  분류순서.forEach(function (분류명) {
+    var 들 = 전부.filter(function (g) { return 분류(g) === 분류명; }).sort(function (a, b) {
+      if (!!a.지연 !== !!b.지연) return a.지연 ? -1 : 1;   // 기한 넘긴 것이 그 안에서 먼저
+      return String(a.기한).localeCompare(String(b.기한));
+    });
+    if (!들.length) return;
+    var 그중늦음 = 들.filter(function (g) { return g.지연; }).length;
+    h += '<div class="구분">' + 분류명 + ' ' + 들.length + '건' +
+      (그중늦음 ? ' <span style="color:var(--red)">· 기한 넘김 ' + 그중늦음 + '건</span>' : '') + '</div>' +
+      '<div class="카드목록">' + 들.map(건줄).join('') + '</div>';
+  });
   몸.innerHTML = h;
   건줄들걸기(몸);
 }
 
 function 잘라그리기(들) {
-  var h = '';
-  들.slice(0, 완료표시최대).forEach(function (g) { h += 건줄(g); });
+  var h = '<div class="카드목록">' + 들.slice(0, 완료표시최대).map(건줄).join('') + '</div>';
   // 잘린 것을 조용히 숨기지 않는다 — 몇 건을 안 그렸는지 화면에 적는다
   if (들.length > 완료표시최대) {
     h += '<div class="메타" style="text-align:center;padding:10px 0">최근 ' + 완료표시최대 +
@@ -650,6 +674,21 @@ function 건열기(건_id) {
       h += '<div class="안내">이 건은 ' + 새기기(g.등록자_이름) + ' 님이 올렸습니다 — 닫는 것은 올린 사람만 합니다.</div>';
     }
 
+    // 관리자(품질담당·대표)가 본인 건이 아닌 것을 대신 닫는 길. 그룹웨어를 뒤늦게 보고
+    // 이미 처리된 것을 채워 넣을 때 쓴다 — 그래서 완료일을 오늘로 고정하지 않고 고를 수 있다.
+    // 본인 흐름과는 별도 동작(관리자완료)이라 실수로 섞이지 않는다.
+    if (!d.내건 && g.상태 === '진행중' && 전체봄()) {
+      h += '<div class="구분">관리자 권한으로 완료 처리</div>' +
+        '<span class="라벨">어떻게 처리했습니까</span><div class="알약들" id="관리자구분무리"></div>' +
+        '<span class="라벨">한 줄로 적어 주세요</span>' +
+        '<input id="관리자조치내용" class="글칸" placeholder="예) 핸드피스 교체, 8/25 방문">' +
+        '<span class="라벨">완료일</span>' +
+        '<input id="관리자완료일" class="글칸" type="date" value="' + 한국날짜(new Date()) +
+          '" max="' + 한국날짜(new Date()) + '">' +
+        '<button class="버튼 흰" id="관리자완료하기" style="margin-top:12px;width:100%">관리자 권한으로 완료 처리</button>' +
+        '<div class="안내">그룹웨어 등에서 이미 처리된 것을 확인했을 때만 씁니다. 완료일을 실제 처리일에 맞춰 주세요.</div>';
+    }
+
     // 유형 고치기. 완료된 건도 고칠 수 있다 — 분류 정정이지 상태 변경이 아니다.
     // 맨 아래에 둔다: 이 겹창의 주된 일은 완료를 찍는 것이고, 유형 정정은 가끔 하는 일이다.
     var 유형고침 = d.내건 || 전체봄();
@@ -684,6 +723,19 @@ function 건열기(건_id) {
         if (!내용) return alert('어떻게 해결됐는지 한 줄 적어 주세요');
         this.disabled = true;
         행동({ 동작: '완료', 건_id: g.id, 조치구분: 고른구분, 조치내용: 내용 });
+      };
+    }
+    if (판.querySelector('#관리자구분무리')) {
+      var 관리자고른구분 = '';
+      무리(판.querySelector('#관리자구분무리'), (홈.조치구분 || []), '', function (v) { 관리자고른구분 = v; });
+      판.querySelector('#관리자완료하기').onclick = function () {
+        var 내용 = 판.querySelector('#관리자조치내용').value.trim();
+        var 완료일 = 판.querySelector('#관리자완료일').value;
+        if (!관리자고른구분) return alert('어떻게 처리했는지 골라 주세요');
+        if (!내용) return alert('어떻게 해결됐는지 한 줄 적어 주세요');
+        if (!완료일) return alert('완료일을 골라 주세요');
+        this.disabled = true;
+        행동({ 동작: '관리자완료', 건_id: g.id, 조치구분: 관리자고른구분, 조치내용: 내용, 완료일: 완료일 });
       };
     }
     if (판.querySelector('#되돌리기')) {
