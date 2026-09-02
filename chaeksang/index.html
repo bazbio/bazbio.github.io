@@ -203,13 +203,15 @@
   .dnum.we { color: #adb5bd; }
   .dnum.td { color: #fff; font-weight: 800; background: var(--today-mark); }
 
-  /* 일정 오버레이 — 칸(18px)보다 글자가 기니 오른쪽으로 흘려서 보여준다(ADR 0003) */
+  /* 일정 오버레이 — 칸(18px)보다 글자가 기니 오른쪽으로 흘려서 보여준다(ADR 0003).
+     폭은 JS가 다음 라벨이 있는 날까지 거리로 매번 계산해 채운다(겹침 방지, 2026-09-02) —
+     그 전까진 무제한으로 흘러 옆 라벨과 겹쳐 한 글자처럼 보이는 버그가 있었다. */
   .grow.head.sched .days { min-height: 22px; }
   .sched-label {
     grid-row: 1; position: relative; z-index: 2; justify-self: start; align-self: center;
-    background: none; border: none; padding: 1px 4px; margin: 0;
+    background: var(--canvas); border: none; padding: 1px 4px; margin: 0;
     font-size: 10.5px; font-weight: 700; color: var(--accent-strong);
-    white-space: nowrap; overflow: visible; cursor: pointer; max-width: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
   }
   .sched-label:hover { text-decoration: underline; }
 
@@ -816,18 +818,28 @@ function 간트그리기(이번, 일정맵) {
     일정줄.appendChild(요소('div', 'c'));
     일정줄.appendChild(요소('div', 'c'));
     var 일정칸 = 요소('div', 'days');
+    var 채운인덱스 = [];
     for (var si = 0; si < 일수; si++) {
       var 그날 = 더하기(시작, si);
+      if (일정맵[그날] && 일정맵[그날].length) 채운인덱스.push(si);
+    }
+    var 칸폭 = 18; // --cell(gas/웹앱.html :root)과 같은 값이어야 한다
+    채운인덱스.forEach(function (si, idx) {
+      var 그날 = 더하기(시작, si);
       var 그날일정 = 일정맵[그날];
-      if (!그날일정 || !그날일정.length) continue;
       var 라벨글 = 그날일정[0].제목 + (그날일정.length > 1 ? ' +' + (그날일정.length - 1) : '');
       var 라벨 = 요소('button', 'sched-label', 라벨글);
       라벨.type = 'button';
       라벨.style.gridColumn = (si + 1);
+      // 다음 라벨이 있는 날(또는 격자 끝)까지만 늘어나게 한다 — 안 그러면 옆 라벨과
+      // 겹쳐 한 글자처럼 보인다(실사용 발견, 2026-09-02). 하루 차이처럼 폭이 거의 없을
+      // 땐 최소 3칸은 확보해 아예 안 보이는 것보단 몇 글자라도 읽히게 한다.
+      var 다음si = idx + 1 < 채운인덱스.length ? 채운인덱스[idx + 1] : 일수;
+      라벨.style.maxWidth = Math.max(3 * 칸폭, (다음si - si) * 칸폭) + 'px';
       라벨.title = 그날일정.map(function (i) { return (i.시작시각 ? i.시작시각 + ' ' : '') + i.제목; }).join('\n');
       라벨.addEventListener('click', 오버레이클릭_(그날));
       일정칸.appendChild(라벨);
-    }
+    });
     일정줄.appendChild(일정칸);
     일정줄.appendChild(요소('div', 'c act'));
     g.appendChild(일정줄);
