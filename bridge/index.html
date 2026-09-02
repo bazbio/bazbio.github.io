@@ -420,6 +420,7 @@
   .sheet-head h2{margin:0; font-size:21px; font-weight:700; letter-spacing:-.02em; line-height:1.3}
   .sheet-head .close{color:var(--sub); font-size:15px; font-weight:600; flex:none; padding:4px 2px}
   .sheet-meta{font-size:13px; color:var(--sub); padding:4px 2px 0}
+  .seen{color:var(--ok); font-weight:600}
   .sheet-meta b{color:var(--ink); font-weight:600}
   .detail-body{font-size:14.5px; white-space:pre-wrap; padding:10px 2px 0}
   /* 책상 연동 줄 (ADR 0004) — 배지 하나와 버튼 하나가 전부다. 이 줄이 「이 업무의 주인이
@@ -708,7 +709,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202609010123';
+  var 빌드버전_ = '202609020836';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -785,6 +786,7 @@
   } catch (e) {}
   let DATA = null;          // 웹_초기데이터 결과
   let 갱신대기_ = null;      // 방금 쓰기 응답에 실려 온 목록 갱신분 — refresh()가 소비한다
+  const 열람보냄_ = {};      // 이 세션에서 열람을 이미 알린 지시 — 같은 지시는 한 번만 보낸다
   let pendingLogin = null;  // {name, pin}
   let newFiles = [];        // 답변 첨부 대기 목록
   let LASTD = null;         // 상세 시트에 열려 있는 지시 — 낙관적 쓰기의 스테일 가드로도 쓴다
@@ -1144,8 +1146,15 @@
     if (!rows.length) { $('stuckList').innerHTML = '<div class="empty">막힌 곳이 없습니다</div>'; return; }
 
     let h = '';
-    if (me.manage) h = rows.map(stuckItemHtml).join('');
-    else {
+    if (me.manage) {
+      /* 대표님 차례를 먼저, 최장 대기일과 함께 — 관문 둘(계획·완료 컨펌)이 대표께 걸려 있어
+         이 그룹이 곧 병목이다. rows는 정체일수 내림차순이라 첫 건이 최장이다 */
+      const 대표차례 = rows.filter(d => d.stuckWhy === '계획 컨펌 대기' || d.stuckWhy === '대표 확인 대기');
+      const 나머지 = rows.filter(d => 대표차례.indexOf(d) < 0);
+      const 라벨 = me.role === '대표' ? '내 차례' : '대표님 차례';
+      if (대표차례.length) h += '<div class="stuck-g">' + 라벨 + ' · ' + 대표차례.length + '건 · 최장 ' + 대표차례[0].stallDays + '일</div>' + 대표차례.map(stuckItemHtml).join('');
+      if (나머지.length) h += (대표차례.length ? '<div class="stuck-g">담당 차례</div>' : '') + 나머지.map(stuckItemHtml).join('');
+    } else {
       /* 공은 사유가 정한다. 마지막 글쓴이로 가르면 두 방향 다 틀린다 —
          내가 답한 뒤 세부업무가 지연되면 내 일인데 남의 일로 보이고,
          미처리 미팅 요청 뒤에 누가 코멘트를 달면 대표 확인 대기인데 내 차례로 보인다.
@@ -1166,8 +1175,10 @@
     const 상대 = d.owner === DATA.me.name ? d.who.join(', ') : d.owner;
     // '대표 확인 대기'는 사유와 설명이 같은 말이다 — 칩에 이미 있으므로 줄에서는 뺀다
     const 설명 = d.stuckText && d.stuckText !== d.stuckWhy ? ' · ' + d.stuckText : '';
+    // 열람 — 「대표님 확인 대기」 카드에서 가장 쓸모 있다: 올린 것을 보시긴 했는지가 여기서 갈린다
+    const 열람 = seenText(d) ? ' · ' + seenText(d) : '';
     return '<button class="ditem" data-id="' + d.id + '">'
-      + '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(상대 + 설명) + '</span></div>'
+      + '<div class="txt"><b>' + esc(d.title) + '</b><span>' + esc(상대 + 설명 + 열람) + '</span></div>'
       + '<div class="side"><span class="pill late">' + esc(d.stuckWhy) + '</span>'
       + '<i class="dday over">' + d.stallDays + '일</i></div></button>';
   }
@@ -2102,8 +2113,24 @@
   }
 
   // ── 상세 시트 ──
+  /* 열람 기록 — 세션당 지시마다 한 번, 응답은 안 기다린다 (Code.js 웹_열람). 실패해도 화면은 그대로다.
+     상대편이 다음에 열 때 「대표님 9/2 열람」으로 보인다 — "보셨나?"를 카톡으로 묻지 않게 하는 자리 */
+  function 열람알림_(id){
+    if (열람보냄_[id]) return;
+    열람보냄_[id] = true;
+    gs('웹_열람', TOKEN, { id: Number(id) }).catch(() => {});
+  }
+
+  /* 상대편 열람 한 줄 — 서버(열람표시_)가 보는 사람에 맞춰 걸러 준다: 임원에게는 대표뿐이라
+     이름 대신 「대표님」, 대표·관리자에게는 담당 이름 */
+  function seenText(d){
+    if (!d.seen || !d.seen.length) return '';
+    return d.seen.map(s => (DATA.me.manage ? s.name : '대표님') + ' ' + s.at + ' 열람').join(' · ');
+  }
+
   async function openDetail(id, focusAdd){
     $('sheetBack').classList.remove('hide');
+    열람알림_(id);
 
     /* 부트에 대화가 실려 있으면 왕복 없이 연다 (2026-08-19).
        `웹_초기데이터`가 어차피 시트에서 대화를 통째로 읽으므로 목록에 보이는 지시는 항상
@@ -2142,7 +2169,8 @@
       + '<div class="sheet-meta"><b>' + esc(d.owner) + '</b>' + (d.by ? ' <span class="proxy">' + esc(d.by) + ' 대리</span>' : '')
       + ' ' + (d.kind === '요청' ? '요청 · 받는 사람' : '지시 · 담당') + ' <b>' + esc(d.who.join(', ')) + '</b>'
       + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
-      + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '') + '</div>'
+      + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '')
+      + (seenText(d) ? ' · <span class="seen">' + esc(seenText(d)) + '</span>' : '') + '</div>'
       + (d.detail ? '<div class="detail-body">' + esc(d.detail) + '</div>' : '')
       + linkBarHtml(d);
 
