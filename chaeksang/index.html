@@ -1568,10 +1568,19 @@ function 일정모달닫기() {
   일정편집중 = null;
 }
 
+function 시각10분_(hhmm) {
+  if (!hhmm) return hhmm;
+  var 부분 = hhmm.split(':');
+  var 분전체 = parseInt(부분[0], 10) * 60 + parseInt(부분[1], 10);
+  분전체 = Math.round(분전체 / 10) * 10 % 1440;
+  var 결과시 = Math.floor(분전체 / 60), 결과분 = 분전체 % 60;
+  return (결과시 < 10 ? '0' : '') + 결과시 + ':' + (결과분 < 10 ? '0' : '') + 결과분;
+}
+
 function 일정모달저장() {
   var 항목 = {
     날짜: document.getElementById('if날짜').value,
-    시작시각: document.getElementById('if시작시각').value,
+    시작시각: 시각10분_(document.getElementById('if시작시각').value),
     제목: document.getElementById('if제목').value.trim(),
     장소: document.getElementById('if장소').value.trim(),
   };
