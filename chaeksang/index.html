@@ -1689,6 +1689,7 @@ document.getElementById('일정추가').addEventListener('click', function () { 
 document.getElementById('일정모달취소').addEventListener('click', 일정모달닫기);
 document.getElementById('일정모달저장').addEventListener('click', 일정모달저장);
 document.getElementById('일정모달삭제').addEventListener('click', 일정모달삭제);
+document.getElementById('if시작시각').addEventListener('change', function () { this.value = 시각10분_(this.value); });
 document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); } });
 
