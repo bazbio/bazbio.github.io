@@ -73,6 +73,19 @@
 
   main { max-width: 1240px; margin: 0 auto; padding: 28px 20px 96px; }
 
+  /* ── 탭 (할 일 / 일정) ───────────────────────────────────── */
+  .tabbar {
+    display: flex; gap: 4px; background: var(--line-soft); border-radius: var(--r-md);
+    padding: 4px; margin-bottom: 24px; width: fit-content;
+  }
+  .tab {
+    border: none; background: none; color: var(--ink-45); font-weight: 700; font-size: 14px;
+    letter-spacing: -0.01em; padding: 8px 18px; border-radius: var(--r-sm); min-height: 36px;
+    transition: background .16s var(--ease), color .16s var(--ease);
+  }
+  .tab:hover { color: var(--ink-70); }
+  .tab.on { background: var(--canvas); color: var(--ink); box-shadow: var(--shadow-sm); }
+
   /* ── 요약 칩 ─────────────────────────────────────────────── */
   .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
   .chip {
@@ -213,6 +226,56 @@
   .grow.body.sub .bar-item { height: 9px; opacity: .68; box-shadow: none; }
   .days.row { min-height: 40px; align-items: center; }
 
+  /* ── 일정 달력 ───────────────────────────────────────────── */
+  .cal-head {
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    padding: 16px 14px 10px; border-bottom: 1px solid var(--line-soft);
+  }
+  .cal-title { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; min-width: 84px; text-align: center; }
+  .cal-nav {
+    border: 1px solid var(--line); background: var(--canvas); color: var(--ink-70);
+    width: 32px; height: 32px; border-radius: var(--pill); font-size: 16px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .16s var(--ease), transform .16s var(--ease);
+  }
+  .cal-nav:hover { background: var(--line-soft); transform: scale(1.05); }
+  .cal-dow {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding: 10px 8px 0;
+  }
+  .cal-dow span { text-align: center; font-size: 11px; color: var(--ink-45); font-weight: 700; }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding: 8px; padding-top: 4px;
+  }
+  .cal-cell {
+    min-width: 0; overflow: hidden; min-height: 96px; border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm); padding: 6px; display: flex; flex-direction: column;
+    gap: 3px; text-align: left; background: var(--canvas);
+    transition: background .16s var(--ease), border-color .16s var(--ease);
+  }
+  .cal-cell:hover { background: var(--page); }
+  .cal-cell.other { background: var(--page); }
+  .cal-cell.other .cal-daynum { color: #ced4da; }
+  .cal-cell.we .cal-daynum { color: var(--ink-45); }
+  .cal-cell.today { border-color: var(--today-mark); }
+  .cal-cell.today .cal-daynum { color: var(--today-mark); }
+  .cal-daynum { font-size: 12.5px; font-weight: 700; color: var(--ink-70); font-variant-numeric: tabular-nums; }
+  .cal-chip {
+    min-width: 0; border: none; background: var(--accent-soft); color: var(--accent-strong);
+    border-radius: 5px; padding: 2px 5px; font-size: 11px; font-weight: 600;
+    text-align: left; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cal-chip:hover { background: #dee4ff; }
+  .cal-more {
+    min-width: 0; font-size: 10.5px; color: var(--ink-45); font-weight: 700; padding: 0 5px;
+    text-align: left; background: none; border: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cal-more:hover { color: var(--ink-70); }
+  @media (max-width: 640px) {
+    .cal-grid { gap: 3px; padding: 6px; }
+    .cal-cell { min-height: 68px; padding: 4px; border-radius: 6px; }
+    .cal-chip, .cal-more { font-size: 10px; }
+  }
+
   /* ── 대기 표 ─────────────────────────────────────────────── */
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
@@ -332,56 +395,68 @@
   <div id="오류" class="error hidden"><b>불러오지 못했습니다</b><span id="오류문"></span></div>
 
   <div id="본문" class="hidden">
-    <div class="summary">
-      <span class="chip">이번 <b class="tnum" id="칩이번">0</b>건</span>
-      <span class="chip late" id="칩지연칸">지연 <b class="tnum" id="칩지연">0</b>건</span>
-      <span class="chip">대기 <b class="tnum" id="칩대기">0</b>건</span>
+    <div class="tabbar" role="tablist">
+      <button class="tab on" id="탭할일" role="tab" aria-selected="true">할 일</button>
+      <button class="tab" id="탭일정" role="tab" aria-selected="false">일정</button>
     </div>
 
-    <section>
-      <div class="shead"><h2>이번</h2><span class="n" id="이번수"></span></div>
-      <p class="ssub">마감일이 있는 일. 막대는 시작일부터 마감일까지 기계가 그린다.</p>
-      <div class="card">
-        <div class="gantt-wrap"><div class="gantt" id="간트"></div></div>
-        <div class="empty hidden" id="이번빔">
-          <b>「이번」이 비어 있습니다</b>
-          아래 「대기」에서 마감일을 정해 올리거나, 새 할 일을 마감일과 함께 넣으세요.
+    <div id="할일뷰">
+      <div class="summary">
+        <span class="chip">이번 <b class="tnum" id="칩이번">0</b>건</span>
+        <span class="chip late" id="칩지연칸">지연 <b class="tnum" id="칩지연">0</b>건</span>
+        <span class="chip">대기 <b class="tnum" id="칩대기">0</b>건</span>
+      </div>
+
+      <section>
+        <div class="shead"><h2>이번</h2><span class="n" id="이번수"></span></div>
+        <p class="ssub">마감일이 있는 일. 막대는 시작일부터 마감일까지 기계가 그린다.</p>
+        <div class="card">
+          <div class="gantt-wrap"><div class="gantt" id="간트"></div></div>
+          <div class="empty hidden" id="이번빔">
+            <b>「이번」이 비어 있습니다</b>
+            아래 「대기」에서 마감일을 정해 올리거나, 새 할 일을 마감일과 함께 넣으세요.
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section id="일정섹션" class="hidden">
-      <div class="shead">
-        <h2>일정</h2><span class="n" id="일정수"></span>
-        <span style="margin-left:auto"></span>
-        <button class="btn ghost sm" id="일정추가">+ 일정 추가</button>
-      </div>
-      <p class="ssub">날짜·시각에 묶인 회의·방문. 간트와 같은 범위 — 지난 일정은 자동으로 빠집니다.</p>
-      <div class="card">
-        <div class="table-wrap"><table id="일정표">
-          <thead><tr>
-            <th style="width:96px">날짜</th><th style="width:72px">시각</th>
-            <th>제목</th><th style="width:140px">장소</th>
-          </tr></thead>
-          <tbody id="일정몸통"></tbody>
-        </table></div>
-      </div>
-    </section>
+      <section id="대기섹션" class="hidden">
+        <div class="shead"><h2>대기</h2><span class="n" id="대기수"></span></div>
+        <p class="ssub">마감일이 없는 일. 오래 묵은 것부터. 28일이 넘으면 생사 판정 대상입니다.</p>
+        <div class="card">
+          <div class="table-wrap"><table id="대기표">
+            <thead><tr>
+              <th style="width:110px">프로젝트</th><th>할 일</th>
+              <th style="width:96px">기다리는 대상</th><th style="width:88px">멈춘 날</th>
+              <th style="width:72px">나이</th><th style="width:104px">사유</th><th style="width:176px"></th>
+            </tr></thead>
+            <tbody id="대기몸통"></tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>
 
-    <section id="대기섹션" class="hidden">
-      <div class="shead"><h2>대기</h2><span class="n" id="대기수"></span></div>
-      <p class="ssub">마감일이 없는 일. 오래 묵은 것부터. 28일이 넘으면 생사 판정 대상입니다.</p>
-      <div class="card">
-        <div class="table-wrap"><table id="대기표">
-          <thead><tr>
-            <th style="width:110px">프로젝트</th><th>할 일</th>
-            <th style="width:96px">기다리는 대상</th><th style="width:88px">멈춘 날</th>
-            <th style="width:72px">나이</th><th style="width:104px">사유</th><th style="width:176px"></th>
-          </tr></thead>
-          <tbody id="대기몸통"></tbody>
-        </table></div>
-      </div>
-    </section>
+    <div id="일정뷰" class="hidden">
+      <section>
+        <div class="shead">
+          <h2>일정</h2><span class="n" id="일정수"></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn ghost sm" id="일정이번달">이번 달</button>
+          <button class="btn ghost sm" id="일정추가">+ 일정 추가</button>
+        </div>
+        <p class="ssub">날짜·시각에 묶인 회의·방문. 할 일과 따로 관리합니다 — 칸을 누르면 그 날짜로 바로 추가됩니다.</p>
+        <div class="card">
+          <div class="cal-head">
+            <button class="cal-nav" id="일정이전달" aria-label="이전 달">‹</button>
+            <span class="cal-title tnum" id="일정월제목"></span>
+            <button class="cal-nav" id="일정다음달" aria-label="다음 달">›</button>
+          </div>
+          <div class="cal-dow">
+            <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+          </div>
+          <div class="cal-grid" id="일정달력그리드"></div>
+        </div>
+      </section>
+    </div>
   </div>
 </main>
 
@@ -594,6 +669,8 @@ var 편집중 = null;   // null이면 새로 추가
 var 세부편집중 = null;      // { 부모id, id }, id가 null이면 새로 추가
 var 일정편집중 = null;      // null이면 새로 추가
 var 펼친것 = {};            // { [업무id]: true } — 다시 그려도 펼침 상태를 기억한다
+var 현재탭 = '할일';        // '할일' | '일정'
+var 일정달력월 = null;      // { 해, 달 } — null이면 첫 그리기 때 상태.오늘 소속 달로 채운다
 
 // ── 날짜 (전부 'YYYY-MM-DD' 문자열로 다룬다) ─────────────────
 function 파싱(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -669,11 +746,8 @@ function 그리기() {
   document.getElementById('이번수').textContent = 이번.length + '건';
   document.getElementById('대기수').textContent = 대기.length + '건';
 
-  var 일정 = 이번일정();
-  document.getElementById('일정수').textContent = 일정.length + '건';
-
-  간트그리기(이번, 일정맵_(일정));
-  일정목록그리기(일정);
+  간트그리기(이번, 일정맵_(이번일정()));
+  if (현재탭 === '일정') 달력그리기();
   대기그리기(대기);
   받은함그리기();
   자동완성채우기();
@@ -748,13 +822,10 @@ function 간트그리기(이번, 일정맵) {
       if (!그날일정 || !그날일정.length) continue;
       var 라벨글 = 그날일정[0].제목 + (그날일정.length > 1 ? ' +' + (그날일정.length - 1) : '');
       var 라벨 = 요소('button', 'sched-label', 라벨글);
+      라벨.type = 'button';
       라벨.style.gridColumn = (si + 1);
       라벨.title = 그날일정.map(function (i) { return (i.시작시각 ? i.시작시각 + ' ' : '') + i.제목; }).join('\n');
-      라벨.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var 섹션 = document.getElementById('일정섹션');
-        if (섹션) 섹션.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+      라벨.addEventListener('click', 오버레이클릭_(그날));
       일정칸.appendChild(라벨);
     }
     일정줄.appendChild(일정칸);
@@ -865,24 +936,98 @@ function 완료버튼(h, 토글함수) {
   return b;
 }
 
-/** 일정이 하나도 없으면 섹션째 접는다 — 대기와 같은 관례. */
-function 일정목록그리기(일정) {
-  var 몸통 = document.getElementById('일정몸통');
-  document.getElementById('일정섹션').classList.toggle('hidden', 일정.length === 0);
-  몸통.innerHTML = '';
+/** 탭 전환 — 「할일」·「일정」 뷰를 서로 배타적으로 보여준다. */
+function 탭전환(이름) {
+  현재탭 = 이름;
+  document.getElementById('탭할일').classList.toggle('on', 이름 === '할일');
+  document.getElementById('탭할일').setAttribute('aria-selected', 이름 === '할일');
+  document.getElementById('탭일정').classList.toggle('on', 이름 === '일정');
+  document.getElementById('탭일정').setAttribute('aria-selected', 이름 === '일정');
+  document.getElementById('할일뷰').classList.toggle('hidden', 이름 !== '할일');
+  document.getElementById('일정뷰').classList.toggle('hidden', 이름 !== '일정');
+  if (이름 === '일정') 달력그리기();
+}
 
-  일정.forEach(function (i) {
-    var tr = document.createElement('tr');
-    tr.appendChild(요소('td', 'num', i.날짜));
-    tr.appendChild(요소('td', 'num', i.시작시각 || '—'));
-    var td3 = 요소('td', 'task', '');
-    td3.appendChild(요소('button', 'txt', i.제목));
-    td3.querySelector('.txt').addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(i); });
-    tr.appendChild(td3);
-    tr.appendChild(요소('td', '', i.장소 || '—'));
-    tr.addEventListener('click', function () { 일정모달열기(i); });
-    몸통.appendChild(tr);
+function 일정달력이동(칸) {
+  if (!일정달력월) 일정달력월 = 이번달_();
+  var d = new Date(일정달력월.해, 일정달력월.달 - 1 + 칸, 1);
+  일정달력월 = { 해: d.getFullYear(), 달: d.getMonth() + 1 };
+  달력그리기();
+}
+
+function 일정달력이번달() { 일정달력월 = 이번달_(); 달력그리기(); }
+function 이번달_() { var d = 파싱(상태.오늘); return { 해: d.getFullYear(), 달: d.getMonth() + 1 }; }
+
+/** 간트 위 일정 오버레이(라벨) 클릭 — 일정 탭으로 건너가 그 날짜가 속한 달을 펼치고 스크롤해 보여준다. */
+function 오버레이클릭_(날짜) {
+  return function (e) {
+    e.stopPropagation();
+    var d = 파싱(날짜);
+    일정달력월 = { 해: d.getFullYear(), 달: d.getMonth() + 1 };
+    탭전환('일정');
+    var 셀 = document.querySelector('.cal-cell[data-date="' + 날짜 + '"]');
+    if (셀) 셀.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+}
+
+/**
+ * 일정 탭의 달력 — 6주 창(간트 범위)이 아니라 전체 일정을 대상으로 아무 달이나 넘겨볼 수
+ * 있다(사용자 결정). 서버는 이미 전체를 다 내려주므로(웹_초기데이터) 여기서는 걸러 쓰기만
+ * 한다 — 백엔드 변경 없음. 칸을 누르면 그 날짜로 채운 채 추가 모달이 뜨고, 칩을 누르면
+ * 그 일정의 수정 모달이 뜬다.
+ */
+function 달력그리기() {
+  if (!일정달력월) 일정달력월 = 이번달_();
+  var 해 = 일정달력월.해, 달 = 일정달력월.달;
+  document.getElementById('일정월제목').textContent = 해 + '년 ' + 달 + '월';
+
+  var 첫날 = new Date(해, 달 - 1, 1);
+  var 끝날 = new Date(해, 달, 0);
+  var 시작 = new Date(첫날); 시작.setDate(시작.getDate() - 첫날.getDay());
+  var 마지막일요일 = new Date(끝날); 마지막일요일.setDate(마지막일요일.getDate() - 끝날.getDay());
+  var 줄수 = Math.round((마지막일요일 - 시작) / 86400000 / 7) + 1;
+  var 달앞 = 해 + '-' + String(달).padStart(2, '0');
+
+  var 맵 = {};
+  상태.일정.forEach(function (i) { (맵[i.날짜] = 맵[i.날짜] || []).push(i); });
+  Object.keys(맵).forEach(function (k) {
+    맵[k].sort(function (a, b) { return (a.시작시각 || '99:99') < (b.시작시각 || '99:99') ? -1 : 1; });
   });
+
+  var 이달건수 = 0;
+  var 그리드 = document.getElementById('일정달력그리드');
+  그리드.innerHTML = '';
+  for (var i = 0; i < 줄수 * 7; i++) {
+    var d = new Date(시작); d.setDate(시작.getDate() + i);
+    var 날글 = 찍기(d);
+    var 다른달 = 날글.indexOf(달앞) !== 0;
+    if (!다른달) 이달건수 += (맵[날글] || []).length;
+    그리드.appendChild(일정칸그리기(d, 날글, 다른달, 맵[날글] || []));
+  }
+  document.getElementById('일정수').textContent = 이달건수 + '건';
+}
+
+/** 달력 칸 하나. 인자로 넘겨받아 그리므로(for 루프의 var 클로저 문제 없음) 날짜별 클릭이 서로 안 뒤섞인다. */
+function 일정칸그리기(d, 날글, 다른달, 그날) {
+  var 주말 = d.getDay() === 0 || d.getDay() === 6;
+  var 칸 = 요소('div', 'cal-cell' + (다른달 ? ' other' : '') + (주말 ? ' we' : '') + (날글 === 상태.오늘 ? ' today' : ''));
+  칸.dataset.date = 날글;
+  칸.appendChild(요소('span', 'cal-daynum', String(d.getDate())));
+
+  그날.slice(0, 3).forEach(function (item) {
+    var 칩 = 요소('button', 'cal-chip', (item.시작시각 ? item.시작시각 + ' ' : '') + item.제목);
+    칩.type = 'button';
+    칩.addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(item); });
+    칸.appendChild(칩);
+  });
+  if (그날.length > 3) {
+    var 더보기 = 요소('button', 'cal-more', '+' + (그날.length - 3) + '건 더');
+    더보기.type = 'button';
+    더보기.addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(그날[3]); });
+    칸.appendChild(더보기);
+  }
+  칸.addEventListener('click', function () { 일정모달열기(null, 날글); });
+  return 칸;
 }
 
 /** 대기 항목이 하나도 없으면 섹션째 접는다 — 빈 상태 안내문 대신 그 자리를 간트에 돌려준다
@@ -1387,10 +1532,10 @@ function 모달삭제() {
 }
 
 // ── 일정 ────────────────────────────────────────────────────
-function 일정모달열기(i) {
+function 일정모달열기(i, 날짜) {
   일정편집중 = i || null;
   document.getElementById('일정모달제목').textContent = i ? '일정 고치기' : '일정 추가';
-  document.getElementById('if날짜').value = i ? i.날짜 : 상태.오늘;
+  document.getElementById('if날짜').value = i ? i.날짜 : (날짜 || 상태.오늘);
   document.getElementById('if시작시각').value = i ? i.시작시각 : '';
   document.getElementById('if제목').value = i ? i.제목 : '';
   document.getElementById('if장소').value = i ? i.장소 : '';
@@ -1514,6 +1659,11 @@ document.getElementById('받은함닫기').addEventListener('click', 받은함�
 document.getElementById('세부모달취소').addEventListener('click', 세부모달닫기);
 document.getElementById('세부모달저장').addEventListener('click', 세부모달저장);
 document.getElementById('세부모달삭제').addEventListener('click', 세부모달삭제);
+document.getElementById('탭할일').addEventListener('click', function () { 탭전환('할일'); });
+document.getElementById('탭일정').addEventListener('click', function () { 탭전환('일정'); });
+document.getElementById('일정이전달').addEventListener('click', function () { 일정달력이동(-1); });
+document.getElementById('일정다음달').addEventListener('click', function () { 일정달력이동(1); });
+document.getElementById('일정이번달').addEventListener('click', 일정달력이번달);
 document.getElementById('일정추가').addEventListener('click', function () { 일정모달열기(null); });
 document.getElementById('일정모달취소').addEventListener('click', 일정모달닫기);
 document.getElementById('일정모달저장').addEventListener('click', 일정모달저장);
