@@ -24,7 +24,8 @@
     /* 부드러운 파랑 팔레트 (2026-09-03 확정, 시안 docs/디자인/시안_데스크톱_260903.dc.html) —
        바탕은 옅은 회청, 카드는 흰색+테두리 없이 그림자로만 뜬다. 액센트는 --accent 하나,
        경고는 --bad 하나(주황·보라 없음 — 지연·임박·컨펌 대기 등 「멈춤·문제」 신호는 전부
-       빨강 아니면 중립 회색으로 가른다). 스티커 팔레트(--stk-*)는 부문 구분색 전용으로 유지. */
+       빨강 아니면 중립 회색으로 가른다). 부문 구분색(--stk-*)은 "색이 너무 많다" 피드백으로
+       9/3 저녁에 뺐다 — 구분은 이름만으로 가른다. 되살리려면 이 커밋 이전 이력을 본다. */
     --bg:#f2f4f6; --card:#FFFFFF; --ink:#191f28; --ink2:#4e5968; --sub:#6b7684; --faint:#8b95a1;
     --faintest:#b0b8c1;
     --line:#f2f4f6; --field:#f2f4f6;
@@ -34,8 +35,6 @@
     --ok:#1aae39; --warn:#f04452; --bad:#f04452; --bad-tint:#ffeeed; --bad-ink:#e5312b;
     /* 카드는 테두리 없이 그림자만으로 뜬다 */
     --shadow:0 2px 10px rgba(25,31,40,.04);
-    --stk-sky:#62aef0; --stk-purple:#d6b6f6; --stk-pink:#ff64c8;
-    --stk-orange:#dd5b00; --stk-teal:#2a9d99; --stk-green:#1aae39;
     /* 라운드 사다리 — 태그 6 · 버튼·필드 14 · 카드 24(폰 22, 아래 미디어쿼리) · 세그먼트·칩·막대·알약 999 */
     --r-tag:6px; --r-in:14px; --r-btn:14px; --r-card:24px; --r-lg:16px; --r-pill:9999px;
     /* 간트 막대 색 — 막대·마름모·범례가 이 다섯만 본다 (따로 적으면 언젠가 서로 달라진다).
@@ -43,6 +42,10 @@
        2026-09-01 유지) — 컨펌 대기 전용 보라색은 뺐다(주황·보라 없음). */
     --gt-wait:var(--accent);
     --gt-roll:#cfe3fd;
+    /* 요약 막대의 지연 톤 — --gt-late와 같은 비율(23%)로 흰색에 희석해 --gt-roll과 짝을
+       맞춘다(2026-09-03, "굵고 진한 빨강이 시끄럽다" 피드백). 세부(마일스톤) 막대는
+       계속 --gt-late 원색을 쓴다 — 실제로 손을 대야 할 개별 항목만 눈에 띄어야 한다 */
+    --gt-roll-late:#fbd3d6;
     --gt-confirm:var(--sub);
     --gt-done:#e5e8eb;
     --gt-late:var(--bad);
@@ -60,6 +63,7 @@
       --ok:#3fbf5c; --warn:#ff7369; --bad:#ff7369; --bad-tint:#3a2226; --bad-ink:#ff8f87;
       --shadow:0 0 0 1px rgba(255,255,255,.04);
       --gt-roll:#2c4a72;
+      --gt-roll-late:#6c3d3f;
       --gt-confirm:var(--sub);
       --gt-done:#3a4250;
       --gt-late:var(--bad);
@@ -335,35 +339,25 @@
      막대·다이아몬드는 그대로 진하게 둔다 — 「완료」는 라벨에서, 막대 색은 상태 그대로 읽는다 */
   .gt-row.dir.gt-done .gt-lab{opacity:.5}
   .gt-row.dir.gt-done .gt-lab b{text-decoration:line-through; text-decoration-color:var(--faint)}
-  /* 구분 머리 — 가로로 흘러도 이름은 왼쪽에 남는다. 배경 색 워시는 뺐다(2026-09-03,
-     부드러운 파랑 시안) — 구분 이름 자체가 부문을 말해 준다. 부문색(--dept-c)은 여전히
-     JS가 인라인으로 걸지만(2026-08-30 야간), 이제 건수 배지 글자색에서만 쓰인다 */
+  /* 구분 머리 — 가로로 흘러도 이름은 왼쪽에 남는다. 배경 색 워시도, 부문색(--dept-c) 글자색도
+     뺐다(2026-09-03, "색이 너무 많다" 피드백) — 구분 이름 자체가 부문을 말해 준다.
+     부문마다 다른 색을 칠하지 않으니 텍스트는 그냥 --ink다 */
   .gt-grp{border-top:1px solid var(--line); padding:16px 16px 7px; width:100%; text-align:left; cursor:pointer}
   .gt-grp:hover{background:var(--field)}
   .gt-grp:first-child{border-top:0}
   .gt-grp i{position:sticky; left:16px; display:inline-flex; align-items:center; gap:8px;
-    font-style:normal; font-size:14px; font-weight:700; letter-spacing:-.01em;
-    /* --stk-* 는 파스텔이라 --accent(80%)와 같은 비율로는 대비가 안 나온다(실측 2.3~3:1) —
-       40%까지 낮춰야 흰 카드 위에서 전부 8:1 이상 나온다(2026-08-30 야간, 하네스 실측) */
-    color:color-mix(in srgb, var(--dept-c, var(--ink)) 40%, #000)}
-  /* 건수 배지 — 액센트 계열은 어느 쪽으로 칠해도 4.5:1을 못 넘겼다 (흰 글씨 3.6 / 액센트 글씨 3.8).
-     구분 머리줄이 --field라, 배지만 --card로 띄우면 라이트 5.3:1 · 다크 5.9:1이 나온다 */
+    font-style:normal; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink)}
   .gt-grp i em{font-style:normal; font-weight:700; color:var(--sub); background:var(--card);
     border-radius:999px; padding:2px 9px; font-size:12px}
   .gt-grp .chev{margin-left:2px; font-size:11px; color:var(--sub)}
-  /* 다크 오버라이드는 반드시 기본 규칙 뒤에 와야 한다 — 같은 특이도라 소스 순서로 이긴다
-     (2026-08-30 야간, 처음엔 .pill 다크 블록 안에 넣었다가 기본 규칙에 밀려 하네스에서 걸림) */
-  @media (prefers-color-scheme: dark){
-    .gt-grp i{color:color-mix(in srgb, var(--dept-c, var(--ink)) 72%, #fff)}
-  }
   .gt-track{position:relative; flex:none; display:flex}
-  /* 날짜 칸 세로선은 뺐다(2026-09-03, 부드러운 파랑 시안) — 주말 음영·오늘 열 틴트로 위치를
-     읽는다. 격자선 없이도 막대 자체가 기간을 말해 준다 */
+  /* 날짜 칸 세로선은 뺐다(2026-09-03, 부드러운 파랑 시안) — 주말 음영으로 위치를 읽는다.
+     격자선 없이도 막대 자체가 기간을 말해 준다 */
   .gt-d{flex:none; width:var(--gt-dw)}
   .gt-d.we{background:color-mix(in srgb, var(--sub) 8%, transparent)}
-  .gt-d.today{background:var(--accent-tint)}
   .gt-row.head .gt-d{padding:7px 0 8px; text-align:center; font-size:12.5px; font-weight:700; color:var(--sub)}
-  /* 오늘 칸 머리 — 알약 모양으로 띄운다 */
+  /* 오늘 칸 머리 — 알약 모양으로 띄운다. 몸통 칸에는 더 이상 배경 틴트를 안 깐다
+     (2026-09-03, "지연 막대와 겹쳐 지저분하다" 피드백) — 머리 알약 하나로 충분하다 */
   .gt-row.head .gt-d.today{color:#FFFFFF; background:var(--accent); border-radius:var(--r-pill)}
   .gt-mons{display:flex; padding-left:152px}
   /* 라벨 폭은 하루폭()의 700px 문턱과 같이 움직인다 — 폰에서는 이름을 줄여 날짜를 더 보여준다 */
@@ -383,7 +377,7 @@
   .gt-bar.done,.gt-bar.hold,.gt-bar.confirm{background:var(--gt-hold)}
   /* 요약 막대(업무 줄) — 세부업무를 감싸는 띠라 가늘고 연하게 해서 세부 막대와 구별한다 */
   .gt-bar.roll{height:8px; background:var(--gt-roll)}
-  .gt-bar.roll.late{background:var(--gt-late)}
+  .gt-bar.roll.late{background:var(--gt-roll-late)}
   .gt-bar.roll.done,.gt-bar.roll.hold,.gt-bar.roll.confirm{background:var(--gt-hold)}
   /* 창 밖으로 잘린 쪽은 모서리를 각지게 — 「여기서 끝난 게 아니라 잘렸다」는 표시 */
   .gt-bar.cutL{border-top-left-radius:2px; border-bottom-left-radius:2px}
@@ -747,7 +741,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202609030401';
+  var 빌드버전_ = '202609030507';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -1713,19 +1707,15 @@
 
     let h = '<div class="gt" style="--gt-dw:' + GT_DW + 'px">'
       + '<div class="gt-head">' + 달머리(GT_FROM) + 날머리(GT_FROM, today) + '</div>';
-    let 색순번 = 0;
     갈래.forEach(k => {
-      // 부문색(2026-08-30 야간, 표 통합) — '미분류'는 팔레트를 안 쓰고 --sub 중립(CSS 기본값)로 남는다
-      const 색 = k === '미분류' ? '' : 부문팔레트[색순번++ % 부문팔레트.length];
       const 접힘 = COLLAPSED.has(k);
-      h += '<button class="gt-grp' + (접힘 ? ' collapsed' : '') + '" data-group="' + esc(k) + '"'
-        + (색 ? ' style="--dept-c:var(--stk-' + 색 + ')"' : '') + '>'
+      h += '<button class="gt-grp' + (접힘 ? ' collapsed' : '') + '" data-group="' + esc(k) + '">'
         + '<i>' + esc(k) + '<em>' + 묶음[k].length + '건</em><span class="chev">' + (접힘 ? '▸' : '▾') + '</span></i></button>';
       if (!접힘) {
         묶음[k].sort((a, b) => {
           const x = 첫날(a), y = 첫날(b);
           return (x ? x.getTime() : Infinity) - (y ? y.getTime() : Infinity) || b.id - a.id;
-        }).forEach(d => { h += 지시줄(d, 칸, today, 색); });
+        }).forEach(d => { h += 지시줄(d, 칸, today); });
       }
     });
     $('gtWrap').innerHTML = h + '</div>';
@@ -1752,9 +1742,6 @@
         renderGantt();
       }));
   }
-  // --stk-* 6색(장식 팔레트, 이제껏 미사용) — 부문마다 하나씩, 순서대로 돌려 쓴다
-  const 부문팔레트 = ['sky', 'purple', 'pink', 'orange', 'teal', 'green'];
-
   const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
   const 세부들 = d => (DATA.subs || {})[d.id] || [];
 
@@ -1796,7 +1783,7 @@
     + (dt.getTime() === today.getTime() ? ' today' : '');
 
   /** 업무 한 줄 + 그 아래 세부업무 줄들. 업무 막대는 세부업무 전체를 감싼 요약이다 */
-  function 지시줄(d, 칸, today, 색){
+  function 지시줄(d, 칸, today){
     const subs = 세부들(d);
     /* 권한은 상세시트 마일스톤 카드(subCardHtml)와 같은 규칙이다 — 마일스톤 완료 체크가 거기와
        같은 쓰기(웹_세부완료)라, 한쪽에서만 눌리면 안 된다. 세부업무 추가만 완료·보류를 더
@@ -1818,8 +1805,7 @@
       d.dueKo ? '기한 ' + esc(d.dueKo) : d.doneKo ? '완료 ' + esc(d.doneKo) : '기한 없음',
       ms].filter(Boolean).join(' · ');
 
-    let h = '<button class="gt-row dir' + (d.status === '완료' ? ' gt-done' : '') + '" data-id="' + d.id + '"'
-      + (색 ? ' style="--dept-c:var(--stk-' + 색 + ')"' : '') + '>'
+    let h = '<button class="gt-row dir' + (d.status === '완료' ? ' gt-done' : '') + '" data-id="' + d.id + '">'
       + '<div class="gt-lab"><b>'
       // 마일스톤이 달린 업무만 접기를 그린다 — 없는 줄에 화살표를 두면 눌러도 아무 일이 없다
       + (subs.length ? '<span class="gt-sub-toggle" data-mstoggle="' + d.id + '" title="마일스톤 '
@@ -1830,8 +1816,11 @@
       + esc(d.title) + '</b>'
       + '<span>' + 요약 + '</span>'
       /* 상태 배지만 남긴다 — D-day 신호등은 뗐다(2026-09-01). 「지연·컨펌 대기」는 배지가 이미
-         말하던 것이라 같은 말이 두 번 있던 자리다. 받은함 카드에는 배지가 없어 거기는 그대로 쓴다 */
-      + '<span class="gt-badges">' + 상태필(d) + '</span></div>'
+         말하던 것이라 같은 말이 두 번 있던 자리다. 받은함 카드에는 배지가 없어 거기는 그대로 쓴다.
+         막대가 지연(빨강)이면 배지도 「지연」으로 맞춘다(2026-09-03, "배지와 막대가 다른 말을
+         한다" 피드백) — 안 그러면 status는 여전히 '진행 중'이라 파란 배지 옆에 빨간 막대가
+         떠서 서로 다른 상태를 말하는 것처럼 보였다 */
+      + '<span class="gt-badges">' + (상태 === 'late' ? '<span class="pill late">지연</span>' : 상태필(d)) + '</span></div>'
       + '<div class="gt-track">' + 바탕(today)
       // 기한이 없으면 완료일에 찍는다. 둘 다 없으면 막대도 점도 없이 라벨만 남는다
       + (기간 ? 막대(칸, 기간.from, 기간.to, 상태 + ' roll') : 점(칸, 날짜(d.due) || 날짜(d.done), 상태))
