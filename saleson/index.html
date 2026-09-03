@@ -165,7 +165,7 @@
      흐름 ↔ N-Care 교체 (2026-08-12 사용자 요청) — 흐름은 더보기 안으로. */
   #nav-more { display:none; }
   @media (max-width: 899px) {
-    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow { display:none; }
+    #nav-plan, #nav-log, #nav-mat, #nav-evt, #nav-kpi, #nav-mine, #nav-meta, #nav-flow, #nav-week { display:none; }
     #nav-more { display:block; }
   }
   /* 더보기 화면 메뉴 */
@@ -800,6 +800,16 @@
   <div id="ncBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
 
+<!-- 주간 — 주간 계획서·실행 리포트·2단 승인 (팀운영 D-24~D-34, 지시서 ⑦).
+     원천은 DB(weekly_plans), 시트가 없다. 숫자는 관문이 셀 때마다 만든다 -->
+<div class="view" id="view-week"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;color:#4e5968;">주간 계획서 · 실행 리포트 · 승인</span>
+    <button class="refresh" onclick="WEEK=null;WKSEL='';loadWeek()">새로고침</button>
+  </div>
+  <div id="wkBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
 <!-- 흐름 — 월별 영업 퍼널 -->
 <div class="view" id="view-flow"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -901,6 +911,11 @@
       <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
       <div class="mc">›</div>
     </div>
+    <div class="mrow" id="more-week" onclick="show('week')">
+      <div class="mi" style="background:#1b64da;">주</div>
+      <div class="mb2"><div class="mn">주간</div><div class="ms2">주간 계획서 · 실행 리포트 · 승인</div></div>
+      <div class="mc">›</div>
+    </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
       <div class="mi" style="background:#4e5968;">?</div>
       <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
@@ -913,6 +928,7 @@
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
   <button id="nav-dash" onclick="show('dash')">현황</button>
   <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
+  <button id="nav-week" onclick="show('week')">주간</button>
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
   <button id="nav-log" onclick="show('log')">기록</button>
@@ -1003,6 +1019,9 @@ var NCST = 0;           // 단계 필터 (0 = 전체)
 var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2)
 var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [저장]을 눌러야 반영 (8/13)
 var NCSEL_ID = 0;       // 어느 병원의 선택인지
+var WEEK = null;        // 주간 탭 데이터 (지시서 ⑦ — 관문 전용, GAS 폴백 없음)
+var WKSEL = '';         // 관리자가 보고 있는 팀원 이름 ('' = 내 것)
+var WKPOP = '';         // 규칙 띠에서 펼친 칸 ('' | 'plan' | 'def' | 'ab')
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
 var MATSEG = '전체';
 var LEADSEG = 'open';
@@ -1196,7 +1215,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609020909-ba1a784';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609030601-91f2651';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1471,7 +1490,7 @@ function onData(d) {
   // Meta DB는 개인 연락처가 있어 조회 전용에게 숨기지만, C-Labs는 그 확인이 업무라 연다
   var mm = document.getElementById('more-meta');
   if (mm) mm.style.display = (vw && !cl) ? 'none' : '';
-  ['nav-dash', 'nav-flow', 'more-kpi', 'more-flow', 'nav-ncare'].forEach(function(id) {
+  ['nav-dash', 'nav-flow', 'more-kpi', 'more-flow', 'nav-ncare', 'nav-week', 'more-week'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && cl) el.style.display = 'none';
   });
@@ -1489,7 +1508,7 @@ function onData(d) {
 function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
-  NCARE = null; NCSEG = null; NCST = 0;
+  NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; WKPOP = '';
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
   document.getElementById('liName').value = '';
   document.getElementById('liPin').value = '';
@@ -1560,8 +1579,8 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow', 'week'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week'];
 var 현재뷰_ = 'home';
 function show(v) {
   현재뷰_ = v;
@@ -1600,6 +1619,7 @@ function show(v) {
   if (v === 'mine') { if (MINE) { renderMine(); loadMine(true); } else loadMine(); }
   if (v === 'meta') { if (METAQ) { renderMeta(); loadMeta(true); } else loadMeta(); }
   if (v === 'ncare') { if (NCARE) { renderNcare(); loadNcare(true); } else loadNcare(); }
+  if (v === 'week') { if (WEEK) { renderWeek(); loadWeek(true); } else loadWeek(); }
   if (v === 'flow') {
     if (FLOW) {
       document.getElementById('fMonth').value = FLOW.ym;
@@ -5849,6 +5869,270 @@ setTimeout(function () {
 /* GAS(doGet)로 열렸을 때는 sw.js가 없어 실패한다 — 조용히 넘긴다(롤백 경로 보호) */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(function () {});
+}
+
+/* ══ 주간 — 계획서·실행 리포트·2단 승인 (팀운영 D-24~D-34, 지시서 ⑦) ══
+   원천은 DB(weekly_plans)라 GAS 폴백이 없다 — N-Care 탭과 같이 관문만 부른다.
+   ⚠ 숫자는 저장돼 있지 않다. 관문이 부를 때마다 `_공유/약속실행.mjs`가 센다 —
+   회의 첫 장·관리자 홈 패널과 같은 함수라, 여기 보이는 값이 곧 그 값이다. */
+var WK_배지 = { '작성중': 'tag-grey', '없음': 'tag-grey', '초안': 'tag-grey',
+  '제출': 'tag-blue', '팀장승인': 'tag-blue', '이사승인': 'tag-green', '반려': 'tag-red' };
+function wk배지(s) { return '<span class="' + (WK_배지[s] || 'tag-grey') + '">' + esc(s) + '</span>'; }
+/** 'yyyy-MM-dd' → 'M/D'. 요일은 안 붙인다 — 주 단위 화면이라 날짜만으로 읽힌다 */
+function wk날짜(s) {
+  var p = String(s || '').split('-');
+  return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(s || '');
+}
+/** 월요일 'yyyy-MM-dd' → 'M/D~M/D' (월~일) */
+function wk주(월) {
+  var d = new Date(월 + 'T00:00:00Z');
+  var 끝 = new Date(d.getTime() + 6 * 86400000).toISOString().slice(0, 10);
+  return wk날짜(월) + '~' + wk날짜(끝);
+}
+
+function loadWeek(조용히) {
+  읽기시작_(조용히, 'wkBody');
+  관문호출_('/saleson-weekly', JSON.stringify({ 토큰: TOKEN, 동작: '조회', 대상: WKSEL }))
+    .then(화면갱신감싸기_(function(d) { WEEK = d; 읽기끝_(조용히); renderWeek(); },
+      '주간 정보는 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
+    function(e) {
+      읽기끝_(조용히);
+      if (조용히) { console.warn('[주간 뒤따라 받기]', (e && e.message) || e); return; }
+      실패카드_('wkBody', e, function() { loadWeek(); });
+    });
+}
+
+function renderWeek() {
+  var d = WEEK;
+  if (!d) return;
+  var 남 = d.보는대상 !== d.이름;      // 관리자가 팀원 것을 보고 있다
+  var h = '';
+  if (d.admin) h += wk팀표_(d);
+  if (남) {
+    h += '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">'
+      + '<span style="font-size:15px;font-weight:700;">' + esc(d.보는대상) + ' 님의 주간</span>'
+      + '<button class="btn" onclick="wkSel(\'\')">내 것 보기</button></div>';
+  }
+  h += wk규칙_(d);
+  // 계획서 카드는 제출 대상(교육영업팀)에게만 — 관리자 본인·장비영업팀에게는 낼 것이 없다
+  if (d.대상) h += wk계획서_(d, 남);
+  h += wk리포트_(d, 남);
+  h += wk이번주_(d);
+  document.getElementById('wkBody').innerHTML = h;
+}
+
+/* 규칙 띠 — 「12건 중 N · 만료 방어 N/M · 미가입 A·B N/4」(D-25).
+   미충족은 붉게. 칸을 누르면 어느 병원인지 펼친다 — 숫자만 보고는 무엇을 해야 할지 모른다 */
+function wk규칙_(d) {
+  if (!d.규칙) {
+    return '<div class="card" style="font-size:13px;color:#5f6b7a;line-height:1.7;">'
+      + '교육영업팀의 주간 계획서 화면입니다. 이 팀이 아니면 <b>제출 의무가 없습니다</b> — 아래 지난 주 실행 숫자만 보입니다.</div>';
+  }
+  var r = d.규칙;
+  var 칸 = function(값, 라벨, ok, key) {
+    return '<div onclick="wkPop(\'' + key + '\')" style="flex:1;min-width:92px;text-align:center;padding:12px 6px;border-radius:14px;cursor:pointer;border:1px solid #e5e8eb;background:' + (ok ? '#fff' : '#ffeaed') + ';">'
+      + '<div style="font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;color:' + (ok ? '#05754a' : '#d0223a') + ';">' + 값 + '</div>'
+      + '<div style="margin-top:3px;font-size:11.5px;font-weight:600;color:#4e5968;white-space:nowrap;">' + 라벨 + '</div></div>';
+  };
+  var h = '<div class="card" style="padding:14px;">'
+    + '<div style="display:flex;gap:8px;">'
+    + 칸(r.계획 + '<span style="font-size:14px;color:#8b95a1;">/12</span>', '계획', r.계획_ok, 'plan')
+    + 칸(r.방어 + '<span style="font-size:14px;color:#8b95a1;">/' + r.방어대상수 + '</span>', '만료 방어', r.방어_ok, 'def')
+    + 칸(r.미가입ab + '<span style="font-size:14px;color:#8b95a1;">/4</span>', '미가입 A·B', r.ab_ok, 'ab')
+    + '</div>';
+
+  if (WKPOP === 'def') {
+    h += wk목록_('만료 180일 안 · 담당 병원', (d.방어대상 || []).map(function(p) {
+      return { 왼: p.hname, 오: 'D-' + p.dDay + (p.계획있음 ? ' · 계획 있음' : ' · 계획 없음'), 나쁨: !p.계획있음 };
+    }), '만료가 임박한 담당 병원이 없습니다');
+  } else if (WKPOP === 'ab') {
+    h += wk목록_('미가입(5단계 전) A·B 등급 담당 병원', (d.미가입ab || []).map(function(p) {
+      return { 왼: p.grade + ' · ' + p.hname, 오: p.계획있음 ? '계획 있음' : '계획 없음', 나쁨: !p.계획있음 };
+    }), '미가입 A·B 담당 병원이 없습니다');
+  } else if (WKPOP === 'plan') {
+    h += '<div style="margin-top:10px;font-size:12.5px;color:#5f6b7a;line-height:1.7;">'
+      + '다음 주 <b>방문 계획 12건</b>이 기준입니다. 어디를 갈지는 본인이 정합니다 — 전화·이메일 계획은 세지 않습니다.</div>';
+  }
+  h += '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;line-height:1.7;">'
+    + (r.충족 ? '세 조건을 모두 채웠습니다.' : '<b style="color:#d0223a;">미충족이어도 제출됩니다 — 사유만 적어 주세요.</b>')
+    + ' 칸을 누르면 어느 병원인지 펼쳐집니다.</div></div>';
+  return h;
+}
+
+function wk목록_(제목, 줄들, 빈문구) {
+  var h = '<div style="margin-top:12px;padding-top:12px;box-shadow:inset 0 1px 0 #f2f4f6;">'
+    + '<div style="font-size:12px;font-weight:700;color:#4e5968;margin-bottom:6px;">' + esc(제목) + '</div>';
+  if (!줄들.length) return h + '<div style="font-size:13px;color:#8b95a1;">' + esc(빈문구) + '</div></div>';
+  return h + 줄들.map(function(r) {
+    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px;">'
+      + '<span style="color:#191f28;">' + esc(r.왼) + '</span>'
+      + '<span style="flex:none;font-weight:600;color:' + (r.나쁨 ? '#d0223a' : '#05754a') + ';">' + esc(r.오) + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/* 다음 주 계획서 — 새 입력을 만들지 않는다(D-24). 계획 탭에 등록한 그 주 계획 묶음에
+   상태와 사유를 씌운 것이다. 그래서 여기서는 계획을 고칠 수 없고 [계획 탭으로]만 있다 */
+function wk계획서_(d, 남) {
+  var p = d.계획서;
+  var 낼수있나 = !남 && d.대상 && (p.status === '작성중' || p.status === '반려');
+  var h = kick('다음 주 계획서 · ' + wk주(d.계획주));
+  h += '<div class="card">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' + wk배지(p.status)
+    + '<span style="font-size:13px;color:#5f6b7a;">방문 계획 ' + (d.계획들 || []).length + '건</span>'
+    + (p.승인2단 ? '<span style="font-size:12px;color:#05754a;">이사 승인 · ' + esc(p.승인2단) + '</span>'
+      : p.승인1단 ? '<span style="font-size:12px;color:#1b64da;">팀장 승인 · ' + esc(p.승인1단) + '</span>' : '')
+    + '</div>';
+  if (p.status === '반려' && p.반려사유) {
+    h += '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ffeaed;font-size:13px;color:#d0223a;line-height:1.6;">'
+      + '반려 사유 · ' + esc(p.반려사유) + '</div>';
+  }
+  h += (d.계획들 || []).length
+    ? '<div style="margin-top:10px;">' + d.계획들.map(function(x) {
+        return '<div style="display:flex;gap:10px;padding:7px 0;font-size:13.5px;box-shadow:inset 0 1px 0 #f2f4f6;">'
+          + '<span style="flex:none;width:44px;color:#5f6b7a;font-variant-numeric:tabular-nums;">' + wk날짜(x.date) + '</span>'
+          + '<span style="flex:1;min-width:0;color:#191f28;">' + esc(x.hname) + '</span>'
+          + '<span style="flex:none;font-size:12px;color:#8b95a1;">' + esc(x.type) + '</span></div>';
+      }).join('') + '</div>'
+    : '<div class="empty" style="padding:18px 0;">다음 주 계획이 아직 없습니다 — 계획 탭에서 먼저 등록해 주세요</div>';
+
+  if (낼수있나) {
+    h += '<label class="f" for="wkNote">미충족 사유' + (d.규칙 && d.규칙.충족 ? ' (선택)' : ' <b style="color:#d0223a;">(필수)</b>') + '</label>'
+      + '<textarea id="wkNote" style="min-height:72px;" placeholder="예) 담당 재배정 전이라 미가입 A·B가 2곳뿐입니다">' + esc(p.note) + '</textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:12px;">'
+      + '<button class="btn" style="flex:1;" onclick="show(\'plan\')">계획 탭으로</button>'
+      + '<button class="btn pri" style="flex:1;" onclick="wk계획제출()">계획서 제출</button></div>'
+      + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">목요일 18시까지 제출하면 금요일 12시 팀장 승인, 18시 이사 승인으로 이어집니다.</div>';
+  } else if (p.note) {
+    h += '<div style="margin-top:10px;font-size:13px;color:#4e5968;line-height:1.7;"><b>사유</b> · ' + esc(p.note) + '</div>';
+  }
+  return h + '</div>';
+}
+
+/* 지난 주 실행 리포트 — 숫자와 목록은 서버가 만든다(D-28). 사람이 쓰는 건 아래 두 칸뿐이다 */
+function wk리포트_(d, 남) {
+  var r = d.리포트, n = r.숫자;
+  var 낼수있나 = !남 && d.대상 && (r.status === '없음' || r.status === '초안' || r.status === '반려');
+  var 숫자 = function(라벨, 값, 색) {
+    return '<div style="flex:1;min-width:56px;text-align:center;">'
+      + '<div style="font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:' + (색 || '#191f28') + ';">' + 값 + '</div>'
+      + '<div style="margin-top:2px;font-size:11.5px;color:#5f6b7a;white-space:nowrap;">' + 라벨 + '</div></div>';
+  };
+  var h = kick('지난 주 실행 리포트 · ' + wk주(d.리포트주));
+  h += '<div class="card">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' + wk배지(r.status)
+    + (r.승인2단 ? '<span style="font-size:12px;color:#05754a;">이사 승인 · ' + esc(r.승인2단) + '</span>'
+      : r.승인1단 ? '<span style="font-size:12px;color:#1b64da;">팀장 승인 · ' + esc(r.승인1단) + '</span>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+    + 숫자('계획', n.계획) + 숫자('실행', n.실행, '#05754a') + 숫자('소급', n.소급, n.소급 ? '#a35c11' : '#191f28')
+    + 숫자('데모', n.실행_데모) + 숫자('N-Care', n.실행_ncare)
+    + '</div>'
+    + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">실행은 <b>당일 입력</b>만 셉니다 — 다음 날 08시 뒤에 넣은 것은 소급입니다.</div>';
+
+  if (r.status === '반려' && r.반려사유) {
+    h += '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ffeaed;font-size:13px;color:#d0223a;line-height:1.6;">'
+      + '반려 사유 · ' + esc(r.반려사유) + '</div>';
+  }
+  if ((r.미실행 || []).length) {
+    h += wk목록_('실행되지 않은 계획 ' + r.미실행.length + '건', r.미실행.map(function(x) {
+      return { 왼: wk날짜(x.date) + ' · ' + x.hname + (x.type ? ' · ' + x.type : ''), 오: '미실행', 나쁨: true };
+    }), '');
+  }
+  if ((r.계획외 || []).length) {
+    h += wk목록_('계획에 없던 방문 ' + r.계획외.length + '건', r.계획외.map(function(x) {
+      return { 왼: wk날짜(x.date) + ' · ' + x.hname, 오: x.당일 ? '당일 입력' : '소급', 나쁨: !x.당일 };
+    }), '');
+  }
+  if (낼수있나) {
+    h += '<label class="f" for="wkExtra">기록에 없는 활동</label>'
+      + '<textarea id="wkExtra" style="min-height:64px;" placeholder="예) 본사 교육 지원 2회 — 방문기록에 남지 않는 활동">' + esc(r.extra) + '</textarea>'
+      + '<label class="f" for="wkShort">미달 사유 · 보완사항</label>'
+      + '<textarea id="wkShort" style="min-height:64px;" placeholder="예) 계획 12건 중 4건 미실행 — 장비 이슈 대응으로 대체">' + esc(r.shortfall) + '</textarea>'
+      + '<button class="btn pri" style="width:100%;margin-top:12px;" onclick="wk리포트제출()">실행 리포트 제출</button>'
+      + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">월요일 12시까지 보완하면 1:1에서 승인합니다.</div>';
+  } else {
+    if (r.extra) h += '<div style="margin-top:10px;font-size:13px;color:#4e5968;line-height:1.7;"><b>기록에 없는 활동</b> · ' + esc(r.extra) + '</div>';
+    if (r.shortfall) h += '<div style="margin-top:6px;font-size:13px;color:#4e5968;line-height:1.7;"><b>미달 사유·보완</b> · ' + esc(r.shortfall) + '</div>';
+  }
+  return h + '</div>';
+}
+
+/* 이번 주 계획서 상태 한 줄 — 지난 목요일에 낸 것이 승인됐는지가 이번 주 활동의 근거다 */
+function wk이번주_(d) {
+  var s = d.이번주계획서.status;
+  return '<div class="card" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4e5968;">'
+    + '<span>이번 주(' + wk주(d.이번주) + ') 계획서</span>' + wk배지(s) + '</div>';
+}
+
+/* 관리자 표 — 내 차례인 것만 [승인]/[반려]가 활성이다(D-26).
+   이름을 누르면 그 사람 상세로 바꿔 본다 — 내용을 안 보고 누르는 승인이 되면 안 된다 */
+function wk팀표_(d) {
+  var 대기 = 0;
+  (d.팀 || []).forEach(function(t) { if (t.plan내차례 || t.report내차례) 대기++; });
+  var h = kick('교육영업팀 승인' + (대기 ? ' · 내 차례 ' + 대기 + '명' : ''), !!대기);
+  if (!(d.팀 || []).length) return h + '<div class="card empty">교육영업팀 담당자가 없습니다</div>';
+  h += '<div class="card" style="padding:6px 14px;">'
+    + d.팀.map(function(t, i) {
+        var 칸 = function(종류, 상태, 내차례) {
+          var b = wk배지(상태);
+          if (!내차례) return '<div style="flex:1;min-width:0;">' + b + '</div>';
+          return '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + b
+            + '<button class="btn" style="padding:5px 10px;font-size:12px;" onclick="wk승인(\'' + esc(t.name) + '\',\'' + 종류 + '\')">승인</button>'
+            + '<button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="wk반려(\'' + esc(t.name) + '\',\'' + 종류 + '\')">반려</button></div>';
+        };
+        return '<div style="padding:11px 0;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '">'
+          + '<div onclick="wkSel(\'' + esc(t.name) + '\')" style="font-size:15px;font-weight:700;color:#1b64da;cursor:pointer;">' + esc(t.name) + ' ›</div>'
+          + '<div style="display:flex;gap:8px;margin-top:7px;align-items:flex-start;">'
+          + '<span style="flex:none;width:44px;font-size:11.5px;color:#5f6b7a;padding-top:3px;">계획서</span>' + 칸('계획서', t.plan, t.plan내차례)
+          + '</div>'
+          + '<div style="display:flex;gap:8px;margin-top:6px;align-items:flex-start;">'
+          + '<span style="flex:none;width:44px;font-size:11.5px;color:#5f6b7a;padding-top:3px;">리포트</span>' + 칸('리포트', t.report, t.report내차례)
+          + '</div></div>';
+      }).join('')
+    + '</div>';
+  return h;
+}
+
+function wkSel(name) { WKSEL = name; WEEK = null; loadWeek(); }
+function wkPop(k) { WKPOP = (WKPOP === k ? '' : k); renderWeek(); }
+
+function wk쓰기_(몸통, 성공문구) {
+  busy(true, '보내는 중…');
+  관문호출_('/saleson-weekly', JSON.stringify(몸통))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false);
+      toast((r && r.msg) || 성공문구);
+      WEEK = null; loadWeek();
+    }), function(e) { busy(false); toast(e.message, true); });
+}
+
+function wk계획제출() {
+  var el = document.getElementById('wkNote');
+  var 사유 = el ? String(el.value || '').trim() : '';
+  // 서버도 다시 판정한다 — 여기서 막는 건 왕복 한 번을 아끼려는 것뿐이다
+  if (WEEK.규칙 && !WEEK.규칙.충족 && !사유) return 검증실패_('최소 조건을 채우지 못했습니다 — 사유를 적어 주세요', 'wkNote');
+  wk쓰기_({ 토큰: TOKEN, 동작: '계획서제출', 주시작: WEEK.계획주, 사유: 사유 }, '계획서를 제출했습니다.');
+}
+
+function wk리포트제출() {
+  var e1 = document.getElementById('wkExtra'), e2 = document.getElementById('wkShort');
+  wk쓰기_({ 토큰: TOKEN, 동작: '리포트제출', 주시작: WEEK.리포트주,
+    extra: e1 ? String(e1.value || '').trim() : '', shortfall: e2 ? String(e2.value || '').trim() : '' },
+    '실행 리포트를 제출했습니다.');
+}
+
+function wk승인(name, 종류) {
+  wk쓰기_({ 토큰: TOKEN, 동작: '승인', 대상: name, 종류: 종류,
+    주시작: 종류 === '계획서' ? WEEK.계획주 : WEEK.리포트주 }, '승인했습니다.');
+}
+
+function wk반려(name, 종류) {
+  입력시트_({ 제목: name + ' 님 ' + 종류 + ' 반려', 라벨: '반려 사유', 여러줄: true, 확인: '반려',
+    안내: '사유는 본인과 관리자만 봅니다. 마감은 연장되지 않습니다 — 수정 후 다시 제출해야 합니다.',
+    예시: '예) 미가입 A·B 담당 병원 방문이 2곳뿐입니다' }, function(v) {
+    wk쓰기_({ 토큰: TOKEN, 동작: '반려', 대상: name, 종류: 종류,
+      주시작: 종류 === '계획서' ? WEEK.계획주 : WEEK.리포트주, 사유: v }, '반려했습니다.');
+  });
 }
 </script>
 </body>
