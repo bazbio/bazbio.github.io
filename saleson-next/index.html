@@ -1215,7 +1215,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609030601-91f2651';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609040726-7907501';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3410,7 +3410,17 @@ function savePlan() {
     계획임시저장지우기_();
     var keepDate = document.getElementById('pDate').value;
     onData(d); resetPlanForm(keepDate); show('plan');
-    toast('계획을 저장했습니다. 이어서 등록하세요');
+    /* 창(오늘+7일) 밖 계획은 저장돼도 「내 계획」에 안 뜬다 — 그 사실을 저장 순간에 말해 준다
+       (2026-09-04). 안 그러면 목록에서 못 찾고 「누락됐다」로 읽어 같은 계획을 다시 넣는다.
+       실제로 9/4에 그렇게 중복이 생겼다(코와이비인후과 김해 9/15가 두 건).
+       ⚠ 여기서 7일을 다시 세지 않는다 — 서버가 이미 거른 `DATA.plans`에 그 **날짜**가
+       있는지로 판정한다. 규칙을 두 곳에 두면 반드시 갈린다(실패대장 6번).
+       날짜로만 보는 이유: 창이 날짜로만 거르므로, 창 밖이면 그 날짜 계획이 하나도 없다.
+       병원명으로 맞추면 서버가 이름을 다듬었을 때 헛짚는다. */
+    var 보인다 = (DATA.plans || []).some(function(p) { return p.date === f.date; });
+    toast(보인다
+      ? '계획을 저장했습니다. 이어서 등록하세요'
+      : f.date + ' 계획으로 저장했습니다. 「내 계획」은 7일 안만 보여 지금은 목록에 없습니다');
     document.getElementById('pSave').disabled = false;
     /* 연기로 옮긴 계획이면 **새 계획이 실제로 생긴 지금** 원래 것을 연기 처리한다 (8/15, D5).
        먼저 처리했다가 사용자가 저장을 그만두면 미룬 방문이 그대로 증발한다 */
