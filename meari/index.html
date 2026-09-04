@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>메아리 — 현장 등록</title>
-<meta name="theme-color" content="#f7f7f8">
+<meta name="theme-color" content="#f2f4f6">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
@@ -30,14 +30,16 @@
 <style>
 /* ═══════════════════════════════════════════════════════════════
    메아리 등록 화면 — 폰 세로 한 손 기준 (SPEC §5.1)
-   디자인: 혼합안 v2 (2026-08-11 확정) — 흰 캔버스·검정 액션·헤어라인,
-   iOS 큰 제목, 신호색은 벽돌빨강·황토·강청 셋뿐. 초록·그라디언트 없음.
+   디자인: 블루 프렌들리 (2026-09-04 개정) — 회색 바탕 위 흰 시트,
+   입력칸은 채운 회색 웰, 강조는 블루 단일색. 헤어라인·검정 액션 폐기.
    ═══════════════════════════════════════════════════════════════ */
 :root{
-  --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
-  --grouped:#f7f7f8; --card:#f5f5f6; --hair:#e5e7eb; --hair2:#d1d5db;
-  --red:#b42318; --red-bg:#f9f1f0;
-  --r-btn:8px; --r-card:12px; --pill:9999px;
+  --ink:#191f28; --body:#333d4b; --muted:#6b7684; --faint:#8b95a1;
+  --grouped:#f2f4f6; --card:#f2f4f6; --hair:#e5e8eb; --hair2:#d1d6db;
+  --red:#f04452; --red-bg:#fdeeef;
+  --accent:#2f6fed; --accent-bg:#eaf1fe; --accent-ink:#1f52b8;
+  --shadow:0 1px 2px rgba(20,30,60,.04), 0 14px 28px -12px rgba(20,30,60,.12);
+  --r-btn:16px; --r-card:24px; --pill:9999px;
   --곡선:cubic-bezier(0.16,1,0.3,1);
   --하단:calc(76px + env(safe-area-inset-bottom));
 }
@@ -52,15 +54,16 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit}
-:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-btn)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--r-btn)}
 
 /* ── 머리 — iOS 큰 제목 ── */
 .머리{padding:calc(var(--s5,20px) + env(safe-area-inset-top) + 8px) 20px 4px}
 .머리 h1{margin:0; font-size:27px; font-weight:600; letter-spacing:-.03em}
 .머리 p{margin:2px 0 0; font-size:13.5px; color:var(--muted)}
 
-/* ── 몸 ── */
-.몸{max-width:560px; margin:0 auto; padding:8px 16px var(--하단)}
+/* ── 몸 — 회색 바탕 위 흰 시트 ── */
+.몸{max-width:560px; width:calc(100% - 24px); margin:16px auto 0; padding:22px 16px var(--하단);
+  background:#fff; border-radius:var(--r-card); box-shadow:var(--shadow)}
 .칸{margin-bottom:20px}
 .표{display:block; font-size:13px; font-weight:600; color:var(--body); margin:0 2px 8px}
 .표 .별{color:var(--red); margin-left:2px}
@@ -68,28 +71,28 @@ button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit
 /* ── 입력 ── */
 .글칸, .고름{
   width:100%; min-height:50px; padding:12px 14px;
-  background:#fff; border:1px solid var(--hair); border-radius:var(--r-btn);
-  transition:border-color .2s var(--곡선), box-shadow .2s var(--곡선);
+  background:var(--grouped); border:1px solid transparent; border-radius:var(--r-btn);
+  transition:border-color .2s var(--곡선), box-shadow .2s var(--곡선), background-color .2s var(--곡선);
 }
-.글칸:focus, .고름:focus{border-color:var(--ink); box-shadow:0 0 0 3px rgba(17,17,17,.06); outline:none}
+.글칸:focus, .고름:focus{background:#fff; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); outline:none}
 textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 #특이사항{min-height:76px}   /* 여러 줄이지만 본문만큼 길지는 않다 */
 .고름{appearance:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238b95a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 14px center; padding-right:42px;
 }
 
-/* ── 선택 버튼 무리 — 켬은 검정 ── */
+/* ── 선택 버튼 무리 — 켬은 블루 ── */
 .무리{display:flex; flex-wrap:wrap; gap:7px}
 .알{
   min-height:46px; padding:0 18px;
-  background:#fff; color:var(--body);
-  border:1px solid var(--hair2); border-radius:var(--r-btn);
-  font-size:14.5px; font-weight:500; cursor:pointer;
+  background:var(--grouped); color:var(--body);
+  border:1px solid transparent; border-radius:var(--pill);
+  font-size:14.5px; font-weight:600; cursor:pointer;
   transition:transform .18s var(--곡선), background-color .18s var(--곡선), border-color .18s var(--곡선), color .18s var(--곡선);
 }
 .알:active{transform:scale(.97)}
-.알[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600}
+.알[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
 .무리.제품 .알{flex:1 1 calc(33.333% - 7px); padding:0 8px}
 /* 유형은 이름이 길다 — 두 칸으로 흘린다 */
 .무리.유형 .알{flex:1 1 calc(50% - 7px); padding:0 12px; font-size:13.5px; min-height:44px}
@@ -108,8 +111,8 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 .사진추가{
   width:86px; height:86px; flex:0 0 auto;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
-  background:#fff; border:1px dashed var(--hair2); border-radius:var(--r-btn);
-  color:var(--muted); font-size:12.5px; font-weight:500; cursor:pointer;
+  background:var(--grouped); border:1px dashed var(--hair2); border-radius:var(--r-btn);
+  color:var(--accent-ink); font-size:12.5px; font-weight:600; cursor:pointer;
   transition:transform .18s var(--곡선), border-color .18s var(--곡선);
 }
 .사진추가:active{transform:scale(.97)}
@@ -128,17 +131,18 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 .바닥{
   position:fixed; left:0; right:0; bottom:0; z-index:10;
   padding:10px 16px calc(10px + env(safe-area-inset-bottom));
-  background:rgba(247,247,248,.92); backdrop-filter:blur(16px);
+  background:rgba(242,244,246,.92); backdrop-filter:blur(16px);
   border-top:1px solid var(--hair);
 }
 .보내기{
   display:block; width:100%; max-width:528px; margin:0 auto; min-height:52px;
-  background:var(--ink); color:#fff; border:none; border-radius:var(--r-btn);
-  font-size:16px; font-weight:600; letter-spacing:-.01em; cursor:pointer;
+  background:var(--accent); color:#fff; border:none; border-radius:var(--r-btn);
+  font-size:16px; font-weight:700; letter-spacing:-.01em; cursor:pointer;
+  box-shadow:0 10px 22px -8px rgba(47,111,237,.45);
   transition:transform .18s var(--곡선), opacity .18s var(--곡선);
 }
 .보내기:active:not(:disabled){transform:scale(.985)}
-.보내기:disabled{background:#c6c9cd; cursor:default}
+.보내기:disabled{background:#c6c9cd; box-shadow:none; cursor:default}
 
 /* ── 상태 ── */
 .알림{
@@ -160,10 +164,10 @@ textarea.글칸{min-height:120px; resize:vertical; line-height:1.6}
 .동그라미{
   width:60px; height:60px; margin-bottom:18px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
-  background:var(--ink); color:#fff;
+  background:var(--accent); color:#fff;
 }
 .빙글{
-  width:24px; height:24px; border:2.5px solid var(--hair); border-top-color:var(--ink);
+  width:24px; height:24px; border:2.5px solid var(--hair); border-top-color:var(--accent);
   border-radius:50%; animation:돈다 .7s linear infinite;
 }
 @keyframes 돈다{to{transform:rotate(360deg)}}
