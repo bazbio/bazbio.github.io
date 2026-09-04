@@ -741,7 +741,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202609030507';
+  var 빌드버전_ = '202609040806';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -2040,6 +2040,18 @@
     return '<span class="pill todo">시작 전</span>';
   }
 
+  /* 상세 시트의 상태 배지 (2026-09-04) — 목록의 pillOf를 쓰지 않는다: 거기서는 기한 임박·
+     미팅 같은 사정이 상태를 덮어써서, 정작 「지금 어느 단계인가」가 안 보인다. 상세에서는
+     상태가 늘 보여야 한다 (관문 둘이 상태로 표현되기 때문 — ADR 0030·0031).
+     대표 컨펌을 기다리는 중이면 그 사유를 덧붙인다: 「시작 전 · 대표님 컨펌 대기」 */
+  function statusPill(d){
+    const cls = d.status === '완료' ? 'done' : d.status === '보류' ? 'gray'
+      : d.status === '컨펌 대기' ? 'confirm' : d.status === '진행 중' ? 'doing' : 'todo';
+    const 관문 = d.stuckWhy === '계획 컨펌 대기' ? '대표님 컨펌 대기'
+      : d.stuckWhy === '계획 보완 대기' ? '보완 요청받음' : '';
+    return '<span class="pill ' + cls + '">' + esc(d.status) + (관문 ? ' · ' + 관문 : '') + '</span>';
+  }
+
   // 진행 중인 지시의 남은 기한 배지 (D-3 · D-DAY · D+2) — 컨펌 대기는 일이 끝난 상태라 뺀다
   // 14일 넘게 지나면 텍스트도 「정체」로 바꾼다 — 신호등과 같은 경계, 세부 지연이면 여전히 D+N을 보여준다
   function ddayBadge(d){
@@ -2207,7 +2219,7 @@
 
     let h = '<div class="grip"></div>'
       + '<div class="sheet-head"><h2>' + esc(d.title) + '</h2><button class="close" onclick="closeSheet()">닫기</button></div>'
-      + '<div class="sheet-meta"><b>' + esc(d.owner) + '</b>' + (d.by ? ' <span class="proxy">' + esc(d.by) + ' 대리</span>' : '')
+      + '<div class="sheet-meta">' + statusPill(d) + ' <b>' + esc(d.owner) + '</b>' + (d.by ? ' <span class="proxy">' + esc(d.by) + ' 대리</span>' : '')
       + ' ' + (d.kind === '요청' ? '요청 · 받는 사람' : '지시 · 담당') + ' <b>' + esc(d.who.join(', ')) + '</b>'
       + (d.dueKo ? ' · 기한 <b>' + esc(d.dueKo) + '</b> ' + (openStatus ? '<span class="pill ' + (d.dday <= 1 ? 'late' : 'wait') + '">' + d.ddayLabel + '</span>' : '') : '')
       + ' · ' + esc(d.pri) + (d.type === 'KPI' ? ' · <b>KPI</b>' : '')
@@ -2536,7 +2548,12 @@
     if (DATA.me.manage) {
       if (d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'완료\')">완료 처리</button>';
       if (d.status !== '보류' && d.status !== '완료') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'보류\')">보류</button>';
-      if (d.status === '완료' || d.status === '보류') b += '<button class="chip" onclick="setStatus(' + d.id + ',\'진행 중\')">다시 진행</button>';
+      /* '시작 전'에도 연다 (2026-09-04) — 관리자는 계획 컨펌 관문 밖에 있어(웹앱.html의
+         「대표님 컨펌 요청」 카드가 !me.manage 조건) 자기가 담당인 업무를 진행 중으로 옮길
+         길이 아예 없었다. 완료 보고도 서버가 '시작 전'이면 거절한다 (ADR 0031). */
+      if (d.status === '완료' || d.status === '보류' || d.status === '시작 전')
+        b += '<button class="chip" onclick="setStatus(' + d.id + ',\'진행 중\')">'
+          + (d.status === '시작 전' ? '진행 중으로' : '다시 진행') + '</button>';
     }
     b += '<button class="chip" onclick="editDir()">수정</button>';
     if (DATA.me.manage) b += '<button class="chip" onclick="followUp()">후속 지시</button>';
