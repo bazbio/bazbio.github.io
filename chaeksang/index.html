@@ -88,6 +88,76 @@
   .tab:hover { color: var(--ink-70); }
   .tab.on { background: var(--canvas); color: var(--ink); box-shadow: var(--shadow-sm); }
 
+  /* ── 오늘 (맨 앞 탭) ─────────────────────────────────────────
+     오늘 하루치만 모아 보는 자리. 새로 저장하는 칸은 없다 —
+     「할 일」·「일정」이 이미 가진 것을 마감일·날짜로 걸러 다시 배치할 뿐이다. */
+  .today-grid {
+    display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 28px; align-items: start;
+  }
+  .today-grid section { margin-bottom: 0; }
+  @media (max-width: 900px) { .today-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+
+  /* 압축 타임라인 — 첫 일정부터 마지막 일정 시간대까지만 그린다.
+     07~20시를 고정으로 깔면 일정이 한둘인 날은 화면이 거의 빈칸이 된다. */
+  .tl { padding: 8px 0; }
+  .tl-row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 10px; padding: 0 14px; }
+  .tl-hour {
+    font-size: 11.5px; font-weight: 700; color: var(--ink-45);
+    padding-top: 10px; font-variant-numeric: tabular-nums;
+  }
+  .tl-slot {
+    border-top: 1px solid var(--line-soft); padding: 6px 0;
+    display: flex; flex-direction: column; gap: 6px; min-height: 36px;
+  }
+  .tl-row:first-child .tl-slot { border-top: none; }
+  .tl-ev {
+    display: block; width: 100%; text-align: left; border: none;
+    background: var(--accent-soft); border-radius: var(--r-sm); padding: 8px 11px;
+    transition: background .16s var(--ease), transform .16s var(--ease);
+  }
+  .tl-ev:hover { background: #dee4ff; transform: translateX(2px); }
+  .tl-ev .t {
+    display: block; font-size: 11.5px; font-weight: 800; color: var(--accent-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-ev .n {
+    display: block; font-size: 14px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.02em; word-break: keep-all;
+  }
+  .tl-ev .p { display: block; font-size: 12px; color: var(--ink-45); word-break: keep-all; }
+
+  /* 오늘 할 일 체크리스트 */
+  .tlist { padding: 2px 0; }
+  .titem {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line-soft);
+  }
+  .titem:last-child { border-bottom: none; }
+  .tcheck {
+    flex: none; width: 21px; height: 21px; margin-top: 2px; padding: 0;
+    border: 2px solid var(--line); border-radius: 50%; background: var(--canvas);
+    display: flex; align-items: center; justify-content: center; color: transparent;
+    transition: border-color .16s var(--ease), background .16s var(--ease), color .16s var(--ease);
+  }
+  .tcheck svg { width: 11px; height: 11px; }
+  .tcheck:hover { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .titem .tbody { flex: 1; min-width: 0; }
+  .titem .txt {
+    border: none; background: none; padding: 0; text-align: left;
+    font-size: 14.5px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.02em; word-break: keep-all;
+  }
+  .titem .txt:hover { text-decoration: underline; }
+  .titem.sub .txt { font-size: 13.5px; font-weight: 600; }
+  .titem .meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin-top: 3px; font-size: 12px; color: var(--ink-45);
+  }
+  .tflag { font-size: 11px; font-weight: 800; border-radius: var(--pill); padding: 1px 8px; }
+  .tflag.due { background: #fff4e6; color: #e8590c; }
+  .tflag.late { background: var(--late-soft); color: var(--late); }
+
   /* ── 요약 칩 ─────────────────────────────────────────────── */
   .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
   .chip {
@@ -400,11 +470,30 @@
 
   <div id="본문" class="hidden">
     <div class="tabbar" role="tablist">
-      <button class="tab on" id="탭할일" role="tab" aria-selected="true">할 일</button>
+      <button class="tab on" id="탭오늘" role="tab" aria-selected="true">오늘</button>
+      <button class="tab" id="탭할일" role="tab" aria-selected="false">할 일</button>
       <button class="tab" id="탭일정" role="tab" aria-selected="false">일정</button>
     </div>
 
-    <div id="할일뷰">
+    <div id="오늘뷰" class="today-grid">
+      <section>
+        <div class="shead">
+          <h2>오늘 일정</h2><span class="n" id="오늘일정수"></span>
+          <span style="margin-left:auto"></span>
+          <button class="btn ghost sm" id="오늘일정추가">+ 일정 추가</button>
+        </div>
+        <p class="ssub">첫 일정부터 마지막 일정 시간대까지만 그립니다.</p>
+        <div class="card"><div id="오늘타임라인"></div></div>
+      </section>
+
+      <section>
+        <div class="shead"><h2>오늘 할 일</h2><span class="n" id="오늘할일수"></span></div>
+        <p class="ssub">마감일이 오늘이거나 이미 지난 것. 마감일이 없는 일은 「할 일」 탭의 대기에 있습니다.</p>
+        <div class="card"><div id="오늘할일목록"></div></div>
+      </section>
+    </div>
+
+    <div id="할일뷰" class="hidden">
       <div class="summary">
         <span class="chip">이번 <b class="tnum" id="칩이번">0</b>건</span>
         <span class="chip late" id="칩지연칸">지연 <b class="tnum" id="칩지연">0</b>건</span>
@@ -673,7 +762,7 @@ var 편집중 = null;   // null이면 새로 추가
 var 세부편집중 = null;      // { 부모id, id }, id가 null이면 새로 추가
 var 일정편집중 = null;      // null이면 새로 추가
 var 펼친것 = {};            // { [업무id]: true } — 다시 그려도 펼침 상태를 기억한다
-var 현재탭 = '할일';        // '할일' | '일정'
+var 현재탭 = '오늘';        // '오늘' | '할일' | '일정'
 var 일정달력월 = null;      // { 해, 달 } — null이면 첫 그리기 때 상태.오늘 소속 달로 채운다
 
 // ── 날짜 (전부 'YYYY-MM-DD' 문자열로 다룬다) ─────────────────
@@ -706,6 +795,41 @@ function 일정맵_(일정목록) {
   var 맵 = {};
   일정목록.forEach(function (i) { (맵[i.날짜] = 맵[i.날짜] || []).push(i); });
   return 맵;
+}
+
+/**
+ * 오늘 일정 — 압축 타임라인의 원천. 시각이 있는 것은 시각순으로, 없는 것은 따로 뺀다
+ * (시각 없는 일정을 0시로 치면 타임라인이 새벽부터 시작해 버린다).
+ */
+function 오늘일정_() {
+  var 목록 = 상태.일정.filter(function (i) { return i.날짜 === 상태.오늘; });
+  return {
+    수: 목록.length,
+    시각있음: 목록.filter(function (i) { return !!i.시작시각; })
+      .sort(function (a, b) { return a.시작시각 < b.시작시각 ? -1 : a.시작시각 > b.시작시각 ? 1 : 0; }),
+    시각없음: 목록.filter(function (i) { return !i.시작시각; }),
+  };
+}
+
+/**
+ * 오늘 손대야 하는 것 — 마감일이 오늘이거나 이미 지났고 아직 안 끝난 것.
+ * 할 일과 세부업무를 한 줄기로 섞어 마감일 오름차순(지연이 위)으로 낸다.
+ * 마감일이 없는 「대기」는 들어오지 않는다 — 그건 할 일 탭이 갖는다.
+ */
+function 오늘할일_() {
+  var 줄들 = [];
+  상태.할일.forEach(function (h) {
+    if (h.상태 !== '완료' && h.마감일 && h.마감일 <= 상태.오늘) 줄들.push({ 류: '할일', 마감일: h.마감일, h: h });
+  });
+  상태.세부업무.forEach(function (sub) {
+    if (!세부완료(sub) && sub.마감일 && sub.마감일 <= 상태.오늘) 줄들.push({ 류: '세부', 마감일: sub.마감일, sub: sub });
+  });
+  return 줄들.sort(function (a, b) { return a.마감일 < b.마감일 ? -1 : a.마감일 > b.마감일 ? 1 : 0; });
+}
+
+function 할일찾기_(id) {
+  for (var i = 0; i < 상태.할일.length; i++) if (상태.할일[i].id === id) return 상태.할일[i];
+  return null;
 }
 
 function 세부업무목록(업무id) {
@@ -750,6 +874,7 @@ function 그리기() {
   document.getElementById('이번수').textContent = 이번.length + '건';
   document.getElementById('대기수').textContent = 대기.length + '건';
 
+  오늘그리기();
   간트그리기(이번, 일정맵_(이번일정()));
   if (현재탭 === '일정') 달력그리기();
   대기그리기(대기);
@@ -950,15 +1075,146 @@ function 완료버튼(h, 토글함수) {
   return b;
 }
 
-/** 탭 전환 — 「할일」·「일정」 뷰를 서로 배타적으로 보여준다. */
+// ── 오늘 뷰 ─────────────────────────────────────────────────
+function 오늘그리기() {
+  오늘타임라인그리기(오늘일정_());
+  오늘할일그리기(오늘할일_());
+}
+
+/**
+ * 압축 타임라인. 첫 일정의 시(時)부터 마지막 일정의 시까지만 줄을 깐다 —
+ * 그 사이의 빈 시간은 남기되(간격이 보여야 하니), 바깥은 그리지 않는다.
+ */
+function 오늘타임라인그리기(일정) {
+  var 통 = document.getElementById('오늘타임라인');
+  통.innerHTML = '';
+  document.getElementById('오늘일정수').textContent = 일정.수 + '건';
+
+  if (!일정.수) {
+    통.appendChild(빈칸_('오늘 일정이 없습니다', '회의·방문이 잡히면 「+ 일정 추가」로 넣으세요.'));
+    return;
+  }
+
+  var 틀 = 요소('div', 'tl');
+  if (일정.시각없음.length) 틀.appendChild(타임라인줄_('미정', 일정.시각없음));
+
+  if (일정.시각있음.length) {
+    var 시 = function (i) { return +i.시작시각.slice(0, 2); };
+    var 첫시 = 시(일정.시각있음[0]);
+    var 끝시 = 시(일정.시각있음[일정.시각있음.length - 1]);
+    for (var h = 첫시; h <= 끝시; h++) {
+      (function (그시) {
+        틀.appendChild(타임라인줄_(String(그시).padStart(2, '0') + ':00',
+          일정.시각있음.filter(function (i) { return 시(i) === 그시; })));
+      })(h);
+    }
+  }
+  통.appendChild(틀);
+}
+
+function 타임라인줄_(딱지, 일정들) {
+  var 줄 = 요소('div', 'tl-row');
+  줄.appendChild(요소('div', 'tl-hour tnum', 딱지));
+  var 칸 = 요소('div', 'tl-slot');
+  일정들.forEach(function (i) {
+    var 단추 = 요소('button', 'tl-ev');
+    if (i.시작시각) 단추.appendChild(요소('span', 't tnum', i.시작시각));
+    단추.appendChild(요소('span', 'n', i.제목));
+    if (i.장소) 단추.appendChild(요소('span', 'p', i.장소));
+    단추.addEventListener('click', function () { 일정모달열기(i); });
+    칸.appendChild(단추);
+  });
+  줄.appendChild(칸);
+  return 줄;
+}
+
+function 오늘할일그리기(줄들) {
+  var 통 = document.getElementById('오늘할일목록');
+  통.innerHTML = '';
+  var 지연수 = 줄들.filter(function (r) { return r.마감일 < 상태.오늘; }).length;
+  document.getElementById('오늘할일수').textContent =
+    줄들.length + '건' + (지연수 ? ' · 지연 ' + 지연수 + '건' : '');
+
+  if (!줄들.length) {
+    통.appendChild(빈칸_('오늘 마감인 일이 없습니다', '앞으로 올 마감은 「할 일」 탭의 간트에서 봅니다.'));
+    return;
+  }
+  var 틀 = 요소('div', 'tlist');
+  줄들.forEach(function (r) {
+    틀.appendChild(r.류 === '할일' ? 오늘할일행_(r.h) : 오늘세부행_(r.sub));
+  });
+  통.appendChild(틀);
+}
+
+function 빈칸_(제목, 설명) {
+  var 빔 = 요소('div', 'empty');
+  빔.appendChild(요소('b', '', 제목));
+  빔.appendChild(document.createTextNode(설명));
+  return 빔;
+}
+
+/** 동그란 체크 단추. 누르면 완료로 가고 그 줄은 목록에서 빠진다 — 되돌리기는 토스트가 준다. */
+function 체크단추_(토글함수) {
+  var 단추 = 요소('button', 'tcheck');
+  단추.setAttribute('aria-label', '완료로 옮기기');
+  단추.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>';
+  단추.addEventListener('click', function (e) { e.stopPropagation(); 토글함수(); });
+  return 단추;
+}
+
+function 마감딱지_(마감일) {
+  var 늦음 = 마감일 < 상태.오늘;
+  return 요소('span', 'tflag ' + (늦음 ? 'late' : 'due'),
+    늦음 ? 차이(마감일, 상태.오늘) + '일 지남' : '오늘 마감');
+}
+
+function 오늘줄_(클래스, 제목, 열기, 토글) {
+  var 줄 = 요소('div', 클래스);
+  줄.appendChild(체크단추_(토글));
+  var 몸 = 요소('div', 'tbody');
+  var 글 = 요소('button', 'txt', 제목);
+  글.addEventListener('click', 열기);
+  몸.appendChild(글);
+  몸.appendChild(요소('div', 'meta'));
+  줄.appendChild(몸);
+  return 줄;
+}
+
+function 오늘할일행_(h) {
+  var 줄 = 오늘줄_('titem', h.할일,
+    function () { 모달열기(h); }, function () { 완료토글(h); });
+  var 메타 = 줄.querySelector('.meta');
+  메타.appendChild(마감딱지_(h.마감일));
+  if (h.프로젝트) 메타.appendChild(요소('span', '', h.프로젝트));
+  메타.appendChild(요소('span', '', '기다리는 대상 · ' + (h.기다리는대상 || '나')));
+  return 줄;
+}
+
+function 오늘세부행_(sub) {
+  var 부모 = 할일찾기_(sub.업무id);
+  var 줄 = 오늘줄_('titem sub', sub.세부업무,
+    function () { 세부모달열기(sub.업무id, sub); }, function () { 세부완료토글(sub); });
+  var 메타 = 줄.querySelector('.meta');
+  메타.appendChild(마감딱지_(sub.마감일));
+  메타.appendChild(요소('span', '', '세부업무 · ' + (부모 ? 부모.할일 : '부모 없음')));
+  return 줄;
+}
+
+var 탭들_ = [
+  { 이름: '오늘', 버튼: '탭오늘', 뷰: '오늘뷰' },
+  { 이름: '할일', 버튼: '탭할일', 뷰: '할일뷰' },
+  { 이름: '일정', 버튼: '탭일정', 뷰: '일정뷰' },
+];
+
+/** 탭 전환 — 「오늘」·「할일」·「일정」 뷰를 서로 배타적으로 보여준다. */
 function 탭전환(이름) {
   현재탭 = 이름;
-  document.getElementById('탭할일').classList.toggle('on', 이름 === '할일');
-  document.getElementById('탭할일').setAttribute('aria-selected', 이름 === '할일');
-  document.getElementById('탭일정').classList.toggle('on', 이름 === '일정');
-  document.getElementById('탭일정').setAttribute('aria-selected', 이름 === '일정');
-  document.getElementById('할일뷰').classList.toggle('hidden', 이름 !== '할일');
-  document.getElementById('일정뷰').classList.toggle('hidden', 이름 !== '일정');
+  탭들_.forEach(function (t) {
+    var 버튼 = document.getElementById(t.버튼);
+    버튼.classList.toggle('on', t.이름 === 이름);
+    버튼.setAttribute('aria-selected', t.이름 === 이름);
+    document.getElementById(t.뷰).classList.toggle('hidden', t.이름 !== 이름);
+  });
   if (이름 === '일정') 달력그리기();
 }
 
@@ -1682,12 +1938,14 @@ document.getElementById('받은함닫기').addEventListener('click', 받은함�
 document.getElementById('세부모달취소').addEventListener('click', 세부모달닫기);
 document.getElementById('세부모달저장').addEventListener('click', 세부모달저장);
 document.getElementById('세부모달삭제').addEventListener('click', 세부모달삭제);
+document.getElementById('탭오늘').addEventListener('click', function () { 탭전환('오늘'); });
 document.getElementById('탭할일').addEventListener('click', function () { 탭전환('할일'); });
 document.getElementById('탭일정').addEventListener('click', function () { 탭전환('일정'); });
 document.getElementById('일정이전달').addEventListener('click', function () { 일정달력이동(-1); });
 document.getElementById('일정다음달').addEventListener('click', function () { 일정달력이동(1); });
 document.getElementById('일정이번달').addEventListener('click', 일정달력이번달);
 document.getElementById('일정추가').addEventListener('click', function () { 일정모달열기(null); });
+document.getElementById('오늘일정추가').addEventListener('click', function () { 일정모달열기(null, 상태.오늘); });
 document.getElementById('일정모달취소').addEventListener('click', 일정모달닫기);
 document.getElementById('일정모달저장').addEventListener('click', 일정모달저장);
 document.getElementById('일정모달삭제').addEventListener('click', 일정모달삭제);
