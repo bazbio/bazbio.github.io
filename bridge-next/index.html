@@ -50,6 +50,16 @@
     --gt-done:#e5e8eb;
     --gt-late:var(--bad);
     --gt-hold:#e5e8eb;
+    /* 주 경계 세로선 — 배경 위에 아주 옅게만 (2026-09-08) */
+    --gt-week:#eaedf0;
+    /* 표머리 띠 — --field보다 한 단 진하다. 업무 줄 라벨이 이미 --field라, 같은 값을 쓰면
+       머리와 첫 줄이 한 덩어리로 붙어 보인다 (2026-09-08) */
+    --gt-band:color-mix(in srgb, var(--sub) 11%, var(--card));
+    /* 구분 칩 색을 섞는 비율 — 칩 배경은 구분색을 카드색에 이만큼 섞고, 글자는 검정에 섞는다.
+       다크에서는 배경 비율을 올리고 글자를 흰색 쪽으로 뒤집는다 (2026-09-08).
+       섞는 비율은 대비로 정했다 — 라이트 50%는 노랑(#fec800)이, 다크 55%는 파랑(#1852fd)이
+       기준을 못 넘는 지점 바로 앞이다(하네스 실측: 라이트 최저 5.24, 다크 최저 4.74). */
+    --gc-bg:15%; --gc-ink:#000000; --gc-mix:50%;
   }
   @media (max-width:480px){ :root{ --r-card:22px } }
   @media (prefers-color-scheme: dark){
@@ -68,6 +78,9 @@
       --gt-done:#3a4250;
       --gt-late:var(--bad);
       --gt-hold:#3a4250;
+      --gt-week:rgba(255,255,255,.07);
+      --gt-band:color-mix(in srgb, var(--sub) 16%, var(--card));
+      --gc-bg:26%; --gc-ink:#ffffff; --gc-mix:55%;
     }
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
@@ -98,7 +111,9 @@
   .topbar .who button{color:var(--accent); font-size:13px; font-weight:600}
 
   .page-head{display:flex; align-items:baseline; justify-content:space-between; padding:22px 2px 4px}
-  .page-head h1{margin:0; font-size:28px; font-weight:700; letter-spacing:-.03em}
+  /* 대제목 — 템플릿의 굵은 머리글(2026-09-08). 폰은 28px 그대로 두고 무게·자간만 조이고,
+     데스크톱(1080+)에서 34px로 키운다 */
+  .page-head h1{margin:0; font-size:28px; font-weight:800; letter-spacing:-.035em}
   .page-head time{font-size:13px; color:var(--sub); font-weight:500}
 
   /* 지금 내 차례 — 막힌 곳 중 내가 쥔 공만 따로 띄운다 (2026-09-03, 부드러운 파랑 시안).
@@ -284,24 +299,57 @@
   .gt{min-width:max-content; --gt-dw:34px}
   /* 달머리·날머리를 한 덩어리로 묶어 붙인다 — 둘을 따로 sticky로 걸면 아래쪽 top 값에 달머리
      높이를 px로 어림해 넣어야 하고, 글꼴이 바뀌는 날 그 값이 곧 어긋난다 */
-  .gt-head{position:sticky; top:0; z-index:5; background:var(--card)}
-  .gt-head .gt-lab{z-index:6}
+  /* 표머리 띠(2026-09-08, Canva 템플릿) — 카드 배경과 같은 흰색이면 날짜 줄이 첫 업무 줄과
+     붙어 보인다. 회색 띠 한 줄로 「여기까지가 머리」를 긋는다 */
+  .gt-head{position:sticky; top:0; z-index:5; background:var(--gt-band)}
+  .gt-head .gt-lab{z-index:6; background:var(--gt-band)}
   .gt-row{display:flex; align-items:stretch; border-top:1px solid var(--line); width:100%; text-align:left}
   .gt-row.head{border-top:0}
   .gt-row.dir,.gt-row.sub{cursor:pointer}
   .gt-row.dir:hover .gt-lab,.gt-row.sub:hover .gt-lab{background:var(--field)}
   .gt-row.dir:hover .gt-lab b,.gt-row.sub:hover .gt-lab b{color:var(--accent)}
-  .gt-lab{position:sticky; left:0; z-index:2; flex:none; width:152px; min-width:152px;
+  /* 이름 칸 폭은 상태 카드키가 들어오면서 한 단씩 넓혔다(152→172 · 260→300 · 310→380,
+     2026-09-08) — 폰에서는 그만큼 날짜가 6일 → 5.5일로 줄어든다 */
+  .gt-lab{position:sticky; left:0; z-index:2; flex:none; width:172px; min-width:172px;
     padding:11px 12px 11px 16px; background:var(--card); border-right:1px solid var(--line);
     transition:background .18s cubic-bezier(.16,1,.3,1)}
-  .gt-lab b{display:block; font-size:15px; font-weight:600; letter-spacing:-.01em; line-height:1.35;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  /* 제목 줄 = [상태 카드키][KPI][긴급] + 제목. 카드키는 줄어들지 않고(flex:none) 제목만
+     말줄임된다 — 그래야 긴 제목에 「지연」이 밀려 잘리지 않는다 (2026-09-08) */
+  .gt-lab b{display:flex; align-items:center; gap:5px; min-width:0;
+    font-size:15px; font-weight:600; letter-spacing:-.01em; line-height:1.35;
     transition:color .18s cubic-bezier(.16,1,.3,1)}
+  .gt-lab b .tt{font-size:inherit; color:inherit; font-weight:inherit; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+  /* ⚠ 이 규칙은 요약 줄(담당 · 기간)만 노리고 썼지만 라벨 안 **모든** span에 걸린다 —
+     자손 span은 전부 12.5px·--sub·display:block으로 덮인다. 그래서 라벨 안에 새 span을
+     넣을 때는 선택자를 `.gt-lab`으로 시작해 특정도를 이겨야 한다(.gt-sub-toggle·.gt-chk·
+     .gt-tag·.tt가 전부 그래서 접두사를 달고 있다). */
   .gt-lab span{display:block; font-size:12.5px; color:var(--sub); line-height:1.4;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  /* 상태 배지 줄(2026-08-30 야간, 표 통합) — 업무 표의 상태 배지·D-day 점을 간트 줄로 옮겨 온 자리.
-     .gt-lab span의 nowrap·ellipsis를 이 줄만 되돌린다(플렉스 두 아이콘뿐이라 넘칠 일이 없다) */
-  .gt-lab .gt-badges{display:flex; align-items:center; gap:6px; white-space:normal; overflow:visible; margin-top:2px}
+  /* 마일스톤 진행 막대가 그 덫에 걸려 있었다 — .msbar는 스스로 inline-block을 쓰지만
+     위 규칙(.gt-lab span, 특정도 0-1-1)이 이겨 display:block이 되는 바람에, 요약 줄이
+     「서진영 · 기한 9월 28일(월) ·」 / 「1/3」로 갈라졌다 (2026-09-08에 발견, 그 전부터 있던 일) */
+  .gt-lab .msbar{display:inline-block; vertical-align:middle}
+  /* 상태 카드키 — 제목 앞에 붙는다(2026-09-08). 예전에는 제목 아래 줄(.gt-badges)이었는데,
+     그러면 세로로 훑을 때 눈이 두 줄을 오간다. 앞에 두면 왼쪽 한 줄만 따라 내려가도
+     빨간 「지연」이 잡힌다. KPI·긴급도 같은 모양으로 맞췄다 — 한 줄에 알약과 사각 태그가
+     섞이면 어수선하다. 색은 .pill과 같은 규칙(경고는 빨강 하나, 완료는 중립) */
+  .gt-lab .gt-tag{flex:none; display:inline-flex; align-items:center; overflow:visible; font-size:10.5px; font-weight:800; letter-spacing:.01em; padding:3px 8px;
+    border-radius:var(--r-tag); white-space:nowrap}
+  /* 중립 카드키 — 시작 전·보류·컨펌 대기에 **완료**를 합쳤다(2026-09-08). 완료는 예전에
+     초록 틴트였지만, 끝난 일에 색을 주면 지금 봐야 할 것과 색을 두고 다툰다.
+     --faint로 더 낮춰 봤다가 되돌렸다 — 다크에서 --field 위 대비가 2.38:1로 크게 미달했다.
+     지금 값(--sub)은 기존 .pill.todo와 같은 4.25:1이다(다크 실측). */
+  .gt-lab .gt-tag.todo,.gt-lab .gt-tag.gray,.gt-lab .gt-tag.confirm,
+  .gt-lab .gt-tag.done{color:var(--sub); background:var(--field)}
+  .gt-lab .gt-tag.doing{color:var(--accent-press); background:var(--accent-tint)}
+  .gt-lab .gt-tag.late{color:var(--bad-ink); background:var(--bad-tint)}
+  .gt-lab .gt-tag.kpi{color:var(--accent-press); background:var(--accent-tint)}
+  /* 폰은 이름 칸이 172px뿐이라 카드키가 제목을 크게 먹는다 — 글자·여백을 한 단 줄여
+     제목에 15px쯤 돌려준다 (2026-09-08, 폰 시안 값) */
+  @media (max-width:480px){
+    .gt-lab .gt-tag{font-size:9.5px; letter-spacing:0; padding:2px 6px}
+    .gt-lab b{gap:4px}
+  }
   /* 업무 줄과 마일스톤 줄을 확실히 가른다(2026-09-01) — 예전에는 들여쓰기 16px과 글자 1px
      차이뿐이라 「구분이 안 간다」는 피드백이 나왔다. 업무는 띄우고(옅은 배경 + 굵은 제목),
      마일스톤은 낮춘다(카드 배경 그대로 + 깊은 들여쓰기 + 세로 연결선).
@@ -345,25 +393,33 @@
   .gt-grp{border-top:1px solid var(--line); padding:16px 16px 7px; width:100%; text-align:left; cursor:pointer}
   .gt-grp:hover{background:var(--field)}
   .gt-grp:first-child{border-top:0}
-  .gt-grp i{position:sticky; left:16px; display:inline-flex; align-items:center; gap:8px;
-    font-style:normal; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink)}
-  .gt-grp i em{font-style:normal; font-weight:700; color:var(--sub); background:var(--card);
-    border-radius:999px; padding:2px 9px; font-size:12px}
-  .gt-grp .chev{margin-left:2px; font-size:11px; color:var(--sub)}
+  /* 구분 머리는 칩이 됐다(2026-09-08, Canva 템플릿의 그룹 라벨). 색은 여기 하나에만 남긴다 —
+     막대·행·글자에 부문색을 칠하던 것이 9/3의 「색이 너무 많다」였고, 칩 하나면 갈래는
+     구별되면서 「지금 문제인 것」(빨간 막대)과 색을 두고 다투지 않는다.
+     --gc는 갈래 색상값으로, 렌더가 줄마다 인라인으로 넣는다 */
+  .gt-grp i{position:sticky; left:16px; display:inline-flex; align-items:center; gap:7px;
+    font-style:normal; font-size:12.5px; font-weight:700; letter-spacing:-.005em;
+    padding:4px 11px; border-radius:var(--r-tag);
+    background:color-mix(in srgb, var(--gc, var(--sub)) var(--gc-bg), var(--card));
+    color:color-mix(in srgb, var(--gc, var(--sub)) var(--gc-mix), var(--gc-ink))}
+  .gt-grp i em{font-style:normal; font-weight:700; font-size:11px; opacity:.62}
+  .gt-grp .chev{margin-left:1px; font-size:10px; opacity:.62}
   .gt-track{position:relative; flex:none; display:flex}
-  /* 날짜 칸 세로선은 뺐다(2026-09-03, 부드러운 파랑 시안) — 주말 음영으로 위치를 읽는다.
-     격자선 없이도 막대 자체가 기간을 말해 준다 */
+  /* 세로선이 돌아왔다(2026-09-08, Canva 템플릿) — 단, 날마다가 아니라 **월요일마다** 한 줄만.
+     날마다 그으면 28줄이라 9/3에 뺐던 그 시끄러움이 그대로 돌아온다. 주 경계만 그으면
+     「몇 주째인지」가 읽히고 선은 서너 줄뿐이다. 그 대신 주말 음영은 뺐다 — 주 경계선과
+     주말 띠가 같은 말(주의 리듬)을 두 번 하고, 음영은 막대 색과 겹쳐 지저분했다 */
   .gt-d{flex:none; width:var(--gt-dw)}
-  .gt-d.we{background:color-mix(in srgb, var(--sub) 8%, transparent)}
+  .gt-d.wk{box-shadow:inset 1px 0 0 var(--gt-week)}
   .gt-row.head .gt-d{padding:7px 0 8px; text-align:center; font-size:12.5px; font-weight:700; color:var(--sub)}
   /* 오늘 칸 머리 — 알약 모양으로 띄운다. 몸통 칸에는 더 이상 배경 틴트를 안 깐다
      (2026-09-03, "지연 막대와 겹쳐 지저분하다" 피드백) — 머리 알약 하나로 충분하다 */
   .gt-row.head .gt-d.today{color:#FFFFFF; background:var(--accent); border-radius:var(--r-pill)}
-  .gt-mons{display:flex; padding-left:152px}
+  .gt-mons{display:flex; padding-left:172px}
   /* 라벨 폭은 하루폭()의 700px 문턱과 같이 움직인다 — 폰에서는 이름을 줄여 날짜를 더 보여준다 */
   @media (min-width:700px){
-    .gt-lab{width:260px; min-width:260px}
-    .gt-mons{padding-left:260px}
+    .gt-lab{width:300px; min-width:300px}
+    .gt-mons{padding-left:300px}
   }
   .gt-mon{flex:none; font-size:12.5px; font-weight:700; color:var(--ink); padding:9px 0 3px 6px; border-left:1px solid var(--line)}
   /* 막대 — 시작일~마감일. 마일스톤(세부업무) 줄은 22px 진한 파랑 알약, 업무 줄을 감싸는
@@ -422,11 +478,12 @@
        화면을 가로지른다. 넓힌 폭은 아래 일수_()가 간트 날짜 칸으로 돌려 쓴다. */
     .wrap{max-width:min(1600px, 100%)}
     .topbar-in{max-width:min(1600px, 100%)}
+    .page-head h1{font-size:34px}
     .board-cols{display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:0 16px; align-items:start}
     #tabNew{max-width:720px; margin:0 auto}
     .cal-d{min-height:64px}
-    .gt-lab{width:310px; min-width:310px}
-    .gt-mons{padding-left:310px}
+    .gt-lab{width:380px; min-width:380px}
+    .gt-mons{padding-left:380px}
   }
 
   /* 탭 (대표용) */
@@ -741,7 +798,7 @@
      sw.js의 네트워크 우선(no-store)이 하고 있다.
      ⚠ 아래 선언은 한 줄짜리 그대로 두어야 배포 스크립트가 도장을 찍는다. 줄바꿈을 넣거나
      따옴표를 바꾸면 스크립트가 중단한다 — 조용히 틀리지는 않는다. */
-  var 빌드버전_ = '202609040806';
+  var 빌드버전_ = '202609072224';
 
   /* GAS 배포 주소 — 화면이 GAS 밖으로 나가면서 `google.script.run`이 없어졌다.
    * 대신 GAS의 doPost 디스패처를 fetch로 부른다 (ADR 0008).
@@ -1620,10 +1677,24 @@
     return { 묶음: 묶음, 갈래: 갈래 };
   }
 
+  /* 구분 칩 색 (2026-09-08) — 칠하는 곳은 구분 머리 칩 하나뿐이다. 막대·행·글자에는 안 쓴다.
+     원색 그대로 쓰지 않고 CSS에서 카드색·글자색에 섞으므로(--gc-bg/--gc-ink) 다크에서도 산다.
+     갈래는 가나다순으로 정렬돼 오므로 같은 구분 집합이면 색도 그대로다 — 새 구분이 하나
+     생기면 그 뒤 순번이 한 칸씩 밀린다(9/3 전의 색순번도 같은 성질이었다).
+     '미분류'는 항상 맨 뒤이자 색도 고정 — 갈래 수와 무관하게 같은 회색으로 남아야 한다. */
+  const 구분팔레트 = ['#02c062', '#8d53ff', '#1852fd', '#ff65c5', '#fec800', '#0bc1e1'];
+  const 구분색_ = (k, 갈래) => k === '미분류' ? 'var(--sub)'
+    : 구분팔레트[갈래.indexOf(k) % 구분팔레트.length];
+
   // 저장된 상태 그대로의 배지 — 막힘 사유·미팅 칩(pillOf)과 달리 상태만 말한다
+  const 상태클래스_ = d => ({ '시작 전': 'todo', '진행 중': 'doing', '컨펌 대기': 'confirm',
+    '완료': 'done', '보류': 'gray' }[d.status] || 'todo');
   function 상태필(d){
-    const cls = { '시작 전': 'todo', '진행 중': 'doing', '컨펌 대기': 'confirm', '완료': 'done', '보류': 'gray' }[d.status] || 'todo';
-    return '<span class="pill ' + cls + '">' + esc(d.status) + '</span>';
+    return '<span class="pill ' + 상태클래스_(d) + '">' + esc(d.status) + '</span>';
+  }
+  // 간트 제목 앞에 붙는 사각 카드키 — 알약(상태필)과 색 규칙은 같고 모양만 다르다 (2026-09-08)
+  function 상태키_(d){
+    return '<span class="gt-tag ' + 상태클래스_(d) + '">' + esc(d.status) + '</span>';
   }
 
   /* D-day 신호등 (쇼츠 규칙): 7일 초과 🟢 · 3일 초과 🟠 · 그 이하·지남 🔴.
@@ -1710,7 +1781,8 @@
     갈래.forEach(k => {
       const 접힘 = COLLAPSED.has(k);
       h += '<button class="gt-grp' + (접힘 ? ' collapsed' : '') + '" data-group="' + esc(k) + '">'
-        + '<i>' + esc(k) + '<em>' + 묶음[k].length + '건</em><span class="chev">' + (접힘 ? '▸' : '▾') + '</span></i></button>';
+        + '<i style="--gc:' + 구분색_(k, 갈래) + '">' + esc(k)
+        + '<em>' + 묶음[k].length + '건</em><span class="chev">' + (접힘 ? '▸' : '▾') + '</span></i></button>';
       if (!접힘) {
         묶음[k].sort((a, b) => {
           const x = 첫날(a), y = 첫날(b);
@@ -1771,7 +1843,8 @@
   }
 
   function 날머리(from, today){
-    let h = '<div class="gt-row head"><div class="gt-lab"><b>업무 · 마일스톤</b><span>담당 · 기간</span></div><div class="gt-track">';
+    let h = '<div class="gt-row head"><div class="gt-lab"><b><span class="tt">업무 · 마일스톤</span></b>'
+      + '<span>담당 · 기간</span></div><div class="gt-track">';
     for (let i = 0; i < GT_DAYS; i++) {
       const dt = new Date(from.getTime() + i * DAYMS);
       h += '<div class="gt-d' + 날칸(dt, today) + '">' + dt.getDate() + '</div>';
@@ -1779,7 +1852,8 @@
     return h + '</div></div>';
   }
 
-  const 날칸 = (dt, today) => (dt.getDay() === 0 || dt.getDay() === 6 ? ' we' : '')
+  /* 주말 음영 → 주 경계선(2026-09-08). 월요일 칸의 왼쪽에만 선이 그어진다 */
+  const 날칸 = (dt, today) => (dt.getDay() === 1 ? ' wk' : '')
     + (dt.getTime() === today.getTime() ? ' today' : '');
 
   /** 업무 한 줄 + 그 아래 세부업무 줄들. 업무 막대는 세부업무 전체를 감싼 요약이다 */
@@ -1810,17 +1884,20 @@
       // 마일스톤이 달린 업무만 접기를 그린다 — 없는 줄에 화살표를 두면 눌러도 아무 일이 없다
       + (subs.length ? '<span class="gt-sub-toggle" data-mstoggle="' + d.id + '" title="마일스톤 '
         + (접힘 ? '펼치기' : '접기') + '">' + (접힘 ? '&#9656;' : '&#9662;') + '</span>' : '')
+      /* 상태 카드키를 제목 앞 맨 왼쪽에 둔다(2026-09-08) — 예전에는 제목 아래 줄(.gt-badges)에
+         있었다. 세로로 훑을 때 왼쪽 한 줄만 따라가도 빨간 「지연」이 잡히게 하려는 것이라,
+         KPI·긴급보다도 앞이어야 한다(그 둘은 있는 줄에만 붙어 자리가 들쭉날쭉하다).
+         막대가 지연(빨강)이면 카드키도 「지연」으로 맞춘다(2026-09-03, "배지와 막대가 다른
+         말을 한다" 피드백) — 안 그러면 status는 여전히 '진행 중'이라 파란 배지 옆에 빨간
+         막대가 떠서 서로 다른 상태를 말하는 것처럼 보였다.
+         ⚠ 긴급도 지연과 같은 빨강이다 — 둘 다인 줄은 빨간 카드키가 둘 뜬다. 둘 다 「지금
+         봐야 한다」는 같은 말이라 그대로 뒀다. */
+      + (상태 === 'late' ? '<span class="gt-tag late">지연</span>' : 상태키_(d))
       // KPI·긴급 태그도 표에서 옮겨 왔다(2026-08-30 야간) — 제목 앞에서 바로 눈에 띄어야 한다
-      + (d.type === 'KPI' ? '<span class="pill meet" style="margin-right:5px">KPI</span>' : '')
-      + (d.pri === '긴급' ? '<span class="pill late" style="margin-right:5px">긴급</span>' : '')
-      + esc(d.title) + '</b>'
-      + '<span>' + 요약 + '</span>'
-      /* 상태 배지만 남긴다 — D-day 신호등은 뗐다(2026-09-01). 「지연·컨펌 대기」는 배지가 이미
-         말하던 것이라 같은 말이 두 번 있던 자리다. 받은함 카드에는 배지가 없어 거기는 그대로 쓴다.
-         막대가 지연(빨강)이면 배지도 「지연」으로 맞춘다(2026-09-03, "배지와 막대가 다른 말을
-         한다" 피드백) — 안 그러면 status는 여전히 '진행 중'이라 파란 배지 옆에 빨간 막대가
-         떠서 서로 다른 상태를 말하는 것처럼 보였다 */
-      + '<span class="gt-badges">' + (상태 === 'late' ? '<span class="pill late">지연</span>' : 상태필(d)) + '</span></div>'
+      + (d.type === 'KPI' ? '<span class="gt-tag kpi">KPI</span>' : '')
+      + (d.pri === '긴급' ? '<span class="gt-tag late">긴급</span>' : '')
+      + '<span class="tt">' + esc(d.title) + '</span></b>'
+      + '<span>' + 요약 + '</span></div>'
       + '<div class="gt-track">' + 바탕(today)
       // 기한이 없으면 완료일에 찍는다. 둘 다 없으면 막대도 점도 없이 라벨만 남는다
       + (기간 ? 막대(칸, 기간.from, 기간.to, 상태 + ' roll') : 점(칸, 날짜(d.due) || 날짜(d.done), 상태))
@@ -1841,7 +1918,7 @@
         + '<div class="gt-lab">'
         + (권한 ? '<span class="gt-chk' + (완료 ? ' on' : '') + '" data-sdone="' + s.id + '" data-v="'
           + (완료 ? '0' : '1') + '" title="' + (완료 ? '완료 취소' : '완료 처리') + '">&#10003;</span>' : '')
-        + '<b>' + esc(s.seq + '. ' + s.title) + '</b><span>'
+        + '<b><span class="tt">' + esc(s.seq + '. ' + s.title) + '</span></b><span>'
         + esc([누구 || '담당 미지정', 때].filter(Boolean).join(' · ')) + '</span></div>'
         + '<div class="gt-track">' + 바탕(today)
         + (시작 && 끝 ? 막대(칸, 시작, 끝, cls)
@@ -1849,7 +1926,7 @@
         + '</div></button>';
     });
     if (세부추가가능 && !접힘) h += '<button class="gt-row subadd" data-id="' + d.id + '">'
-      + '<div class="gt-lab"><b>+ 세부업무 추가</b></div>'
+      + '<div class="gt-lab"><b><span class="tt">+ 세부업무 추가</span></b></div>'
       + '<div class="gt-track">' + 바탕(today) + '</div></button>';
     return h;
   }
