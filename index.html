@@ -4,147 +4,175 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>BAZ 업무 포털</title>
-<meta name="theme-color" content="#3182F6">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233182F6'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='800' fill='white' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#0E1116">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234A9CF7'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='800' fill='%230E1116' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root {
-    /* 표면 */
-    --bg:#F2F4F6;
-    --surface:#FFFFFF;
-    --line:#E5E8EB;
-    /* 글자 */
-    --ink:#191F28;
-    --ink-2:#4E5968;
-    --ink-3:#6B7684;   /* 흰 배경 대비 4.6:1 — 작은 글씨도 읽히는 선 */
-    --ink-4:#A7AFB9;   /* 장식용 워드마크 전용 */
-    /* 액센트 */
-    --blue:#3182F6;
-    /* 앱별 마크 색 */
-    --saleson:#3182F6;  --saleson-t:#1B64DA;
-    --bridge:#1A3A6B;   --bridge-t:#1A3A6B;
-    --gotgan:#0AA06A;   --gotgan-t:#067A50;
-    --stock:#533AFD;    --stock-t:#4433D4;
-    --nachimban:#0E7490; --nachimban-t:#0A5C73;
-    --meari:#191F28;    --meari-t:#191F28;
-    --chaeksang:#D9480F; --chaeksang-t:#B03A0B;
-    /* 모양 */
-    --r-card:20px;
-    --r-mark:14px;
+    /* ── 캔버스: 거의 검정 ── */
+    --bg:#0E1116;
+    --panel:#161B23;
+    --hairline:rgba(255,255,255,.08);
+
+    /* ── 다크 위 글자 ── */
+    --on-dark:#F4F7FA;
+    --on-dark-2:#98A4B3;   /* #0E1116 대비 7.2:1 */
+    --on-dark-3:#5E6875;   /* 장식용 워드마크 전용 */
+
+    /* ── 파랑 명도 사다리 (밝음 → 짙음) ── */
+    --t1:#8CCBFF;
+    --t2:#66B5FF;
+    --t3:#4A9CF7;
+    --t4:#3486E8;
+
+    /* ── 카드 위 글자: 네 톤 모두 5:1 이상 (투명도를 주면 미달) ── */
+    --card-ink:#08131F;
+
+    /* ── 모양 ── */
+    --r-card:22px;
+    --r-panel:22px;
     --ease:cubic-bezier(.16,1,.3,1);
-    --lift:0 1px 2px rgba(23,31,41,.04), 0 12px 32px -16px rgba(23,31,41,.14);
-    --lift-hover:0 2px 4px rgba(23,31,41,.05), 0 24px 44px -18px rgba(23,31,41,.20);
   }
 
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { min-height:100%; }
   body {
     font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
-    background:var(--bg); color:var(--ink);
+    background:var(--bg); color:var(--on-dark);
     display:flex; flex-direction:column; align-items:center;
-    padding:max(44px,calc(env(safe-area-inset-top) + 24px)) 20px 40px;
+    padding:max(36px,calc(env(safe-area-inset-top) + 22px)) 20px 40px;
     -webkit-font-smoothing:antialiased;
   }
 
-  .wrap { width:100%; max-width:720px; }
+  .wrap { width:100%; max-width:1120px; }
 
   /* ── 헤더 ────────────────────────────────── */
-  header h1 {
-    font-size:27px; font-weight:800; letter-spacing:-.03em;
-    color:var(--ink); word-break:keep-all;
+  .top {
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding-bottom:22px;
   }
-  header .date {
-    margin-top:7px; font-size:14px; font-weight:500; color:var(--ink-3);
-    font-variant-numeric:tabular-nums;
+  .wordmark {
+    display:flex; align-items:center; gap:11px;
+    font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--on-dark);
+  }
+  .wordmark .bar {
+    width:3px; height:19px; border-radius:2px; background:var(--t3); flex:none;
+  }
+  .date {
+    font-size:13px; font-weight:500; color:var(--on-dark-2);
+    font-variant-numeric:tabular-nums; letter-spacing:-.01em;
   }
 
-  /* ── 카드 그리드 ──────────────────────────── */
-  .cards {
-    margin-top:26px;
-    display:grid; grid-template-columns:repeat(2,1fr); gap:14px;
+  /* ── 벤토 그리드 ─────────────────────────── */
+  .bento {
+    display:grid;
+    grid-template-columns:1.12fr 1fr 1fr 1fr;
+    grid-template-rows:repeat(2,minmax(198px,1fr));
+    gap:12px;
   }
 
   .card {
-    display:flex; flex-direction:column;
-    text-decoration:none; color:inherit;
-    background:var(--surface); border-radius:var(--r-card);
-    padding:22px 20px 20px;
-    box-shadow:var(--lift);
-    transition:transform .22s var(--ease), box-shadow .22s var(--ease);
+    position:relative; overflow:hidden;
+    display:flex; flex-direction:column; justify-content:space-between;
+    text-decoration:none; color:var(--card-ink);
+    border-radius:var(--r-card);
+    padding:20px 20px 22px;
+    transition:transform .24s var(--ease), filter .24s var(--ease);
   }
-  .card:hover { transform:translateY(-3px); box-shadow:var(--lift-hover); }
+  .card.t1 { background:var(--t1); }
+  .card.t2 { background:var(--t2); }
+  .card.t3 { background:var(--t3); }
+  .card.t4 { background:var(--t4); }
+
+  .card:hover { transform:translateY(-4px) scale(1.012); filter:saturate(1.06); }
   .card:active { transform:scale(.985); }
-  .card:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+  .card:focus-visible { outline:3px solid var(--on-dark); outline-offset:3px; }
 
-  .mark {
-    width:44px; height:44px; border-radius:var(--r-mark);
+  .card--hero { grid-row:span 2; padding:26px 26px 28px; }
+
+  .card__top { display:flex; align-items:flex-start; justify-content:space-between; }
+
+  .card__icon { display:block; color:var(--card-ink); opacity:.68; }
+  .card__icon svg { display:block; width:30px; height:30px; }
+  .card--hero .card__icon svg { width:38px; height:38px; }
+
+  .card__go {
+    width:28px; height:28px; border-radius:50%; flex:none;
+    border:1.5px solid rgba(8,19,31,.34);
     display:flex; align-items:center; justify-content:center;
-    font-size:19px; font-weight:800; color:#fff; letter-spacing:-.02em;
-    flex:none;
+    transition:transform .24s var(--ease), background-color .24s var(--ease);
   }
-  .mark.saleson { background:var(--saleson); }
-  .mark.bridge  { background:var(--bridge); }
-  .mark.gotgan  { background:var(--gotgan); }
-  .mark.stock   { background:var(--stock); }
-  .mark.nachimban { background:var(--nachimban); }
-  .mark.meari { background:var(--meari); }
-  .mark.chaeksang { background:var(--chaeksang); }
+  .card__go svg { width:13px; height:13px; display:block; }
+  .card:hover .card__go { transform:translate(2px,-2px); background:rgba(8,19,31,.10); }
 
-  .cat {
-    margin-top:17px; font-size:11.5px; font-weight:700; letter-spacing:-.01em;
+  .card__cat {
+    display:block; font-size:11px; font-weight:700;
+    letter-spacing:.02em; color:var(--card-ink); opacity:.86;
   }
-  .cat.saleson { color:var(--saleson-t); }
-  .cat.bridge  { color:var(--bridge-t); }
-  .cat.gotgan  { color:var(--gotgan-t); }
-  .cat.stock   { color:var(--stock-t); }
-  .cat.nachimban { color:var(--nachimban-t); }
-  .cat.meari { color:var(--meari-t); }
-  .cat.chaeksang { color:var(--chaeksang-t); }
+  .card__name {
+    margin-top:5px; font-size:23px; font-weight:800;
+    letter-spacing:-.035em; line-height:1.15; word-break:keep-all;
+  }
+  .card--hero .card__name { font-size:34px; }
+  .card__desc {
+    margin-top:9px; font-size:12.5px; font-weight:500; line-height:1.5;
+    letter-spacing:-.015em; color:var(--card-ink);
+    word-break:keep-all;
+  }
+  .card--hero .card__desc { font-size:14px; margin-top:11px; max-width:22ch; }
 
-  .name {
-    margin-top:5px; font-size:18px; font-weight:700; letter-spacing:-.03em;
-    color:var(--ink); word-break:keep-all;
-  }
-  .desc {
-    margin-top:7px; font-size:13px; font-weight:500; line-height:1.55;
-    color:var(--ink-3); letter-spacing:-.01em; word-break:keep-all;
-  }
-
-  /* ── QR 묶음 ─────────────────────────────── */
+  /* ── QR 패널 ─────────────────────────────── */
   .qrbox {
-    margin-top:14px; background:var(--surface); border-radius:var(--r-card);
-    padding:22px 20px 20px; box-shadow:var(--lift);
+    margin-top:12px; background:var(--panel); border-radius:var(--r-panel);
+    border:1px solid var(--hairline);
+    padding:24px 22px 22px;
   }
-  .qrbox h2 { font-size:13px; font-weight:700; color:var(--ink-2); letter-spacing:-.02em; }
-  .qrbox .hint { margin-top:4px; font-size:12px; font-weight:500; color:var(--ink-3); }
-  .qrs { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:12px; }
+  .qrbox h2 { font-size:13px; font-weight:700; color:var(--on-dark); letter-spacing:-.02em; }
+  .qrbox .hint { margin-top:5px; font-size:12px; font-weight:500; color:var(--on-dark-2); }
+  .qrs { margin-top:18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:14px; }
   .qr { text-align:center; }
-  .qr svg { width:100%; max-width:86px; height:auto; aspect-ratio:1; display:block; margin:0 auto; }
-  .qr span { display:block; margin-top:9px; font-size:11.5px; font-weight:600; color:var(--ink-3); }
-  @media (max-width:480px) { .qrbox { display:none; } }  /* 폰에서는 카드 터치로 바로 이동 */
+  .qr .tile {
+    background:#fff; border-radius:12px; padding:8px;
+    width:100%; max-width:96px; margin:0 auto;
+  }
+  .qr svg { width:100%; height:auto; aspect-ratio:1; display:block; }
+  .qr span { display:block; margin-top:9px; font-size:11.5px; font-weight:600; color:var(--on-dark-2); }
+  @media (max-width:620px) { .qrbox { display:none; } }
 
   footer {
-    margin-top:36px; text-align:center; line-height:1.8;
-    font-size:11.5px; font-weight:500; color:var(--ink-3);
+    margin-top:34px; text-align:center; line-height:1.85;
+    font-size:11.5px; font-weight:500; color:var(--on-dark-2);
   }
-  footer .brand { display:block; margin-bottom:4px; font-weight:700; letter-spacing:.3em; text-indent:.3em; color:var(--ink-4); }
+  footer .brand {
+    display:block; margin-bottom:4px; font-weight:700;
+    letter-spacing:.34em; text-indent:.34em; color:var(--on-dark-3);
+  }
 
-  /* ── 좁은 화면 ───────────────────────────── */
-  @media (max-width:480px) {
+  /* ── 반응형 ──────────────────────────────── */
+  @media (max-width:1000px) {
+    .bento {
+      grid-template-columns:repeat(2,1fr);
+      grid-template-rows:auto;
+    }
+    .card--hero { grid-row:auto; grid-column:span 2; min-height:186px; }
+    .card { min-height:184px; }
+  }
+  @media (max-width:620px) {
     body { padding-left:16px; padding-right:16px; }
-    header h1 { font-size:23px; }
-    .cards { gap:10px; margin-top:22px; }
-    .card { padding:18px 16px 16px; border-radius:18px; }
-    .mark { width:40px; height:40px; border-radius:12px; font-size:17px; }
-    .cat { margin-top:14px; font-size:11px; }
-    .name { font-size:16px; }
-    .desc { margin-top:6px; font-size:12px; line-height:1.5; }
+    .bento { grid-template-columns:1fr; gap:10px; }
+    .card--hero { grid-column:auto; padding:22px 20px 24px; }
+    .card { min-height:0; border-radius:18px; padding:18px 18px 20px; }
+    .card__name { font-size:20px; }
+    .card--hero .card__name { font-size:27px; }
+    .card__icon svg, .card--hero .card__icon svg { width:26px; height:26px; }
   }
 
   @media (prefers-reduced-motion:reduce) {
-    .card { transition:none; }
+    .card, .card__go { transition:none; }
     .card:hover, .card:active { transform:none; }
+    .card:hover .card__go { transform:none; }
   }
 </style>
 </head>
@@ -152,60 +180,162 @@
 
 <div class="wrap">
 
-  <header>
-    <h1>BAZ 업무 포털</h1>
+  <header class="top">
+    <div class="wordmark"><span class="bar"></span>BAZ 업무 포털</div>
     <div class="date" id="today"></div>
   </header>
 
-  <div class="cards">
+  <div class="bento">
 
-    <a class="card" href="https://bazbio.github.io/saleson/" target="_blank" rel="noopener">
-      <div class="mark saleson">S</div>
-      <div class="cat saleson">국내영업 CRM</div>
-      <div class="name">SalesON</div>
-      <div class="desc">거래처 · 리드 · 일정 · 실적 관리</div>
+    <!-- SalesON — 대표 카드 -->
+    <a class="card t1 card--hero" href="https://bazbio.github.io/saleson/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21"/>
+            <path d="M7 15.5l4-4.5 3.2 3 4.8-6.5"/>
+            <path d="M19 7.5h-3.2M19 7.5v3.2"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">국내영업 CRM</span>
+        <h2 class="card__name">SalesON</h2>
+        <p class="card__desc">거래처 · 리드 · 일정 · 실적 관리</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/bridge/" target="_blank" rel="noopener">
-      <div class="mark bridge">B</div>
-      <div class="cat bridge">업무지시 플랫폼</div>
-      <div class="name">브리지</div>
-      <div class="desc">지시 등록 · 답변 · 기한 회신 · 미팅 요청</div>
+    <!-- 브리지 -->
+    <a class="card t3" href="https://bazbio.github.io/bridge/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="2.5" width="6" height="3.5" rx="1.2"/>
+            <path d="M8.8 13.2l2 2 4.4-4.6"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">업무지시 플랫폼</span>
+        <h2 class="card__name">브리지</h2>
+        <p class="card__desc">지시 등록 · 답변 · 기한 회신</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/gotgan/index.html" target="_blank" rel="noopener">
-      <div class="mark gotgan">곳</div>
-      <div class="cat gotgan">판관비 예산</div>
-      <div class="name">곳간</div>
-      <div class="desc">26년 하반기 예산 · 집행 · 잔액 추적</div>
+    <!-- 곳간 -->
+    <a class="card t2" href="https://bazbio.github.io/gotgan/index.html" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 11.2V9.8a2.2 2.2 0 0 0-2.2-2.2H3.4"/>
+            <path d="M19 15.9V17a2.4 2.4 0 0 1-2.4 2.4H5.6A2.4 2.4 0 0 1 3.2 17V7.4a1.8 1.8 0 0 1 1.8-1.8h9.6"/>
+            <path d="M20.6 11.2h-3.8a2.25 2.25 0 0 0 0 4.5h3.8a.6.6 0 0 0 .6-.6v-3.3a.6.6 0 0 0-.6-.6z"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">판관비 예산</span>
+        <h2 class="card__name">곳간</h2>
+        <p class="card__desc">예산 · 집행 · 잔액 추적</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/warehouse/" target="_blank" rel="noopener">
-      <div class="mark stock">창</div>
-      <div class="cat stock">재고관리</div>
-      <div class="name">창고지기</div>
-      <div class="desc">생산계획 대비 소진 · 월 마감 · 타계정대체</div>
+    <!-- 창고지기 -->
+    <a class="card t4" href="https://bazbio.github.io/warehouse/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.5 7.9v8.2a1.6 1.6 0 0 1-.85 1.42l-6.9 3.6a1.6 1.6 0 0 1-1.5 0l-6.9-3.6a1.6 1.6 0 0 1-.85-1.42V7.9"/>
+            <path d="M3.9 7.1 11.25 3.3a1.6 1.6 0 0 1 1.5 0l7.35 3.8-7.35 3.83a1.6 1.6 0 0 1-1.5 0z"/>
+            <path d="M12 11.2V21"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">재고관리</span>
+        <h2 class="card__name">창고지기</h2>
+        <p class="card__desc">소진 · 월 마감 · 타계정대체</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/deungdae/" target="_blank" rel="noopener">
-      <div class="mark nachimban">등</div>
-      <div class="cat nachimban">경영현황</div>
-      <div class="name">등대</div>
-      <div class="desc">월별 손익 · 국가별 · 제품별 · 판관비 계정별</div>
+    <!-- 등대 -->
+    <a class="card t2" href="https://bazbio.github.io/deungdae/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.4 10.4h5.2l1.4 9.6H8z"/>
+            <path d="M9.6 6.6h4.8v3.8H9.6z"/>
+            <path d="M8.9 6.6h6.2"/>
+            <path d="M12 3.1v1.7"/>
+            <path d="M4.5 8.5h3.2M19.5 8.5h-3.2"/>
+            <path d="M9.5 14.9h5"/>
+            <path d="M5.4 20h13.2"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">경영현황</span>
+        <h2 class="card__name">등대</h2>
+        <p class="card__desc">월별 손익 · 국가별 · 제품별</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/meari/" target="_blank" rel="noopener">
-      <div class="mark meari">메</div>
-      <div class="cat meari">품질 접수</div>
-      <div class="name">메아리</div>
-      <div class="desc">현장 등록 30초 · 진행중/완료 · 유형별 집계 · 5영업일 기한</div>
+    <!-- 메아리 -->
+    <a class="card t4" href="https://bazbio.github.io/meari/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.5 15V9M7.2 17.6V6.4M11 20.2V3.8"/>
+            <path d="M15.4 7.4a6.3 6.3 0 0 1 0 9.2"/>
+            <path d="M18.6 4.6a10.4 10.4 0 0 1 0 14.8"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">품질 접수</span>
+        <h2 class="card__name">메아리</h2>
+        <p class="card__desc">현장 등록 30초 · 5영업일 기한</p>
+      </div>
     </a>
 
-    <a class="card" href="https://bazbio.github.io/chaeksang/" target="_blank" rel="noopener">
-      <div class="mark chaeksang">책</div>
-      <div class="cat chaeksang">개인 업무 보드</div>
-      <div class="name">책상</div>
-      <div class="desc">이번 · 대기 두 구역 · 6주 간트</div>
+    <!-- 책상 -->
+    <a class="card t3" href="https://bazbio.github.io/chaeksang/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2.4"/>
+            <path d="M6.6 9h3.2M6.6 12.6h3.2M6.6 16.2h3.2"/>
+            <path d="M13.4 9h4M13.4 12.6h4M13.4 16.2h2.2"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">개인 업무 보드</span>
+        <h2 class="card__name">책상</h2>
+        <p class="card__desc">이번 · 대기 두 구역 · 6주 간트</p>
+      </div>
     </a>
 
   </div>
@@ -214,12 +344,12 @@
     <h2>폰으로 바로 접속</h2>
     <p class="hint">카메라로 QR을 찍으면 폰에서 열립니다.</p>
     <div class="qrs">
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m2 0h1m1 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m3 0h1m1 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h8m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h2m2 0h6m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m3 0h1m1 0h1m3 0h1M4 12.5h1m1 0h5m3 0h3m1 0h2m1 0h2m3 0h5M5 13.5h2m1 0h2m1 0h2m2 0h1m3 0h10m3 0h1M4 14.5h1m1 0h2m2 0h3m1 0h3m4 0h1m2 0h3M4 15.5h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m1 0h1m3 0h1m3 0h2m1 0h1M4 16.5h4m1 0h3m2 0h1m1 0h1m4 0h1m2 0h1m4 0h2M6 17.5h1m1 0h2m1 0h9m3 0h6m3 0h1M4 18.5h2m1 0h1m1 0h3m1 0h10m3 0h1m2 0h2M4 19.5h2m1 0h3m3 0h1m3 0h1m2 0h1m5 0h1m4 0h1M6 20.5h2m2 0h1m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h2m1 0h2m2 0h2m2 0h2m5 0h7m1 0h1m1 0h1M4 22.5h1m2 0h8m4 0h1m2 0h1m3 0h3m1 0h1M4 23.5h1m4 0h1m1 0h3m4 0h1m1 0h1m3 0h3m1 0h1m2 0h1M4 24.5h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h1m4 0h1m2 0h5m1 0h3M12 25.5h1m1 0h2m1 0h2m1 0h5m3 0h5M4 26.5h7m2 0h1m2 0h5m2 0h2m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m4 0h1m2 0h1m1 0h3m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h4m2 0h3m3 0h8M4 31.5h1m5 0h1m2 0h1m1 0h2m7 0h1m4 0h1m1 0h1M4 32.5h7m1 0h4m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1"/></svg><span>SalesON</span></div>
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h4M17 0.5h4M22 0.5h7M0 1.5h1M6 1.5h1M8 1.5h4M13 1.5h1M16 1.5h2M20 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M9 2.5h2M16 2.5h1M18 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M8 3.5h4M14 3.5h2M17 3.5h1M19 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M10 4.5h1M14 4.5h1M16 4.5h1M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M9 5.5h5M15 5.5h5M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M8 7.5h3M15 7.5h6M0 8.5h1M2 8.5h2M5 8.5h3M9 8.5h3M13 8.5h1M15 8.5h1M17 8.5h1M19 8.5h1M22 8.5h1M25 8.5h1M27 8.5h2M0 9.5h1M2 9.5h2M5 9.5h1M7 9.5h2M10 9.5h6M17 9.5h8M28 9.5h1M0 10.5h2M5 10.5h2M8 10.5h1M10 10.5h1M13 10.5h1M16 10.5h1M18 10.5h1M22 10.5h3M26 10.5h2M1 11.5h1M3 11.5h3M7 11.5h1M10 11.5h2M16 11.5h1M18 11.5h5M28 11.5h1M1 12.5h2M4 12.5h3M8 12.5h5M14 12.5h2M17 12.5h1M20 12.5h1M25 12.5h2M0 13.5h5M7 13.5h3M12 13.5h1M14 13.5h1M16 13.5h2M19 13.5h1M22 13.5h1M26 13.5h3M0 14.5h1M4 14.5h3M10 14.5h1M13 14.5h1M15 14.5h3M19 14.5h1M21 14.5h1M24 14.5h1M26 14.5h3M1 15.5h2M5 15.5h1M7 15.5h5M14 15.5h1M16 15.5h1M18 15.5h1M22 15.5h1M27 15.5h1M0 16.5h1M5 16.5h2M9 16.5h2M14 16.5h2M18 16.5h3M24 16.5h2M27 16.5h1M1 17.5h2M4 17.5h1M7 17.5h1M9 17.5h2M12 17.5h1M14 17.5h1M16 17.5h1M18 17.5h1M20 17.5h1M23 17.5h1M25 17.5h3M0 18.5h1M6 18.5h2M11 18.5h8M22 18.5h3M26 18.5h1M4 19.5h2M7 19.5h2M10 19.5h8M22 19.5h2M26 19.5h1M1 20.5h2M6 20.5h1M10 20.5h1M13 20.5h14M8 21.5h2M11 21.5h2M17 21.5h4M24 21.5h5M0 22.5h7M8 22.5h1M10 22.5h3M14 22.5h1M16 22.5h2M19 22.5h2M22 22.5h1M24 22.5h2M27 22.5h1M0 23.5h1M6 23.5h1M8 23.5h1M12 23.5h3M18 23.5h1M20 23.5h1M24 23.5h2M28 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h2M15 24.5h1M17 24.5h1M20 24.5h5M26 24.5h2M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M10 25.5h3M15 25.5h3M19 25.5h3M23 25.5h3M28 25.5h1M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h1M10 26.5h1M13 26.5h2M18 26.5h3M23 26.5h1M26 26.5h1M28 26.5h1M0 27.5h1M6 27.5h1M9 27.5h1M11 27.5h1M13 27.5h2M16 27.5h1M18 27.5h1M20 27.5h1M25 27.5h1M27 27.5h1M0 28.5h7M8 28.5h5M18 28.5h6M27 28.5h1"/></svg><span>브리지</span></div>
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h1M15 0.5h6M22 0.5h7M0 1.5h1M6 1.5h1M9 1.5h2M12 1.5h1M15 1.5h2M18 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M10 2.5h1M12 2.5h2M16 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M12 3.5h4M17 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M9 4.5h1M11 4.5h1M13 4.5h4M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M11 5.5h1M13 5.5h2M16 5.5h4M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M10 7.5h3M15 7.5h1M1 8.5h3M6 8.5h3M11 8.5h1M15 8.5h2M18 8.5h1M20 8.5h2M28 8.5h1M2 9.5h3M8 9.5h3M13 9.5h1M15 9.5h2M18 9.5h5M24 9.5h3M1 10.5h2M5 10.5h2M14 10.5h2M18 10.5h1M25 10.5h1M28 10.5h1M0 11.5h2M3 11.5h1M9 11.5h1M11 11.5h2M16 11.5h2M22 11.5h1M24 11.5h2M27 11.5h2M1 12.5h3M6 12.5h1M8 12.5h1M14 12.5h3M18 12.5h4M23 12.5h2M26 12.5h3M3 13.5h3M8 13.5h2M16 13.5h3M20 13.5h2M24 13.5h1M26 13.5h1M3 14.5h1M5 14.5h2M8 14.5h2M13 14.5h4M19 14.5h4M24 14.5h1M26 14.5h2M2 15.5h1M8 15.5h4M13 15.5h2M17 15.5h3M21 15.5h3M25 15.5h2M28 15.5h1M1 16.5h4M6 16.5h2M11 16.5h5M17 16.5h1M19 16.5h1M21 16.5h1M23 16.5h5M3 17.5h3M8 17.5h3M14 17.5h1M16 17.5h2M20 17.5h1M26 17.5h1M28 17.5h1M0 18.5h2M4 18.5h1M6 18.5h1M8 18.5h2M13 18.5h1M17 18.5h1M23 18.5h1M25 18.5h1M2 19.5h3M7 19.5h1M9 19.5h1M12 19.5h2M16 19.5h3M21 19.5h5M28 19.5h1M2 20.5h2M6 20.5h1M10 20.5h2M13 20.5h1M15 20.5h1M17 20.5h8M26 20.5h1M8 21.5h1M10 21.5h2M15 21.5h2M20 21.5h1M24 21.5h4M0 22.5h7M8 22.5h1M10 22.5h1M12 22.5h3M17 22.5h1M19 22.5h2M22 22.5h1M24 22.5h1M26 22.5h3M0 23.5h1M6 23.5h1M9 23.5h1M12 23.5h2M16 23.5h2M20 23.5h1M24 23.5h1M26 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h1M13 24.5h1M17 24.5h8M26 24.5h1M28 24.5h1M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M11 25.5h1M14 25.5h1M16 25.5h1M18 25.5h1M21 25.5h2M24 25.5h4M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h2M14 26.5h4M20 26.5h1M22 26.5h1M25 26.5h4M0 27.5h1M6 27.5h1M8 27.5h2M13 27.5h1M17 27.5h1M20 27.5h1M24 27.5h1M26 27.5h1M0 28.5h7M12 28.5h2M15 28.5h1M17 28.5h2M20 28.5h1M23 28.5h1M25 28.5h1M27 28.5h1"/></svg><span>곳간</span></div>
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m3 0h1m1 0h1m2 0h6m1 0h7M4 5.5h1m5 0h1m5 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h1m8 0h1m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h2m3 0h3m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h1m2 0h1m1 0h5m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h1m1 0h1m1 0h2m2 0h1m2 0h1M4 12.5h1m1 0h5m2 0h1m4 0h1m2 0h2m3 0h5M5 13.5h2m2 0h1m1 0h1m1 0h1m1 0h1m5 0h8m3 0h1M4 14.5h1m3 0h5m2 0h2m2 0h3m2 0h3M5 15.5h2m2 0h1m1 0h1m1 0h1m1 0h2m1 0h3m3 0h1m3 0h2m1 0h1M5 16.5h2m2 0h2m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m4 0h2M5 17.5h5m1 0h4m1 0h3m1 0h1m2 0h6m3 0h1M4 18.5h4m2 0h1m1 0h3m1 0h6m4 0h1m2 0h2M4 19.5h2m1 0h1m5 0h2m2 0h1m8 0h1m4 0h1M4 20.5h3m1 0h3m1 0h5m1 0h4m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h3m1 0h2m2 0h2m1 0h1m4 0h1m1 0h7m1 0h1m1 0h1M4 22.5h1m1 0h1m2 0h4m1 0h2m3 0h2m1 0h1m3 0h3m1 0h1M4 23.5h1m1 0h2m1 0h1m2 0h1m1 0h1m3 0h3m3 0h3m1 0h1m2 0h1M4 24.5h1m1 0h1m2 0h8m2 0h3m2 0h5m1 0h3M12 25.5h1m1 0h1m1 0h3m1 0h1m2 0h2m3 0h5M4 26.5h7m2 0h1m3 0h8m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m2 0h1m1 0h1m2 0h1m1 0h3m3 0h1m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m2 0h1m4 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h3m3 0h2m4 0h8M4 31.5h1m5 0h1m2 0h5m1 0h1m4 0h1m4 0h1m1 0h1M4 32.5h7m1 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1"/></svg><span>창고지기</span></div>
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7m1 0h1m1 0h1m1 0h4m1 0h4m1 0h7M0 1.5h1m5 0h1m2 0h5m2 0h2m2 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m1 0h3m5 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m3 0h2m1 0h1m1 0h5m2 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 7.5h1m1 0h1m2 0h6M0 8.5h4m2 0h1m1 0h1m1 0h4m1 0h3m1 0h1m1 0h1m2 0h3m1 0h1M0 9.5h1m6 0h1m2 0h1m1 0h4m1 0h8m3 0h1M6 10.5h1m1 0h6m2 0h1m1 0h1m3 0h3m1 0h2M0 11.5h2m2 0h2m2 0h3m4 0h1m2 0h5m5 0h1M4 12.5h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h1m2 0h1m4 0h2M0 13.5h3m2 0h1m1 0h1m3 0h2m1 0h2m1 0h1m1 0h1m2 0h1m3 0h3M0 14.5h1m2 0h4m1 0h4m1 0h1m4 0h2m1 0h1m2 0h1m1 0h3M7 15.5h1m1 0h3m2 0h3m1 0h1m3 0h1m4 0h1M2 16.5h1m3 0h5m1 0h1m1 0h1m3 0h3m3 0h2m1 0h1M3 17.5h3m4 0h1m3 0h2m4 0h1m2 0h1m1 0h3M0 18.5h1m2 0h1m1 0h2m3 0h1m2 0h4m5 0h3m1 0h1M2 19.5h3m4 0h3m1 0h2m2 0h2m3 0h2m2 0h1M1 20.5h1m4 0h4m3 0h2m1 0h11M8 21.5h2m6 0h1m2 0h2m3 0h5M0 22.5h7m3 0h1m3 0h1m2 0h4m1 0h1m1 0h2m1 0h1M0 23.5h1m5 0h1m2 0h6m3 0h1m1 0h1m3 0h2M0 24.5h1m1 0h3m1 0h1m3 0h2m3 0h1m1 0h1m2 0h5m1 0h2M0 25.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h2m2 0h3m1 0h3m2 0h1M0 26.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m2 0h4m2 0h1m2 0h1m1 0h1M0 27.5h1m5 0h1m1 0h1m1 0h1m1 0h2m2 0h1m1 0h1m1 0h1m4 0h1m1 0h1M0 28.5h7m1 0h1m2 0h1m6 0h6m3 0h1"/></svg><span>등대</span></div>
-      <div class="qr"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m1 0h1m2 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m1 0h1m2 0h1m2 0h2m1 0h1m2 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m3 0h1m2 0h3m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m1 0h1m3 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m2 0h2m5 0h2m1 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m3 0h1m3 0h1m2 0h3m2 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m1 0h4m2 0h4M4 12.5h1m1 0h2m1 0h3m1 0h2m1 0h3m1 0h2m1 0h1m2 0h1m2 0h1m1 0h2M8 13.5h1m3 0h2m1 0h1m3 0h10m3 0h1M9 14.5h5m1 0h2m1 0h2m2 0h1m3 0h3m1 0h2M4 15.5h3m5 0h1m1 0h1m1 0h4m2 0h5m5 0h1M4 16.5h1m2 0h1m1 0h2m10 0h1m2 0h1m4 0h2M11 17.5h3m2 0h2m5 0h1m2 0h1m3 0h3M5 18.5h1m1 0h2m1 0h5m3 0h1m1 0h1m1 0h2m1 0h1m2 0h1m1 0h3M5 19.5h2m1 0h2m3 0h5m8 0h1m4 0h1M4 20.5h1m1 0h3m1 0h3m3 0h1m3 0h1m1 0h3m3 0h2m1 0h1M5 21.5h1m5 0h3m2 0h2m1 0h1m4 0h1m2 0h1m1 0h3M4 22.5h1m3 0h3m1 0h1m1 0h1m1 0h1m2 0h2m5 0h3m1 0h1M7 23.5h1m1 0h1m1 0h1m1 0h1m5 0h4m3 0h2m2 0h1M5 24.5h1m2 0h1m1 0h1m1 0h1m1 0h4m1 0h1m1 0h10M12 25.5h1m1 0h1m1 0h3m3 0h3m3 0h5M4 26.5h7m1 0h2m2 0h2m2 0h2m1 0h2m1 0h1m1 0h2m1 0h1M4 27.5h1m5 0h1m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m3 0h2m1 0h2M4 28.5h1m1 0h3m1 0h1m2 0h2m3 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h4m1 0h3m1 0h5m1 0h3m2 0h1M4 30.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m3 0h1m1 0h2m2 0h1m2 0h1m1 0h1M4 31.5h1m5 0h1m4 0h2m2 0h1m2 0h1m1 0h1m4 0h1m1 0h1M4 32.5h7m1 0h3m2 0h1m1 0h1m2 0h6m3 0h1"/></svg><span>메아리</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m2 0h1m1 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m3 0h1m1 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h8m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h2m2 0h6m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m3 0h1m1 0h1m3 0h1M4 12.5h1m1 0h5m3 0h3m1 0h2m1 0h2m3 0h5M5 13.5h2m1 0h2m1 0h2m2 0h1m3 0h10m3 0h1M4 14.5h1m1 0h2m2 0h3m1 0h3m4 0h1m2 0h3M4 15.5h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m1 0h1m3 0h1m3 0h2m1 0h1M4 16.5h4m1 0h3m2 0h1m1 0h1m4 0h1m2 0h1m4 0h2M6 17.5h1m1 0h2m1 0h9m3 0h6m3 0h1M4 18.5h2m1 0h1m1 0h3m1 0h10m3 0h1m2 0h2M4 19.5h2m1 0h3m3 0h1m3 0h1m2 0h1m5 0h1m4 0h1M6 20.5h2m2 0h1m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h2m1 0h2m2 0h2m2 0h2m5 0h7m1 0h1m1 0h1M4 22.5h1m2 0h8m4 0h1m2 0h1m3 0h3m1 0h1M4 23.5h1m4 0h1m1 0h3m4 0h1m1 0h1m3 0h3m1 0h1m2 0h1M4 24.5h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h1m4 0h1m2 0h5m1 0h3M12 25.5h1m1 0h2m1 0h2m1 0h5m3 0h5M4 26.5h7m2 0h1m2 0h5m2 0h2m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m4 0h1m2 0h1m1 0h3m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h1m2 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h4m2 0h3m3 0h8M4 31.5h1m5 0h1m2 0h1m1 0h2m7 0h1m4 0h1m1 0h1M4 32.5h7m1 0h4m1 0h5m1 0h1m2 0h1m1 0h1m1 0h1"/></svg></div><span>SalesON</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h4M17 0.5h4M22 0.5h7M0 1.5h1M6 1.5h1M8 1.5h4M13 1.5h1M16 1.5h2M20 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M9 2.5h2M16 2.5h1M18 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M8 3.5h4M14 3.5h2M17 3.5h1M19 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M10 4.5h1M14 4.5h1M16 4.5h1M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M9 5.5h5M15 5.5h5M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M8 7.5h3M15 7.5h6M0 8.5h1M2 8.5h2M5 8.5h3M9 8.5h3M13 8.5h1M15 8.5h1M17 8.5h1M19 8.5h1M22 8.5h1M25 8.5h1M27 8.5h2M0 9.5h1M2 9.5h2M5 9.5h1M7 9.5h2M10 9.5h6M17 9.5h8M28 9.5h1M0 10.5h2M5 10.5h2M8 10.5h1M10 10.5h1M13 10.5h1M16 10.5h1M18 10.5h1M22 10.5h3M26 10.5h2M1 11.5h1M3 11.5h3M7 11.5h1M10 11.5h2M16 11.5h1M18 11.5h5M28 11.5h1M1 12.5h2M4 12.5h3M8 12.5h5M14 12.5h2M17 12.5h1M20 12.5h1M25 12.5h2M0 13.5h5M7 13.5h3M12 13.5h1M14 13.5h1M16 13.5h2M19 13.5h1M22 13.5h1M26 13.5h3M0 14.5h1M4 14.5h3M10 14.5h1M13 14.5h1M15 14.5h3M19 14.5h1M21 14.5h1M24 14.5h1M26 14.5h3M1 15.5h2M5 15.5h1M7 15.5h5M14 15.5h1M16 15.5h1M18 15.5h1M22 15.5h1M27 15.5h1M0 16.5h1M5 16.5h2M9 16.5h2M14 16.5h2M18 16.5h3M24 16.5h2M27 16.5h1M1 17.5h2M4 17.5h1M7 17.5h1M9 17.5h2M12 17.5h1M14 17.5h1M16 17.5h1M18 17.5h1M20 17.5h1M23 17.5h1M25 17.5h3M0 18.5h1M6 18.5h2M11 18.5h8M22 18.5h3M26 18.5h1M4 19.5h2M7 19.5h2M10 19.5h8M22 19.5h2M26 19.5h1M1 20.5h2M6 20.5h1M10 20.5h1M13 20.5h14M8 21.5h2M11 21.5h2M17 21.5h4M24 21.5h5M0 22.5h7M8 22.5h1M10 22.5h3M14 22.5h1M16 22.5h2M19 22.5h2M22 22.5h1M24 22.5h2M27 22.5h1M0 23.5h1M6 23.5h1M8 23.5h1M12 23.5h3M18 23.5h1M20 23.5h1M24 23.5h2M28 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h2M15 24.5h1M17 24.5h1M20 24.5h5M26 24.5h2M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M10 25.5h3M15 25.5h3M19 25.5h3M23 25.5h3M28 25.5h1M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h1M10 26.5h1M13 26.5h2M18 26.5h3M23 26.5h1M26 26.5h1M28 26.5h1M0 27.5h1M6 27.5h1M9 27.5h1M11 27.5h1M13 27.5h2M16 27.5h1M18 27.5h1M20 27.5h1M25 27.5h1M27 27.5h1M0 28.5h7M8 28.5h5M18 28.5h6M27 28.5h1"/></svg></div><span>브리지</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7M8 0.5h1M10 0.5h1M12 0.5h1M15 0.5h6M22 0.5h7M0 1.5h1M6 1.5h1M9 1.5h2M12 1.5h1M15 1.5h2M18 1.5h1M22 1.5h1M28 1.5h1M0 2.5h1M2 2.5h3M6 2.5h1M10 2.5h1M12 2.5h2M16 2.5h1M20 2.5h1M22 2.5h1M24 2.5h3M28 2.5h1M0 3.5h1M2 3.5h3M6 3.5h1M12 3.5h4M17 3.5h1M22 3.5h1M24 3.5h3M28 3.5h1M0 4.5h1M2 4.5h3M6 4.5h1M9 4.5h1M11 4.5h1M13 4.5h4M19 4.5h2M22 4.5h1M24 4.5h3M28 4.5h1M0 5.5h1M6 5.5h1M11 5.5h1M13 5.5h2M16 5.5h4M22 5.5h1M28 5.5h1M0 6.5h7M8 6.5h1M10 6.5h1M12 6.5h1M14 6.5h1M16 6.5h1M18 6.5h1M20 6.5h1M22 6.5h7M10 7.5h3M15 7.5h1M1 8.5h3M6 8.5h3M11 8.5h1M15 8.5h2M18 8.5h1M20 8.5h2M28 8.5h1M2 9.5h3M8 9.5h3M13 9.5h1M15 9.5h2M18 9.5h5M24 9.5h3M1 10.5h2M5 10.5h2M14 10.5h2M18 10.5h1M25 10.5h1M28 10.5h1M0 11.5h2M3 11.5h1M9 11.5h1M11 11.5h2M16 11.5h2M22 11.5h1M24 11.5h2M27 11.5h2M1 12.5h3M6 12.5h1M8 12.5h1M14 12.5h3M18 12.5h4M23 12.5h2M26 12.5h3M3 13.5h3M8 13.5h2M16 13.5h3M20 13.5h2M24 13.5h1M26 13.5h1M3 14.5h1M5 14.5h2M8 14.5h2M13 14.5h4M19 14.5h4M24 14.5h1M26 14.5h2M2 15.5h1M8 15.5h4M13 15.5h2M17 15.5h3M21 15.5h3M25 15.5h2M28 15.5h1M1 16.5h4M6 16.5h2M11 16.5h5M17 16.5h1M19 16.5h1M21 16.5h1M23 16.5h5M3 17.5h3M8 17.5h3M14 17.5h1M16 17.5h2M20 17.5h1M26 17.5h1M28 17.5h1M0 18.5h2M4 18.5h1M6 18.5h1M8 18.5h2M13 18.5h1M17 18.5h1M23 18.5h1M25 18.5h1M2 19.5h3M7 19.5h1M9 19.5h1M12 19.5h2M16 19.5h3M21 19.5h5M28 19.5h1M2 20.5h2M6 20.5h1M10 20.5h2M13 20.5h1M15 20.5h1M17 20.5h8M26 20.5h1M8 21.5h1M10 21.5h2M15 21.5h2M20 21.5h1M24 21.5h4M0 22.5h7M8 22.5h1M10 22.5h1M12 22.5h3M17 22.5h1M19 22.5h2M22 22.5h1M24 22.5h1M26 22.5h3M0 23.5h1M6 23.5h1M9 23.5h1M12 23.5h2M16 23.5h2M20 23.5h1M24 23.5h1M26 23.5h1M0 24.5h1M2 24.5h3M6 24.5h1M9 24.5h1M11 24.5h1M13 24.5h1M17 24.5h8M26 24.5h1M28 24.5h1M0 25.5h1M2 25.5h3M6 25.5h1M8 25.5h1M11 25.5h1M14 25.5h1M16 25.5h1M18 25.5h1M21 25.5h2M24 25.5h4M0 26.5h1M2 26.5h3M6 26.5h1M8 26.5h2M14 26.5h4M20 26.5h1M22 26.5h1M25 26.5h4M0 27.5h1M6 27.5h1M8 27.5h2M13 27.5h1M17 27.5h1M20 27.5h1M24 27.5h1M26 27.5h1M0 28.5h7M12 28.5h2M15 28.5h1M17 28.5h2M20 28.5h1M23 28.5h1M25 28.5h1M27 28.5h1"/></svg></div><span>곳간</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m3 0h1m1 0h1m2 0h6m1 0h7M4 5.5h1m5 0h1m5 0h1m5 0h1m3 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h1m8 0h1m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m1 0h2m3 0h3m1 0h3m2 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m1 0h1m2 0h1m1 0h5m4 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h1m1 0h1m1 0h2m2 0h1m2 0h1M4 12.5h1m1 0h5m2 0h1m4 0h1m2 0h2m3 0h5M5 13.5h2m2 0h1m1 0h1m1 0h1m1 0h1m5 0h8m3 0h1M4 14.5h1m3 0h5m2 0h2m2 0h3m2 0h3M5 15.5h2m2 0h1m1 0h1m1 0h1m1 0h2m1 0h3m3 0h1m3 0h2m1 0h1M5 16.5h2m2 0h2m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m4 0h2M5 17.5h5m1 0h4m1 0h3m1 0h1m2 0h6m3 0h1M4 18.5h4m2 0h1m1 0h3m1 0h6m4 0h1m2 0h2M4 19.5h2m1 0h1m5 0h2m2 0h1m8 0h1m4 0h1M4 20.5h3m1 0h3m1 0h5m1 0h4m1 0h1m1 0h1m1 0h1m1 0h2M4 21.5h3m1 0h2m2 0h2m1 0h1m4 0h1m1 0h7m1 0h1m1 0h1M4 22.5h1m1 0h1m2 0h4m1 0h2m3 0h2m1 0h1m3 0h3m1 0h1M4 23.5h1m1 0h2m1 0h1m2 0h1m1 0h1m3 0h3m3 0h3m1 0h1m2 0h1M4 24.5h1m1 0h1m2 0h8m2 0h3m2 0h5m1 0h3M12 25.5h1m1 0h1m1 0h3m1 0h1m2 0h2m3 0h5M4 26.5h7m2 0h1m3 0h8m1 0h1m1 0h3M4 27.5h1m5 0h1m1 0h1m2 0h1m1 0h1m2 0h1m1 0h3m3 0h1m3 0h1M4 28.5h1m1 0h3m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h1m2 0h1m4 0h1m1 0h2m5 0h4M4 30.5h1m1 0h3m1 0h1m1 0h3m3 0h2m4 0h8M4 31.5h1m5 0h1m2 0h5m1 0h1m4 0h1m4 0h1m1 0h1M4 32.5h7m1 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1"/></svg></div><span>창고지기</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29"><path stroke="#191F28" d="M0 0.5h7m1 0h1m1 0h1m1 0h4m1 0h4m1 0h7M0 1.5h1m5 0h1m2 0h5m2 0h2m2 0h1m1 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m1 0h3m5 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m3 0h2m1 0h1m1 0h5m2 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 7.5h1m1 0h1m2 0h6M0 8.5h4m2 0h1m1 0h1m1 0h4m1 0h3m1 0h1m1 0h1m2 0h3m1 0h1M0 9.5h1m6 0h1m2 0h1m1 0h4m1 0h8m3 0h1M6 10.5h1m1 0h6m2 0h1m1 0h1m3 0h3m1 0h2M0 11.5h2m2 0h2m2 0h3m4 0h1m2 0h5m5 0h1M4 12.5h1m1 0h1m2 0h2m1 0h1m1 0h1m2 0h1m2 0h1m4 0h2M0 13.5h3m2 0h1m1 0h1m3 0h2m1 0h2m1 0h1m1 0h1m2 0h1m3 0h3M0 14.5h1m2 0h4m1 0h4m1 0h1m4 0h2m1 0h1m2 0h1m1 0h3M7 15.5h1m1 0h3m2 0h3m1 0h1m3 0h1m4 0h1M2 16.5h1m3 0h5m1 0h1m1 0h1m3 0h3m3 0h2m1 0h1M3 17.5h3m4 0h1m3 0h2m4 0h1m2 0h1m1 0h3M0 18.5h1m2 0h1m1 0h2m3 0h1m2 0h4m5 0h3m1 0h1M2 19.5h3m4 0h3m1 0h2m2 0h2m3 0h2m2 0h1M1 20.5h1m4 0h4m3 0h2m1 0h11M8 21.5h2m6 0h1m2 0h2m3 0h5M0 22.5h7m3 0h1m3 0h1m2 0h4m1 0h1m1 0h2m1 0h1M0 23.5h1m5 0h1m2 0h6m3 0h1m1 0h1m3 0h2M0 24.5h1m1 0h3m1 0h1m3 0h2m3 0h1m1 0h1m2 0h5m1 0h2M0 25.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m1 0h2m2 0h3m1 0h3m2 0h1M0 26.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m2 0h4m2 0h1m2 0h1m1 0h1M0 27.5h1m5 0h1m1 0h1m1 0h1m1 0h2m2 0h1m1 0h1m1 0h1m4 0h1m1 0h1M0 28.5h7m1 0h1m2 0h1m6 0h6m3 0h1"/></svg></div><span>등대</span></div>
+      <div class="qr"><div class="tile"><svg shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="4 4 29 29"><path stroke="#191F28" d="M4 4.5h7m1 0h1m2 0h1m3 0h6m1 0h7M4 5.5h1m5 0h1m1 0h1m2 0h1m2 0h2m1 0h1m2 0h1m1 0h1m5 0h1M4 6.5h1m1 0h3m1 0h1m3 0h1m2 0h3m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1M4 7.5h1m1 0h3m1 0h1m1 0h3m1 0h1m3 0h2m1 0h1m2 0h1m1 0h3m1 0h1M4 8.5h1m1 0h3m1 0h1m2 0h1m2 0h2m5 0h2m1 0h1m1 0h3m1 0h1M4 9.5h1m5 0h1m3 0h1m3 0h1m2 0h3m2 0h1m5 0h1M4 10.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M12 11.5h2m1 0h4m2 0h4M4 12.5h1m1 0h2m1 0h3m1 0h2m1 0h3m1 0h2m1 0h1m2 0h1m2 0h1m1 0h2M8 13.5h1m3 0h2m1 0h1m3 0h10m3 0h1M9 14.5h5m1 0h2m1 0h2m2 0h1m3 0h3m1 0h2M4 15.5h3m5 0h1m1 0h1m1 0h4m2 0h5m5 0h1M4 16.5h1m2 0h1m1 0h2m10 0h1m2 0h1m4 0h2M11 17.5h3m2 0h2m5 0h1m2 0h1m3 0h3M5 18.5h1m1 0h2m1 0h5m3 0h1m1 0h1m1 0h2m1 0h1m2 0h1m1 0h3M5 19.5h2m1 0h2m3 0h5m8 0h1m4 0h1M4 20.5h1m1 0h3m1 0h3m3 0h1m3 0h1m1 0h3m3 0h2m1 0h1M5 21.5h1m5 0h3m2 0h2m1 0h1m4 0h1m2 0h1m1 0h3M4 22.5h1m3 0h3m1 0h1m1 0h1m1 0h1m2 0h2m5 0h3m1 0h1M7 23.5h1m1 0h1m1 0h1m1 0h1m5 0h4m3 0h2m2 0h1M5 24.5h1m2 0h1m1 0h1m1 0h1m1 0h4m1 0h1m1 0h10M12 25.5h1m1 0h1m1 0h3m3 0h3m3 0h5M4 26.5h7m1 0h2m2 0h2m2 0h2m1 0h2m1 0h1m1 0h2m1 0h1M4 27.5h1m5 0h1m1 0h1m1 0h1m4 0h1m2 0h1m1 0h1m3 0h2m1 0h2M4 28.5h1m1 0h3m1 0h1m2 0h2m3 0h1m2 0h1m2 0h5m1 0h2M4 29.5h1m1 0h3m1 0h1m1 0h4m1 0h3m1 0h5m1 0h3m2 0h1M4 30.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m3 0h1m1 0h2m2 0h1m2 0h1m1 0h1M4 31.5h1m5 0h1m4 0h2m2 0h1m2 0h1m1 0h1m4 0h1m1 0h1M4 32.5h7m1 0h3m2 0h1m1 0h1m2 0h6m3 0h1"/></svg></div><span>메아리</span></div>
     </div>
   </section>
 
