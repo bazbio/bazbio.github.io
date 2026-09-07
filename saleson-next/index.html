@@ -414,6 +414,29 @@
     50%     { box-shadow:0 0 0 9px rgba(62,208,126,0); }
   }
   @keyframes subin { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+/* 주간: 두 문서와 승인 작업 */
+#view-week .wrap{max-width:1120px}
+.wktoolbar,.wktools,.wkhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.wktoolbar{margin:12px 0 18px;justify-content:space-between}.wktoolbar input{width:auto;max-width:100%}
+.wktoolbar label,.wktools label{font-size:13px;display:flex;gap:6px;align-items:center}
+.wktoolbar b{font-size:20px}.wkmuted{font-size:12px;color:#64748b;line-height:1.65;margin:8px 0}
+.wkgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.wkdoc{min-width:0;margin-bottom:16px}.wkhead{justify-content:space-between}.wkhead h3{font-size:18px;margin:0}.wkhead p{margin:5px 0;color:#64748b}
+.wkstats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:18px 0;background:#f5f8fc;padding:12px 4px;border-radius:12px}
+.wkstats div{text-align:center}.wkstats b{display:block;font-size:23px;color:#185abd}.wkstats small{display:block;font-size:11px;color:#64748b}
+.wkdoc details{margin:14px 0}.wkdoc summary,.wkqueue{cursor:pointer}.wkdoc summary{font-size:13px;font-weight:600;line-height:1.7}
+.wkactivity{border-top:1px solid #edf1f5;padding:12px 0;overflow-wrap:anywhere}.wkactivity b{font-size:14px}.wkactivity small{display:block;color:#64748b;font-size:12px;margin-top:4px;white-space:pre-wrap}
+.wkactivity p,.wktext p{font-size:13px;line-height:1.7;white-space:pre-wrap;margin:7px 0}.wktext{white-space:pre-wrap;overflow-wrap:anywhere}
+.wkdoc textarea{width:100%;min-height:76px;box-sizing:border-box}.wktools{margin:10px 0}.wktools .btn{min-height:38px}.wktools input{min-width:0;flex:1;width:100px}.wktools select{width:auto;max-width:100%}
+.wkwarn{background:#fff3e8;color:#86450c;padding:12px;border-radius:10px;font-size:13px;line-height:1.7;margin:12px 0}.wkwarn p{margin:4px 0}
+.wkrule{background:#f6f8fb;padding:12px;border-radius:10px;font-size:12px;line-height:1.7}
+.wkqueue{border:0;border-bottom:1px solid #edf1f5;background:white;text-align:left;padding:12px 0;width:100%;display:flex;justify-content:space-between;gap:10px;color:#27364b;font:inherit}
+.wkqueue span{min-width:0;overflow-wrap:anywhere}.wkqueue small{display:block;font-size:11px;color:#64748b;margin-top:5px}.wkqueue:hover{background:#f5f8fc}
+.wkextra{background:#f7f9fc;padding:10px;border-radius:10px;margin:10px 0}.wkhistory{border-top:1px solid #edf1f5;padding-top:12px;color:#64748b}.wkhistory p{font-size:12px;line-height:1.6}
+.wkextra .wktools{display:grid;grid-template-columns:minmax(0,1fr) auto}.wkextra input{width:100%;min-height:44px}.wkextra input[type=date]{grid-column:1/-1}
+.wkdoc .wktools .btn{padding:10px 12px;font-size:13px;white-space:nowrap}
+.wkdialog{border:0;border-radius:18px;max-width:460px;width:calc(100% - 40px);padding:24px}.wkdialog::backdrop{background:#17233788}.wkdialog input,.wkdialog textarea{box-sizing:border-box;width:100%}
+@media(max-width:850px){.wkgrid{grid-template-columns:minmax(0,1fr)}.wktoolbar{align-items:flex-start}.wktoolbar>div{width:100%}.wkqueue{font-size:13px}.wkdoc{padding:16px}.wktools .btn{flex:1}.wktools select{min-width:0}.wkactivity select{max-width:100%}}
 </style>
 </head>
 <body>
@@ -805,7 +828,7 @@
 <div class="view" id="view-week"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
     <span style="font-size:13px;color:#4e5968;">주간 계획서 · 실행 리포트 · 승인</span>
-    <button class="refresh" onclick="WEEK=null;WKSEL='';loadWeek()">새로고침</button>
+    <button class="refresh" onclick="wkFlush();loadWeek(true)">새로고침</button>
   </div>
   <div id="wkBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
@@ -1215,7 +1238,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609040726-7907501';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609072242-2f02fa6';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1507,6 +1530,7 @@ function onData(d) {
 }
 function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
+  if (typeof wkReset === 'function') wkReset();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; WKPOP = '';
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
@@ -1583,6 +1607,7 @@ var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', '
 var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week'];
 var 현재뷰_ = 'home';
 function show(v) {
+  if (typeof wkFlush === 'function' && 현재뷰_ === 'week' && v !== 'week') wkFlush();
   현재뷰_ = v;
   /* 계획 화면을 떠나면 「옮기는 중」을 끊는다 (8/15, 설계 D5) — 쥔 채로 두면 한참 뒤에 저장한
      **엉뚱한 계획이 옛 계획을 연기 처리**한다. 끊는 쪽이 안전하다: 원래 계획은 예정으로 남는다.
@@ -5881,269 +5906,290 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(function () {});
 }
 
-/* ══ 주간 — 계획서·실행 리포트·2단 승인 (팀운영 D-24~D-34, 지시서 ⑦) ══
-   원천은 DB(weekly_plans)라 GAS 폴백이 없다 — N-Care 탭과 같이 관문만 부른다.
-   ⚠ 숫자는 저장돼 있지 않다. 관문이 부를 때마다 `_공유/약속실행.mjs`가 센다 —
-   회의 첫 장·관리자 홈 패널과 같은 함수라, 여기 보이는 값이 곧 그 값이다. */
-var WK_배지 = { '작성중': 'tag-grey', '없음': 'tag-grey', '초안': 'tag-grey',
-  '제출': 'tag-blue', '팀장승인': 'tag-blue', '이사승인': 'tag-green', '반려': 'tag-red' };
-function wk배지(s) { return '<span class="' + (WK_배지[s] || 'tag-grey') + '">' + esc(s) + '</span>'; }
-/** 'yyyy-MM-dd' → 'M/D'. 요일은 안 붙인다 — 주 단위 화면이라 날짜만으로 읽힌다 */
-function wk날짜(s) {
-  var p = String(s || '').split('-');
-  return p.length === 3 ? Number(p[1]) + '/' + Number(p[2]) : String(s || '');
+/* 주간: 초안은 사용자·문서·주 단위로 보존한다. 늦은 응답은 다른 화면을 덮지 않는다. */
+var WK_배지 = { '작성중':'tag-grey', '없음':'tag-grey', '초안':'tag-grey', '미제출':'tag-grey',
+  '제출':'tag-blue', '팀장승인':'tag-blue', '이사승인':'tag-green', '반려':'tag-red' };
+var WKDAY = '', WKFILTER = '대기', WKTEAM = '전체', WKREQ = 0, WKDRAFT = {}, WKTIMER = {}, WKPENDING = {};
+function wkAttr(v) { return esc(v).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function wk배지(s) { return '<span class="'+(WK_배지[s] || 'tag-grey')+'">'+esc(s === '반려' ? '수정 요청' : s)+'</span>'; }
+function wk날짜(s) { return String(s || '').slice(5,10).replace('-', '/'); }
+function wkAdd(s, n) { return new Date(Date.parse(s+'T00:00:00Z')+n*86400000).toISOString().slice(0,10); }
+function wk주(s) { return s ? wk날짜(s)+'~'+wk날짜(wkAdd(s,6)) : ''; }
+function wkTime(s) { return s ? new Date(s).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : ''; }
+function wkDoc(kind) { return kind === '계획서' ? WEEK.계획서 : WEEK.리포트; }
+function wkWeek(kind) { return kind === '계획서' ? WEEK.계획주 : WEEK.리포트주; }
+function wkKey(kind) { return 'saleson_weekly_v2:'+encodeURIComponent(WEEK.이름)+':'+kind+':'+wkWeek(kind); }
+function wkPayload(kind, draft) {
+  return kind === '계획서' ? {note:draft.note} : {extra:draft.extra,shortfall:draft.shortfall,activities:draft.activities};
 }
-/** 월요일 'yyyy-MM-dd' → 'M/D~M/D' (월~일) */
-function wk주(월) {
-  var d = new Date(월 + 'T00:00:00Z');
-  var 끝 = new Date(d.getTime() + 6 * 86400000).toISOString().slice(0, 10);
-  return wk날짜(월) + '~' + wk날짜(끝);
-}
-
-function loadWeek(조용히) {
-  읽기시작_(조용히, 'wkBody');
-  관문호출_('/saleson-weekly', JSON.stringify({ 토큰: TOKEN, 동작: '조회', 대상: WKSEL }))
-    .then(화면갱신감싸기_(function(d) { WEEK = d; 읽기끝_(조용히); renderWeek(); },
-      '주간 정보는 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
-    function(e) {
-      읽기끝_(조용히);
-      if (조용히) { console.warn('[주간 뒤따라 받기]', (e && e.message) || e); return; }
-      실패카드_('wkBody', e, function() { loadWeek(); });
-    });
-}
-
-function renderWeek() {
-  var d = WEEK;
-  if (!d) return;
-  var 남 = d.보는대상 !== d.이름;      // 관리자가 팀원 것을 보고 있다
-  var h = '';
-  if (d.admin) h += wk팀표_(d);
-  if (남) {
-    h += '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">'
-      + '<span style="font-size:15px;font-weight:700;">' + esc(d.보는대상) + ' 님의 주간</span>'
-      + '<button class="btn" onclick="wkSel(\'\')">내 것 보기</button></div>';
+function wkDraft(kind) {
+  var doc=wkDoc(kind), key=wkKey(kind);
+  if (!WKDRAFT[key]) {
+    var d={version:doc.version,edit:0,dirty:false,note:doc.note || '',extra:doc.extra || '',shortfall:doc.shortfall || '',
+      activities:JSON.parse(JSON.stringify(doc.activities || [])),message:'저장됨'};
+    try { var saved=JSON.parse(localStorage.getItem(key) || 'null'); if(saved && saved.dirty) d=saved; } catch(e) {}
+    WKDRAFT[key]=d;
   }
-  h += wk규칙_(d);
-  // 계획서 카드는 제출 대상(교육영업팀)에게만 — 관리자 본인·장비영업팀에게는 낼 것이 없다
-  if (d.대상) h += wk계획서_(d, 남);
-  h += wk리포트_(d, 남);
-  h += wk이번주_(d);
-  document.getElementById('wkBody').innerHTML = h;
-}
-
-/* 규칙 띠 — 「12건 중 N · 만료 방어 N/M · 미가입 A·B N/4」(D-25).
-   미충족은 붉게. 칸을 누르면 어느 병원인지 펼친다 — 숫자만 보고는 무엇을 해야 할지 모른다 */
-function wk규칙_(d) {
-  if (!d.규칙) {
-    return '<div class="card" style="font-size:13px;color:#5f6b7a;line-height:1.7;">'
-      + '교육영업팀의 주간 계획서 화면입니다. 이 팀이 아니면 <b>제출 의무가 없습니다</b> — 아래 지난 주 실행 숫자만 보입니다.</div>';
+  var result=WKDRAFT[key];
+  if(result.version !== doc.version && !WKPENDING[key]) {
+    if(result.dirty) { result.conflict=true; result.message='서버 내용이 바뀌었습니다. 내 초안을 확인해 주세요.'; }
+    else { delete WKDRAFT[key]; return wkDraft(kind); }
   }
-  var r = d.규칙;
-  var 칸 = function(값, 라벨, ok, key) {
-    return '<div onclick="wkPop(\'' + key + '\')" style="flex:1;min-width:92px;text-align:center;padding:12px 6px;border-radius:14px;cursor:pointer;border:1px solid #e5e8eb;background:' + (ok ? '#fff' : '#ffeaed') + ';">'
-      + '<div style="font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;color:' + (ok ? '#05754a' : '#d0223a') + ';">' + 값 + '</div>'
-      + '<div style="margin-top:3px;font-size:11.5px;font-weight:600;color:#4e5968;white-space:nowrap;">' + 라벨 + '</div></div>';
-  };
-  var h = '<div class="card" style="padding:14px;">'
-    + '<div style="display:flex;gap:8px;">'
-    + 칸(r.계획 + '<span style="font-size:14px;color:#8b95a1;">/12</span>', '계획', r.계획_ok, 'plan')
-    + 칸(r.방어 + '<span style="font-size:14px;color:#8b95a1;">/' + r.방어대상수 + '</span>', '만료 방어', r.방어_ok, 'def')
-    + 칸(r.미가입ab + '<span style="font-size:14px;color:#8b95a1;">/4</span>', '미가입 A·B', r.ab_ok, 'ab')
-    + '</div>';
-
-  if (WKPOP === 'def') {
-    h += wk목록_('만료 180일 안 · 담당 병원', (d.방어대상 || []).map(function(p) {
-      return { 왼: p.hname, 오: 'D-' + p.dDay + (p.계획있음 ? ' · 계획 있음' : ' · 계획 없음'), 나쁨: !p.계획있음 };
-    }), '만료가 임박한 담당 병원이 없습니다');
-  } else if (WKPOP === 'ab') {
-    h += wk목록_('미가입(5단계 전) A·B 등급 담당 병원', (d.미가입ab || []).map(function(p) {
-      return { 왼: p.grade + ' · ' + p.hname, 오: p.계획있음 ? '계획 있음' : '계획 없음', 나쁨: !p.계획있음 };
-    }), '미가입 A·B 담당 병원이 없습니다');
-  } else if (WKPOP === 'plan') {
-    h += '<div style="margin-top:10px;font-size:12.5px;color:#5f6b7a;line-height:1.7;">'
-      + '다음 주 <b>방문 계획 12건</b>이 기준입니다. 어디를 갈지는 본인이 정합니다 — 전화·이메일 계획은 세지 않습니다.</div>';
-  }
-  h += '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;line-height:1.7;">'
-    + (r.충족 ? '세 조건을 모두 채웠습니다.' : '<b style="color:#d0223a;">미충족이어도 제출됩니다 — 사유만 적어 주세요.</b>')
-    + ' 칸을 누르면 어느 병원인지 펼쳐집니다.</div></div>';
-  return h;
+  return result;
 }
-
-function wk목록_(제목, 줄들, 빈문구) {
-  var h = '<div style="margin-top:12px;padding-top:12px;box-shadow:inset 0 1px 0 #f2f4f6;">'
-    + '<div style="font-size:12px;font-weight:700;color:#4e5968;margin-bottom:6px;">' + esc(제목) + '</div>';
-  if (!줄들.length) return h + '<div style="font-size:13px;color:#8b95a1;">' + esc(빈문구) + '</div></div>';
-  return h + 줄들.map(function(r) {
-    return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px;">'
-      + '<span style="color:#191f28;">' + esc(r.왼) + '</span>'
-      + '<span style="flex:none;font-weight:600;color:' + (r.나쁨 ? '#d0223a' : '#05754a') + ';">' + esc(r.오) + '</span></div>';
-  }).join('') + '</div>';
+function wkPersist(key,d) {
+  try { if(d.dirty) localStorage.setItem(key,JSON.stringify(d)); else localStorage.removeItem(key); d.storageError=false; }
+  catch(e) { d.storageError=true; d.message='기기에 보관하지 못했습니다. 서버 저장을 확인해 주세요.'; }
 }
-
-/* 다음 주 계획서 — 새 입력을 만들지 않는다(D-24). 계획 탭에 등록한 그 주 계획 묶음에
-   상태와 사유를 씌운 것이다. 그래서 여기서는 계획을 고칠 수 없고 [계획 탭으로]만 있다 */
-function wk계획서_(d, 남) {
-  var p = d.계획서;
-  var 낼수있나 = !남 && d.대상 && (p.status === '작성중' || p.status === '반려');
-  var h = kick('다음 주 계획서 · ' + wk주(d.계획주));
-  h += '<div class="card">'
-    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' + wk배지(p.status)
-    + '<span style="font-size:13px;color:#5f6b7a;">방문 계획 ' + (d.계획들 || []).length + '건</span>'
-    + (p.승인2단 ? '<span style="font-size:12px;color:#05754a;">이사 승인 · ' + esc(p.승인2단) + '</span>'
-      : p.승인1단 ? '<span style="font-size:12px;color:#1b64da;">팀장 승인 · ' + esc(p.승인1단) + '</span>' : '')
-    + '</div>';
-  if (p.status === '반려' && p.반려사유) {
-    h += '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ffeaed;font-size:13px;color:#d0223a;line-height:1.6;">'
-      + '반려 사유 · ' + esc(p.반려사유) + '</div>';
-  }
-  h += (d.계획들 || []).length
-    ? '<div style="margin-top:10px;">' + d.계획들.map(function(x) {
-        return '<div style="display:flex;gap:10px;padding:7px 0;font-size:13.5px;box-shadow:inset 0 1px 0 #f2f4f6;">'
-          + '<span style="flex:none;width:44px;color:#5f6b7a;font-variant-numeric:tabular-nums;">' + wk날짜(x.date) + '</span>'
-          + '<span style="flex:1;min-width:0;color:#191f28;">' + esc(x.hname) + '</span>'
-          + '<span style="flex:none;font-size:12px;color:#8b95a1;">' + esc(x.type) + '</span></div>';
-      }).join('') + '</div>'
-    : '<div class="empty" style="padding:18px 0;">다음 주 계획이 아직 없습니다 — 계획 탭에서 먼저 등록해 주세요</div>';
-
-  if (낼수있나) {
-    h += '<label class="f" for="wkNote">미충족 사유' + (d.규칙 && d.규칙.충족 ? ' (선택)' : ' <b style="color:#d0223a;">(필수)</b>') + '</label>'
-      + '<textarea id="wkNote" style="min-height:72px;" placeholder="예) 담당 재배정 전이라 미가입 A·B가 2곳뿐입니다">' + esc(p.note) + '</textarea>'
-      + '<div style="display:flex;gap:8px;margin-top:12px;">'
-      + '<button class="btn" style="flex:1;" onclick="show(\'plan\')">계획 탭으로</button>'
-      + '<button class="btn pri" style="flex:1;" onclick="wk계획제출()">계획서 제출</button></div>'
-      + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">목요일 18시까지 제출하면 금요일 12시 팀장 승인, 18시 이사 승인으로 이어집니다.</div>';
-  } else if (p.note) {
-    h += '<div style="margin-top:10px;font-size:13px;color:#4e5968;line-height:1.7;"><b>사유</b> · ' + esc(p.note) + '</div>';
-  }
-  return h + '</div>';
+function wkMessage(kind,message) {
+  var el=document.getElementById(kind === '계획서' ? 'wkPlanSave' : 'wkReportSave');
+  if(el) el.textContent=message;
 }
-
-/* 지난 주 실행 리포트 — 숫자와 목록은 서버가 만든다(D-28). 사람이 쓰는 건 아래 두 칸뿐이다 */
-function wk리포트_(d, 남) {
-  var r = d.리포트, n = r.숫자;
-  var 낼수있나 = !남 && d.대상 && (r.status === '없음' || r.status === '초안' || r.status === '반려');
-  var 숫자 = function(라벨, 값, 색) {
-    return '<div style="flex:1;min-width:56px;text-align:center;">'
-      + '<div style="font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:' + (색 || '#191f28') + ';">' + 값 + '</div>'
-      + '<div style="margin-top:2px;font-size:11.5px;color:#5f6b7a;white-space:nowrap;">' + 라벨 + '</div></div>';
-  };
-  var h = kick('지난 주 실행 리포트 · ' + wk주(d.리포트주));
-  h += '<div class="card">'
-    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' + wk배지(r.status)
-    + (r.승인2단 ? '<span style="font-size:12px;color:#05754a;">이사 승인 · ' + esc(r.승인2단) + '</span>'
-      : r.승인1단 ? '<span style="font-size:12px;color:#1b64da;">팀장 승인 · ' + esc(r.승인1단) + '</span>' : '')
-    + '</div>'
-    + '<div style="display:flex;gap:4px;flex-wrap:wrap;">'
-    + 숫자('계획', n.계획) + 숫자('실행', n.실행, '#05754a') + 숫자('소급', n.소급, n.소급 ? '#a35c11' : '#191f28')
-    + 숫자('데모', n.실행_데모) + 숫자('N-Care', n.실행_ncare)
-    + '</div>'
-    + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">실행은 <b>당일 입력</b>만 셉니다 — 다음 날 08시 뒤에 넣은 것은 소급입니다.</div>';
-
-  if (r.status === '반려' && r.반려사유) {
-    h += '<div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:#ffeaed;font-size:13px;color:#d0223a;line-height:1.6;">'
-      + '반려 사유 · ' + esc(r.반려사유) + '</div>';
-  }
-  if ((r.미실행 || []).length) {
-    h += wk목록_('실행되지 않은 계획 ' + r.미실행.length + '건', r.미실행.map(function(x) {
-      return { 왼: wk날짜(x.date) + ' · ' + x.hname + (x.type ? ' · ' + x.type : ''), 오: '미실행', 나쁨: true };
-    }), '');
-  }
-  if ((r.계획외 || []).length) {
-    h += wk목록_('계획에 없던 방문 ' + r.계획외.length + '건', r.계획외.map(function(x) {
-      return { 왼: wk날짜(x.date) + ' · ' + x.hname, 오: x.당일 ? '당일 입력' : '소급', 나쁨: !x.당일 };
-    }), '');
-  }
-  if (낼수있나) {
-    h += '<label class="f" for="wkExtra">기록에 없는 활동</label>'
-      + '<textarea id="wkExtra" style="min-height:64px;" placeholder="예) 본사 교육 지원 2회 — 방문기록에 남지 않는 활동">' + esc(r.extra) + '</textarea>'
-      + '<label class="f" for="wkShort">미달 사유 · 보완사항</label>'
-      + '<textarea id="wkShort" style="min-height:64px;" placeholder="예) 계획 12건 중 4건 미실행 — 장비 이슈 대응으로 대체">' + esc(r.shortfall) + '</textarea>'
-      + '<button class="btn pri" style="width:100%;margin-top:12px;" onclick="wk리포트제출()">실행 리포트 제출</button>'
-      + '<div style="margin-top:8px;font-size:12px;color:#5f6b7a;line-height:1.6;">월요일 12시까지 보완하면 1:1에서 승인합니다.</div>';
-  } else {
-    if (r.extra) h += '<div style="margin-top:10px;font-size:13px;color:#4e5968;line-height:1.7;"><b>기록에 없는 활동</b> · ' + esc(r.extra) + '</div>';
-    if (r.shortfall) h += '<div style="margin-top:6px;font-size:13px;color:#4e5968;line-height:1.7;"><b>미달 사유·보완</b> · ' + esc(r.shortfall) + '</div>';
-  }
-  return h + '</div>';
+function wkInput(kind,field,value,index) {
+  var d=wkDraft(kind),key=wkKey(kind);
+  if(index == null) d[field]=value; else d.activities[index][field]=value;
+  d.edit++;d.dirty=true;d.message='기기에 보관됨 · 서버 저장 중…';wkPersist(key,d);wkMessage(kind,d.message);
+  clearTimeout(WKTIMER[key]);
+  if(!d.conflict) WKTIMER[key]=setTimeout(function(){wkSave(kind).catch(function(){});},900);
 }
-
-/* 이번 주 계획서 상태 한 줄 — 지난 목요일에 낸 것이 승인됐는지가 이번 주 활동의 근거다 */
-function wk이번주_(d) {
-  var s = d.이번주계획서.status;
-  return '<div class="card" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4e5968;">'
-    + '<span>이번 주(' + wk주(d.이번주) + ') 계획서</span>' + wk배지(s) + '</div>';
+function wkSave(kind) {
+  var key=wkKey(kind),d=wkDraft(kind),token=TOKEN,week=wkWeek(kind),owner=WEEK.이름;
+  clearTimeout(WKTIMER[key]);
+  if(WKPENDING[key]) return WKPENDING[key];
+  if(d.conflict) return Promise.reject(new Error('내 초안과 서버 내용을 먼저 확인해 주세요.'));
+  if(!d.dirty) return Promise.resolve();
+  var edit=d.edit,body=Object.assign({토큰:token,동작:'임시저장',종류:kind,주시작:week,version:d.version},wkPayload(kind,d));
+  d.message='서버에 저장 중…';wkMessage(kind,d.message);
+  var pending=관문호출_('/saleson-weekly',JSON.stringify(body)).then(function(r){
+    d.version=r.version;d.dirty=d.edit !== edit;d.message=d.dirty ? '추가 변경 저장 중…' : '서버에 저장됨';wkPersist(key,d);
+    if(TOKEN === token && WEEK && WEEK.이름 === owner && WEEK.보는대상 === owner && wkWeek(kind) === week){
+      var doc=wkDoc(kind);doc.version=r.version;Object.assign(doc,JSON.parse(JSON.stringify(wkPayload(kind,d))));wkMessage(kind,d.message);
+    }
+  },function(e){
+    d.message='서버 저장 실패 · 입력은 보존됨. 다시 저장해 주세요.';wkPersist(key,d);
+    if(TOKEN === token && WEEK && WEEK.이름 === owner && wkWeek(kind) === week) wkMessage(kind,d.message);
+    throw e;
+  }).finally(function(){
+    delete WKPENDING[key];
+    if(d.dirty && d.message === '추가 변경 저장 중…' && TOKEN === token && WEEK && wkKey(kind) === key)
+      WKTIMER[key]=setTimeout(function(){wkSave(kind).catch(function(){});},300);
+  });
+  WKPENDING[key]=pending;return pending;
 }
-
-/* 관리자 표 — 내 차례인 것만 [승인]/[반려]가 활성이다(D-26).
-   이름을 누르면 그 사람 상세로 바꿔 본다 — 내용을 안 보고 누르는 승인이 되면 안 된다 */
-function wk팀표_(d) {
-  var 대기 = 0;
-  (d.팀 || []).forEach(function(t) { if (t.plan내차례 || t.report내차례) 대기++; });
-  var h = kick('교육영업팀 승인' + (대기 ? ' · 내 차례 ' + 대기 + '명' : ''), !!대기);
-  if (!(d.팀 || []).length) return h + '<div class="card empty">교육영업팀 담당자가 없습니다</div>';
-  h += '<div class="card" style="padding:6px 14px;">'
-    + d.팀.map(function(t, i) {
-        var 칸 = function(종류, 상태, 내차례) {
-          var b = wk배지(상태);
-          if (!내차례) return '<div style="flex:1;min-width:0;">' + b + '</div>';
-          return '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' + b
-            + '<button class="btn" style="padding:5px 10px;font-size:12px;" onclick="wk승인(\'' + esc(t.name) + '\',\'' + 종류 + '\')">승인</button>'
-            + '<button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="wk반려(\'' + esc(t.name) + '\',\'' + 종류 + '\')">반려</button></div>';
-        };
-        return '<div style="padding:11px 0;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '">'
-          + '<div onclick="wkSel(\'' + esc(t.name) + '\')" style="font-size:15px;font-weight:700;color:#1b64da;cursor:pointer;">' + esc(t.name) + ' ›</div>'
-          + '<div style="display:flex;gap:8px;margin-top:7px;align-items:flex-start;">'
-          + '<span style="flex:none;width:44px;font-size:11.5px;color:#5f6b7a;padding-top:3px;">계획서</span>' + 칸('계획서', t.plan, t.plan내차례)
-          + '</div>'
-          + '<div style="display:flex;gap:8px;margin-top:6px;align-items:flex-start;">'
-          + '<span style="flex:none;width:44px;font-size:11.5px;color:#5f6b7a;padding-top:3px;">리포트</span>' + 칸('리포트', t.report, t.report내차례)
-          + '</div></div>';
-      }).join('')
-    + '</div>';
-  return h;
+function wkResolve(kind,keep) {
+  var key=wkKey(kind),d=wkDraft(kind);
+  if(keep){d.version=wkDoc(kind).version;d.conflict=false;d.dirty=true;wkPersist(key,d);wkSave(kind).catch(function(e){toast(e.message,true);});}
+  else {delete WKDRAFT[key];try{localStorage.removeItem(key);}catch(e){}}
+  renderWeek();
 }
-
-function wkSel(name) { WKSEL = name; WEEK = null; loadWeek(); }
-function wkPop(k) { WKPOP = (WKPOP === k ? '' : k); renderWeek(); }
-
-function wk쓰기_(몸통, 성공문구) {
-  busy(true, '보내는 중…');
-  관문호출_('/saleson-weekly', JSON.stringify(몸통))
-    .then(화면갱신감싸기_(function(r) {
-      busy(false);
-      toast((r && r.msg) || 성공문구);
-      WEEK = null; loadWeek();
-    }), function(e) { busy(false); toast(e.message, true); });
+function wkFlush() {
+  if(!WEEK || WEEK.보는대상 !== WEEK.이름)return;
+  ['계획서','리포트'].forEach(function(k){if(wkDoc(k).editable)wkSave(k).catch(function(){});});
 }
-
-function wk계획제출() {
-  var el = document.getElementById('wkNote');
-  var 사유 = el ? String(el.value || '').trim() : '';
-  // 서버도 다시 판정한다 — 여기서 막는 건 왕복 한 번을 아끼려는 것뿐이다
-  if (WEEK.규칙 && !WEEK.규칙.충족 && !사유) return 검증실패_('최소 조건을 채우지 못했습니다 — 사유를 적어 주세요', 'wkNote');
-  wk쓰기_({ 토큰: TOKEN, 동작: '계획서제출', 주시작: WEEK.계획주, 사유: 사유 }, '계획서를 제출했습니다.');
+function wkReset() {
+  Object.keys(WKTIMER).forEach(function(k){clearTimeout(WKTIMER[k]);});
+  WKREQ++;WKDAY='';WKDRAFT={};WKTIMER={};WKPENDING={};
+  WKPLANEDIT=null;var dialog=document.getElementById('wkPlanDialog');if(dialog)dialog.remove();
 }
-
-function wk리포트제출() {
-  var e1 = document.getElementById('wkExtra'), e2 = document.getElementById('wkShort');
-  wk쓰기_({ 토큰: TOKEN, 동작: '리포트제출', 주시작: WEEK.리포트주,
-    extra: e1 ? String(e1.value || '').trim() : '', shortfall: e2 ? String(e2.value || '').trim() : '' },
-    '실행 리포트를 제출했습니다.');
-}
-
-function wk승인(name, 종류) {
-  wk쓰기_({ 토큰: TOKEN, 동작: '승인', 대상: name, 종류: 종류,
-    주시작: 종류 === '계획서' ? WEEK.계획주 : WEEK.리포트주 }, '승인했습니다.');
-}
-
-function wk반려(name, 종류) {
-  입력시트_({ 제목: name + ' 님 ' + 종류 + ' 반려', 라벨: '반려 사유', 여러줄: true, 확인: '반려',
-    안내: '사유는 본인과 관리자만 봅니다. 마감은 연장되지 않습니다 — 수정 후 다시 제출해야 합니다.',
-    예시: '예) 미가입 A·B 담당 병원 방문이 2곳뿐입니다' }, function(v) {
-    wk쓰기_({ 토큰: TOKEN, 동작: '반려', 대상: name, 종류: 종류,
-      주시작: 종류 === '계획서' ? WEEK.계획주 : WEEK.리포트주, 사유: v }, '반려했습니다.');
+function loadWeek(quiet) {
+  var request=++WKREQ,token=TOKEN,target=WKSEL,day=WKDAY;
+  읽기시작_(quiet,'wkBody');
+  return 관문호출_('/saleson-weekly',JSON.stringify({토큰:token,동작:'조회',대상:target,주시작:day})).then(function(d){
+    if(request !== WKREQ || token !== TOKEN || target !== WKSEL || day !== WKDAY)return;
+    WEEK=d;읽기끝_(quiet);renderWeek();
+  },function(e){
+    if(request !== WKREQ || token !== TOKEN)return;
+    읽기끝_(quiet);
+    if(quiet){toast('주간 새로고침 실패 · 기존 내용과 초안은 유지됩니다.',true);return;}
+    실패카드_('wkBody',e,function(){loadWeek();});
   });
 }
+function wkNavigate(day,target) {wkFlush();WKDAY=day;WKSEL=target || '';WEEK=null;loadWeek();}
+function wkChange(value) {
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return;
+  var n=new Date(value+'T00:00:00Z').getUTCDay();wkNavigate(wkAdd(value,-(n === 0 ? 6 : n-1)),WKSEL);
+}
+function wkSel(name) {wkNavigate(WKDAY,name);}
+function wkOpen(index) {
+  var item=WEEK.문서목록[index];wkNavigate(item.kind === '계획서' ? wkAdd(item.week,-7) : item.week,item.name === WEEK.이름 ? '' : item.name);
+}
+function wkFilter(team,status){if(team != null)WKTEAM=team;if(status != null)WKFILTER=status;renderWeek();}
+function renderWeek() {
+  if(!WEEK)return;
+  var d=WEEK,own=d.보는대상 === d.이름,active=document.activeElement;
+  var focus=active && active.id,start=active && active.selectionStart,end=active && active.selectionEnd;
+  var h='<div class="wktoolbar"><div><b>주간 계획 · 활동 리포트</b><p class="wkmuted">매주 금요일, 이번 주 활동과 다음 주 계획을 제출합니다.</p></div>'
+    +'<label>활동 주 <input aria-label="활동 주 선택" type="date" value="'+wkAttr(d.선택주)+'" max="'+wkAttr(d.이번주)+'" onchange="wkChange(this.value)"></label>'
+    +'<button class="btn" onclick="wkNavigate(\'\',\'\')">이번 주 · 내 문서</button></div>';
+  if(d.admin || (d.문서목록 || []).some(function(x){return x.week < d.선택주;}))h+=wkQueue();
+  if(!own)h+='<div class="card"><b>'+esc(d.보는대상)+'</b> · '+esc(d.팀이름)+' <button class="btn" onclick="wkSel(\'\')">내 문서</button></div>';
+  if(d.대상)h+='<div class="wkgrid">'+wkCard('리포트')+wkCard('계획서')+'</div>';
+  else h+='<div class="card empty">위 목록에서 검토할 문서를 선택해 주세요.</div>';
+  document.getElementById('wkBody').innerHTML=h;
+  if(focus){var el=document.getElementById(focus);if(el){el.focus({preventScroll:true});if(typeof el.setSelectionRange === 'function' && start != null)try{el.setSelectionRange(start,end);}catch(e){}}}
+}
+function wkQueue() {
+  var list=WEEK.문서목록 || [],count=list.filter(function(x){return x.내차례;}).length;
+  var h='<details class="card" open><summary><b>'+(WEEK.admin ? '승인 대기함' : '내 문서함')+'</b> · 내 차례 '+count+'건</summary><div class="wktools">'
+    +'<label>팀 <select onchange="wkFilter(this.value,null)">'+['전체','교육영업팀','장비영업팀'].map(function(t){return '<option'+(WKTEAM===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></label>'
+    +'<label>상태 <select onchange="wkFilter(null,this.value)">'+['대기','전체','미제출','수정 요청'].map(function(s){return '<option'+(WKFILTER===s?' selected':'')+'>'+s+'</option>';}).join('')+'</select></label></div>';
+  var shown=0;
+  list.forEach(function(x,index){
+    if(WKTEAM !== '전체' && WKTEAM !== x.team)return;
+    if(WKFILTER === '대기' && !x.내차례)return;
+    if(WKFILTER === '미제출' && !['미제출','작성중','초안','없음'].includes(x.status))return;
+    if(WKFILTER === '수정 요청' && x.status !== '반려')return;
+    shown++;
+    h+='<button class="wkqueue" onclick="wkOpen('+index+')"><span><b>'+esc(x.name)+'</b> · '+esc(x.kind)+'<small>'+esc(x.team)+' · '+wk주(x.week)+(x.submittedAt?' · '+wkTime(x.submittedAt)+' 제출':'')+'</small></span><span>'+wk배지(x.status)+'<small>'+x.count+'건'+(x.exception?' · 보충 내용 있음':'')+' · 내용 보기 ›</small></span></button>';
+  });
+  return h+(shown?'':'<p class="wkmuted">해당 문서가 없습니다. 전체를 선택하면 제출 현황을 볼 수 있습니다.</p>')+'</details>';
+}
+function wkCard(kind) {
+  var doc=wkDoc(kind),isPlan=kind === '계획서',content=doc.content || {},own=WEEK.보는대상 === WEEK.이름;
+  var draft=doc.editable ? wkDraft(kind) : null;
+  var title=isPlan?'다음 주 활동 계획':'이번 주 활동 리포트';
+  if(WEEK.선택주 !== WEEK.이번주)title=isPlan?'활동 계획':'활동 리포트';
+  var h='<section class="card wkdoc"><div class="wkhead"><div><h3>'+title+'</h3><p>'+wk주(wkWeek(kind))+'</p></div>'+wk배지(doc.status)+'</div>';
+  if(doc.submittedAt)h+='<p class="wkmuted">'+wkTime(doc.submittedAt)+' 제출 · '+doc.revision+'차 제출본'
+    +(doc.directorBy?' · 최종 승인 '+esc(doc.directorBy):doc.leadBy?' · 팀장 승인 '+esc(doc.leadBy):'')+'</p>';
+  if(doc.rejectReason)h+='<div class="wkwarn"><b>수정 요청</b><p>'+esc(doc.rejectReason)+'</p></div>';
+  if(doc.legacy)h+='<div class="wkwarn">이전 문서는 제출 당시 내용이 보존돼 있지 않습니다. 작성자가 수정본을 다시 제출해야 승인할 수 있습니다.</div>';
+  if(doc.changed)h+='<div class="wkwarn">제출 후 원본이 변경됐습니다. 아래 제출본은 그대로 보존됩니다. 최신 내용은 수정본으로 다시 제출해 주세요.</div>';
+  if(isPlan){
+    var rule=(doc.editable ? doc.live : content).규칙;
+    if(rule)h+='<details class="wkrule"><summary>교육영업 기준 · 방문 '+rule.계획+'/12 · 만료 방어 '+rule.방어+'/'+rule.방어대상수+' · 미가입 A·B '+rule.미가입ab+'/4</summary><p>미충족이어도 사유를 적으면 제출할 수 있습니다. 담당 재배정·휴가 등 예외를 적어 주세요.</p></details>';
+    h+=wkPlanRows(content.계획들 || [],doc.editable);
+    if(doc.editable)h+=wkField('계획서','note','wkNote','주간 목표 · 보충 설명'+(rule&&!rule.충족?' (미충족 사유 필수)':''),draft.note,'예: 이번 주 신규 데모 확보에 집중 / 휴가로 방문 계획 조정');
+    else if(content.note)h+='<div class="wktext"><b>주간 목표 · 보충 설명</b><p>'+esc(content.note)+'</p></div>';
+  }else{
+    var n=content.숫자 || {};
+    h+='<div class="wkstats">'+[['계획',n.계획],['활동',n.실행],['계획 완료',n.완료],['미실행',n.미실행],['계획 외',n.계획외]].map(function(x){return '<div><b>'+(x[1] || 0)+'</b><small>'+x[0]+'</small></div>';}).join('')+'</div>'
+      +'<p class="wkmuted">'+(content.capturedAt ? wkTime(content.capturedAt)+'까지 제출한 활동' : '오늘까지 입력한 활동이 자동 반영됩니다.')+' · 늦게 입력 '+(n.소급 || 0)+'건도 활동에 포함</p>';
+    h+=wkReportRows(content,own && doc.editable);
+    if(doc.editable){
+      h+=wkField('리포트','extra','wkExtra','주요 성과 · 보충 설명',draft.extra,'예: 신규 장비 제안 후 후속 데모 일정 확정');
+      h+=wkField('리포트','shortfall','wkShort','미실행 사유 · 지원 요청'+((n.미실행 || 0)?' (필수)':''),draft.shortfall,'예: 고객 일정 변경으로 다음 주 재방문 / 데모 장비 지원 필요');
+      h+='<h4>추가 활동</h4><p class="wkmuted">내부 교육·회의·지원 등 방문기록에 없는 활동을 추가합니다. 방문 수에는 합산하지 않습니다.</p>'+wkExtraRows(draft.activities,true)
+        +'<button class="btn" onclick="wkExtraAdd()">＋ 추가 활동</button>';
+    }else{
+      if(content.extra)h+='<div class="wktext"><b>주요 성과 · 보충 설명</b><p>'+esc(content.extra)+'</p></div>';
+      if(content.shortfall)h+='<div class="wktext"><b>미실행 사유 · 지원 요청</b><p>'+esc(content.shortfall)+'</p></div>';
+      h+=wkExtraRows(content.activities || [],false);
+    }
+  }
+  if(doc.editable){
+    var saveId=isPlan?'wkPlanSave':'wkReportSave';
+    h+='<p id="'+saveId+'" class="wkmuted" role="status">'+esc(draft.message)+'</p>';
+    if(draft.conflict)h+='<div class="wkwarn">다른 기기에서 변경된 내용이 있습니다. 보관된 초안을 확인하고 선택해 주세요.<div class="wktools">'
+      +'<button class="btn" onclick="wkResolve(\''+kind+'\',true)">내 초안 적용</button><button class="btn" onclick="wkResolve(\''+kind+'\',false)">서버 내용 사용</button></div></div>';
+    h+='<div class="wktools"><button class="btn" onclick="wkEntry(\''+kind+'\')">'+(isPlan?'계획 추가':'방문기록 추가')+'</button>'
+      +'<button class="btn" onclick="wkSave(\''+kind+'\').catch(function(e){toast(e.message,true)})">임시 저장</button>'
+      +'<button class="btn pri" '+(draft.conflict?'disabled':'')+' onclick="wkSubmit(\''+kind+'\')">'+(isPlan?'계획 제출':'리포트 제출')+'</button></div>';
+  }else if(own && WEEK.대상 && !WEEK.조회전용)h+='<button class="btn" onclick="wkReopen(\''+kind+'\')">수정본 작성</button>';
+  if(!own && doc.canReview)h+='<div class="wktools"><button class="btn" onclick="wkReject(\''+kind+'\')">수정 요청</button>'
+    +'<button class="btn pri" '+(doc.changed||doc.legacy?'disabled':'')+' onclick="wkApprove(\''+kind+'\')">이 내용 승인</button></div>';
+  if(doc.changed)h+='<details><summary>최신 원본 내용 보기</summary>'+(isPlan?wkPlanRows(doc.live.계획들):wkReportRows(doc.live,false))+'</details>';
+  h+=wkHistory(kind);
+  return h+'</section>';
+}
+function wkField(kind,field,id,label,value,placeholder){return '<label class="f" for="'+id+'">'+label+'</label><textarea id="'+id+'" maxlength="5000" placeholder="'+wkAttr(placeholder)+'" oninput="wkInput(\''+kind+'\',\''+field+'\',this.value)">'+esc(value)+'</textarea>';}
+function wkPlanRows(rows,editable){
+  return rows.length ? '<div>'+rows.map(function(p){return '<div class="wkactivity"><b>'+wk날짜(p.date)+' · '+esc(p.hname)+'</b><small>'+esc(p.type)+' · '+esc(p.cat)+'</small><p>'+esc(p.purpose || '목적 미입력')+'</p>'+(p.preparation?'<small>준비 · '+esc(p.preparation)+'</small>':'')+(editable?'<button class="btn" onclick="wkPlanEdit('+p.id+')">일정·내용 수정</button>':'')+'</div>';}).join('')+'</div>' : '<p class="wkmuted">등록한 계획이 없습니다.</p>';
+}
+function wkReportRows(content,canLink){
+  var plans=content.계획들 || [],visits=content.활동들 || [],pairs=content.연결 || [];
+  var h='<details open><summary>계획 대비 활동 · '+plans.length+'건</summary>';
+  plans.forEach(function(p){
+    var pair=pairs.find(function(x){return x.planId === p.id;}),v=pair&&visits.find(function(x){return x.id === pair.visitId;});
+    h+='<div class="wkactivity"><b>'+wk날짜(p.date)+' · '+esc(p.hname)+'</b><small>'+esc(p.type)+' · '+esc(p.purpose || '')+'</small>';
+    if(v)h+='<p><span class="tag-green">완료</span> '+wk날짜(v.date)+' · '+esc(v.note)+'</p>'+(v.reaction?'<small>결과 · '+esc(v.reaction)+'</small>':'')+(v.followUp?'<small>후속 · '+esc(v.followUp)+'</small>':'');
+    else h+='<p class="wkmuted">실행 기록이 연결되지 않았습니다.</p>';
+    if(canLink){
+      var candidates=visits.filter(function(x){return p.hcode&&x.hcode?p.hcode===x.hcode:p.hname.replace(/\s/g,'')===x.hname.replace(/\s/g,'');});
+      if(candidates.length)h+='<label class="wkmuted">실제 활동 확인 <select aria-label="'+wkAttr(p.hname)+' 실제 활동 연결" onchange="wkLink('+p.id+',this.value)"><option value="">활동 선택</option>'
+        +candidates.map(function(x){return '<option value="'+x.id+'"'+(pair&&pair.visitId===x.id?' selected':'')+'>'+wk날짜(x.date)+' '+esc(x.type)+' · '+esc(x.note.slice(0,45))+'</option>';}).join('')+'</select></label>';
+    }
+    h+='</div>';
+  });
+  if(!plans.length)h+='<p class="wkmuted">계획이 없습니다. 기록한 활동은 아래에 표시됩니다.</p>';
+  h+='</details><details open><summary>계획에 연결되지 않은 활동 · '+(content.계획외 || []).length+'건</summary>';
+  (content.계획외 || []).forEach(function(v){h+='<div class="wkactivity"><b>'+wk날짜(v.date)+' · '+esc(v.hname)+'</b><small>'+esc(v.type)+(v.late?' · 늦게 입력':'')+'</small><p>'+esc(v.note)+'</p>'+(v.reaction?'<small>결과 · '+esc(v.reaction)+'</small>':'')+'</div>';});
+  return h+'</details>';
+}
+function wkExtraRows(rows,editable){return rows.map(function(x,i){
+  if(!editable)return '<div class="wkactivity"><b>'+wk날짜(x.date)+' · '+esc(x.type)+'</b><p>'+esc(x.note)+'</p></div>';
+  return '<div class="wkextra"><div class="wktools"><input aria-label="추가 활동 날짜" type="date" min="'+wkAttr(WEEK.리포트주)+'" max="'+wkAttr(WEEK.오늘 < wkAdd(WEEK.리포트주,6)?WEEK.오늘:wkAdd(WEEK.리포트주,6))+'" value="'+wkAttr(x.date)+'" oninput="wkInput(\'리포트\',\'date\',this.value,'+i+')">'
+    +'<input type="text" aria-label="추가 활동 유형" maxlength="40" placeholder="교육·회의·지원" value="'+wkAttr(x.type)+'" oninput="wkInput(\'리포트\',\'type\',this.value,'+i+')">'
+    +'<button class="btn" onclick="wkExtraRemove('+i+')">삭제</button></div><textarea aria-label="추가 활동 내용" maxlength="2000" placeholder="어떤 활동을 했는지 적어 주세요" oninput="wkInput(\'리포트\',\'note\',this.value,'+i+')">'+esc(x.note)+'</textarea></div>';
+}).join('');}
+function wkExtraAdd(){var d=wkDraft('리포트');if(d.activities.length>=50)return toast('50건까지 추가할 수 있습니다.',true);d.activities.push({date:WEEK.오늘 <= wkAdd(WEEK.리포트주,6)?WEEK.오늘:wkAdd(WEEK.리포트주,6),type:'',note:''});wkInput('리포트','activities',d.activities);renderWeek();}
+function wkExtraRemove(i){var d=wkDraft('리포트');d.activities.splice(i,1);wkInput('리포트','activities',d.activities);renderWeek();}
+function wkHistory(kind){
+  var events=(WEEK.이력 || []).filter(function(x){return x.kind===kind;}),versions=(WEEK.버전들 || []).filter(function(x){return x.kind===kind;});
+  if(!events.length&&!versions.length)return '';
+  return '<details class="wkhistory"><summary>제출·승인 이력</summary>'+events.map(function(x){return '<p>'+wkTime(x.created_at)+' · '+esc(x.actor)+' · '+esc(x.action)+(x.reason?' — '+esc(x.reason):'')+'</p>';}).join('')
+    +versions.map(function(x){var c=x.content;return '<details><summary>'+x.revision+'차 제출본 · '+wkTime(x.submitted_at)+'</summary>'+(kind==='계획서'?wkPlanRows(c.계획들 || []):wkReportRows(c,false))+'<p class="wktext">'+esc(kind==='계획서'?c.note:[c.extra,c.shortfall].filter(Boolean).join('\n'))+'</p>'+wkExtraRows(c.activities || [],false)+'</details>';}).join('')+'</details>';
+}
+async function wkOperation(kind,action,reason){
+  var token=TOKEN,week=wkWeek(kind),target=WEEK.보는대상,key=wkKey(kind);
+  clearTimeout(WKTIMER[key]);
+  if(WKPENDING[key])await WKPENDING[key];
+  if(!WEEK || token!==TOKEN || week!==wkWeek(kind) || target!==WEEK.보는대상)return;
+  var doc=wkDoc(kind),body={토큰:token,동작:action,종류:kind,주시작:week,대상:target,version:doc.version,사유:reason || ''};
+  if(action==='계획서제출'||action==='리포트제출'){
+    var draft=wkDraft(kind);if(draft.conflict)throw new Error('내 초안과 서버 내용을 먼저 확인해 주세요.');
+    body.version=draft.version;Object.assign(body,wkPayload(kind,draft));
+  }
+  busy(true,'처리 중…');
+  try{
+    var r=await 관문호출_('/saleson-weekly',JSON.stringify(body));
+    if(token!==TOKEN)return;
+    if(action==='계획서제출'||action==='리포트제출'||action==='수정시작'){delete WKDRAFT[key];try{localStorage.removeItem(key);}catch(e){}}
+    toast(r.msg || '처리했습니다.');
+    if(WEEK && week===wkWeek(kind) && target===WEEK.보는대상)await loadWeek(true);
+  }finally{busy(false);}
+}
+function wkSubmit(kind){wkOperation(kind,kind==='계획서'?'계획서제출':'리포트제출').catch(function(e){toast(e.message,true);});}
+function wkReopen(kind){입력시트_({제목:'수정본 작성',라벨:'수정 사유',확인:'수정본 작성',안내:'기존 제출본은 보존하고 새로 승인받습니다.',여러줄:true},function(reason){wkOperation(kind,'수정시작',reason).catch(function(e){toast(e.message,true);});});}
+function wkReject(kind){입력시트_({제목:WEEK.보는대상+' 님 수정 요청',라벨:'수정할 내용을 적어 주세요',확인:'수정 요청',여러줄:true},function(reason){wkOperation(kind,'반려',reason).catch(function(e){toast(e.message,true);});});}
+function wkApprove(kind){
+  if(WEEK.이름===WEEK.승인2단 && wkDoc(kind).status==='제출')입력시트_({제목:'팀장 승인과 최종 승인 함께 처리',라벨:'대행 승인 사유',확인:'이 내용 승인',여러줄:true},function(reason){wkOperation(kind,'승인',reason).catch(function(e){toast(e.message,true);});});
+  else wkOperation(kind,'승인').catch(function(e){toast(e.message,true);});
+}
+function wkLink(planId,visitId){if(!visitId)return;wkFlush();관문호출_('/saleson-weekly',JSON.stringify({토큰:TOKEN,동작:'활동연결',주시작:WEEK.리포트주,planId:planId,visitId:Number(visitId)})).then(function(){loadWeek(true);},function(e){toast(e.message,true);});}
+function wkEntry(kind){
+  wkFlush();var week=wkWeek(kind);show(kind==='계획서'?'plan':'log');
+  var id=kind==='계획서'?'pDate':'fDate',el=document.getElementById(id);
+  // 작성 중인 기존 폼은 덮지 않는다. 빈 폼에만 해당 주 날짜를 넣는다.
+  var hosp=document.getElementById(kind==='계획서'?'pHosp':'fHosp');
+  if(el && hosp && !hosp.value){el.value=week;if(kind==='계획서')계획임시저장_();else 임시저장_();}
+  toast('입력 후 「주간」으로 돌아오면 자동 반영됩니다.');
+}
+var WKPLANEDIT=null;
+function wkPlanEdit(id){
+  var p=WEEK.계획서.live.계획들.find(function(x){return x.id===id;});if(!p)return;
+  wkFlush();WKPLANEDIT={plan:p,week:WEEK.계획주,token:TOKEN};
+  var old=document.getElementById('wkPlanDialog');if(old)old.remove();
+  var el=document.createElement('dialog');el.id='wkPlanDialog';el.className='wkdialog';
+  el.innerHTML='<h3>'+esc(p.hname)+' · 계획 수정</h3><form onsubmit="event.preventDefault();wkPlanSave()">'
+    +'<label class="f" for="wkEditDate">날짜</label><input id="wkEditDate" type="date" required min="'+wkAttr(WEEK.계획주)+'" max="'+wkAttr(wkAdd(WEEK.계획주,6))+'" value="'+wkAttr(p.date)+'">'
+    +'<label class="f" for="wkEditType">활동 유형</label><input id="wkEditType" type="text" required maxlength="100" value="'+wkAttr(p.type)+'">'
+    +'<label class="f" for="wkEditPurpose">방문 목적</label><textarea id="wkEditPurpose" maxlength="2000">'+esc(p.purpose)+'</textarea>'
+    +'<label class="f" for="wkEditPrep">준비 사항</label><textarea id="wkEditPrep" maxlength="2000">'+esc(p.preparation || '')+'</textarea>'
+    +'<p id="wkEditError" role="alert" class="wkmuted"></p><div class="wktools"><button type="button" class="btn" onclick="document.getElementById(\'wkPlanDialog\').close()">취소</button><button id="wkEditSave" type="submit" class="btn pri">계획 저장</button></div></form>';
+  document.body.appendChild(el);el.showModal();
+}
+async function wkPlanSave(){
+  var context=WKPLANEDIT;if(!context||context.token!==TOKEN)return;
+  var p=context.plan,btn=document.getElementById('wkEditSave');btn.disabled=true;
+  try{var r=await 관문호출_('/saleson-weekly',JSON.stringify({토큰:TOKEN,동작:'계획수정',주시작:context.week,planId:p.id,
+    expected:{date:p.date,type:p.type,purpose:p.purpose,preparation:p.preparation},
+    plan:{date:document.getElementById('wkEditDate').value,type:document.getElementById('wkEditType').value,purpose:document.getElementById('wkEditPurpose').value,preparation:document.getElementById('wkEditPrep').value}}));
+    if(context.token!==TOKEN||context!==WKPLANEDIT)return;
+    document.getElementById('wkPlanDialog').close();toast(r.msg);await loadWeek(true);
+  }catch(e){if(context.token===TOKEN&&context===WKPLANEDIT){var error=document.getElementById('wkEditError');if(error)error.textContent=e.message;}}finally{btn.disabled=false;}
+}
+
 </script>
 </body>
 </html>
