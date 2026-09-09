@@ -1241,7 +1241,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609090827-4c82ab2';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609091302-520c08b';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1476,6 +1476,8 @@ function 홈받기_() {
         DATA.team.monthVisits = d.tiles.team.monthVisits;
       }
     }
+    // ⑥ 약속 대 실행 — 관문(DB)만 준다. GAS 부트에는 없어 처음엔 안 보이다가 이 응답으로 채워진다.
+    if (d.약속실행) { DATA.약속실행 = d.약속실행; DATA.약속실행주 = d.약속실행주; }
     /* ⚠ 여기서 `renderForm()`을 불렀다 (2026-08-16, 점검 P17에서 뺐다).
        renderForm이 읽는 것은 `DATA.types`·`matCats`·`channels`·`sources`·`evtList`·`evtTypes`인데
        홈받기_는 그중 **하나도 안 바꾼다** — plans·leads·leadNames·tiles만 갈아끼운다.
@@ -2129,7 +2131,8 @@ function renderHome() {
     /* 관리자도 자기 계획은 있다 (8/6 피드백). 팀 요약만 보여주면 본인 계획의 [기록 쓰기]에
        닿을 길이 없다 — 내 계획 카드를 팀 현황 **위에** 먼저 그린다. */
     document.getElementById('planList').innerHTML =
-      (week.length
+      renderPromiseTable(DATA.약속실행)
+      + (week.length
         ? '<div class="kicker"><div class="bar"></div><div class="lbl">내 이번 주 계획</div></div>'
           + week.map(planCard).join('')
           + '<div class="kicker" style="margin-top:18px;"><div class="bar"></div><div class="lbl">팀원별 현황</div></div>'
@@ -2137,11 +2140,40 @@ function renderHome() {
       + renderTeamWeek(DATA.team.week);
   } else {
     document.getElementById('planTitle').textContent = '이번 주 방문 계획';
-    document.getElementById('planList').innerHTML = week.length
-      ? week.map(planCard).join('')
-      : '<div class="card empty">이번 주 등록된 계획이 없습니다.<br><br><button class="btn pri" onclick="show(\'plan\')">+ 계획 등록하기</button></div>';
+    document.getElementById('planList').innerHTML = renderPromiseTable(DATA.약속실행)
+      + (week.length
+        ? week.map(planCard).join('')
+        : '<div class="card empty">이번 주 등록된 계획이 없습니다.<br><br><button class="btn pri" onclick="show(\'plan\')">+ 계획 등록하기</button></div>');
   }
   renderKpi();
+}
+
+/* ── ⑥ 약속 대 실행 — 이름별 표 (팀운영 D-19·D-20, 2026-09-09) ──
+   관리자는 팀 전체(장비영업팀·교육영업팀, 관문이 이미 팀별·가나다순으로 준다),
+   본인 홈은 자기 줄 하나. 순위·목표 열 없음 — 약속(계획)이 목표다.
+   소급(당일 입력이 아닌 방문)은 회색으로 병기 — 9/15 주 전엔 관문이 이미 실행에 합산해 준다. */
+function renderPromiseTable(rows) {
+  if (!rows || !rows.length) return '';
+  var cell = 'padding:8px 10px;';
+  var body = '', curTeam = null;
+  rows.forEach(function(r) {
+    if (r.team !== curTeam) {
+      curTeam = r.team;
+      body += '<tr><td colspan="4" style="' + cell + 'padding-top:12px;font-size:11px;font-weight:700;color:#5f6b7a;">' + esc(curTeam) + '</td></tr>';
+    }
+    var 소급배지 = r.소급 ? '<span style="color:#8b95a1;font-size:11px;"> (소급 ' + r.소급 + ')</span>' : '';
+    body += '<tr>'
+      + '<td style="' + cell + '"><b>' + esc(r.name) + '</b></td>'
+      + '<td class="c" style="' + cell + '">' + r.계획 + '</td>'
+      + '<td class="c" style="' + cell + '"><b class="blue">' + r.표시실행 + '</b>' + 소급배지 + '</td>'
+      + '<td class="c" style="' + cell + 'font-size:11.5px;color:#4e5968;white-space:nowrap;">데모 '
+        + r.실행_데모 + '/' + r.계획_데모 + ' · N-Care ' + r.실행_ncare + '/' + r.계획_ncare + '</td>'
+      + '</tr>';
+  });
+  return '<div class="kicker"><div class="bar"></div><div class="lbl">약속 대 실행 — 이번 주</div></div>'
+    + '<div class="card"><table class="dt"><thead><tr>'
+    + '<th>이름</th><th class="c">계획</th><th class="c">실행</th><th class="c">데모 · N-Care</th>'
+    + '</tr></thead><tbody>' + body + '</tbody></table></div>';
 }
 
 /* ── 관리자 홈: 팀원별 이번 주 방문 계획 · 실제 방문 ── */
