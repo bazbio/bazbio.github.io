@@ -664,6 +664,9 @@
 <!-- 내 리드 -->
 <div class="view" id="view-lead"><div class="wrap">
   <div class="kicker"><div class="bar"></div><div class="lbl" id="leadTitle">내 리드 — 단계를 탭해서 변경</div></div>
+  <!-- 검색 (P59) — 리드가 30건 넘게 쌓인 담당자는 목록을 눈으로 훑어야 했다. mineQ와 같은 방식 -->
+  <input type="text" id="leadQ" placeholder="병원명으로 검색" autocomplete="off"
+    style="margin:0 0 10px;" oninput="LEADQ=this.value;renderLeads()">
   <!-- 인/아웃 칩까지 4~5개라 좁은 폰에서 넘친다 — Meta DB 세그와 같은 이유로 옆으로 민다 -->
   <div class="seg scrollx" id="leadSeg"></div>
   <div id="leadList"></div>
@@ -873,6 +876,7 @@
     <button class="refresh" onclick="METAQ=null;loadMeta()">새로고침</button>
   </div>
   <div class="seg scrollx" id="metaSeg"></div>
+  <div id="metaAvgResp" style="font-size:12px;color:#5f6b7a;margin:2px 0 10px;"></div>
   <div id="metaBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
 
@@ -1007,7 +1011,7 @@
     <div id="otpWrap" style="display:none;">
       <div id="otpMsg" style="margin-top:4px;font-size:13.5px;color:#4e5968;line-height:1.6;text-align:center;"></div>
       <label class="f">인증번호 6자리</label>
-      <input type="text" id="liOtp" inputmode="numeric" maxlength="6" placeholder="메일로 받은 번호" autocomplete="off">
+      <input type="text" id="liOtp" inputmode="numeric" maxlength="6" placeholder="메일로 받은 번호" autocomplete="one-time-code">
       <button class="save" onclick="doOtp()">확인</button>
       <div style="margin-top:12px;display:flex;justify-content:center;gap:8px;">
         <button class="btn ghost" onclick="backToLogin()">뒤로</button>
@@ -1044,18 +1048,17 @@ var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [�
 var NCSEL_ID = 0;       // 어느 병원의 선택인지
 var WEEK = null;        // 주간 탭 데이터 (지시서 ⑦ — 관문 전용, GAS 폴백 없음)
 var WKSEL = '';         // 관리자가 보고 있는 팀원 이름 ('' = 내 것)
-var WKPOP = '';         // 규칙 띠에서 펼친 칸 ('' | 'plan' | 'def' | 'ab')
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
 var MATSEG = '전체';
 var LEADSEG = 'open';
 var LEADREP = '';
+var LEADQ = '';          // 리드 탭 검색어 (P59) — mineQ와 같은 방식
 var FAILROW = 0;
 var FAILNO = 0;   // 실패 모달을 연 리드의 no — 목록이 갈려도 놓치지 않는다 (8/14)
 var DASHTEAM = '전체';
 var ACTTEAM = '전체';   // 현황 탭 활동현황 구역의 팀 필터 ('전체' | '장비영업팀' | '교육영업팀') — DASHTEAM(판매 라인)과 별개 축
 var DASHM = '';
 var DASHW = '';
-var DASHREP = '';
 var selType = '';
 var selPType = '';
 var selPCh = '';
@@ -1238,7 +1241,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609072242-2f02fa6';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609090827-4c82ab2';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1532,7 +1535,7 @@ function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
   if (typeof wkReset === 'function') wkReset();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
-  NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; WKPOP = '';
+  NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = '';
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
   document.getElementById('liName').value = '';
   document.getElementById('liPin').value = '';
@@ -3513,6 +3516,7 @@ function prefill(row) {
   PREFILL = { hname: p.hname, hcode: p.hcode || '', date: p.date };
   document.getElementById('fHosp').value = p.hname;
   checkLeadF_();   // 프로그램으로 넣으면 oninput이 안 뜬다 — 리드 블록을 직접 맞춘다
+  document.getElementById('fContact').value = p.contact || '';
   var 맞은칩 = null;
   document.querySelectorAll('#fType .chip').forEach(function(c) {
     if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
@@ -3853,6 +3857,22 @@ function renderMeta() {
         + t[0] + ' ' + t[1] + '</div>';
     }).join('');
 
+  /* 이번 달 평균 반응 시간 (접수 → 통화) — 여태 문의 카드 한 건씩만 보였고 집계는
+     어디에도 없었다(P61). 이미 내려온 createdMs·calledMs로 화면에서 계산한다 — 서버는 안 건드린다. */
+  var 이번달 = String(DATA.today || '').slice(0, 7);   // 'YYYY-MM'
+  var 반응대상 = list.filter(function(q) {
+    var d = new Date(q.createdMs);
+    return q.calledMs > 0 && (d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2)) === 이번달;
+  });
+  var avgEl = document.getElementById('metaAvgResp');
+  if (avgEl) {
+    avgEl.textContent = 반응대상.length
+      ? '이번 달 평균 반응 시간(접수 → 통화) ' + 경과문구_(Date.now() - Math.round(
+          반응대상.reduce(function(s, q) { return s + (q.calledMs - q.createdMs); }, 0) / 반응대상.length))
+        + ' · ' + 반응대상.length + '건'
+      : '이번 달 통화 완료 문의가 아직 없습니다.';
+  }
+
   var rows = METASEG === '전체' ? list : list.filter(function(q) { return q.status === METASEG; });
   var h = rows.length ? rows.map(metaCard).join('')
     : '<div class="card empty">' + (METASEG === '전체' ? '아직 문의가 없습니다.' : METASEG + ' 문의가 없습니다.') + '</div>';
@@ -4174,7 +4194,7 @@ function 임시저장_() {
       reaction: document.getElementById('fReaction').value,
       fu: document.getElementById('fFu').value,
       nozzle: document.getElementById('fNozzle').value,
-      type: selType, cat: selFCat, at: Date.now(),
+      type: selType, cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value, at: Date.now(),
       /* 여태 이 셋이 빠져 있었다 (감사 화11) — 「기타」로 직접 적은 유형, 배포 자료 선택,
          그 자료의 세부내용. 되살리면 유형이 빈 채로 돌아와 저장에서 막히고(활동 유형을
          선택해 주세요), 자료는 통째로 다시 골라야 했다 */
@@ -4211,6 +4231,9 @@ function 임시저장복구_() {
     document.getElementById('fNozzle').value = d.nozzle || '';
     document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.type) pickType(c); });
     document.querySelectorAll('#fCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.cat) pickFCat(c); });
+    // 리드 없는 병원의 판매 구분·딜러명 — checkLeadF_()가 이미 위에서 #fLeadSec을 열어 뒀다 (P58)
+    document.querySelectorAll('#fCh .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.ch) pickFCh(c); });
+    document.getElementById('fDealer').value = d.dealer || '';
     /* 직접 입력 유형은 칩을 집은 **뒤에** 넣는다 — pickType이 그 칸을 열고 포커스를 준다 (감사 화11) */
     document.getElementById('fTypeEtc').value = d.typeEtc || '';
     /* 배포 자료: 고른 것과 세부내용을 되돌린 **뒤에** 그린다 — 순서가 뒤집히면 빈 칸이 그려진다 */
@@ -4656,12 +4679,13 @@ function renderLeads() {
   // 관리자: 담당자 타일 목록 → 클릭 시 해당 담당자 리드
   if (isAdmin && !LEADREP) {
     title.textContent = '팀 리드 — 담당자를 선택하세요';
+    document.getElementById('leadQ').style.display = 'none';
     document.getElementById('leadSeg').innerHTML = '';
     var reps = {}, names = [];
     pool.forEach(function(l) {
       var n = l.rep || '미배정';
       if (!reps[n]) { reps[n] = { open: 0, fail: 0 }; names.push(n); }
-      if (l.stage === '실패') reps[n].fail++; else reps[n].open++;
+      if (l.stage === '실패') reps[n].fail++; else if (l.stage !== '계약') reps[n].open++;
     });
     names.sort(function(a, b) {
       if (a === '미배정') return 1;
@@ -4684,6 +4708,9 @@ function renderLeads() {
   } else {
     title.textContent = '내 리드 — 단계를 탭해서 변경';
   }
+  document.getElementById('leadQ').style.display = '';
+  var q = String(LEADQ || '').replace(/\s/g, '').toLowerCase();
+  if (q) pool = pool.filter(function(l) { return String(l.hname || '').replace(/\s/g, '').toLowerCase().indexOf(q) >= 0; });
 
   // 인/아웃 필터 (ADR 0022) — 진행/실패 세그보다 먼저 걸어 두 칩의 숫자가 같은 기준이 되게
   var inN = pool.filter(function(l) { return 인바운드소스_(l.source); }).length;
@@ -4691,9 +4718,10 @@ function renderLeads() {
   if (LEADIO) pool = pool.filter(function(l) { return 인바운드소스_(l.source) === (LEADIO === 'in'); });
   var open = pool.filter(function(l) { return l.stage !== '실패'; });
   var fails = pool.filter(function(l) { return l.stage === '실패'; });
+  var openActive = open.filter(function(l) { return l.stage !== '계약'; }).length;   // 계약 완료 건은 목록엔 남기되(흐려서 표시) 카운트에선 뺀다 — P56
   document.getElementById('leadSeg').innerHTML =
     (isAdmin ? '<div class="chip" onclick="LEADREP=\'\';renderLeads()">← 담당자 목록</div>' : '') +
-    '<div class="chip' + (LEADSEG === 'open' ? ' on' : '') + '" onclick="LEADSEG=\'open\';renderLeads()">진행 중 ' + open.length + '</div>'
+    '<div class="chip' + (LEADSEG === 'open' ? ' on' : '') + '" onclick="LEADSEG=\'open\';renderLeads()">진행 중 ' + openActive + '</div>'
     + '<div class="chip' + (LEADSEG === 'fail' ? ' on' : '') + '" onclick="LEADSEG=\'fail\';renderLeads()">실패 · 재컨택 ' + fails.length + '</div>'
     + '<div class="chip' + (LEADIO === 'in' ? ' on' : '') + '" onclick="LEADIO=LEADIO===\'in\'?\'\':\'in\';renderLeads()">인바운드 ' + inN + '</div>'
     + '<div class="chip' + (LEADIO === 'out' ? ' on' : '') + '" onclick="LEADIO=LEADIO===\'out\'?\'\':\'out\';renderLeads()">아웃바운드 ' + outN + '</div>';
@@ -4962,10 +4990,6 @@ function ncGradeBadge(g) {
   var c = NC_GCOLOR[g] || NC_GCOLOR.C;
   return '<span style="display:inline-block;min-width:20px;text-align:center;padding:1px 6px;border-radius:6px;font-weight:700;font-size:12px;color:' + c[0] + ';background:' + c[1] + ';">' + g + '</span>';
 }
-function ncStageBadge(n) {
-  return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:' + (NC_COLOR[n] || '#4e5968') + ';">' + n + ' ' + esc(ncStageName(n)) + '</span>';
-}
-
 function loadNcare(조용히) {
   읽기시작_(조용히, 'ncBody');
   관문호출_('/saleson-ncare', JSON.stringify({ 토큰: TOKEN, 동작: '목록' }))
@@ -5162,11 +5186,15 @@ function renderNcareChurn(rows) {
   return '<div class="card" style="padding:4px 16px;">'
     + rows.map(function(c, i) {
         var canEdit = ncChurnCanEdit_(c);
+        // 이탈 후 경과일 — 미정 상태로 오래 방치된 것을 표시(P60), 만료 목록의 방어계획 강조와 같은 자리
+        var 경과일 = c.churnedOn ? Math.round((new Date(DATA.today) - new Date(c.churnedOn)) / 86400000) : null;
+        var 방치됨 = c.status === '미정' && 경과일 !== null && 경과일 >= 14;
         return '<div style="padding:12px 0;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '">'
           + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
           + '<b style="font-size:14.5px;color:#191f28;">' + esc(c.hname) + '</b>'
           + '<span style="font-size:12px;color:#5f6b7a;">' + esc(c.region) + '</span>'
           + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(c.rep || '담당 미지정') + '</span>' : '')
+          + (경과일 !== null ? '<span class="' + (방치됨 ? 'tag-red' : 'tag-blue') + '">이탈 ' + 경과일 + '일째</span>' : '')
           + '<span style="margin-left:auto;font-size:12px;color:#5f6b7a;white-space:nowrap;">이탈일 ' + esc(c.churnedOn || '미상') + '</span>'
           + '</div>'
           + '<div style="margin-top:8px;">'
@@ -5816,67 +5844,8 @@ function renderDashRecent(d, team) {
   return h;
 }
 function dashTeam(t) { DASHTEAM = t; renderDash(); }
-/* 병원 상세 모달 — 흐름·케어 보드 병원 클릭 */
-function showHosp(hname) {
-  if (!hname) return;
-  busy(true);
-  gsrun().withSuccessHandler(function(d) {
-    busy(false);
-    var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
-      + '<div style="font-size:17px;font-weight:700;">' + esc(d.hname) + '</div>'
-      + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
-    if (d.acc) {
-      var tags = [];
-      if (d.acc.region) tags.push(esc(d.acc.region));
-      if (d.acc.dept) tags.push(esc(d.acc.dept));
-      if (d.acc.kind) tags.push(esc(d.acc.kind));
-      if (d.acc.network) tags.push(esc(d.acc.network) + (d.acc.branch ? ' ' + esc(d.acc.branch) + '개점' : ''));
-      if (d.acc.products) tags.push('취급 ' + esc(d.acc.products));
-      if (d.acc.status) tags.push(esc(d.acc.status));
-      if (d.acc.equip) tags.push('장비 ' + esc(d.acc.equip));
-      if (d.acc.grade) tags.push('케어 ' + esc(d.acc.grade) + '등급');
-      if (d.acc.ncare) tags.push('N-Care ' + esc(d.acc.ncare));
-      if (d.acc.carerep) tags.push('케어 담당 ' + esc(d.acc.carerep));
-      else if (d.acc.rep) tags.push('담당 ' + esc(d.acc.rep));
-      if (d.acc.contact) tags.push(esc(d.acc.contact));
-      if (d.acc.phone) tags.push(esc(d.acc.phone));
-      h += '<div style="margin-top:8px;font-size:12px;color:#4e5968;">' + tags.join(' · ') + '</div>';
-      if (d.acc.memo) h += '<div style="margin-top:4px;font-size:12px;color:#8b95a1;">' + esc(d.acc.memo) + '</div>';
-    }
-    if (d.lead) {
-      h += '<div style="margin-top:12px;background:#f2f4f6;border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.8;">'
-        + '<b>리드</b> · ' + esc(d.lead.stage || '-') + (d.lead.rep ? ' · 담당 ' + esc(d.lead.rep) : '')
-        + (d.lead.ename ? ' · ' + esc(d.lead.ename) : '')
-        + (d.lead.target ? '<br>목표 ' + esc(d.lead.target) + (d.lead.achv === '달성' ? ' <span class="badge deal">달성</span>' : '') : '')
-        + (d.lead.demoDate ? '<br>데모일 ' + esc(d.lead.demoDate) : '')
-        + (d.lead.dealDate ? ' · 계약일 ' + esc(d.lead.dealDate) : '')
-        + (d.lead.failWhy ? '<br><span style="color:#d0223a;">실패 요인 · ' + esc(d.lead.failWhy) + '</span>' : '')
-        + (d.lead.failFix ? '<br><span style="color:#1b64da;">재컨택 조건 · ' + esc(d.lead.failFix) + '</span>' : '')
-        + '</div>';
-    }
-    if (d.logs.length) {
-      h += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#5f6b7a;">최근 기록 ' + d.logs.length + '건</div>';
-      d.logs.forEach(function(l) {
-        var catTag = l.cat === 'N-Care' ? '<span class="tag ncare">N-Care</span>'
-          : (l.cat === '장비 판매' ? '<span class="tag">장비</span>' : '');
-        h += '<div style="margin-top:10px;padding-bottom:10px;border-bottom:1px solid #f2f4f6;">'
-          + '<div style="font-size:12px;color:#4e5968;">' + esc(l.date) + ' · ' + esc(l.rep) + ' · ' + esc(l.type) + ' ' + catTag
-          + (l.stage ? ' · <b class="blue">' + esc(l.stage) + '</b>' : '') + '</div>'
-          + (l.note ? '<div style="margin-top:4px;font-size:12.5px;color:#4e5968;line-height:1.65;white-space:pre-wrap;">' + esc(l.note) + '</div>' : '')
-          + 기록상세_(l)
-          + '</div>';
-      });
-    } else {
-      h += '<div style="margin-top:14px;font-size:12.5px;color:#6b7684;">방문 기록이 없습니다.</div>';
-    }
-    document.getElementById('hospModalBody').innerHTML = h;
-    document.getElementById('hospModal').style.display = 'flex';
-  }).withFailureHandler(function(e) { busy(false); toast(e.message, true); })
-    .웹_병원상세(TOKEN, hname);
-}
 function dashMonth(mk) { DASHM = mk; DASHW = ''; renderDash(); }
 function dashWeek(wk) { DASHW = wk; renderDash(); }
-function dashRep(n) { DASHREP = DASHREP === n ? '' : n; renderDash(); }
 
 /* (2026-07-25) N-Care 케어 보드 제거 — 현황 탭에서 혼란을 준다는 사용자 지시.
    02_거래처관리의 케어 등급·담당 데이터는 그대로다. 되살리려면 이 커밋 이전 버전 참고. */
