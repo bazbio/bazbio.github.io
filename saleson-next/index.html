@@ -1046,6 +1046,9 @@ var NCST = 0;           // 단계 필터 (0 = 전체)
 var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2)
 var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [저장]을 눌러야 반영 (8/13)
 var NCSEL_ID = 0;       // 어느 병원의 선택인지
+var NOZ_POOL_ID = 0;    // 노즐 후속관리 — 지금 모달이 열려 있는 병원(작업 B)
+var NOZ_LAST = null;    // 가장 최근 /saleson-nozzle 병원상세 응답 — 인라인 폼 토글을 재조회 없이 그리는 데 쓴다
+var NOZ_ACT = null;     // 열려 있는 인라인 폼(보류/조치완료/대상제외/다시확인) — 없으면 null
 var WEEK = null;        // 주간 탭 데이터 (지시서 ⑦ — 관문 전용, GAS 폴백 없음)
 var WKSEL = '';         // 관리자가 보고 있는 팀원 이름 ('' = 내 것)
 var META_PREFILL = null;   // Meta 문의 → 계획 등록으로 넘어갈 때 문의 행번호를 들고 간다 (승격 연결)
@@ -1241,7 +1244,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609092138-e309757';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609092221-94b4160';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5264,6 +5267,7 @@ function ncChurnSave(id) {
 function ncOpen(id) {
   var p = ncRow_(id);
   if (!p) return;
+  NOZ_POOL_ID = id; NOZ_ACT = null; NOZ_LAST = null;
   var me = NCARE.me;
   // 수정 권한: 케어 담당 본인 + 관리자. 담당이 비어 있으면 지정만 누구나 (ADR 0021 §8)
   var canEdit = !me.viewer && (me.admin || p.rep === me.name);
@@ -5356,6 +5360,7 @@ function ncOpen(id) {
     });
   관문호출_('/saleson-nozzle', JSON.stringify({ 토큰: TOKEN, 동작: '병원상세', poolId: p.id, product: 'NOZZLE' }))
     .then(화면갱신감싸기_(function(r) {
+      NOZ_LAST = r; NOZ_LAST.canEdit = canEdit;
       var el = document.getElementById('nozEvidence');
       if (el) el.innerHTML = renderNozzleEvidence_(r);
     }), function() {
@@ -5408,7 +5413,151 @@ function renderNozzleEvidence_(r) {
   if (!r.baseSaleDate && !(r.nozzleUnit || []).length && !(r.subscription || []).length && !(r.churn || []).length) {
     h += '<div style="margin-top:6px;color:#8b95a1;">' + esc(r.dataStatus || '자료 없음') + '</div>';
   }
+  h += nozFollowupSection_(r);
   return h;
+}
+
+/* 후속관리 상태(작업 B, §3.5) — 대상(followup)이 있을 때만 그린다. 대상 아니면 관리할 게 없다. */
+var 노즈허용사유 = ['재고 충분', '설치 지연', '교육 예정', '연락 대기', '구독 공급으로 충족', '대상 아님', '기타'];
+var 노즈전이표 = {
+  확인대기: ['채택', '보류', '조치완료', '대상제외'],
+  진행중: ['보류', '조치완료', '대상제외'],
+  보류: ['조치완료', '대상제외', '다시확인'],
+  조치완료: ['다시확인'],
+  대상제외: ['다시확인'],
+};
+var 노즈상태색 = { 확인대기: '#d0223a', 진행중: '#1b64da', 보류: '#8b6f00', 조치완료: '#5f6b7a', 대상제외: '#8b95a1' };
+
+function nozFollowupSection_(r) {
+  var f = r.followup;
+  if (!f) return '';
+  var h = '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">후속관리 상태</div>';
+  h += '<div style="margin-top:6px;"><span style="font-weight:700;color:' + (노즈상태색[f.status] || '#4e5968') + ';">' + esc(f.status) + '</span>'
+    + (f.observation ? ' · ' + esc(f.observation) : '') + '</div>';
+  if (f.status === '보류') {
+    h += '<div style="margin-top:4px;color:#5f6b7a;">사유: ' + esc(f.holdReason || '') + (f.holdDetail ? '(' + esc(f.holdDetail) + ')' : '')
+      + ' · 다음 확인일 ' + esc(f.nextReviewOn || '') + '</div>';
+  }
+  if (f.status === '조치완료' && f.resolution) h += '<div style="margin-top:4px;color:#5f6b7a;">결과: ' + esc(f.resolution) + '</div>';
+  if (f.status === '대상제외' && f.excludeReason) h += '<div style="margin-top:4px;color:#5f6b7a;">제외 사유: ' + esc(f.excludeReason) + '</div>';
+  if (f.linkedPlanNo || f.linkedVisitNo) {
+    h += '<div style="margin-top:4px;color:#8b95a1;">연결됨' + (f.linkedPlanNo ? ' · 계획 No.' + f.linkedPlanNo : '') + (f.linkedVisitNo ? ' · 방문 No.' + f.linkedVisitNo : '') + '</div>';
+  }
+  if (!r.canEdit) return h;   // 조회 전용·다른 담당자는 상태만 본다 — 버튼은 없다(§4.3)
+
+  if (NOZ_ACT) {
+    h += nozFormHtml_(NOZ_ACT);
+  } else {
+    var 버튼 = (노즈전이표[f.status] || []).map(function(a) {
+      return a === '채택'
+        ? '<button class="btn pri" onclick="nozAdopt()">채택</button>'
+        : '<button class="btn ghost" onclick="nozFormOpen(\'' + a + '\')">' + esc(a) + '</button>';
+    }).join('');
+    h += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + 버튼
+      + '<button class="btn ghost" onclick="nozLinkPlan()">계획 연결</button>'
+      + '<button class="btn ghost" onclick="nozLinkVisit()">방문기록 연결</button></div>';
+  }
+  return h;
+}
+
+function nozReasonOptions_(선택) {
+  return 노즈허용사유.map(function(s) {
+    return '<option value="' + esc(s) + '"' + (s === 선택 ? ' selected' : '') + '>' + esc(s) + '</option>';
+  }).join('');
+}
+
+/** 행위별 인라인 폼 — 보류/대상제외는 사유(select, 기타면 상세)까지, 보류는 다음확인일도 받는다 */
+function nozFormHtml_(action) {
+  var h = '<div style="margin-top:8px;padding:10px;background:#f9fafb;border-radius:10px;">';
+  if (action === '보류' || action === '대상제외') {
+    h += '<label class="f">사유</label>'
+      + '<select id="nozReason" onchange="nozReasonChange_()">' + nozReasonOptions_('') + '</select>'
+      + '<input type="text" id="nozReasonDetail" placeholder="기타 사유 설명" style="display:none;margin-top:6px;">';
+    if (action === '보류') {
+      h += '<label class="f">다음 확인일</label><input type="date" id="nozNextReview">';
+    }
+    h += '<div style="display:flex;gap:8px;margin-top:10px;">'
+      + '<button class="btn" style="flex:1;" onclick="nozFormCancel()">취소</button>'
+      + '<button class="btn pri" style="flex:1;" onclick="' + (action === '보류' ? 'nozHoldSave()' : 'nozExcludeSave()') + '">저장</button></div>';
+  } else if (action === '조치완료') {
+    h += '<label class="f">조치 결과</label><textarea id="nozResolution" placeholder="예: 재고 확인 후 주문 완료"></textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;">'
+      + '<button class="btn" style="flex:1;" onclick="nozFormCancel()">취소</button>'
+      + '<button class="btn pri" style="flex:1;" onclick="nozResolveSave()">저장</button></div>';
+  } else if (action === '다시확인') {
+    h += '<label class="f">재개 사유</label><input type="text" id="nozReopenReason" placeholder="예: 재고 소진 확인됨">'
+      + '<div style="display:flex;gap:8px;margin-top:10px;">'
+      + '<button class="btn" style="flex:1;" onclick="nozFormCancel()">취소</button>'
+      + '<button class="btn pri" style="flex:1;" onclick="nozReopenSave()">저장</button></div>';
+  }
+  return h + '</div>';
+}
+function nozReasonChange_() {
+  var sel = document.getElementById('nozReason'), det = document.getElementById('nozReasonDetail');
+  if (det) det.style.display = (sel && sel.value === '기타') ? '' : 'none';
+}
+function nozFormOpen(action) { NOZ_ACT = action; var el = document.getElementById('nozEvidence'); if (el && NOZ_LAST) el.innerHTML = renderNozzleEvidence_(NOZ_LAST); }
+function nozFormCancel() { NOZ_ACT = null; var el = document.getElementById('nozEvidence'); if (el && NOZ_LAST) el.innerHTML = renderNozzleEvidence_(NOZ_LAST); }
+
+function nozReqId_() { return 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+/** 후속저장 공통 호출 — 성공하면 모달을 새로고침한다(ncAct_와 같은 관용) */
+function nozSave_(추가) {
+  var f = NOZ_LAST && NOZ_LAST.followup;
+  if (!f) return;
+  var 몸통 = { 토큰: TOKEN, 동작: '후속저장', id: f.id, expectedVersion: f.version, requestId: nozReqId_() };
+  for (var k in 추가) 몸통[k] = 추가[k];
+  busy(true, '저장 중…');
+  관문호출_('/saleson-nozzle', JSON.stringify(몸통))
+    .then(화면갱신감싸기_(function() { busy(false); toast('저장했습니다.'); NOZ_ACT = null; ncOpen(NOZ_POOL_ID); }),
+      function(e) { busy(false); toast(e.message, true); });
+}
+function nozAdopt() { nozSave_({ 행위: '채택' }); }
+function nozHoldSave() {
+  var 사유 = document.getElementById('nozReason').value;
+  var 사유상세 = document.getElementById('nozReasonDetail').value;
+  var 다음확인일 = document.getElementById('nozNextReview').value;
+  if (!다음확인일) return 검증실패_('다음 확인일을 선택해 주세요', 'nozNextReview');
+  if (사유 === '기타' && !사유상세.trim()) return 검증실패_('기타 사유를 입력해 주세요', 'nozReasonDetail');
+  nozSave_({ 행위: '보류', 사유: 사유, 사유상세: 사유상세, 다음확인일: 다음확인일 });
+}
+function nozResolveSave() {
+  var 결과 = document.getElementById('nozResolution').value;
+  if (!결과.trim()) return 검증실패_('조치 결과를 입력해 주세요', 'nozResolution');
+  nozSave_({ 행위: '조치완료', 결과: 결과 });
+}
+function nozExcludeSave() {
+  var 사유 = document.getElementById('nozReason').value;
+  var 사유상세 = document.getElementById('nozReasonDetail').value;
+  if (사유 === '기타' && !사유상세.trim()) return 검증실패_('기타 사유를 입력해 주세요', 'nozReasonDetail');
+  nozSave_({ 행위: '대상제외', 사유: 사유, 사유상세: 사유상세 });
+}
+function nozReopenSave() {
+  var 사유 = document.getElementById('nozReopenReason').value;
+  if (!사유.trim()) return 검증실패_('재개 사유를 입력해 주세요', 'nozReopenReason');
+  nozSave_({ 행위: '다시확인', 사유: 사유 });
+}
+
+/** 기존 계획·방문기록 연결(§5 활동연결) — 같은 병원 것만 서버가 받는다 */
+function nozLinkPlan() {
+  입력시트_({ 제목: '계획 연결', 라벨: '계획 번호(No)', 예시: '예: 381', 확인: '연결' }, function(v) {
+    nozLink_({ planNo: Number(v) });
+  });
+}
+function nozLinkVisit() {
+  입력시트_({ 제목: '방문기록 연결', 라벨: '방문기록 번호(No)', 예시: '예: 589', 확인: '연결' }, function(v) {
+    nozLink_({ visitNo: Number(v) });
+  });
+}
+function nozLink_(추가) {
+  var f = NOZ_LAST && NOZ_LAST.followup;
+  if (!f) return;
+  var 몸통 = { 토큰: TOKEN, 동작: '활동연결', id: f.id, expectedVersion: f.version, requestId: nozReqId_() };
+  for (var k in 추가) 몸통[k] = 추가[k];
+  busy(true, '연결 중…');
+  관문호출_('/saleson-nozzle', JSON.stringify(몸통))
+    .then(화면갱신감싸기_(function() { busy(false); toast('연결했습니다.'); ncOpen(NOZ_POOL_ID); }),
+      function(e) { busy(false); toast(e.message, true); });
 }
 
 function ncAct_(몸통, 끝) {
