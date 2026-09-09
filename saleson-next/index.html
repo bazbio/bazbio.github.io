@@ -1043,7 +1043,11 @@ var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
 var NCST = 0;           // 단계 필터 (0 = 전체)
-var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2)
+var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2) / 'noz'(주문 확인, 작업 B)
+var NOZTGT = null;      // /saleson-nozzle 대상목록 응답
+var NOZTGT_KEY = null;  // 마지막으로 불러온 rep|status|page 조합 — 바뀌면 다시 불러온다
+var NOZTGT_STATUS = ''; // 상태 필터 ('' = 전체)
+var NOZTGT_PAGE = 1;
 var NCSEL = 0;          // 상세 모달에서 고른 단계 (0 = 없음) — [저장]을 눌러야 반영 (8/13)
 var NCSEL_ID = 0;       // 어느 병원의 선택인지
 var NOZ_POOL_ID = 0;    // 노즐 후속관리 — 지금 모달이 열려 있는 병원(작업 B)
@@ -1244,7 +1248,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609092221-94b4160';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609092308-a240f1c';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5047,7 +5051,7 @@ function ncRowSet_(p) {
 
 function renderNcare() {
   var d = NCARE;
-  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리']].map(function(m) {
+  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리'], ['noz', '주문 확인']].map(function(m) {
     return '<div class="chip' + (NCMODE === m[0] ? ' on' : '') + '" onclick="NCMODE=\'' + m[0] + '\';renderNcare()">' + m[1] + '</div>';
   }).join('');
 
@@ -5067,7 +5071,60 @@ function renderNcare() {
     return NCSEG === '전체' || (NCSEG === '미지정' ? !p.rep : p.rep === NCSEG);
   });
 
-  document.getElementById('ncBody').innerHTML = NCMODE === 'exp' ? renderNcareExp(d, mine) : renderNcareStage(mine);
+  document.getElementById('ncBody').innerHTML =
+    NCMODE === 'exp' ? renderNcareExp(d, mine) : NCMODE === 'noz' ? renderNozzleTargets() : renderNcareStage(mine);
+}
+
+/* 주문 확인 — 판매 후 30일 첫 단품 주문 확인 대상목록(작업 B, 명세 §5·§6). N-Care 목록의 기존
+   담당자 필터(NCSEG)를 그대로 재사용하고, 상태만 이 화면 전용 칩으로 고른다. 클릭하면 기존
+   병원상세 모달(ncOpen)을 그대로 연다 — 새 모달을 만들지 않는다. */
+function renderNozzleTargets() {
+  var rep = NCSEG || '전체';
+  var key = rep + '|' + NOZTGT_STATUS + '|' + NOZTGT_PAGE;
+  if (NOZTGT_KEY !== key) {
+    NOZTGT_KEY = key;
+    NOZTGT = null;
+    관문호출_('/saleson-nozzle', JSON.stringify({ 토큰: TOKEN, 동작: '대상목록', rep: rep, status: NOZTGT_STATUS, page: NOZTGT_PAGE }))
+      .then(화면갱신감싸기_(function(r) { NOZTGT = r; if (NCMODE === 'noz') renderNcare(); },
+        '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'),
+      function(e) { NOZTGT = { error: (e && e.message) || String(e) }; if (NCMODE === 'noz') renderNcare(); });
+    return '<div class="card empty">불러오는 중…</div>';
+  }
+  if (!NOZTGT) return '<div class="card empty">불러오는 중…</div>';
+  if (NOZTGT.error) return '<div class="card empty">불러오지 못했습니다 — ' + esc(NOZTGT.error) + '</div>';
+
+  var h = '<div class="card" style="padding:10px 14px;"><div style="display:flex;gap:6px;overflow-x:auto;">'
+    + ['', '확인대기', '진행중', '보류', '조치완료', '대상제외'].map(function(s) {
+        return '<div class="chip' + (NOZTGT_STATUS === s ? ' on' : '') + '" onclick="NOZTGT_STATUS=\'' + s + '\';NOZTGT_PAGE=1;renderNcare()">' + (s || '전체') + '</div>';
+      }).join('')
+    + '</div></div>';
+
+  if (NOZTGT.dataStatus === '자료 미반입') return h + '<div class="card empty">노즐 원천 자료가 아직 반입되지 않았습니다.</div>';
+  if (!(NOZTGT.items || []).length) {
+    return h + '<div class="card empty">' + (NOZTGT.dataStatus === '적격 대상 없음' ? '판매 후 30일 확인 대상이 없습니다' : '해당하는 병원이 없습니다') + '</div>';
+  }
+
+  h += kick(NOZTGT.uniqueHospitals + '곳' + (NOZTGT.coverage && NOZTGT.coverage.through ? ' · 자료 기준 ' + esc(NOZTGT.coverage.through) : ''));
+  h += '<div class="card" style="padding:4px 16px;">'
+    + NOZTGT.items.map(function(it, i) {
+        return '<div style="padding:12px 0;cursor:pointer;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="ncOpen(' + it.poolId + ')">'
+          + '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<b style="font-size:14.5px;color:#191f28;">' + esc(it.hospitalName) + '</b>'
+          + '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(it.repName || '담당 미지정') + '</span>'
+          + '<span style="margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap;color:#1b64da;">' + esc(it.status) + '</span>'
+          + '</div>'
+          + '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">판매 후 ' + it.elapsedDays + '일'
+          + (it.nextReviewOn ? ' · 다음 확인 ' + esc(it.nextReviewOn) : '') + '</div></div>';
+      }).join('')
+    + '</div>';
+
+  if (NOZTGT_PAGE > 1 || NOZTGT.nextPage) {
+    h += '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">'
+      + (NOZTGT_PAGE > 1 ? '<button class="btn" onclick="NOZTGT_PAGE=' + (NOZTGT_PAGE - 1) + ';renderNcare()">이전</button>' : '')
+      + (NOZTGT.nextPage ? '<button class="btn" onclick="NOZTGT_PAGE=' + NOZTGT.nextPage + ';renderNcare()">다음</button>' : '')
+      + '</div>';
+  }
+  return h;
 }
 
 function renderNcareStage(mine) {
