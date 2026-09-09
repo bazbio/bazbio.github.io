@@ -1241,7 +1241,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609091302-520c08b';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609092138-e309757';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5330,6 +5330,11 @@ function ncOpen(id) {
   if (canEdit) h += '<button class="btn ghost" onclick="ncExpire(' + p.id + ')">만료 처리</button>';
   h += '</div>';
 
+  // 노즐 후속관리 근거 (SalesON 고도화 작업 A) — 판매 후 30일 첫 단품 주문 확인용 원천 근거.
+  // 채택·보류 등 상태 조작은 작업 B가 붙인다 — 여기는 근거를 있는 그대로 보여주기까지다.
+  h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">노즐 후속관리 근거</div>'
+    + '<div id="nozEvidence" style="margin-top:6px;font-size:12.5px;color:#4e5968;">불러오는 중…</div>';
+
   h += '<div style="margin-top:14px;font-size:13px;font-weight:700;color:#4e5968;">전환 이력</div>'
     + '<div id="ncHist" style="margin-top:6px;font-size:12.5px;color:#4e5968;">불러오는 중…</div>';
 
@@ -5349,6 +5354,61 @@ function ncOpen(id) {
       var el = document.getElementById('ncHist');
       if (el) el.textContent = '이력을 불러오지 못했습니다';
     });
+  관문호출_('/saleson-nozzle', JSON.stringify({ 토큰: TOKEN, 동작: '병원상세', poolId: p.id, product: 'NOZZLE' }))
+    .then(화면갱신감싸기_(function(r) {
+      var el = document.getElementById('nozEvidence');
+      if (el) el.innerHTML = renderNozzleEvidence_(r);
+    }), function() {
+      var el = document.getElementById('nozEvidence');
+      if (el) el.textContent = '노즐 근거를 불러오지 못했습니다';
+    });
+}
+
+/** 노즐 후속관리 병원 상세 응답 → HTML. 원문 그대로 보여준다 — 실제 설치일 입력·추정 금지(D-4) */
+function renderNozzleEvidence_(r) {
+  if (!r || r.ok === false) return '<div style="color:#8b95a1;">노즐 근거를 불러오지 못했습니다</div>';
+  if (r.dataStatus === '자료 미반입') {
+    return '<div style="color:#8b95a1;">관리 시트 원천이 아직 반입되지 않았습니다</div>';
+  }
+  var h = '';
+  if (r.lastSuccessfulSync && r.lastSuccessfulSync.at) {
+    h += '<div style="color:#8b95a1;font-size:11.5px;">마지막 동기화 ' + esc(String(r.lastSuccessfulSync.at).slice(0, 16).replace('T', ' ')) + '</div>';
+  }
+  if (r.baseSaleDate) {
+    var badge = r.eligible
+      ? '<span style="color:#d0223a;font-weight:700;">판매 후 첫 단품 주문 확인 필요</span>'
+      : '<span style="color:#5f6b7a;">판매 ' + r.elapsedDays + '일째 · 30일부터 확인 대상</span>';
+    h += '<div style="margin-top:6px;">기준 판매일 ' + esc(r.baseSaleDate) + ' · ' + badge + '</div>';
+  } else {
+    h += '<div style="margin-top:6px;color:#5f6b7a;">확인된 장비 판매 근거가 없습니다</div>';
+  }
+  if (r.existingNozzleBuyer) {
+    h += '<div style="margin-top:4px;color:#8b95a1;">기존 단품 구매 병원 — 첫 구매 확인 대상에서 제외</div>';
+  }
+  if ((r.nozzleUnit || []).length) {
+    h += '<div style="margin-top:8px;font-weight:700;">유상 단품 출고 확인</div>'
+      + r.nozzleUnit.map(function(u) {
+          return '<div style="padding:3px 0;">' + esc(u.shipDate || '') + ' · ' + (u.saleQty == null ? '-' : u.saleQty) + '개'
+            + (u.adjustment ? ' <span style="color:#d0223a;">거래 조정 확인 필요</span>' : '') + '</div>';
+        }).join('');
+  }
+  if ((r.subscription || []).length) {
+    h += '<div style="margin-top:8px;font-weight:700;">구독 결제·출고</div>'
+      + r.subscription.map(function(s) {
+          return '<div style="padding:3px 0;">' + esc(s.payDate || s.shipDate || '') + ' · ' + esc(s.productName || '')
+            + (s.pending ? ' <span style="color:#8b95a1;">예정</span>' : '') + '</div>';
+        }).join('');
+  }
+  if ((r.churn || []).length) {
+    h += '<div style="margin-top:8px;font-weight:700;">해지 이력</div>'
+      + r.churn.map(function(c) {
+          return '<div style="padding:3px 0;">' + esc(c.churnReceivedDate || c.lastShipDate || '') + ' · ' + esc(c.churnReason || '') + '</div>';
+        }).join('');
+  }
+  if (!r.baseSaleDate && !(r.nozzleUnit || []).length && !(r.subscription || []).length && !(r.churn || []).length) {
+    h += '<div style="margin-top:6px;color:#8b95a1;">' + esc(r.dataStatus || '자료 없음') + '</div>';
+  }
+  return h;
 }
 
 function ncAct_(몸통, 끝) {
