@@ -727,7 +727,9 @@ function 건열기(건_id) {
     }
     if (판.querySelector('#관리자구분무리')) {
       var 관리자고른구분 = '';
-      무리(판.querySelector('#관리자구분무리'), (홈.조치구분 || []), '', function (v) { 관리자고른구분 = v; });
+      // 이관은 그룹웨어 일괄 적재(0054) 전용 값이다 — 실사용 건을 이관으로 완료 처리하면
+      // 「진행중 + 이관」과 헷갈리는 상태가 조용히 생긴다. 목록에서 뺀다
+      무리(판.querySelector('#관리자구분무리'), (홈.조치구분 || []).filter(function (c) { return c !== '이관'; }), '', function (v) { 관리자고른구분 = v; });
       판.querySelector('#관리자완료하기').onclick = function () {
         var 내용 = 판.querySelector('#관리자조치내용').value.trim();
         var 완료일 = 판.querySelector('#관리자완료일').value;
