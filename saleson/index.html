@@ -580,6 +580,21 @@
         <label class="f">소개처 (병원/사람)</label>
         <input type="text" id="pRefer" placeholder="예: 예시클리닉 최원장 소개">
       </div>
+      <!-- 병원 사전분석 — 홈페이지 등록(슬라이스 A). DB가 원천일 때만 보인다 — 시트가
+           원천이면 저장할 표가 없어 입력해도 사라진다(checkNewHosp가 pWebSection을 켠다). -->
+      <div id="pWebSection" style="display:none;">
+        <label class="f">병원 홈페이지</label>
+        <div class="chips" id="pWeb">
+          <div class="chip" data-v="등록" onclick="pickPWeb(this)">주소 입력</div>
+          <div class="chip on" data-v="미확인" onclick="pickPWeb(this)">아직 모름</div>
+          <div class="chip" data-v="없음" onclick="pickPWeb(this)">홈페이지 없음</div>
+        </div>
+        <div id="pWebUrlWrap" style="display:none;">
+          <input type="text" id="pWebUrl" placeholder="예: example-clinic.com" autocomplete="off">
+          <a href="#" onclick="naverSearch_(); return false;" style="display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:#1b64da;text-decoration:none;">🔍 네이버에서 찾기</a>
+        </div>
+        <div style="font-size:11.5px;color:#5f6b7a;margin-top:4px;">모르면 나중에 리드 카드에서 보완할 수 있습니다</div>
+      </div>
     </div>
     <div id="pEquipHint" style="display:none;margin-top:8px;font-size:12.5px;font-weight:600;"></div>
     <label class="f">판매 카테고리 *</label>
@@ -625,6 +640,18 @@
       <div id="fDealerWrap" style="display:none;">
         <label class="f">딜러명 *</label>
         <input type="text" id="fDealer" placeholder="예: OO메디칼" autocomplete="off">
+      </div>
+      <!-- 병원 사전분석 — 홈페이지 등록(슬라이스 A 확장). DB가 원천일 때만 보인다 — pWebSection과 같은 가드 -->
+      <div id="fWebSection" style="display:none;">
+        <label class="f">병원 홈페이지</label>
+        <div class="chips" id="fWeb">
+          <div class="chip" data-v="등록" onclick="pickFWeb(this)">주소 입력</div>
+          <div class="chip on" data-v="미확인" onclick="pickFWeb(this)">아직 모름</div>
+          <div class="chip" data-v="없음" onclick="pickFWeb(this)">홈페이지 없음</div>
+        </div>
+        <div id="fWebUrlWrap" style="display:none;">
+          <input type="text" id="fWebUrl" placeholder="예: example-clinic.com" autocomplete="off">
+        </div>
       </div>
     </div>
     <div class="row2">
@@ -1070,6 +1097,10 @@ var selType = '';
 var selPType = '';
 var selPCh = '';
 var selPSrc = '';
+var selPWeb = '미확인';   // 병원 사전분석 — 홈페이지 등록 상태 칩 (슬라이스 A)
+var selERWeb = '미확인';  // 행사 참석자 등록 폼의 홈페이지 등록 상태 칩 (슬라이스 A 확장)
+var selMXWeb = '미확인';  // Meta 리드 전환 상자의 홈페이지 등록 상태 칩 (슬라이스 A 확장)
+var selFWeb = '미확인';   // 기록 폼(리드 없는 병원)의 홈페이지 등록 상태 칩 (슬라이스 A 확장)
 var selFCh = '';        // 기록 폼의 판매 구분 — 리드가 없는 병원일 때만 쓴다 (P19·P49)
 var selEType = '';
 var selPCat = '';
@@ -1248,7 +1279,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609092308-a240f1c';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609100613-fb2c21d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2822,7 +2853,14 @@ function payToggle(row, clear) {
 function evtRegOpen(code) {
   EVTREG = (EVTREG === code) ? null : code;
   EVTEDIT = null;
+  selERWeb = '미확인';
   renderEvt();
+}
+/* 병원 사전분석 — 홈페이지 등록 칩 (슬라이스 A와 같은 패턴, pickPWeb 참고) */
+function pickERWeb(el) {
+  selERWeb = el.getAttribute('data-v');
+  document.querySelectorAll('#erWeb .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('erWebUrlWrap').style.display = selERWeb === '등록' ? 'block' : 'none';
 }
 function evtRegSave(code) {
   var f = {
@@ -2835,6 +2873,15 @@ function evtRegSave(code) {
   };
   if (!f.hname) return 검증실패_('병원명을 입력해 주세요', 'erHosp');
   if (!f.target) return 검증실패_('달성 목표를 선택해 주세요', 'erTgt');
+  // 병원 사전분석 — 홈페이지 등록(슬라이스 A 확장). DB가 원천일 때만(erWebSection이 그때만 보인다)
+  if (DATA.dbSrc) {
+    f.websiteStatus = selERWeb;
+    if (selERWeb === '등록') {
+      var 웹검증 = 홈페이지검증_(document.getElementById('erWebUrl').value);
+      if (!웹검증.ok) return 검증실패_(웹검증.msg, 'erWebUrl');
+      f.websiteUrl = 웹검증.url;
+    }
+  }
   busy(true);
   gsrun().withSuccessHandler(function(r) {
     EVTREG = null; busy(false); toast(r.msg);
@@ -2961,6 +3008,15 @@ function renderEvt() {
         + '<div><label class="f">달성 목표 *</label><select id="erTgt">' + tgtOptions('') + '</select></div>'
         + '<div><label class="f">목표 시기</label><input type="date" id="erDue"></div>'
         + '</div>'
+        + (DATA.dbSrc ? ('<label class="f">병원 홈페이지</label>'
+          + '<div class="chips" id="erWeb">'
+          + '<div class="chip" data-v="등록" onclick="pickERWeb(this)">주소 입력</div>'
+          + '<div class="chip on" data-v="미확인" onclick="pickERWeb(this)">아직 모름</div>'
+          + '<div class="chip" data-v="없음" onclick="pickERWeb(this)">홈페이지 없음</div>'
+          + '</div>'
+          + '<div id="erWebUrlWrap" style="display:none;">'
+          + '<input type="text" id="erWebUrl" placeholder="예: example-clinic.com" autocomplete="off">'
+          + '</div>') : '')
         + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">'
         + '<button class="btn ghost" onclick="EVTREG=null;renderEvt()">취소</button>'
         + '<button class="btn pri" onclick="evtRegSave(\'' + esc(ev.code) + '\')">등록</button>'
@@ -3346,6 +3402,7 @@ function checkNewHosp() {
      마스터에 있는 병원은 판매 구분(직판/딜러)을 넣을 칸조차 안 떴고 리드도 안 생겨,
      5/1 이후 방문한 246곳 중 154곳이 퍼널 밖에 쌓였다(그중 144곳이 거래처에 있었다). */
   document.getElementById('pLeadSec').style.display = (v && !리드있음) ? 'block' : 'none';
+  document.getElementById('pWebSection').style.display = DATA.dbSrc ? 'block' : 'none';
   document.getElementById('pAccNew').style.display = 거래처있음 ? 'none' : '';
   document.getElementById('pLeadMsg').textContent = 거래처있음
     ? '거래처에는 있는데 리드가 없는 병원이에요 — 판매 구분을 정하면 리드로 등록합니다'
@@ -3371,11 +3428,19 @@ function checkLeadF_() {
   var 리드있음 = false;
   if (v) (DATA.leadNames || []).forEach(function(n) { if (norm(n) === v) 리드있음 = true; });
   document.getElementById('fLeadSec').style.display = (v && !리드있음) ? 'block' : 'none';
+  document.getElementById('fWebSection').style.display = DATA.dbSrc ? 'block' : 'none';
 }
 function pickFCh(el) {
   selFCh = el.getAttribute('data-v');
   document.querySelectorAll('#fCh .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   document.getElementById('fDealerWrap').style.display = selFCh === '딜러' ? 'block' : 'none';
+  임시저장_();
+}
+/* 병원 사전분석 — 홈페이지 등록 칩 (슬라이스 A와 같은 패턴, pickPWeb 참고) */
+function pickFWeb(el) {
+  selFWeb = el.getAttribute('data-v');
+  document.querySelectorAll('#fWeb .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('fWebUrlWrap').style.display = selFWeb === '등록' ? 'block' : 'none';
   임시저장_();
 }
 function pickPCat(el) {
@@ -3422,6 +3487,42 @@ function pickPSrc(el) {
   document.getElementById('pReferWrap').style.display = selPSrc === '소개' ? 'block' : 'none';
   계획임시저장_();
 }
+/* 병원 사전분석 — 홈페이지 등록 칩(슬라이스 A). URL 필수 안 함(학회 현장처럼 홈페이지를
+   바로 찾기 어려워도 리드는 확보돼야 한다 — 기획서 §홈페이지 등록 절차) */
+function pickPWeb(el) {
+  selPWeb = el.getAttribute('data-v');
+  document.querySelectorAll('#pWeb .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('pWebUrlWrap').style.display = selPWeb === '등록' ? 'block' : 'none';
+  계획임시저장_();
+}
+/* 병원명·지역으로 구성한 검색을 새 탭에서 여는 일반 링크다 — 검색 결과를 자동 수집하거나
+   API로 전달하지 않는다(기획서 §홈페이지 등록 절차). 담당자가 직접 확인해 주소를 붙여 넣는다. */
+function naverSearch_() {
+  var hname = document.getElementById('pHosp').value.trim();
+  var region = document.getElementById('pAccReg').value.trim();
+  var q = (hname + ' ' + region).trim();
+  if (!q) return 검증실패_('병원명을 먼저 입력해 주세요', 'pHosp');
+  window.open('https://search.naver.com/search.naver?query=' + encodeURIComponent(q), '_blank', 'noopener');
+}
+/* 서버 URL정규화_(_공유/병원분석.mjs)와 같은 규칙의 클라이언트 판. 여기서 막아야 저장
+   요청이 서버까지 가지 않는다 — 계획이 이미 커밋된 뒤에 홈페이지만 실패하면 "계획은
+   저장됐는데 실패로 보인다"가 되어 재시도 시 계획이 중복 저장된다(9/4 중복 계획 사고와
+   같은 종류). 사설망 판정은 서버가 최종 권한이라 여기서는 흔한 실수(스킴 누락·오타)만 본다. */
+function 홈페이지검증_(raw) {
+  var s = (raw || '').trim();
+  if (!s) return { ok: false, msg: '홈페이지 주소를 입력해 주세요' };
+  var candidate = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s) ? s : 'https://' + s;
+  var u;
+  try { u = new URL(candidate); } catch (e) { return { ok: false, msg: '주소 형식을 확인해 주세요' }; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, msg: 'http(s) 주소만 등록할 수 있어요' };
+  if (u.username || u.password) return { ok: false, msg: '인증정보가 포함된 주소는 등록할 수 없어요' };
+  var host = u.hostname.toLowerCase();
+  if (host === 'localhost' || /^(127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0$)/.test(host)
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(host)) {
+    return { ok: false, msg: '사설망 주소는 등록할 수 없어요' };
+  }
+  return { ok: true, url: u.toString() };
+}
 function pickPType(el) {
   selPType = el.getAttribute('data-v');
   document.querySelectorAll('#pType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
@@ -3465,6 +3566,15 @@ function savePlan() {
       refer: document.getElementById('pRefer').value,
       dealer: document.getElementById('pDealer').value.trim(),
     };
+    // 병원 사전분석 — 홈페이지 등록(슬라이스 A). DB가 원천일 때만(pWebSection이 그때만 보인다)
+    if (document.getElementById('pWebSection').style.display !== 'none') {
+      f.lead.websiteStatus = selPWeb;
+      if (selPWeb === '등록') {
+        var 웹검증 = 홈페이지검증_(document.getElementById('pWebUrl').value);
+        if (!웹검증.ok) return 검증실패_(웹검증.msg, 'pWebUrl');
+        f.lead.websiteUrl = 웹검증.url;
+      }
+    }
   }
   document.getElementById('pSave').disabled = true;
   busy(true, '저장 중…');
@@ -3509,17 +3619,19 @@ function savePlan() {
   }).웹_계획저장(TOKEN, f);
 }
 function resetPlanForm(keepDate) {
-  ['pHosp', 'pPurpose', 'pContact', 'pPrep', 'pRefer', 'pDealer', 'pAccReg', 'pAccDept'].forEach(function(id) { document.getElementById(id).value = ''; });
+  ['pHosp', 'pPurpose', 'pContact', 'pPrep', 'pRefer', 'pDealer', 'pAccReg', 'pAccDept', 'pWebUrl'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('pDealerWrap').style.display = 'none';
   document.getElementById('pDate').value = keepDate || DATA.today;
   document.getElementById('pEvt').value = '';
-  selPType = ''; selPCh = ''; selPSrc = ''; selPCat = ''; META_PREFILL = null; METAQ = null;
+  selPType = ''; selPCh = ''; selPSrc = ''; selPCat = ''; selPWeb = '미확인'; META_PREFILL = null; METAQ = null;
   메타배너갱신_();   // 연결을 끊었으면 배너도 같이 내린다 — 남으면 안 묶인 폼이 묶인 것처럼 보인다
   document.querySelectorAll('#pType .chip, #pCh .chip, #pSrc .chip, #pCat .chip').forEach(function(c) { c.classList.remove('on'); });
+  document.querySelectorAll('#pWeb .chip').forEach(function(c) { c.classList.toggle('on', c.getAttribute('data-v') === '미확인'); });
   document.getElementById('pTypeEtc').value = '';
   document.getElementById('pTypeEtc').style.display = 'none';
   document.getElementById('pEvtWrap').style.display = 'none';
   document.getElementById('pReferWrap').style.display = 'none';
+  document.getElementById('pWebUrlWrap').style.display = 'none';
   checkNewHosp();
 }
 function pickType(el) {
@@ -3657,6 +3769,15 @@ function saveLog() {
     if (!selFCh) return 검증실패_('이 병원은 리드가 없습니다 — 판매 구분(직판/딜러)을 선택해 주세요', 'fCh');
     if (selFCh === '딜러' && !document.getElementById('fDealer').value.trim()) return 검증실패_('딜러명을 입력해 주세요', 'fDealer');
     f.lead = { channel: selFCh, dealer: document.getElementById('fDealer').value.trim() };
+    // 병원 사전분석 — 홈페이지 등록(슬라이스 A 확장). DB가 원천일 때만(fWebSection이 그때만 보인다)
+    if (document.getElementById('fWebSection').style.display !== 'none') {
+      f.lead.websiteStatus = selFWeb;
+      if (selFWeb === '등록') {
+        var 웹검증 = 홈페이지검증_(document.getElementById('fWebUrl').value);
+        if (!웹검증.ok) return 검증실패_(웹검증.msg, 'fWebUrl');
+        f.lead.websiteUrl = 웹검증.url;
+      }
+    }
   }
   if (!f.type) return 검증실패_('활동 유형을 선택해 주세요', selType === '__etc' ? 'fTypeEtc' : 'fType');
   if (!f.note.trim()) return 검증실패_('논의 내용을 입력해 주세요', 'fNote');
@@ -3767,10 +3888,13 @@ function resetForm() {
   document.getElementById('fTypeEtc').style.display = 'none';
   document.getElementById('fTypeEtcNote').style.display = 'none';
   document.getElementById('planDateHint').style.display = 'none';   // PREFILL이 없어지므로 안내도 같이 (점검 P13)
-  selType = ''; selFCat = ''; selFCh = ''; PREFILL = null;
+  selType = ''; selFCat = ''; selFCh = ''; selFWeb = '미확인'; PREFILL = null;
   document.getElementById('fDealer').value = '';
   document.getElementById('fDealerWrap').style.display = 'none';
   document.getElementById('fLeadSec').style.display = 'none';   // 병원 칸을 비웠으니 같이 닫는다
+  document.getElementById('fWebUrl').value = '';
+  document.getElementById('fWebUrlWrap').style.display = 'none';
+  document.querySelectorAll('#fWeb .chip').forEach(function(c) { c.classList.toggle('on', c.getAttribute('data-v') === '미확인'); });
   selMats = []; matVals = {};
   document.getElementById('fMatDetails').innerHTML = '';
   document.querySelectorAll('#fType .chip, #fCat .chip, #fCh .chip, #fMat .chip').forEach(function(c) { c.classList.remove('on'); });
@@ -4017,10 +4141,16 @@ function metaUndo(id) { metaAct_(id, '취소'); }
    내가 직접 담당할 거면 기존 [계획 등록] 경로로 넘어간다 */
 var METAOPEN = 0;   // 분류 상자가 열린 문의 행
 var METAREP = '';   // 상자에서 고른 담당자
-function metaOpen(row) { METAOPEN = METAOPEN === row ? 0 : row; METAREP = ''; METANEXT = ''; METAWHY = ''; renderMeta(); }
+function metaOpen(row) { METAOPEN = METAOPEN === row ? 0 : row; METAREP = ''; METANEXT = ''; METAWHY = ''; selMXWeb = '미확인'; renderMeta(); }
 function metaPickRep(el) {
   METAREP = el.getAttribute('data-v');
   document.querySelectorAll('#mxReps .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+}
+/* 병원 사전분석 — 홈페이지 등록 칩 (슬라이스 A와 같은 패턴, pickPWeb 참고) */
+function pickMXWeb(el) {
+  selMXWeb = el.getAttribute('data-v');
+  document.querySelectorAll('#mxWeb .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
+  document.getElementById('mxWebUrlWrap').style.display = selMXWeb === '등록' ? 'block' : 'none';
 }
 function metaAssignBox(q) {
   var reps = (METAQ && METAQ.reps) || [];
@@ -4036,6 +4166,17 @@ function metaAssignBox(q) {
   h += '<label class="f">달성 목표 (선택)</label>'
     + '<select id="mxCat"><option value="">나중에 정함</option>'
     + cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('') + '</select>';
+  if (DATA.dbSrc) {
+    h += '<label class="f">병원 홈페이지</label>'
+      + '<div class="chips" id="mxWeb">'
+      + '<div class="chip" data-v="등록" onclick="pickMXWeb(this)">주소 입력</div>'
+      + '<div class="chip on" data-v="미확인" onclick="pickMXWeb(this)">아직 모름</div>'
+      + '<div class="chip" data-v="없음" onclick="pickMXWeb(this)">홈페이지 없음</div>'
+      + '</div>'
+      + '<div id="mxWebUrlWrap" style="display:none;">'
+      + '<input type="text" id="mxWebUrl" placeholder="예: example-clinic.com" autocomplete="off">'
+      + '</div>';
+  }
   h += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;">'
     + '<button class="btn pri" onclick="metaAssign(' + q.id + ')">리드 전환 — 배정 + 메일</button>'
     + '<button class="btn" onclick="metaPlan(' + q.id + ')">내가 직접 (계획 등록)</button>'
@@ -4088,6 +4229,16 @@ function metaAssign(id) {
   if (!hname.trim()) return 검증실패_('병원명을 입력해 주세요', 'mxHosp');
   if (!METAREP) return 검증실패_('리드 담당자를 선택해 주세요', 'mxReps');
   var cat = (document.getElementById('mxCat') || {}).value || '';
+  // 병원 사전분석 — 홈페이지 등록(슬라이스 A 확장). DB가 원천일 때만(mxWebSection이 그때만 보인다)
+  var websiteStatus = '미확인', websiteUrl = '';
+  if (DATA.dbSrc) {
+    websiteStatus = selMXWeb;
+    if (selMXWeb === '등록') {
+      var 웹검증 = 홈페이지검증_((document.getElementById('mxWebUrl') || {}).value);
+      if (!웹검증.ok) return 검증실패_(웹검증.msg, 'mxWebUrl');
+      websiteUrl = 웹검증.url;
+    }
+  }
   busy(true);
   gsrun().withSuccessHandler(function(r) {
     if (r.init) onData(r.init);   // 리드 목록·홈 KPI 갱신
@@ -4106,7 +4257,7 @@ function metaAssign(id) {
     });
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
-  }).웹_메타리드전환(TOKEN, 0, hname.trim(), METAREP, cat, q.extId);
+  }).웹_메타리드전환(TOKEN, 0, hname.trim(), METAREP, cat, q.extId, websiteStatus, websiteUrl);
 }
 function 문의찾기_(id) {
   return ((METAQ && METAQ.inquiries) || []).filter(function(x) { return x.id === id; })[0];
@@ -4233,7 +4384,8 @@ function 임시저장_() {
       reaction: document.getElementById('fReaction').value,
       fu: document.getElementById('fFu').value,
       nozzle: document.getElementById('fNozzle').value,
-      type: selType, cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value, at: Date.now(),
+      type: selType, cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value,
+      web: selFWeb, webUrl: document.getElementById('fWebUrl').value, at: Date.now(),
       /* 여태 이 셋이 빠져 있었다 (감사 화11) — 「기타」로 직접 적은 유형, 배포 자료 선택,
          그 자료의 세부내용. 되살리면 유형이 빈 채로 돌아와 저장에서 막히고(활동 유형을
          선택해 주세요), 자료는 통째로 다시 골라야 했다 */
@@ -4273,6 +4425,8 @@ function 임시저장복구_() {
     // 리드 없는 병원의 판매 구분·딜러명 — checkLeadF_()가 이미 위에서 #fLeadSec을 열어 뒀다 (P58)
     document.querySelectorAll('#fCh .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.ch) pickFCh(c); });
     document.getElementById('fDealer').value = d.dealer || '';
+    document.querySelectorAll('#fWeb .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.web) pickFWeb(c); });
+    document.getElementById('fWebUrl').value = d.webUrl || '';
     /* 직접 입력 유형은 칩을 집은 **뒤에** 넣는다 — pickType이 그 칸을 열고 포커스를 준다 (감사 화11) */
     document.getElementById('fTypeEtc').value = d.typeEtc || '';
     /* 배포 자료: 고른 것과 세부내용을 되돌린 **뒤에** 그린다 — 순서가 뒤집히면 빈 칸이 그려진다 */
@@ -4307,8 +4461,8 @@ function 계획임시저장_() {
       typeEtc: 값('pTypeEtc'),
       // 신규 병원일 때만 열리는 리드 블록 — 필수칸이 여기 몰려 있다
       reg: 값('pAccReg'), dept: 값('pAccDept'), dealer: 값('pDealer'),
-      ecode: 값('pEvt'), refer: 값('pRefer'),
-      type: selPType, cat: selPCat, ch: selPCh, src: selPSrc,
+      ecode: 값('pEvt'), refer: 값('pRefer'), webUrl: 값('pWebUrl'),
+      type: selPType, cat: selPCat, ch: selPCh, src: selPSrc, web: selPWeb,
       at: Date.now(),
     };
     if (!d.hname && !d.purpose) { localStorage.removeItem(계획임시저장키_); return; }
@@ -4358,7 +4512,7 @@ function 메타연결해제_() {
    `dataset.draft` 가드는 renderForm과 같다: onData는 부트마다 도는데 핸들러가 쌓이면 안 된다 */
 function 계획폼바인딩_() {
   ['pHosp', 'pAccReg', 'pAccDept', 'pDealer', 'pRefer', 'pDate',
-   'pTypeEtc', 'pPurpose', 'pContact', 'pPrep'].forEach(function(id) {
+   'pTypeEtc', 'pPurpose', 'pContact', 'pPrep', 'pWebUrl'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && !el.dataset.draft) { el.dataset.draft = '1'; el.addEventListener('input', 계획임시저장_); }
   });
@@ -4398,9 +4552,10 @@ function 계획임시저장복구_() {
     document.querySelectorAll('#pCh .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.ch) pickPCh(c); });
     document.querySelectorAll('#pSrc .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.src) pickPSrc(c); });
     document.querySelectorAll('#pType .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.type) pickPType(c); });
+    document.querySelectorAll('#pWeb .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.web) pickPWeb(c); });
     // 칩이 칸을 연 뒤라야 값이 보이는 자리에 들어간다
     넣기('pDealer', d.dealer); 넣기('pEvt', d.ecode); 넣기('pRefer', d.refer);
-    넣기('pTypeEtc', d.typeEtc);
+    넣기('pTypeEtc', d.typeEtc); 넣기('pWebUrl', d.webUrl);
     el.style.display = 'none';
     show('plan');
   };
@@ -4924,6 +5079,15 @@ function leadCard(l) {
           + '</div>';
       })()
     + (l.memo ? '<div class="memo">' + esc(l.memo) + '</div>' : '')
+    /* 병원 사전분석 — 홈페이지 나중 보완(슬라이스 A). DB가 원천일 때만 보인다 — 시트가
+       원천이면 저장할 표가 없다(pWebSection과 같은 가드). 조회 전용 계정은 읽기만 한다. */
+    + (DATA.dbSrc && !(DATA.me && DATA.me.viewer) ? (function() {
+        var 표시 = l.websiteStatus === '등록'
+          ? '<a href="' + esc(l.websiteUrl) + '" target="_blank" rel="noopener">' + esc(l.websiteUrl) + '</a>'
+          : (l.websiteStatus === '없음' ? '없음' : '아직 모름');
+        return '<div class="memo">홈페이지 · ' + 표시
+          + ' <a href="#" onclick="leadWebEdit(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[수정]</a></div>';
+      })() : '')
     + '<div class="stg">' + chips + '</div>'
     /* 지우기 (2026-08-16) — 방문기록 [삭제]와 같은 규칙이다. **DB가 원천일 때만** 보인다:
        시트가 원천이면 지울 곳이 관문이 아니라 시트라 아무 일도 못 하는 버튼이 된다.
@@ -4956,6 +5120,50 @@ function deleteLead(row) {
     DASH = null; FLOW = null; KPIT = null; NCARE = null;
     renderLeads();
     toast(r.msg || '지웠습니다.');
+  }), function(e) { busy(false); toast(e.message, true); });
+}
+
+/**
+ * 병원 사전분석 — 홈페이지 나중 보완(슬라이스 A). native prompt()는 이 저장소에서 금지다
+ * (D5, 폰에서 차단되면 아무 말 없이 안 뜬다) — 기존 `입력시트_`(hospModal 재사용, 계획/방문
+ * 연결과 같은 부품)를 그대로 쓴다. 그 부품은 빈 값 제출을 막아 두므로("내용을 입력해
+ * 주세요") "미확인으로 되돌리기"는 빈 칸이 아니라 문자 그대로 입력해 표현한다.
+ */
+function leadWebEdit(row) {
+  var l = (DATA.leads || []).filter(function(x) { return x.k === row; })[0];
+  if (!l || !l.no) return toast('이 리드는 새로고침 뒤에 수정할 수 있어요', true);
+  var 현재 = l.websiteStatus === '등록' ? l.websiteUrl : (l.websiteStatus === '없음' ? '없음' : '미확인');
+  입력시트_({
+    제목: (l.hname || '병원') + ' 홈페이지',
+    라벨: '홈페이지 주소',
+    안내: '주소가 없으면 "없음", 아직 모르면 "미확인"이라고 적어 주세요.',
+    예시: '예: example-clinic.com',
+    값: 현재,
+    확인: '저장',
+  }, function(v) {
+    v = v.trim();
+    var status = (v === '미확인' || v === '모름') ? '미확인' : (v === '없음' ? '없음' : '등록');
+    var url = '';
+    if (status === '등록') {
+      var 검증 = 홈페이지검증_(v);
+      if (!검증.ok) return toast(검증.msg, true);
+      url = 검증.url;
+    }
+    leadWebSave(row, status, url);
+  });
+}
+function leadWebSave(row, status, url) {
+  var l = (DATA.leads || []).filter(function(x) { return x.k === row; })[0];
+  if (!l || !l.no) return toast('이 리드는 새로고침 뒤에 수정할 수 있어요', true);
+  busy(true, '저장 중…');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({
+    토큰: TOKEN, 동작: '홈페이지저장', no: l.no, status: status, url: url,
+    expectedVersion: l.websiteVersion || 0,
+  })).then(화면갱신감싸기_(function(r) {
+    busy(false);
+    l.websiteStatus = r.status; l.websiteUrl = r.url; l.websiteVersion = r.version;
+    renderLeads();
+    toast('홈페이지를 저장했습니다.');
   }), function(e) { busy(false); toast(e.message, true); });
 }
 
