@@ -406,7 +406,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">cb02664 · 260910</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">6d4029e · 260911</span>
     </header>
 
     <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
@@ -3735,7 +3735,31 @@ function 매출그리기() {
   var t = 매출맵(매출연도);
   var 행 = 매출행들(t);
   var 달 = t.달;
-  var 부분 = 달.length < 12;
+  var 부분 = 달.length < 12;                        // 실적이 12월까지 왔는지 — 목표 전망 열을 넓혀도 그대로 둔다
+
+  // ── 목표 (2026-08-14 · 국가별 2026-08-14 · 미래월 확장 2026-09-11 사용자 요청) — 금액 모드 ·
+  // 선택 연도에 목표가 있을 때만. 목표는 시계열 뷰(최신 기준일 — 지금은 260814 하반기 램프업)에서
+  // 온다. 헤더를 그리기 전에 구해야, 실적이 아직 없는 달이라도 목표가 있으면 열을 넓힐 수 있다.
+  var 목표들 = null;
+  if (매출모드 === '금액' && 매출연도 === 연도) {
+    var 목표지표 = { '전체': 'rev_total', 'b:국내': 'rev_domestic', 'b:일본': 'rev_japan', 'b:해외': 'rev_overseas' };
+    Object.keys(목표지표).forEach(function (k) {
+      var 맵 = 축(목표지표[k], '목표');
+      if (Object.keys(맵).length) (목표들 = 목표들 || {})[k] = 맵;
+    });
+  }
+  // 실적 마감월 뒤에도 목표가 있으면 그 달까지 열을 늘린다 — 9월에 얼마를 해야 하는지
+  // 실적이 들어오기 전에도 보이게 한다. 늘어난 달의 실적 칸은 데이터가 없으니 "—"로 빈다.
+  if (목표들) {
+    var 목표달최대 = 달.length ? 달[달.length - 1] : 0;
+    Object.keys(목표들).forEach(function (k) {
+      Object.keys(목표들[k]).forEach(function (m) { if (+m > 목표달최대) 목표달최대 = +m; });
+    });
+    if (목표달최대 > (달.length ? 달[달.length - 1] : 0)) {
+      달 = 달.slice();
+      for (var 새달 = (달.length ? 달[달.length - 1] : 0) + 1; 새달 <= 목표달최대; 새달++) 달.push(새달);
+    }
+  }
 
   // 단위가 모드에 따라 바뀐다 — 금액이면 백만원, 아니면 수량이다 (2026-08-10)
   $('salesUnit').textContent = 매출모드 === '금액'
@@ -3788,26 +3812,16 @@ function 매출그리기() {
       : Math.round(돈 * 1e6 / 개).toLocaleString('ko-KR') + '<span class="csub">원/개</span>') + '</td>';
   };
 
-  // ── 목표·달성률 (2026-08-14 · 국가별 2026-08-14 사용자 요청) — 금액 모드 · 선택 연도에
-  // 목표가 있을 때만. 목표는 시계열 뷰(최신 기준일 — 지금은 260814 하반기 램프업)에서 온다.
-  // 달성률 색은 램프업 목표 그 자체가 그 달의 기대치이므로 경과율 보정 없이
+  // ── 달성률 — 색은 램프업 목표 그 자체가 그 달의 기대치이므로 경과율 보정 없이
   // ≥95 녹 / 80~95 황 / <80 적. 누계 칸이 **하반기 누적 달성률**이다 —
-  // 7월~마감월 실적 합 ÷ 같은 기간 목표 합. 목표 숫자 행은 계에만 두고,
-  // 국가 달성률 칸의 그 달 목표는 마우스오버(title)로 보인다.
-  var 목표들 = null;
-  if (매출모드 === '금액' && 매출연도 === 연도) {
-    var 목표지표 = { '전체': 'rev_total', 'b:국내': 'rev_domestic', 'b:일본': 'rev_japan', 'b:해외': 'rev_overseas' };
-    Object.keys(목표지표).forEach(function (k) {
-      var 맵 = 축(목표지표[k], '목표');
-      if (Object.keys(맵).length) (목표들 = 목표들 || {})[k] = 맵;
-    });
-  }
+  // 7월~마감월 실적 합 ÷ 같은 기간 목표 합. 목표 숫자 행·달성률 행 모두 계·국가(한국·일본·해외)
+  // 전부에 선다 (2026-09-11 사용자 요청 — 국가별 목표 금액이 안 보였다).
   var 급f = function (pct) { return pct == null ? '' : (pct >= 95 ? ' g' : (pct >= 80 ? ' a' : ' r')); };
   var 빈꼬리 = (평판열 ? '<td></td>' : '') + (누적열 ? '<td></td>' : '');
-  var 목표행f = function (목표축) {
+  var 목표행f = function (r, 목표축) {
     var 목표합 = 0;
     달.forEach(function (m) { 목표합 += 목표축[m] || 0; });
-    return '<tr class="r-child"><td>목표 <span class="muted">(램프업 8/14)</span></td>'
+    return '<tr class="r-child"><td>' + (r.키 === '전체' ? '목표' : '　목표') + ' <span class="muted">(램프업 8/14)</span></td>'
       + 달.map(function (m) {
         return '<td class="num muted">' + (목표축[m] == null ? '—' : 백만(목표축[m])) + '</td>';
       }).join('')
@@ -3816,12 +3830,14 @@ function 매출그리기() {
   var 달성행f = function (r, 목표축) {
     var 실적합 = 0, 목표합 = 0;
     달.forEach(function (m) {
-      if (목표축[m] != null) { 실적합 += r.값(m) || 0; 목표합 += 목표축[m] || 0; }
+      // 실적이 아직 없는 달(9~12월 전망 열)은 목표가 있어도 0%가 아니라 제외한다 —
+      // 안 그러면 「실적 합 ÷ 마감월까지 목표 합」이던 하반기 누적이 미래 목표로 희석된다.
+      if (목표축[m] != null && r.값(m) != null) { 실적합 += r.값(m) || 0; 목표합 += 목표축[m] || 0; }
     });
     var 누적달성 = 목표합 > 0 ? 100 * 실적합 / 목표합 : null;
     return '<tr class="r-child"><td>' + (r.키 === '전체' ? '달성률' : '　달성률') + '</td>'
       + 달.map(function (m) {
-        if (목표축[m] == null || !목표축[m]) return '<td class="num">—</td>';
+        if (목표축[m] == null || !목표축[m] || r.값(m) == null) return '<td class="num">—</td>';
         var pct = 100 * (r.값(m) || 0) / 목표축[m];
         return '<td class="num rate' + 급f(pct) + '" title="목표 ' + 백만(목표축[m]) + '">' + pct.toFixed(1) + '%</td>';
       }).join('')
@@ -3861,9 +3877,9 @@ function 매출그리기() {
       + 평판칸(r)
       + 누적칸
       + '</tr>';
-    // 계에는 목표 + 달성률 두 줄, 국가(한국·일본·해외)에는 달성률 한 줄이 바로 아래에 선다
+    // 목표가 있는 행(계·한국·일본·해외)마다 목표 + 달성률 두 줄이 바로 아래에 선다
     if (목표들 && 목표들[r.키]) {
-      if (r.키 === '전체') 줄 += 목표행f(목표들[r.키]);
+      줄 += 목표행f(r, 목표들[r.키]);
       줄 += 달성행f(r, 목표들[r.키]);
     }
     return 줄;
