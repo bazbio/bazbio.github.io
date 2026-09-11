@@ -705,7 +705,14 @@
     <span style="font-size:13px;color:#4e5968;">회사 공식 영업 자료 — 항상 최신 자료를 사용하세요</span>
     <button class="refresh" onclick="MATL=null;loadMat()">새로고침</button>
   </div>
-  <div class="card" id="matUpCard" style="display:none;border-color:#c9e0ff;">
+  <!-- 병원 사전분석 진입점 (슬라이스 C-1, §5-3) — 사전분석카드갱신_이 표시 여부를 정한다 -->
+  <div class="card" id="intelCard" style="display:none;cursor:pointer;" onclick="openIntelList()">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:14px;font-weight:600;">🏥 병원 사전분석 — 전체 병원의 홈페이지 분석 결과를 봅니다</span>
+      <span style="color:#5f6b7a;">›</span>
+    </div>
+  </div>
+  <div class="card" id="matUpCard" style="display:none;border-color:#c9e0ff;"
     <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:2px;">자료 업로드 — 등록하면 영업사원 전체에게 메일이 갑니다</div>
     <label class="f">카테고리 *</label>
     <div class="chips" id="mCat"></div>
@@ -1018,6 +1025,19 @@
   </div>
 </div>
 
+<!-- 병원 사전분석 — 공통 목록 모달 (슬라이스 C-1, §5-3) -->
+<div id="intelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeIntelList()">
+  <div class="card" style="max-width:560px;width:100%;margin:0;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-size:15px;font-weight:700;">병원 사전분석</span>
+      <button class="refresh" onclick="INTEL=null;openIntelList()">새로고침</button>
+    </div>
+    <input type="text" id="intelQ" placeholder="병원명·지역으로 검색" autocomplete="off" style="margin:0 0 10px;" oninput="renderIntelList()">
+    <div id="intelList"><div class="card empty">불러오는 중…</div></div>
+    <button class="btn ghost" style="width:100%;margin-top:12px;" onclick="closeIntelList()">닫기</button>
+  </div>
+</div>
+
 <div id="loading"><div class="spin"></div><div id="loadMsg" style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
 <!-- 갱신 알약 (8/15, 설계 D2) — 지난 숫자를 보고 있다는 것을 화면을 지우지 않고 알린다 -->
 <div id="refreshBar"><div class="spin"></div>갱신 중…</div>
@@ -1060,6 +1080,7 @@ var EVTREG = null;
 var FLOW = null;
 var KPIT = null;
 var MATL = null;
+var INTEL = null;        // 병원 사전분석 공통 목록 캐시(슬라이스 C-1, §5-2)
 var MINE = null;        // 내 입력 탭 데이터
 var MINESEG = '방문기록';
 var MINEQ = '';         // 내 입력 검색어 (8/13)
@@ -1279,7 +1300,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609100613-fb2c21d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609110336-9cb1c8f';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1314,7 +1335,7 @@ try {
    빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
 var 당김시작_ = 0, 당김중_ = false;
 function 모달열림_() {
-  return ['hospModal', 'failModal'].some(function(id) {
+  return ['hospModal', 'failModal', 'intelModal'].some(function(id) {
     var m = document.getElementById(id);
     return m && m.style.display && m.style.display !== 'none';
   });
@@ -1516,6 +1537,12 @@ function 홈받기_() {
     }
     // ⑥ 약속 대 실행 — 관문(DB)만 준다. GAS 부트에는 없어 처음엔 안 보이다가 이 응답으로 채워진다.
     if (d.약속실행) { DATA.약속실행 = d.약속실행; DATA.약속실행주 = d.약속실행주; }
+    /* [R4]① 병원 사전분석 — GAS 시트 원천 부트는 이 키가 없다(안 건드린다) → 게이트가
+       DATA.dbSrc && DATA.intelOn이라 falsy 기본으로 꺼진 것으로 본다. intelOn이 낡을 수 있다
+       (이 응답은 한 번만 받는다) — 기능을 끈 뒤에도 열린 창에는 버튼이 남지만, 관문 요청_이
+       설정_을 다시 읽어 꺼져 있으면 409를 준다(피해 없음). */
+    DATA.intelOn = !!d.intelOn; DATA.intelDegraded = !!d.intelDegraded;
+    사전분석카드갱신_();
     /* ⚠ 여기서 `renderForm()`을 불렀다 (2026-08-16, 점검 P17에서 뺐다).
        renderForm이 읽는 것은 `DATA.types`·`matCats`·`channels`·`sources`·`evtList`·`evtTypes`인데
        홈받기_는 그중 **하나도 안 바꾼다** — plans·leads·leadNames·tiles만 갈아끼운다.
@@ -1575,7 +1602,7 @@ function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
   if (typeof wkReset === 'function') wkReset();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
-  NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = '';
+  NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
   document.getElementById('liName').value = '';
   document.getElementById('liPin').value = '';
@@ -1723,7 +1750,7 @@ function 화면이력_(v) {
 }
 function 모달닫기_() {
   입력시트콜백_ = null;   // 입력 시트를 뒤로가기로 닫았으면 콜백도 같이 버린다
-  ['hospModal', 'failModal'].forEach(function(id) {
+  ['hospModal', 'failModal', 'intelModal'].forEach(function(id) {
     var m = document.getElementById(id);
     if (m) m.style.display = 'none';
   });
@@ -4969,6 +4996,9 @@ function failCard(l) {
     + (l.failRetry ? ' · 목표 ' + esc(l.failRetry) : '') + '</div>'
     + (l.failWhy ? '<div class="memo">실패 요인 · ' + esc(l.failWhy) + '</div>' : '')
     + (l.failFix ? '<div class="memo" style="color:#1b64da;">재컨택 조건 · ' + esc(l.failFix) + '</div>' : '')
+    /* [F6] C6 — 실패 리드도 이 표를 그대로 쓴다. 자동 스캔 대상에서 빠지는 것(자동대상_)과
+       화면에 상태·버튼을 보여주는 것은 별개다 — 수동 실행은 서버가 막지 않는다. */
+    + (DATA.dbSrc && DATA.intelOn ? 사전분석줄_(l) : '')
     + '<div style="margin-top:10px;display:flex;gap:8px;">'
     + '<button class="btn pri" onclick="retryLead(' + l.k + ')">재컨택 시작</button>'
     + '<button class="btn ghost" onclick="openFail(' + l.k + ')">사유 수정</button>'
@@ -5088,6 +5118,9 @@ function leadCard(l) {
         return '<div class="memo">홈페이지 · ' + 표시
           + ' <a href="#" onclick="leadWebEdit(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[수정]</a></div>';
       })() : '')
+    /* 병원 사전분석 — 배지 + [분석 시작](슬라이스 C-1). 조회 전용 계정도 **읽기는 보인다**
+       (§5-1) — 홈페이지 줄과 다른 점이다. */
+    + (DATA.dbSrc && DATA.intelOn ? 사전분석줄_(l) : '')
     + '<div class="stg">' + chips + '</div>'
     /* 지우기 (2026-08-16) — 방문기록 [삭제]와 같은 규칙이다. **DB가 원천일 때만** 보인다:
        시트가 원천이면 지울 곳이 관문이 아니라 시트라 아무 일도 못 하는 버튼이 된다.
@@ -5162,9 +5195,74 @@ function leadWebSave(row, status, url) {
   })).then(화면갱신감싸기_(function(r) {
     busy(false);
     l.websiteStatus = r.status; l.websiteUrl = r.url; l.websiteVersion = r.version;
+    /* [F1] C1 — 홈페이지 저장이 성공했다는 것 자체가 버전이 올라갔다는 뜻이다. 서버 왕복을
+       늘리지 않고 클라이언트가 먼저 판정한다([R3]와 같은 결론) — 다음 부트/새로고침에서
+       서버 값으로 자연히 확정된다. 성공 이력이 있는 리드만 — 없으면 배지 자체가 안 뜬다. */
+    if (l.intelState != null) l.intelStale = true;
     renderLeads();
     toast('홈페이지를 저장했습니다.');
   }), function(e) { busy(false); toast(e.message, true); });
+}
+
+/**
+ * 병원 사전분석 배지 한 줄(슬라이스 C-1, §5-1). leadCard·failCard가 같이 쓴다([F6] C6 —
+ * 자동 스캔 제외와 화면 표시·수동 실행은 별개다). [F9] N3 — DATA.intelDegraded면 개별
+ * 리드 상태와 무관하게 "확인 불가"만 쓴다 — run 없음과 조회 실패를 안 섞는다.
+ */
+function 사전분석줄_(l) {
+  if (DATA.intelDegraded) return '<div class="memo">사전분석 · 상태 확인 불가</div>';
+  if (!l.intelState && l.websiteStatus !== '등록') return '';   // 홈페이지 줄이 이미 "아직 모름"을 말한다
+  var 버튼 = 사전분석버튼문구_(l);
+  return '<div class="memo">' + esc(사전분석문구_(l))
+    + (버튼 ? ' <a href="#" onclick="leadIntelStart(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[' + esc(버튼) + ']</a>' : '')
+    + '</div>';
+}
+/** [F8] N2 — stale·identityChanged는 문구에 붙는 접미사일 뿐 별도 행이 아니다 */
+function 사전분석문구_(l) {
+  var s = l.intelState;
+  if (!s) return '사전분석 · 아직 안 함';
+  if (s === '대기' || s === '실행중') return '사전분석 · 분석 중…';
+  var 성공있음 = !!l.intelAt;
+  var 기준 = 성공있음 ? 사전분석기준일_(l.intelAt) : '';
+  var 접미 = [];
+  // [R3][F2] stale — 성공 이력이 없으면(generatedAt===null) 의미가 없어 무시한다
+  if (성공있음 && l.intelStale) 접미.push('옛 기준 · 홈페이지 바뀜');
+  if (l.intelIdentityChanged) 접미.push('병원 정보가 바뀜');
+  var 접미문 = 접미.length ? ' · ' + 접미.join(' · ') : '';
+  if (s === '완료') return '사전분석 · 완료 (' + 기준 + ' 기준' + 접미문 + ')';
+  return 성공있음   // 실패·취소
+    ? '사전분석 · 완료 (' + 기준 + ' 기준' + 접미문 + ') · 재분석 실패'
+    : '사전분석 · 실패' + (l.intelReason ? '(' + l.intelReason + ')' : '');
+}
+/** [분석 시작]/[다시 시도]는 websiteStatus==='등록'이고 대기·실행중이 아닐 때만.
+ *  [F3] identityChanged면 완료 상태에서도 [다시 분석]을 추가로 켠다. */
+function 사전분석버튼문구_(l) {
+  if (l.websiteStatus !== '등록') return '';
+  var s = l.intelState;
+  if (s === '대기' || s === '실행중') return '';
+  if (!s) return '분석 시작';
+  if (s === '완료') return l.intelIdentityChanged ? '다시 분석' : '';
+  return '다시 시도';   // 실패·취소
+}
+function 사전분석기준일_(iso) {
+  return iso ? new Date(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' }) : '';
+}
+/**
+ * [분석 시작]/[다시 시도]/[다시 분석] 공통 핸들러(§5-2). [R4]② — 그 카드만 바꾼다(왕복 없이,
+ * leadWebSave와 같은 규칙). 재요청이 통했다는 것 자체가 새 버전을 본다는 뜻이라 stale도 미리
+ * 되돌린다.
+ */
+function leadIntelStart(row) {
+  var l = (DATA.leads || []).filter(function(x) { return x.k === row; })[0];
+  if (!l || !l.no) return toast('이 리드는 새로고침 뒤에 다시 시도할 수 있어요', true);
+  busy(true, '요청 중…');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: TOKEN, 동작: '요청', no: l.no }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false);
+      l.intelState = '대기'; l.intelReason = null; l.intelStale = false; l.intelIdentityChanged = false;
+      renderLeads();
+      toast('분석을 요청했습니다.');
+    }), function(e) { busy(false); toast(e.message, true); });
 }
 
 /** 리드에 행사를 붙이거나 뗀다. 행사명은 서버가 07_학회행사에서 찾아 함께 적는다 */
@@ -6021,6 +6119,51 @@ function matDelete(row, no) {
   gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); toast('삭제했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_영업자료삭제(TOKEN, row, no || 0);   // no가 정본 — 행 번호는 다른 삭제로 밀린다
+}
+
+/* ── 병원 사전분석 — 공통 목록 (슬라이스 C-1, §5-3) ──
+   자료 탭 상단 카드 → 모달. 상세(행 클릭)는 C-2 몫이다. */
+/** [F4] C4 — 조회 전용이면 MA팀만, 그 밖(입력 계정 전원)은 항상 통과. 카드·모달 진입 둘 다 건다 —
+ *  카드만 막고 함수는 열려 있으면 다른 경로로 호출될 수 있다. */
+function 사전분석볼수있나_() {
+  return !!(DATA && DATA.dbSrc && DATA.intelOn
+    && (!DATA.me.viewer || String(DATA.me.team || '').trim() === 'MA'));
+}
+function 사전분석카드갱신_() {
+  var el = document.getElementById('intelCard');
+  if (el) el.style.display = 사전분석볼수있나_() ? 'block' : 'none';
+}
+function openIntelList() {
+  if (!사전분석볼수있나_()) return;
+  document.getElementById('intelModal').style.display = 'flex';
+  if (INTEL) return renderIntelList();
+  document.getElementById('intelList').innerHTML = '<div class="card empty">불러오는 중…</div>';
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: TOKEN, 동작: '목록', 검색: '' }))
+    .then(function(r) { INTEL = r.rows || []; renderIntelList(); },
+      function(e) { 실패카드_('intelList', e, function() { openIntelList(); }); });
+}
+function closeIntelList() { document.getElementById('intelModal').style.display = 'none'; }
+/** 검색어 필터 + 행 그리기. INTEL이 아직 없으면(첫 로딩 중) 아무것도 안 한다 — openIntelList가 부른다 */
+function renderIntelList() {
+  if (!INTEL) return;
+  var q = String(document.getElementById('intelQ').value || '').replace(/\s/g, '').toLowerCase();
+  var rows = !q ? INTEL : INTEL.filter(function(r) {
+    return String(r.hname || '').replace(/\s/g, '').toLowerCase().indexOf(q) >= 0
+      || String(r.region || '').replace(/\s/g, '').toLowerCase().indexOf(q) >= 0;
+  });
+  document.getElementById('intelList').innerHTML = rows.length
+    ? rows.map(intelRow).join('')
+    : '<div class="card empty">검색 결과가 없습니다.</div>';
+}
+/** 행 하나: 병원명·지역·담당자 / 상태·기준일 뿐이다 — 상세(stale·identityChanged 접미사·
+ *  버튼)는 리드 카드 배지(사전분석문구_) 몫이고 C-2 전까지 목록 행은 클릭 동작이 없다. */
+function intelRow(r) {
+  var 기준 = r.generatedAt ? ' (' + 사전분석기준일_(r.generatedAt) + ' 기준)' : '';
+  return '<div class="card">'
+    + '<div class="h" style="font-size:14px;">' + esc(r.hname) + '</div>'
+    + '<div class="m">' + esc(r.region || '-') + ' · ' + esc(r.rep || '-') + '</div>'
+    + '<div class="memo">' + esc(r.state) + esc(기준) + '</div>'
+    + '</div>';
 }
 
 /* ── 관리자 현황 대시보드 ── */
