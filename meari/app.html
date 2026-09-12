@@ -13,18 +13,19 @@
 <style>
 /* ═══════════════════════════════════════════════════════════════
    메아리 앱 — 로그인 화면 (ADR 0028)
-   디자인: 혼합안 v2 (2026-08-11 확정). 등록 화면(index.html)과 같은 토큰.
+   디자인: 흰 캔버스 + 알약 (2026-09-12 개정, 목업 「메아리 새 옷」). 등록 화면(index.html)과 같은 토큰.
    탭: 현황(첫 화면) · 진행중 · 완료 — 역할로 갈리지 않는다. 열 명 한 팀이 같은 것을 본다.
    여기에 품질담당·대표만 「관리」 탭이 하나 더 붙는다 (PIN 재발급).
+   버튼은 두 층 — 이동·시작은 검정, 장부에 쓰는 확정 동작(완료로 닫기)만 코발트.
    ═══════════════════════════════════════════════════════════════ */
 :root{
-  --ink:#111111; --body:#374151; --muted:#6b7280; --faint:#9ca3af;
-  --canvas:#ffffff; --grouped:#f7f7f8; --card:#f5f5f6; --hair:#e5e7eb; --hair2:#d1d5db;
-  --red:#dc2626; --red-bg:#fef2f2; --amber:#b45309; --amber-bg:#fef6e7;
-  --green:#15803d; --green-bg:#eafaf0;
-  --청:#2f5fd6; --청-bg:#eef3fc;
-  --그림자:0 1px 2px rgba(17,17,17,.04), 0 8px 22px -14px rgba(17,17,17,.14);
-  --r-btn:8px; --r-card:12px; --pill:9999px;
+  --ink-deep:#0a1317; --ink:#1c2b33; --body:#344854; --muted:#65778a; --faint:#a3b1bb;
+  --canvas:#ffffff; --soft:#f1f4f7; --card:#f1f4f7; --hair:#cbd2d9; --hair2:#e4e8ec;
+  --red:#d9273e; --red-deep:#b3132b; --red-bg:#fdeef0;
+  --amber:#e07a10; --green:#1f8a4c;
+  --청:#0064e0; --청-deep:#0143b5; --청-bg:#e0ecfb;
+  --그림자:rgba(20,22,26,.3) 0 1px 4px 0;
+  --r-in:8px; --r-card:16px; --r-big:32px; --pill:100px;
   --곡선:cubic-bezier(0.16,1,0.3,1);
 }
 *{box-sizing:border-box}
@@ -32,166 +33,194 @@ html{-webkit-text-size-adjust:100%}
 body{
   margin:0; background:var(--canvas); color:var(--ink);
   font-family:'Pretendard Variable','Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
-  font-size:15px; line-height:1.55; letter-spacing:-.01em;
+  font-size:16px; line-height:1.5; letter-spacing:-.16px;
   word-break:keep-all; overflow-wrap:break-word;
   font-variant-numeric:tabular-nums;
   -webkit-tap-highlight-color:transparent;
 }
 button,input,textarea,select{font:inherit; color:inherit; letter-spacing:inherit}
-:focus-visible{outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-btn)}
+:focus-visible{outline:2px solid var(--청); outline-offset:2px; border-radius:var(--r-in)}
 .숨김{display:none !important}
 
 /* ── 상단바 ── */
 .윗바{
   position:sticky; top:0; z-index:20;
-  display:flex; align-items:center; gap:14px;
+  display:flex; align-items:center; gap:12px;
   padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
-  background:rgba(255,255,255,.92); backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--hair);
+  background:var(--canvas);
+  border-bottom:1px solid var(--hair2);
 }
-.윗바 .마크{font-size:16px; font-weight:600; letter-spacing:-.02em}
-.윗바 .사람{margin-left:auto; font-size:12.5px; color:var(--muted); white-space:nowrap}
-.윗바 .사람 b{color:var(--ink); font-weight:600}
-.윗바 .나가기{background:none; border:none; color:var(--faint); font-size:12.5px; cursor:pointer; padding:4px}
+.윗바 .마크{font-size:18px; font-weight:700; letter-spacing:-.02em; color:var(--ink-deep)}
+.윗바 .사람{margin-left:auto; font-size:14px; letter-spacing:-.14px; color:var(--muted); white-space:nowrap}
+.윗바 .사람 b{color:var(--ink); font-weight:700}
+.윗바 .나가기{
+  display:inline-flex; align-items:center; min-height:44px; padding:10px 12px;
+  background:none; border:none; color:var(--muted); font-size:14px; font-weight:700; letter-spacing:-.14px; cursor:pointer;
+}
 
-/* pill-in-pill 탭 */
-.필그룹{display:flex; gap:2px; background:#ececee; border-radius:var(--pill); padding:3px;
-        overflow-x:auto; scrollbar-width:none}
+/* 알약 탭 — 켜지면 검정으로 찬다 */
+.필그룹{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none}
 .필그룹::-webkit-scrollbar{display:none}
 .필그룹 button{
-  flex:0 0 auto; border:none; background:transparent; cursor:pointer;
-  font-size:13px; font-weight:500; color:var(--muted);
-  padding:7px 15px; border-radius:var(--pill); white-space:nowrap;
-  transition:color .18s var(--곡선);
+  flex:0 0 auto; display:inline-flex; align-items:center; gap:6px;
+  min-height:44px; padding:12px 16px;
+  background:var(--canvas); border:1px solid var(--hair); border-radius:var(--pill); cursor:pointer;
+  font-size:14px; font-weight:700; line-height:1.43; letter-spacing:-.14px; color:var(--ink); white-space:nowrap;
+  transition:background-color .18s var(--곡선), color .18s var(--곡선), border-color .18s var(--곡선);
 }
-.필그룹 button[aria-selected="true"]{background:#fff; color:var(--ink); font-weight:600;
-  box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.필그룹 .수{color:var(--red); font-weight:700; margin-left:3px}
+.필그룹 button[aria-selected="true"]{background:var(--ink-deep); border-color:var(--ink-deep); color:#fff}
+/* 좁은 화면 — 마크·이름·접수·나가기가 한 줄을 다 쓰므로 탭은 둘째 줄 전체를 차지한다 */
+@media(max-width:639px){
+  .윗바{flex-wrap:wrap; row-gap:10px}
+  .필그룹{order:9; flex:0 0 100%}
+}
+.필그룹 .수{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:18px; height:18px; padding:0 5px; margin-left:0; border-radius:var(--pill);
+  background:var(--red); color:#fff; font-size:11px; font-weight:700; letter-spacing:0;
+}
 
 /* ── 몸 ── */
-.몸{max-width:1100px; margin:0 auto; padding:16px 16px 80px}
-@media(min-width:900px){ .몸{padding:28px 32px 96px} }
-.구분{font-size:12px; font-weight:600; color:var(--muted); margin:22px 0 8px;
-      display:flex; align-items:center; gap:10px}
-.구분:after{content:''; flex:1; height:1px; background:var(--hair)}
-.카드목록{display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px}
+.몸{max-width:1100px; margin:0 auto; padding:24px 20px 96px}
+@media(min-width:900px){ .몸{padding:32px 32px 96px} }
+.구분{font-size:24px; font-weight:500; line-height:1.25; letter-spacing:0; color:var(--ink-deep); margin:32px 0 12px;
+      display:flex; align-items:baseline; gap:10px}
+.구분:first-child{margin-top:0}
+.구분 span{font-size:14px; font-weight:400; letter-spacing:-.14px}
+.카드목록{display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:12px}
 @media(min-width:860px){ .카드목록{grid-template-columns:repeat(2,1fr)} }
-.카드{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
-      padding:14px 16px; margin-bottom:10px; box-shadow:var(--그림자)}
+.카드{background:var(--canvas); border:1px solid var(--hair2); border-radius:var(--r-card);
+      padding:20px; margin-bottom:12px}
 .카드목록 > .카드{margin-bottom:0}
-.카드.누름{cursor:pointer; transition:border-color .18s var(--곡선), box-shadow .18s var(--곡선)}
-.카드.누름:hover{border-color:var(--hair2); box-shadow:0 2px 4px rgba(17,17,17,.05), 0 12px 28px -16px rgba(17,17,17,.2)}
+.카드.누름{cursor:pointer; transition:border-color .18s var(--곡선)}
+.카드.누름:hover{border-color:var(--hair)}
 .카드.누름:active{transform:scale(.995)}
-.카드.요약{background:var(--card); border-color:transparent; box-shadow:none}
-.카드.늦음{border-color:#f3c6c6; background:var(--red-bg)}
-.메타{font-size:12.5px; color:var(--muted)}
-.제목줄{font-size:15px; font-weight:600; letter-spacing:-.015em; margin:2px 0}
-.빈말{color:var(--muted); text-align:center; padding:44px 0 36px; font-size:14px}
-.빈말 b{display:block; font-size:18px; font-weight:600; letter-spacing:-.02em; color:var(--ink); margin-bottom:5px}
+.카드.요약{background:var(--soft); border-color:transparent}
+.카드.늦음{border-color:var(--red-deep)}
+.메타{font-size:14px; line-height:1.43; letter-spacing:-.14px; color:var(--muted)}
+.제목줄{font-size:18px; font-weight:700; line-height:1.44; letter-spacing:0; color:var(--ink-deep); margin:6px 0 2px}
+.빈말{color:var(--muted); text-align:center; padding:44px 0 36px; font-size:16px}
+.빈말 b{display:block; font-size:24px; font-weight:500; letter-spacing:0; color:var(--ink-deep); margin-bottom:6px}
 
-/* 배지 */
-.표식{display:inline-block; font-size:11.5px; font-weight:600; padding:2.5px 10px;
-      border-radius:var(--pill); vertical-align:1px; margin-right:3px}
+/* 배지 — 알약, 채운 색 */
+.표식{display:inline-flex; align-items:center; font-size:12px; font-weight:700; line-height:1.33; letter-spacing:0;
+      padding:4px 10px; border-radius:var(--pill); vertical-align:2px; margin-right:6px}
 .표식.지연{background:var(--red); color:#fff}
-.표식.임박{background:var(--amber-bg); color:var(--amber); border:1px solid #f2ddb8}
-.표식.끝{background:var(--green-bg); color:var(--green); border:1px solid #bfe6cd}
-.표식.회{background:#fff; color:var(--muted); border:1px solid var(--hair)}
-.표식.회면{background:var(--card); color:var(--body); border:1px solid transparent}
+.표식.임박{background:var(--amber); color:#fff}
+.표식.끝{background:var(--green); color:#fff}
+.표식.회{background:var(--soft); color:var(--body)}                 /* 이관 · 역할 — 중립 회색. 노랑은 「기한 있는 알림」 자리라 여기 안 쓴다 */
+.표식.회면{background:var(--soft); color:var(--body)}
 
 /* 숫자 타일 */
-.숫자들{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:4px 0 6px}
-.숫자{background:#fff; border:1px solid var(--hair); border-radius:var(--r-card);
-      padding:14px 10px 12px; text-align:center; box-shadow:var(--그림자)}
-.숫자 .값{font-size:28px; font-weight:700; letter-spacing:-.04em; line-height:1.05}
+.숫자들{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:0 0 8px}
+.숫자{background:var(--canvas); border:1px solid var(--hair2); border-radius:var(--r-card);
+      padding:20px}
+.숫자 .값{font-size:36px; font-weight:500; letter-spacing:0; line-height:1.16; color:var(--ink-deep)}
 .숫자 .값.빨{color:var(--red)} .숫자 .값.주{color:var(--amber)}
-.숫자 .이름{font-size:11.5px; color:var(--muted); font-weight:500; margin-top:3px}
-.숫자 .꼬리{font-size:11px; color:var(--faint); margin-top:1px}
-.숫자.경보{background:var(--red-bg); border-color:#f3c6c6}
+.숫자 .이름{font-size:14px; letter-spacing:-.14px; color:var(--muted); margin-top:4px}
+.숫자 .꼬리{font-size:12px; letter-spacing:0; color:var(--faint); margin-top:2px}
+.숫자.경보{border-color:var(--red-deep)}
 @media(max-width:520px){ .숫자들{grid-template-columns:repeat(2,1fr)} }
 
 /* 가로 막대 — 유형·조치구분·거래처 */
-.막대줄{display:grid; grid-template-columns:minmax(76px,32%) 1fr 46px; gap:10px;
-        align-items:center; margin-bottom:7px; font-size:12.5px}
+.막대줄{display:grid; grid-template-columns:minmax(76px,32%) 1fr 46px; gap:12px;
+        align-items:center; margin-bottom:10px; font-size:14px; letter-spacing:-.14px}
 .막대줄 .이름{color:var(--body); text-align:right; overflow:hidden;
               text-overflow:ellipsis; white-space:nowrap}
-.막대통{background:var(--card); border-radius:var(--pill); height:20px; overflow:hidden}
+.막대통{background:var(--soft); border-radius:var(--pill); height:12px; overflow:hidden}
 .막대통 i{display:block; background:var(--청); height:100%; border-radius:var(--pill); min-width:3px}
 .막대통 i.빨{background:var(--red)}
-.막대줄 .값{font-weight:600; color:var(--ink); text-align:right}
-.막대줄 .값 span{font-weight:400; color:var(--faint); font-size:11px}
+.막대줄 .값{font-weight:700; color:var(--ink); text-align:right}
+.막대줄 .값 span{font-weight:400; color:var(--faint); font-size:12px}
 
 /* 세로 추이 — 월별 */
-.추이{display:flex; gap:8px; align-items:flex-end; height:132px; margin:6px 0 2px;
-      padding:0 2px; overflow-x:auto; scrollbar-width:none}
+.추이{display:flex; gap:10px; align-items:flex-end; height:140px; margin:6px 0 2px;
+      padding:0 4px; overflow-x:auto; scrollbar-width:none}
 .추이::-webkit-scrollbar{display:none}
 .기둥{flex:1 0 34px; display:flex; flex-direction:column; align-items:center;
-      justify-content:flex-end; height:100%; gap:4px}
-.기둥 b{font-size:11.5px; font-weight:600; color:var(--ink)}
-.기둥 i{display:block; width:100%; background:var(--청); border-radius:4px 4px 0 0; min-height:2px}
+      justify-content:flex-end; height:100%; gap:6px}
+.기둥 b{font-size:12px; font-weight:700; letter-spacing:0; color:var(--ink)}
+.기둥 i{display:block; width:100%; background:var(--청); border-radius:6px 6px 0 0; min-height:2px}
 .기둥 i.늦{background:var(--red)}
-.기둥 em{font-style:normal; font-size:11px; color:var(--faint)}
+.기둥 em{font-style:normal; font-size:12px; letter-spacing:0; color:var(--muted)}
 
-/* 버튼·입력 */
-.버튼{display:inline-flex; align-items:center; justify-content:center; border-radius:var(--r-btn);
-      font-size:14px; font-weight:600; padding:10px 18px; letter-spacing:-.01em;
-      border:none; cursor:pointer; transition:transform .18s var(--곡선), opacity .18s var(--곡선)}
+/* 버튼 두 층 · 입력 */
+.버튼{display:inline-flex; align-items:center; justify-content:center; border-radius:var(--pill);
+      min-height:48px; padding:14px 30px; font-size:14px; font-weight:700; line-height:1.43; letter-spacing:-.14px;
+      border:0; cursor:pointer; transition:transform .18s var(--곡선), background-color .18s var(--곡선), opacity .18s var(--곡선)}
 .버튼:active:not(:disabled){transform:scale(.97)}
 .버튼:disabled{opacity:.45; cursor:default}
-.버튼.검정{background:var(--ink); color:#fff}
-.버튼.흰{background:#fff; color:var(--ink); border:1px solid var(--hair2)}
-.버튼.빨글{background:#fff; color:var(--red); border:1px solid var(--hair2)}
-.글칸{width:100%; min-height:46px; padding:11px 13px; background:#fff;
-      border:1px solid var(--hair); border-radius:var(--r-btn);
+.버튼.검정{background:var(--ink-deep); color:#fff}                                   /* 이동·시작 */
+.버튼.코발트{background:var(--청); color:#fff}                                        /* 장부에 쓰는 확정 동작 — 화면에 한 번 */
+.버튼.코발트:active:not(:disabled){background:var(--청-deep)}
+.버튼.흰{background:transparent; color:var(--ink-deep); border:2px solid rgba(10,19,23,.12); padding:10px 22px; min-height:44px}
+.버튼.빨글{background:transparent; color:var(--red); border:2px solid rgba(10,19,23,.12); padding:10px 22px; min-height:44px}
+.글칸{width:100%; min-height:44px; padding:10px 12px; background:var(--canvas);
+      border:1px solid var(--hair); border-radius:var(--r-in);
       transition:border-color .2s var(--곡선), box-shadow .2s var(--곡선)}
-.글칸:focus{border-color:var(--ink); box-shadow:0 0 0 3px rgba(17,17,17,.06); outline:none}
-textarea.글칸{min-height:88px; resize:vertical; line-height:1.6}
-.알약들{display:flex; flex-wrap:wrap; gap:7px}
-.알{min-height:42px; padding:0 15px; background:#fff; color:var(--body);
-    border:1px solid var(--hair2); border-radius:var(--r-btn);
-    font-size:13.5px; font-weight:500; cursor:pointer;
+.글칸::placeholder{color:var(--faint)}
+.글칸:focus{border-color:var(--청); box-shadow:0 0 0 1px var(--청); outline:none}
+textarea.글칸{min-height:88px; resize:vertical; line-height:1.5}
+.알약들{display:flex; flex-wrap:wrap; gap:8px}
+.알{min-height:44px; padding:12px 16px; background:var(--canvas); color:var(--ink);
+    border:1px solid var(--hair); border-radius:var(--pill);
+    font-size:14px; font-weight:700; line-height:1.43; letter-spacing:-.14px; cursor:pointer;
     transition:transform .18s var(--곡선), background-color .18s var(--곡선), color .18s var(--곡선)}
 .알:active{transform:scale(.97)}
-.알[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:#fff; font-weight:600}
-.라벨{display:block; font-size:12.5px; font-weight:600; color:var(--body); margin:14px 2px 6px}
-.안내{font-size:12.5px; color:var(--muted); background:var(--card); border-radius:var(--r-btn);
-      padding:9px 13px; margin-top:10px}
-.탈{margin:0 0 14px; padding:10px 14px; border-radius:var(--r-btn); font-size:13.5px; font-weight:500;
-    background:var(--red-bg); color:var(--red); border:1px solid #e6cfcb}
+.알[aria-pressed="true"]{background:var(--ink-deep); border-color:var(--ink-deep); color:#fff}
+/* 조치구분 — 알약이 아니라 세로 선택 카드. 고르면 진한 코발트 테두리 (원 체계의 radio-option) */
+.알약들.세로{flex-direction:column; gap:8px}
+.알약들.세로 .알{width:100%; text-align:left; min-height:56px; padding:18px 20px; border-radius:var(--r-in);
+                  border:1px solid rgba(10,19,23,.12); font-size:16px; font-weight:400; letter-spacing:-.16px}
+.알약들.세로 .알[aria-pressed="true"]{background:var(--canvas); color:var(--ink); border:2px solid var(--청-deep); padding:17px 19px; font-weight:700}
+.라벨{display:block; font-size:14px; font-weight:700; line-height:1.43; letter-spacing:-.14px; color:var(--ink); margin:16px 0 8px}
+.안내{font-size:14px; line-height:1.43; letter-spacing:-.14px; color:var(--body); background:var(--soft); border-radius:var(--r-in);
+      padding:10px 12px; margin-top:12px}
+.탈{margin:0 0 14px; padding:10px 12px; border-radius:var(--r-in); font-size:14px; line-height:1.43; letter-spacing:-.14px; font-weight:500;
+    background:var(--red-bg); color:var(--red-deep); border:1px solid var(--red-deep)}
 
 /* 사진 */
-.사진띠{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap}
-.사진띠 img{width:72px; height:72px; object-fit:cover; border-radius:var(--r-btn);
-            border:1px solid var(--hair); cursor:pointer}
+.사진띠{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap}
+.사진띠 img{width:80px; height:80px; object-fit:cover; border-radius:var(--r-in);
+            border:1px solid var(--hair2); cursor:pointer}
 
-/* 상세 겹창 */
-.겹창{position:fixed; inset:0; z-index:50; background:rgba(17,17,17,.32); display:flex;
+/* 상세 겹창 — 32px 시트 */
+.겹창{position:fixed; inset:0; z-index:50; background:rgba(10,19,23,.32); display:flex;
       align-items:flex-end; justify-content:center}
-.겹창 .판{background:#fff; border-radius:16px 16px 0 0; width:100%; max-width:760px;
-          max-height:88vh; overflow-y:auto; padding:18px 18px calc(24px + env(safe-area-inset-bottom))}
-.겹창 .닫기줄{display:flex; justify-content:flex-end; margin-bottom:2px}
-.겹창 .닫기줄 button{background:var(--card); border:none; border-radius:50%; width:30px; height:30px;
-                     font-size:15px; color:var(--muted); cursor:pointer}
+.겹창 .판{background:var(--canvas); border-radius:var(--r-big) var(--r-big) 0 0; width:100%; max-width:760px;
+          max-height:88vh; overflow-y:auto; padding:24px 20px calc(32px + env(safe-area-inset-bottom));
+          box-shadow:var(--그림자)}
+.겹창 .판 .구분{font-size:18px; font-weight:700; line-height:1.44; margin:24px 0 8px}
+.겹창 .닫기줄{display:flex; justify-content:flex-end; margin-bottom:4px}
+.겹창 .닫기줄 button{background:var(--soft); border:none; border-radius:50%; width:44px; height:44px;
+                     font-size:18px; color:var(--ink); cursor:pointer}
 @media(min-width:640px){
   .겹창{align-items:center; padding:24px}
-  .겹창 .판{border-radius:16px; max-height:82vh}
+  .겹창 .판{border-radius:var(--r-big); max-height:82vh}
 }
 
 /* 로그인 */
-.로그인판{max-width:360px; margin:0 auto; padding:80px 24px}
-.로그인판 h1{font-size:28px; font-weight:600; letter-spacing:-.03em; margin:0 0 4px}
-.로그인판 .보조{color:var(--muted); font-size:14px; margin:0 0 28px}
+.로그인판{max-width:360px; margin:0 auto; padding:120px 24px 40px}
+.로그인판 h1{font-size:48px; font-weight:500; line-height:1.17; letter-spacing:0; color:var(--ink-deep); margin:0 0 8px}
+.로그인판 .보조{color:var(--muted); font-size:18px; line-height:1.44; letter-spacing:0; margin:0 0 40px}
+.로그인판 .버튼{width:100%}
+.로그인판 .접수만{
+  display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; margin-top:12px;
+  padding:12px 28px; border:2px solid var(--ink-deep); border-radius:var(--pill);
+  font-size:14px; font-weight:700; letter-spacing:-.14px; color:var(--ink-deep); text-decoration:none;
+}
 
-table.표{width:100%; border-collapse:collapse; font-size:13px; background:#fff;
-         border:1px solid var(--hair); border-radius:var(--r-card); overflow:hidden}
-table.표 th{font-size:11.5px; color:var(--muted); font-weight:600; text-align:left;
-            padding:8px 10px; border-bottom:1px solid var(--hair); background:#fafafa}
-table.표 td{padding:9px 10px; border-bottom:1px solid var(--hair); vertical-align:top}
+table.표{width:100%; border-collapse:collapse; font-size:14px; letter-spacing:-.14px; background:var(--canvas);
+         border:1px solid var(--hair2); border-radius:var(--r-card); overflow:hidden}
+table.표 th{font-size:12px; letter-spacing:0; color:var(--muted); font-weight:700; text-align:left;
+            padding:8px 10px; border-bottom:1px solid var(--hair2); background:var(--soft)}
+table.표 td{padding:9px 10px; border-bottom:1px solid var(--hair2); vertical-align:top}
 table.표 tr:last-child td{border-bottom:none}
-table.표 td.수{text-align:right; font-weight:600}
+table.표 td.수{text-align:right; font-weight:700}
 .표감{border-radius:var(--r-card); overflow-x:auto}
 
-.빙글{width:24px; height:24px; margin:80px auto; border:2.5px solid var(--hair);
-      border-top-color:var(--ink); border-radius:50%; animation:돈다 .7s linear infinite}
+.빙글{width:24px; height:24px; margin:80px auto; border:2.5px solid var(--hair2);
+      border-top-color:var(--ink-deep); border-radius:50%; animation:돈다 .7s linear infinite}
 @keyframes 돈다{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important; transition-duration:.01ms !important}}
 </style>
@@ -207,7 +236,9 @@ table.표 td.수{text-align:right; font-weight:600}
   <input id="이름" class="글칸" type="text" autocomplete="username">
   <label class="라벨" for="핀">PIN</label>
   <input id="핀" class="글칸" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password">
-  <button id="들어가기" class="버튼 검정" style="width:100%;margin-top:20px;padding:13px">들어가기</button>
+  <button id="들어가기" class="버튼 검정" style="margin-top:24px">들어가기</button>
+  <!-- 로그인 없이도 접수는 된다 — 세션이 없는 폰에서 등록으로 가는 길. ?r이 없으면 index가 되튄다 -->
+  <a class="접수만" href="index.html?r">로그인 없이 접수만 하기</a>
 </div>
 
 <!-- ── 앱 ── -->
@@ -665,10 +696,10 @@ function 건열기(건_id) {
       }
     } else if (d.내건) {
       h += '<div class="구분">해결됐다면</div>' +
-        '<span class="라벨">어떻게 처리했습니까</span><div class="알약들" id="구분무리"></div>' +
+        '<span class="라벨">어떻게 처리했습니까</span><div class="알약들 세로" id="구분무리"></div>' +
         '<span class="라벨">한 줄로 적어 주세요</span>' +
         '<input id="조치내용" class="글칸" placeholder="예) 핸드피스 교체, 9/2 방문">' +
-        '<button class="버튼 검정" id="완료하기" style="margin-top:12px;width:100%">완료로 닫기</button>' +
+        '<button class="버튼 코발트" id="완료하기" style="margin-top:12px;width:100%">완료로 닫기</button>' +
         '<div class="안내">닫는 것은 올린 사람만 할 수 있습니다. 잘못 닫아도 되돌릴 수 있습니다.</div>';
     } else {
       h += '<div class="안내">이 건은 ' + 새기기(g.등록자_이름) + ' 님이 올렸습니다 — 닫는 것은 올린 사람만 합니다.</div>';
@@ -679,13 +710,13 @@ function 건열기(건_id) {
     // 본인 흐름과는 별도 동작(관리자완료)이라 실수로 섞이지 않는다.
     if (!d.내건 && g.상태 === '진행중' && 전체봄()) {
       h += '<div class="구분">관리자 권한으로 완료 처리</div>' +
-        '<span class="라벨">어떻게 처리했습니까</span><div class="알약들" id="관리자구분무리"></div>' +
+        '<span class="라벨">어떻게 처리했습니까</span><div class="알약들 세로" id="관리자구분무리"></div>' +
         '<span class="라벨">한 줄로 적어 주세요</span>' +
         '<input id="관리자조치내용" class="글칸" placeholder="예) 핸드피스 교체, 8/25 방문">' +
         '<span class="라벨">완료일</span>' +
         '<input id="관리자완료일" class="글칸" type="date" value="' + 한국날짜(new Date()) +
           '" max="' + 한국날짜(new Date()) + '">' +
-        '<button class="버튼 흰" id="관리자완료하기" style="margin-top:12px;width:100%">관리자 권한으로 완료 처리</button>' +
+        '<button class="버튼 코발트" id="관리자완료하기" style="margin-top:12px;width:100%">관리자 권한으로 완료 처리</button>' +
         '<div class="안내">그룹웨어 등에서 이미 처리된 것을 확인했을 때만 씁니다. 완료일을 실제 처리일에 맞춰 주세요.</div>';
     }
 
