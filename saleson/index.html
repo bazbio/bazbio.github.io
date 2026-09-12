@@ -1032,7 +1032,7 @@
       <span style="font-size:15px;font-weight:700;">병원 사전분석</span>
       <button class="refresh" onclick="INTEL=null;openIntelList()">새로고침</button>
     </div>
-    <input type="text" id="intelQ" placeholder="병원명·지역으로 검색" autocomplete="off" style="margin:0 0 10px;" oninput="renderIntelList()">
+    <input type="text" id="intelQ" placeholder="병원명·지역으로 검색" autocomplete="off" style="margin:0 0 10px;" oninput="사전분석검색_()">
     <div id="intelList"><div class="card empty">불러오는 중…</div></div>
     <button class="btn ghost" style="width:100%;margin-top:12px;" onclick="closeIntelList()">닫기</button>
   </div>
@@ -1081,6 +1081,8 @@ var FLOW = null;
 var KPIT = null;
 var MATL = null;
 var INTEL = null;        // 병원 사전분석 공통 목록 캐시(슬라이스 C-1, §5-2)
+var INTEL번호 = 0;       // [R2] 목록 요청 일련번호 — 늦게 도착한 옛 검색 응답을 버린다
+var INTEL타이머 = null;  // [R2] 검색 입력 디바운스
 var MINE = null;        // 내 입력 탭 데이터
 var MINESEG = '방문기록';
 var MINEQ = '';         // 내 입력 검색어 (8/13)
@@ -1300,7 +1302,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609110336-9cb1c8f';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609120708-f1ce728';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5405,6 +5407,7 @@ function renderNozzleTargets() {
       }).join('')
     + '</div></div>';
 
+  h += renderNozzleCoverage_(NOZTGT.coverage, !!(NCARE && NCARE.me && NCARE.me.admin && !NCARE.me.viewer));
   if (NOZTGT.dataStatus === '자료 미반입') return h + '<div class="card empty">노즐 원천 자료가 아직 반입되지 않았습니다.</div>';
   if (!(NOZTGT.items || []).length) {
     return h + '<div class="card empty">' + (NOZTGT.dataStatus === '적격 대상 없음' ? '판매 후 30일 확인 대상이 없습니다' : '해당하는 병원이 없습니다') + '</div>';
@@ -5420,6 +5423,7 @@ function renderNozzleTargets() {
           + '<span style="margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap;color:#1b64da;">' + esc(it.status) + '</span>'
           + '</div>'
           + '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">판매 후 ' + it.elapsedDays + '일'
+          + ' · ' + esc(it.observation === '자료미확인' ? '자료 범위 미확인' : it.observation === '출고확인' ? '유상 출고 확인' : '확인 기간 내 출고 미확인')
           + (it.nextReviewOn ? ' · 다음 확인 ' + esc(it.nextReviewOn) : '') + '</div></div>';
       }).join('')
     + '</div>';
@@ -5431,6 +5435,62 @@ function renderNozzleTargets() {
       + '</div>';
   }
   return h;
+}
+
+function renderNozzleCoverage_(c, canEdit) {
+  if (!c) return '';
+  var confirmed = c.confirmedBy && c.confirmedAt;
+  var h = '<div class="card" style="padding:14px;">'
+    + '<b>원천 자료 수록기간</b><div style="margin-top:6px;font-size:13px;">'
+    + (confirmed ? esc(c.from) + ' ~ ' + esc(c.through) + ' · 확인자 ' + esc(c.confirmedBy)
+      : '기간·판매경로 미확인')
+    + '</div><div style="margin-top:6px;font-size:12px;color:#5f6b7a;">'
+    + '확인 범위가 병원의 판매일부터 조회 기준일까지를 포함해야 출고 여부를 판단합니다. 새 동기화가 확인 종료일을 자동으로 늘리지는 않습니다.</div>';
+  if (c.note) h += '<div style="margin-top:6px;font-size:12px;white-space:pre-wrap;">' + esc(c.note) + '</div>';
+  if (confirmed) h += '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">확인 시각 '
+    + esc(new Date(c.confirmedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })) + '</div>';
+  if (canEdit) h += '<details style="margin-top:10px;"><summary>수록기간 확인·수정</summary>'
+    + '<label class="f">누락 없이 입력 완료된 시작일</label><input id="nozCoverageFrom" type="date" value="' + esc(c.from || '') + '">'
+    + '<label class="f">입력 완료된 종료일</label><input id="nozCoverageThrough" type="date" value="' + esc(c.through || '') + '">'
+    + '<label class="f">확인 근거 / 철회 사유</label><textarea id="nozCoverageNote" maxlength="1000" rows="3" placeholder="원천 담당자, 확인한 판매경로와 누락 여부를 적어 주세요"></textarea>'
+    + '<label style="display:flex;gap:8px;margin:10px 0;font-size:13px;"><input id="nozCoverageChannels" type="checkbox" style="width:auto;">해당 기간에 바즈몰·직접주문·딜러/대리점 등 모든 판매경로가 포함됐음을 확인했습니다.</label>'
+    + '<div id="nozCoverageMessage" role="status" style="font-size:13px;margin:8px 0;"></div>'
+    + '<button class="btn primary" id="nozCoverageSave" onclick="nozCoverageSave_(false)">확인 저장</button>'
+    + (confirmed ? ' <button class="btn" id="nozCoverageClear" onclick="nozCoverageSave_(true)">확인 철회</button>' : '')
+    + '</details>';
+  return h + '</div>';
+}
+
+function nozCoverageSave_(clear) {
+  var c = NOZTGT && NOZTGT.coverage;
+  if (!c) return;
+  var msg = document.getElementById('nozCoverageMessage');
+  var note = document.getElementById('nozCoverageNote').value.trim();
+  var from = document.getElementById('nozCoverageFrom').value;
+  var through = document.getElementById('nozCoverageThrough').value;
+  var channels = document.getElementById('nozCoverageChannels').checked;
+  if (!note) { msg.textContent = '확인 근거 또는 철회 사유를 적어 주세요.'; return; }
+  if (!clear && (!from || !through || from > through || !channels)) {
+    msg.textContent = '수록기간과 모든 판매경로 포함 여부를 확인해 주세요.'; return;
+  }
+  var save = document.getElementById('nozCoverageSave'), cancel = document.getElementById('nozCoverageClear');
+  save.disabled = true; if (cancel) cancel.disabled = true;
+  msg.textContent = '저장 중…';
+  관문호출_('/saleson-nozzle', JSON.stringify({ 토큰: TOKEN, 동작: '수록확인',
+    sourceDocId: c.sourceDocId, batchId: c.batchId, expectedVersion: c.version,
+    from: from, through: through, note: note, allChannelsConfirmed: channels, clear: clear }))
+    .then(function() {
+      NOZTGT_KEY = null; NOZTGT = null;
+      if (NCMODE === 'noz') renderNcare();
+      toast(clear ? '수록기간 확인을 철회했습니다.' : '수록기간 확인을 저장했습니다.');
+    }, function(e) {
+      save.disabled = false; if (cancel) cancel.disabled = false;
+      msg.textContent = (e && e.message) || '저장하지 못했습니다.';
+      // 충돌 후에는 입력한 근거를 남기고, 명시적인 새로고침으로 최신 배치를 확인한다.
+      var retry = document.createElement('button'); retry.className = 'btn'; retry.textContent = '최신 상태 불러오기';
+      retry.onclick = function() { NOZTGT_KEY = null; NOZTGT = null; renderNcare(); };
+      msg.appendChild(retry);
+    });
 }
 
 function renderNcareStage(mine) {
@@ -6137,28 +6197,41 @@ function openIntelList() {
   if (!사전분석볼수있나_()) return;
   document.getElementById('intelModal').style.display = 'flex';
   if (INTEL) return renderIntelList();
-  document.getElementById('intelList').innerHTML = '<div class="card empty">불러오는 중…</div>';
-  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: TOKEN, 동작: '목록', 검색: '' }))
-    .then(function(r) { INTEL = r.rows || []; renderIntelList(); },
-      function(e) { 실패카드_('intelList', e, function() { openIntelList(); }); });
+  사전분석목록불러오기_();
 }
 function closeIntelList() { document.getElementById('intelModal').style.display = 'none'; }
-/** 검색어 필터 + 행 그리기. INTEL이 아직 없으면(첫 로딩 중) 아무것도 안 한다 — openIntelList가 부른다 */
+/** [R2] 검색은 **서버가** 한다 — 화면이 받은 200건만 거르면 그 밖의 병원을 영영 못 찾는다.
+ *  검색어가 바뀔 때마다 서버에 다시 묻고, 늦게 도착한 옛 응답은 번호로 버린다. */
+function 사전분석목록불러오기_() {
+  var q = String(document.getElementById('intelQ').value || '').trim();
+  var 번호 = ++INTEL번호;
+  if (!INTEL) document.getElementById('intelList').innerHTML = '<div class="card empty">불러오는 중…</div>';
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: TOKEN, 동작: '목록', 검색: q }))
+    .then(function(r) {
+      if (번호 !== INTEL번호) return;   // 그 사이 더 친 검색이 있다 — 이 응답은 낡았다
+      INTEL = r.rows || []; renderIntelList();
+    }, function(e) {
+      if (번호 !== INTEL번호) return;
+      실패카드_('intelList', e, function() { 사전분석목록불러오기_(); });
+    });
+}
+function 사전분석검색_() {
+  if (INTEL타이머) clearTimeout(INTEL타이머);
+  INTEL타이머 = setTimeout(사전분석목록불러오기_, 300);
+}
+/** 행 그리기. 거르는 일은 서버가 끝냈다 — 받은 것을 그대로 그린다. */
 function renderIntelList() {
   if (!INTEL) return;
-  var q = String(document.getElementById('intelQ').value || '').replace(/\s/g, '').toLowerCase();
-  var rows = !q ? INTEL : INTEL.filter(function(r) {
-    return String(r.hname || '').replace(/\s/g, '').toLowerCase().indexOf(q) >= 0
-      || String(r.region || '').replace(/\s/g, '').toLowerCase().indexOf(q) >= 0;
-  });
-  document.getElementById('intelList').innerHTML = rows.length
-    ? rows.map(intelRow).join('')
+  document.getElementById('intelList').innerHTML = INTEL.length
+    ? INTEL.map(intelRow).join('')
     : '<div class="card empty">검색 결과가 없습니다.</div>';
 }
-/** 행 하나: 병원명·지역·담당자 / 상태·기준일 뿐이다 — 상세(stale·identityChanged 접미사·
- *  버튼)는 리드 카드 배지(사전분석문구_) 몫이고 C-2 전까지 목록 행은 클릭 동작이 없다. */
+/** 행 하나: 병원명·지역·담당자 / 상태·기준일. [R3] `stale`은 목록도 배지와 **같은 문구**로 낮춰
+ *  말한다(성공 이력이 없으면 의미가 없어 무시하는 것까지 `사전분석문구_`와 같다).
+ *  identityChanged 접미사·버튼은 리드 카드 배지 몫이고, 행 클릭 동작은 C-2가 붙인다. */
 function intelRow(r) {
-  var 기준 = r.generatedAt ? ' (' + 사전분석기준일_(r.generatedAt) + ' 기준)' : '';
+  var 접미 = r.generatedAt && r.stale ? ' · 옛 기준 · 홈페이지 바뀜' : '';
+  var 기준 = r.generatedAt ? ' (' + 사전분석기준일_(r.generatedAt) + ' 기준' + 접미 + ')' : '';
   return '<div class="card">'
     + '<div class="h" style="font-size:14px;">' + esc(r.hname) + '</div>'
     + '<div class="m">' + esc(r.region || '-') + ' · ' + esc(r.rep || '-') + '</div>'
