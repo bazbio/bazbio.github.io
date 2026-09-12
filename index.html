@@ -91,6 +91,8 @@
   .card:focus-visible { outline:3px solid var(--on-dark); outline-offset:3px; }
 
   .card--hero { grid-row:span 2; padding:26px 26px 28px; }
+  .card--ieum { grid-column:1 / -1; min-height:184px; }
+  .card__status { font-size:11px; font-weight:700; padding:6px 10px; border:1px solid rgba(8,19,31,.24); border-radius:999px; }
 
   .card__top { display:flex; align-items:flex-start; justify-content:space-between; }
 
@@ -335,6 +337,25 @@
         <span class="card__cat">개인 업무 보드</span>
         <h2 class="card__name">책상</h2>
         <p class="card__desc">이번 · 대기 두 구역 · 6주 간트</p>
+      </div>
+    </a>
+
+    <!-- 이음: 정식 접속 주소 확정 전에는 운영 준비 안내로 연결 -->
+    <a class="card t2 card--ieum" href="https://bazbio.github.io/ieum/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2.5" y="8" width="6" height="8" rx="2"/>
+            <rect x="15.5" y="8" width="6" height="8" rx="2"/>
+            <path d="M8.5 12h7M11.5 9l3 3-3 3"/>
+          </svg>
+        </span>
+        <span class="card__status">운영 준비 중</span>
+      </div>
+      <div>
+        <span class="card__cat">부서 간 업무 협업</span>
+        <h2 class="card__name">이음</h2>
+        <p class="card__desc">요청 · 승인 · 마일스톤 · 병목 관리</p>
       </div>
     </a>
 
