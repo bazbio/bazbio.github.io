@@ -1,4 +1,5 @@
 import { createClosure } from './closure.mjs';
+import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
 import { createAttachments, fileData } from './attachments.mjs';
 import { createAdministration } from './admin.mjs';
@@ -11,6 +12,7 @@ const el = (tag, text, className) => { const node=document.createElement(tag); i
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
 const descriptions = { 대표승인함:['대표 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
+const flowMap=createFlowMap({el,button});
 const closure=createClosure({el,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const bottlenecks=createBottlenecks({el,button,api,refresh:()=>showList('병목현황'),open:showDetail});
 const collaboration=createCollaboration({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
@@ -122,7 +124,7 @@ async function showDetail(id){
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(data.단계),el('span',data.번호,'reference'));
     summary.append(top,el('h2',data.제목));const grid=el('div',null,'detail-info');grid.append(infoCell('요청자',data.요청자.표시명),infoCell('전체 책임자',data.전체책임자?.표시명),infoCell('희망 완료일',data.희망기한||'미지정'));
     if(data.현재행동.length){const turns=el('div',null,'current-turns');turns.append(el('p',`현재 차례 · ${data.현재행동.length}건`,'info-label'));for(const a of data.현재행동)turns.append(button(`${a.담당부서.이름} · ${a.담당자.표시명} · ${a.종류}${a.마일스톤제목?' · '+a.마일스톤제목:''}${a.기한초과?' · 기한 초과':''}`,'turn-link',()=>document.getElementById(`action-${a.행동ID}`)?.scrollIntoView({behavior:'smooth',block:'start'})));summary.append(turns);}
-    summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));detail.append(summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
+    summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));detail.append(flowMap.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
       const section=el('section',null,'detail-card action-card');section.id=`action-${action.행동ID}`;section.append(el('h3',`${action.담당자.표시명} 님의 차례 · ${action.종류}${action.마일스톤제목?' · '+action.마일스톤제목:''}`,'action-title'),el('p',`${action.담당부서.이름} · ${timestamp(action.처리기한)}까지${action.기한초과?' · 기한 초과':''}`,'muted'));
       if(action.미팅대기)section.append(el('p','미팅 결론과 후속 업무를 기다리고 있습니다. 완료되면 이 차례에서 원래 검토를 진행하세요.','notice'));
