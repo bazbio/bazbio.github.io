@@ -465,8 +465,8 @@
 </div>
 
 <main>
-  <div id="로딩" class="loading"><div class="spin"></div>불러오는 중</div>
-  <div id="오류" class="error hidden"><b>불러오지 못했습니다</b><span id="오류문"></span></div>
+  <div id="로딩" class="loading"><div class="spin"></div><span id="로딩문">불러오는 중</span></div>
+  <div id="오류" class="error hidden"><b>불러오지 못했습니다</b><p id="오류문"></p><button class="btn ghost" id="다시불러오기">다시 불러오기</button></div>
 
   <div id="본문" class="hidden">
     <div class="tabbar" role="tablist">
@@ -709,6 +709,8 @@
  * google.script.run이 있으므로 그쪽에서는 그걸 그대로 쓴다 (곳간과 같은 방식). */
 var API_URL = 'https://script.google.com/macros/s/AKfycbykZGrMPBaucjcGC5YN4GdoOHxnekrXfI0mY6hjrJp78uzPsxVDO62naHtddAI4jmlqbg/exec';
 var API_TIMEOUT = 15000;
+// 초기 조회는 Drive와 Sheets를 함께 읽어 실제 응답이 30초까지 걸릴 수 있다.
+var INITIAL_LOAD_TIMEOUT = 60000;
 
 /* 통로 판정. GAS가 doGet으로 서빙하면 google.script.run이 있고, Pages에서는 없다.
  * ⚠ 하네스는 여러 앱 공용이라 fetch 모드에서도 google.script.run을 정의한다 —
@@ -736,7 +738,10 @@ function 서버_fetch(이름, 인자) {
     var 끝난 = false;
     var 완료 = function (fn) { return function (v) { if (!끝난) { 끝난 = true; fn(v); } }; };
     var 실패됨 = 완료(function (msg) { 실패(new Error(msg)); });
-    var 타이머 = setTimeout(function () { 실패됨('응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.'); }, API_TIMEOUT);
+    var 초기조회 = 이름 === '웹_초기데이터';
+    var 타이머 = setTimeout(function () {
+      실패됨(초기조회 ? '서버 응답이 늦어지고 있습니다. 잠시 후 다시 불러와 주세요.' : '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.');
+    }, 초기조회 ? INITIAL_LOAD_TIMEOUT : API_TIMEOUT);
     fetch(API_URL, {
       method: 'POST',
       // text/plain이라야 CORS 사전요청이 없다(왕복이 하나 줄어든다).
@@ -744,7 +749,10 @@ function 서버_fetch(이름, 인자) {
       // 안 읽어서 한글이 깨진다. 서버가 decodeURIComponent로 되돌린다.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: encodeURIComponent(JSON.stringify({ fn: 이름, args: 인자 })),
-    }).then(function (r) { return r.text(); }).then(function (본문) {
+    }).then(function (r) {
+      if (!r.ok) throw new Error('서버 연결에 실패했습니다 (HTTP ' + r.status + '). 잠시 후 다시 시도해 주세요.');
+      return r.text();
+    }).then(function (본문) {
       clearTimeout(타이머);
       var 응답;
       try { 응답 = JSON.parse(본문); } catch (e) { 실패됨('서버 응답을 읽지 못했습니다.'); return; }
@@ -1953,16 +1961,28 @@ document.getElementById('if시작시각').addEventListener('change', function ()
 document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); } });
 
-서버('웹_초기데이터').then(function (d) {
-  상태 = d;
-  document.getElementById('로딩').classList.add('hidden');
-  document.getElementById('본문').classList.remove('hidden');
-  그리기();
-}).catch(function (e) {
-  document.getElementById('로딩').classList.add('hidden');
-  document.getElementById('오류').classList.remove('hidden');
-  document.getElementById('오류문').textContent = e && e.message ? e.message : String(e);
-});
+function 초기불러오기() {
+  document.getElementById('오류').classList.add('hidden');
+  document.getElementById('로딩').classList.remove('hidden');
+  document.getElementById('로딩문').textContent = '불러오는 중';
+  var 안내타이머 = setTimeout(function () {
+    document.getElementById('로딩문').textContent = '서버 응답을 기다리고 있습니다. 잠시만 기다려 주세요.';
+  }, 8000);
+  return 서버('웹_초기데이터').then(function (d) {
+    clearTimeout(안내타이머);
+    상태 = d;
+    document.getElementById('로딩').classList.add('hidden');
+    document.getElementById('본문').classList.remove('hidden');
+    그리기();
+  }).catch(function (e) {
+    clearTimeout(안내타이머);
+    document.getElementById('로딩').classList.add('hidden');
+    document.getElementById('오류').classList.remove('hidden');
+    document.getElementById('오류문').textContent = e && e.message ? e.message : String(e);
+  });
+}
+document.getElementById('다시불러오기').addEventListener('click', 초기불러오기);
+초기불러오기();
 </script>
 </body>
 </html>
