@@ -7,6 +7,7 @@ import { showEnrollment } from './enroll.mjs';
 import { createBottlenecks } from './bottlenecks.mjs';
 import { createExecution } from './execution.mjs';
 import { createPlans } from './plans.mjs';
+import { errorMessage } from './messages.mjs';
 const $ = selector => document.querySelector(selector);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!=null) node.textContent=text; if(className)node.className=className; return node; };
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
@@ -30,11 +31,11 @@ function message(text='',error=false){ const node=$('#message');node.textContent
 function showPending(){ const p=getPending();$('#pending-banner').hidden=!p;$('#retry-file-label').hidden=p?.전송모드!=='file'; }
 async function api(mode,body,asBlob=false){
   let response;
-  try { response=await fetch(`${apiBase}/functions/v1/ieum-${mode}`,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)}); }
+  try { response=await fetch(`${apiBase}/functions/v1/ieum-${mode}`,{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(mode==='file'?120000:20000)}); }
   catch { const e=new Error('서버 응답을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.');e.uncertain=true;throw e; }
   if(asBlob&&response.ok)return response.blob();
   const result=await response.json().catch(()=>null);
-  if(!response.ok||!result){const e=new Error(result?.메시지||'서버 응답을 확인하지 못했습니다.');e.status=response.status;e.code=result?.코드;e.uncertain=response.status>=500||!result;throw e;}
+  if(!response.ok||!result){const e=new Error(result?.메시지||'서버 응답을 확인하지 못했습니다.');e.status=response.status;e.code=result?.코드;e.traceId=result?.추적ID;e.uncertain=response.status>=500||!result;throw e;}
   return result;
 }
 function setBusy(value){busy=value;document.querySelectorAll('button[type="submit"],#retry-pending').forEach(b=>{if(value){b.dataset.wasDisabled=String(b.disabled);b.disabled=true;}else if('wasDisabled' in b.dataset){b.disabled=b.dataset.wasDisabled==='true';delete b.dataset.wasDisabled;}});}
@@ -57,8 +58,8 @@ async function execute(request){
   catch(error){if(!error.uncertain&&error.status!==401)sessionStorage.removeItem(key);throw error;}
   finally{setBusy(false);showPending();}
 }
-function logout(){token=null;fileCache=null;administration.reset();sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
-function handleError(error){if(error.status===401){logout();$('#login-error').textContent=error.message;}else message(error.message,true);}
+function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());token=null;fileCache=null;administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
+function handleError(error){if(error.status===401){logout();$('#login-error').textContent=errorMessage(error);}else message(errorMessage(error),true);}
 function badge(text,kind=''){return el('span',text,`badge ${kind}`);}
 function button(text,className,handler){const b=el('button',text,className);b.type='button';b.addEventListener('click',handler);return b;}
 async function bootstrap(){
@@ -116,13 +117,15 @@ function noticeCard(n){const node=button('','work-card notice-card',async()=>{tr
 function infoCell(label,value){const cell=el('div');cell.append(el('p',label,'info-label'),el('p',value||'미지정','info-value'));return cell;}
 function textBlock(label,value){const node=el('div',null,'text-block');node.append(el('h3',label),el('p',value));return node;}
 async function showDetail(id){
+  const opening=selected!==id;
   const version=++loadVersion;selected=id;$('#toolbar').hidden=false;$('#department-filter').hidden=true;$('#load-more').hidden=true;
   $('#content').replaceChildren(el('p','업무를 불러오고 있어요.','loading'));$('#content').setAttribute('aria-busy','true');
   try{
     const data=await api('read',{종류:'업무상세',업무ID:id});if(version!==loadVersion)return;
+    $('#page-title').textContent=data.제목;$('#page-description').textContent=`${data.번호||''} · ${data.단계}`;
     const detail=el('div',null,'detail');detail.append(button('← 목록으로','text-button back',()=>showList()));
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(data.단계),el('span',data.번호,'reference'));
-    summary.append(top,el('h2',data.제목));const grid=el('div',null,'detail-info');grid.append(infoCell('요청자',data.요청자.표시명),infoCell('전체 책임자',data.전체책임자?.표시명),infoCell('희망 완료일',data.희망기한||'미지정'));
+    summary.append(top,el('h2','업무 개요'));const grid=el('div',null,'detail-info');grid.append(infoCell('요청자',data.요청자.표시명),infoCell('전체 책임자',data.전체책임자?.표시명),infoCell('희망 완료일',data.희망기한||'미지정'));
     if(data.현재행동.length){const turns=el('div',null,'current-turns');turns.append(el('p',`현재 차례 · ${data.현재행동.length}건`,'info-label'));for(const a of data.현재행동)turns.append(button(`${a.담당부서.이름} · ${a.담당자.표시명} · ${a.종류}${a.마일스톤제목?' · '+a.마일스톤제목:''}${a.기한초과?' · 기한 초과':''}`,'turn-link',()=>document.getElementById(`action-${a.행동ID}`)?.scrollIntoView({behavior:'smooth',block:'start'})));summary.append(turns);}
     summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));detail.append(flowMap.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
@@ -151,7 +154,7 @@ async function showDetail(id){
             if(['비승인','보완요청'].includes(kind)&&!input.value.trim()){err.textContent='요청자에게 전달할 사유를 적어 주세요.';input.focus();return;}
             const args=kind==='수락'?{의견:input.value.trim()||null}:['비승인','보완요청'].includes(kind)?{사유:input.value}:kind==='책임자배정'?{구성원ID:input.value}:{본문:input.value};
             try{err.textContent='';const result=await send({종류:kind,업무ID:id,부서업무ID:action.부서업무ID,행동ID:action.행동ID,기대업무개정:data.업무개정,인자:args});if(result){await showDetail(id);message('처리가 반영되었습니다. 다음 차례를 확인하세요.');}}
-            catch(error){err.textContent=error.message;if(error.status===409)message('화면 상단의 새로고침으로 최신 내용을 확인해 주세요. 작성한 내용은 유지됩니다.',true);if(error.status===401)handleError(error);}
+            catch(error){err.textContent=errorMessage(error);if(error.status===409)message('화면 상단의 새로고침으로 최신 내용을 확인해 주세요. 작성한 내용은 유지됩니다.',true);if(error.status===401)handleError(error);}
           });section.append(form);
         }
         if(!action.미팅대기&&['접수판단','계획작성','부서승인'].includes(action.종류))section.append(collaboration.request(data,action));
@@ -159,15 +162,15 @@ async function showDetail(id){
     }
     const history=el('section',null,'detail-card');history.append(el('h3','업무의 흐름'));const timeline=el('ol',null,'timeline');
     for(const activity of data.활동){const row=el('li');const head=el('div',null,'timeline-head');const who=el('span',activity.종류);who.append(el('small',activity.작성자));head.append(who,el('time',timestamp(activity.시각),'timeline-time'));row.append(head);const args=activity.내용.인자;const note=args.사유||args.본문||args.의견;if(note)row.append(el('p',note));timeline.append(row);}history.append(timeline);detail.append(history);
-    $('#content').replaceChildren(detail);$('#page-title').focus({preventScroll:true});
+    $('#content').replaceChildren(detail);if(opening)$('#page-title').focus({preventScroll:true});
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(button('목록으로 돌아가기','secondary',()=>showList()));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
 }
-$('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=error.message;}finally{submit.disabled=false;}});
+$('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=errorMessage(error);}finally{submit.disabled=false;}});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showList(b.dataset.view)));
 $('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
 $('#close-dialog').addEventListener('click',()=>$('#request-dialog').close());$('#cancel-request').addEventListener('click',()=>$('#request-dialog').close());
-$('#request-form').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;const form=event.currentTarget;$('#request-error').textContent='';try{const result=await send({종류:'요청제출',인자:{제목:form.elements.title.value,목적:form.elements.purpose.value,완료기준:form.elements.criteria.value,수신부서ID:form.elements.department.value,희망기한:form.elements.due.value||null}});if(result){$('#request-dialog').close();form.reset();await showDetail(result.업무ID);message('업무를 요청했습니다. 담당 부서의 접수 판단을 기다립니다.');}else $('#request-error').textContent='기존 요청의 처리 결과를 먼저 확인해 주세요.';}catch(error){$('#request-error').textContent=error.message;}});
+$('#request-form').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;const form=event.currentTarget;$('#request-error').textContent='';try{const result=await send({종류:'요청제출',인자:{제목:form.elements.title.value,목적:form.elements.purpose.value,완료기준:form.elements.criteria.value,수신부서ID:form.elements.department.value,희망기한:form.elements.due.value||null}});if(result){$('#request-dialog').close();form.reset();await showDetail(result.업무ID);message('업무를 요청했습니다. 담당 부서의 접수 판단을 기다립니다.');}else $('#request-error').textContent='기존 요청의 처리 결과를 먼저 확인해 주세요.';}catch(error){$('#request-error').textContent=errorMessage(error);}});
 $('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else await showDetail(result.업무ID);message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
 async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
@@ -179,4 +182,4 @@ if(inviteFragment)history.replaceState(null,'',location.pathname+location.search
 try{const config=await fetch('./config.json').then(r=>r.json());if(config.apiBase){const url=new URL(config.apiBase);if(url.protocol!=='https:'||url.username||url.password)throw new Error('API 주소 설정을 확인해 주세요.');apiBase=url.href.replace(/\/$/,'');}
  if(inviteFragment){await enterInvitation(inviteFragment);inviteFragment=null;}
  else if(token)await bootstrap();
-}catch(error){logout();$('#login-error').textContent=error.message;}
+}catch(error){logout();$('#login-error').textContent=errorMessage(error);}

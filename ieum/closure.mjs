@@ -1,3 +1,4 @@
+import { errorMessage } from './messages.mjs';
 export function createClosure({el,send,refresh,getInfo,isBusy,message,handleError}) {
   const closed=d=>Boolean(d.종결?.종결시각);
   const pending=d=>d.종결?.심사.find(r=>r.상태==='제출');
@@ -6,7 +7,7 @@ export function createClosure({el,send,refresh,getInfo,isBusy,message,handleErro
   function note(form,label,required=true){const wrap=el('label',label),input=el('textarea');input.rows=3;input.required=required;input.maxLength=2000;input.setAttribute('aria-label',label);wrap.append(input);form.append(wrap);return input;}
   function button(form,label,kind,secondary=false){const b=el('button',label,secondary?'secondary':'primary');b.type='submit';b.value=kind;form.append(b);return b;}
   function error(form){const box=el('p','','error');box.setAttribute('role','alert');form.append(box);return box;}
-  async function run(form,input){if(isBusy())return;const err=form.querySelector('[role=alert]');try{err.textContent='';const result=await send(input);if(result){await refresh(input.업무ID);message('처리가 반영되었습니다. 다음 차례를 확인하세요.');}else err.textContent='이전 요청의 처리 결과를 먼저 확인해 주세요.';}catch(e){err.textContent=e.message;if(e.status===409)message('최신 내용을 확인한 뒤 다시 처리해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}}
+  async function run(form,input){if(isBusy())return;const err=form.querySelector('[role=alert]');try{err.textContent='';const result=await send(input);if(result){await refresh(input.업무ID);message('처리가 반영되었습니다. 다음 차례를 확인하세요.');}else err.textContent='이전 요청의 처리 결과를 먼저 확인해 주세요.';}catch(e){err.textContent=errorMessage(e);if(e.status===409)message('최신 내용을 확인한 뒤 다시 처리해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}}
   function targets(form,d){
     const field=el('fieldset',null,'rework-targets');field.append(el('legend','재작업할 완료 작업'));
     for(const m of d.실행.filter(m=>m.상태==='완료')){const label=el('label',`${m.부서명} · ${m.제목}`,'check-label'),check=el('input');check.type='checkbox';check.value=m.ID;check.setAttribute('aria-label',`재작업 대상: ${m.제목}`);label.append(check);field.append(label);}

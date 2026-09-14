@@ -1,3 +1,4 @@
+import { errorMessage } from './messages.mjs';
 // 통합 승인과 실행 UI. 기존 인증·멱등·충돌 처리기를 공유한다.
 export function createExecution({el,button,send,refresh,getInfo,isBusy,message,handleError}){
   const main=data=>data.부서업무.find(b=>!b.기원부서업무ID);
@@ -9,7 +10,7 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
   function request(data,kind,args,action,sub=main(data).ID){return {종류:kind,업무ID:data.업무ID,부서업무ID:action?.부서업무ID||sub,기대업무개정:data.업무개정,인자:args,...(action?{행동ID:action.행동ID}:{})};}
   async function run(form,input){
     const err=form.querySelector('[role=alert]');try{err.textContent='';const result=await send(input);if(result){await refresh(input.업무ID);message('처리가 반영되었습니다. 다음 차례를 확인하세요.');}else err.textContent='기존 요청의 처리 결과를 먼저 확인해 주세요.';}
-    catch(e){err.textContent=e.message;if(e.status===409)message('최신 내용을 확인한 뒤 다시 처리해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}
+    catch(e){err.textContent=errorMessage(e);if(e.status===409)message('최신 내용을 확인한 뒤 다시 처리해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}
   }
   function scopeView(v){
     const box=el('div',null,'integrated-scope');box.append(el('p',v.요약,'collaboration-note'));
@@ -73,11 +74,11 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
       if(!ready)form.append(el('p','부서 계획의 승인이 모두 끝나면 제출할 수 있습니다.','hint'));
       form.addEventListener('submit',e=>{e.preventDefault();if(isBusy()||!ready)return;const graph=[...edges.children].map(row=>({선행ID:row.querySelector('[name=선행ID]').value,후행ID:row.querySelector('[name=후행ID]').value}));run(form,request(data,'통합계획제출',{요약:summary.value,선행관계:graph},a));});
     }else if(a.종류==='대표승인'){
-      const v=data.통합계획.find(v=>v.ID===a.통합계획ID);form.append(el('p',`승인 대상: 통합계획 v${v.버전}`,'plan-state'),scopeView(v));
+      const v=data.통합계획.find(v=>v.ID===a.통합계획ID);if(!v)return el('p','승인 대상 계획을 찾지 못했습니다. 새로고침해 주세요.','error');form.append(el('p',`승인 대상: 통합계획 v${v.버전}`,'plan-state'),scopeView(v));
       const memo=note(form,'대표 검토 의견',false);error(form);const buttons=el('div',null,'actions');form.append(buttons);submit(buttons,'최종안 승인','대표승인');submit(buttons,'통합 계획 보완 요청','대표보완',true);
       form.addEventListener('submit',e=>{e.preventDefault();if(isBusy())return;const kind=e.submitter.value;if(kind==='대표보완'&&!memo.value.trim()){form.querySelector('[role=alert]').textContent='보완이 필요한 내용을 적어 주세요.';return;}run(form,request(data,kind,{통합계획ID:v.ID,...(kind==='대표승인'?{의견:memo.value.trim()||null}:{사유:memo.value})},a));});
     }else{
-      const m=data.실행.find(m=>m.ID===a.마일스톤ID);form.append(el('h4',m.제목),el('p',m.완료기준,'collaboration-note'));
+      const m=data.실행.find(m=>m.ID===a.마일스톤ID);if(!m)return el('p','실행할 작업을 찾지 못했습니다. 새로고침해 주세요.','error');form.append(el('h4',m.제목),el('p',m.완료기준,'collaboration-note'));
       let memo;const buttons=el('div',null,'actions');
       if(a.종류==='검증'){form.append(el('p',`완료 보고 · ${m.실행회차}회차`,'plan-state'),el('p',m.회차이력.at(-1)?.보고본문||'','report-body'));memo=note(form,'완료 검증 의견',false);submit(buttons,'검증 승인','검증승인');submit(buttons,'재작업 요청','검증보완',true);}
       else if(a.종류==='수행'){memo=note(form,'완료 보고 내용');memo.maxLength=10000;submit(buttons,'완료 보고','완료보고');}

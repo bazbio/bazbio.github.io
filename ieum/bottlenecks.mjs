@@ -27,5 +27,5 @@ export function createBottlenecks({el,button,api,refresh,open}) {
       if(a.후속작업.length){const follow=el('ul');for(const m of a.후속작업)follow.append(el('li',`${m.부서명} · ${m.제목} · ${m.담당자명}`));card.append(el('p',`영향받는 미완료 후속 작업 ${a.후속작업.length}건`,'plan-state'),follow);}list.append(card);
     }box.append(list);return box;
   }
-  return {render};
+  return {render,reset(){filter={부서ID:null,담당자ID:null,지연만:false,검색:null};}};
 }

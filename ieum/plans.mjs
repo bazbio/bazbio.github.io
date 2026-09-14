@@ -1,3 +1,4 @@
+import { errorMessage } from './messages.mjs';
 // 계획 화면은 공통 명령 전송기를 사용하여 응답 유실·개정 충돌 처리를 공유한다.
 export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,handleError}) {
   function field(form,label,type='text',value='',required=true){
@@ -18,7 +19,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
   async function run(form,request,success='처리가 반영되었습니다. 다음 차례를 확인하세요.'){
     const err=form.querySelector('[role=alert]');
     try{err.textContent='';const result=await send(request);if(result){await refresh(request.업무ID);message(success);}else err.textContent='기존 요청의 처리 결과를 먼저 확인해 주세요.';}
-    catch(e){err.textContent=e.message;if(e.status===409)message('새로고침으로 최신 내용을 확인해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}
+    catch(e){err.textContent=errorMessage(e);if(e.status===409)message('새로고침으로 최신 내용을 확인해 주세요. 작성한 내용은 유지됩니다.',true);if(e.status===401)handleError(e);}
   }
   function departments(select,data){select.append(new Option('부서를 선택하세요',''),...getInfo().부서.filter(d=>!data.부서업무.some(b=>b.부서ID===d.ID)).map(d=>new Option(d.이름,d.ID)));}
   function milestoneView(plan){
@@ -61,7 +62,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
   async function action(data,a){
     if(a.종류==='통합제출')return el('p','부서별 승인 계획이 준비되었습니다. 통합 계획 제출과 대표 승인 기능은 다음 개발 단계에서 연결됩니다. 아직 업무 착수 승인은 나지 않았습니다.','hint');
     const form=el('form');form.className='plan-form';
-    const b=data.부서업무.find(x=>x.ID===a.부서업무ID);
+    const b=data.부서업무.find(x=>x.ID===a.부서업무ID);if(!b)return el('p','처리할 부서 정보를 찾지 못했습니다. 새로고침해 주세요.','error');
     if(a.종류==='협업후속판단'){
       const choice=field(form,'협업 후속 결정','select');choice.append(new Option('같은 부서에 재요청','재요청'),new Option('다른 부서에 요청','다른부서'),new Option('범위 제외 제안','제외제안'));
       const target=field(form,'대체 요청할 부서','select');departments(target,data);target.disabled=true;target.parentElement.hidden=true;
@@ -69,7 +70,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
       const reason=field(form,'후속 결정 사유','textarea');errorBox(form);submit(form,'후속 결정 반영','followup');
       form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'협업후속판단',{결정:choice.value,사유:reason.value,수신부서ID:choice.value==='다른부서'?target.value:null},a));});
     }else if(a.종류==='부서승인'){
-      const plan=b.계획.find(p=>p.ID===a.계획ID);form.append(el('p',`승인 대상: ${b.부서명} 계획 v${plan.버전}`,'hint'));
+      const plan=b.계획.find(p=>p.ID===a.계획ID);if(!plan)return el('p','승인 대상 계획을 찾지 못했습니다. 새로고침해 주세요.','error');form.append(el('p',`승인 대상: ${b.부서명} 계획 v${plan.버전}`,'hint'));
       const note=field(form,'계획 검토 의견','textarea','',false);errorBox(form);const buttons=el('div',null,'actions');form.append(buttons);submit(buttons,'부서 계획 승인','부서계획승인');submit(buttons,'계획 보완 요청','부서계획보완','secondary');
       form.addEventListener('submit',e=>{e.preventDefault();if(isBusy())return;const kind=e.submitter.value;
         if(kind==='부서계획보완'&&!note.value.trim()){form.querySelector('[role=alert]').textContent='보완이 필요한 내용을 적어 주세요.';note.focus();return;}

@@ -63,7 +63,7 @@ export function layoutFlowMap(model){
       const parents=model.edges.filter(e=>e.to===id).map(e=>e.from);
       if(parents.every(p=>columns.has(p))){columns.set(id,parents.length?1+Math.max(...parents.map(p=>columns.get(p))):0);remaining.delete(id);changed=true;}
     }
-    if(!changed){for(const id of remaining)columns.set(id,columns.size);break;}
+    if(!changed){const fallback=Math.max(-1,...columns.values())+1;for(const id of remaining)columns.set(id,fallback);break;}
   }
   const groups=new Map();for(const n of model.nodes){const col=columns.get(n.id);if(!groups.has(col))groups.set(col,[]);groups.get(col).push(n);}
   const maxRows=Math.max(1,...[...groups.values()].map(x=>x.length)),height=maxRows*154+48;
@@ -74,6 +74,7 @@ export function layoutFlowMap(model){
 export function createFlowMap({el,button}){
   function overview(data){
     let expanded=false,zoom=1,selected=null,model,layout;
+    const host=el('div',null,'flow-map-host'),dialog=el('dialog',null,'flow-dialog');dialog.setAttribute('aria-label','전체 업무 흐름 맵 크게 보기');
     const box=el('section',null,'detail-card flow-map');box.setAttribute('aria-label','전체 업무 흐름 맵');
     const heading=el('div',null,'flow-heading');heading.append(el('h3','전체 업무 흐름 맵'),el('span',data.단계,'badge'));
     const helper=el('p','화살표는 업무 연결 순서입니다. 현재 차례를 누르면 담당자와 기한을 확인할 수 있습니다.','hint');
@@ -86,12 +87,16 @@ export function createFlowMap({el,button}){
     const expand=button('마일스톤 펼치기','secondary',()=>{expanded=!expanded;expand.textContent=expanded?'마일스톤 접기':'마일스톤 펼치기';expand.setAttribute('aria-pressed',String(expanded));render();});expand.setAttribute('aria-pressed','false');
     function focusNode(id){const node=[...canvas.querySelectorAll('.flow-node')].find(n=>n.dataset.nodeId===id);node?.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});node?.focus({preventScroll:true});select(id);}
     const current=button('현재 차례로','primary',()=>{const active=model.nodes.filter(n=>['late','current'].includes(n.status));const next=active[(active.findIndex(n=>n.id===selected)+1)%active.length];if(next)focusNode(next.id);});
-    const fullscreen=button('크게 보기','secondary',()=>{box.classList.toggle('flow-fullscreen');fullscreen.textContent=box.classList.contains('flow-fullscreen')?'크게 보기 닫기':'크게 보기';fullscreen.setAttribute('aria-pressed',String(box.classList.contains('flow-fullscreen')));requestAnimationFrame(()=>{const p=layout.positions.get(selected);if(p)viewport.scrollTo({left:Math.max(0,(p.x+p.width/2)*zoom-viewport.clientWidth/2),top:Math.max(0,p.y*zoom-40)});});});fullscreen.setAttribute('aria-pressed','false');
-    box.addEventListener('keydown',e=>{if(e.key==='Escape'&&box.classList.contains('flow-fullscreen')){box.classList.remove('flow-fullscreen');fullscreen.textContent='크게 보기';fullscreen.setAttribute('aria-pressed','false');fullscreen.focus();}});
+    function centerSelected(){const p=layout.positions.get(selected);if(p)viewport.scrollTo({left:Math.max(0,(p.x+p.width/2)*zoom-viewport.clientWidth/2),top:Math.max(0,p.y*zoom-40),behavior:'instant'});}
+    function closeMap(restoreFocus=true){dialog.close();host.prepend(box);box.classList.remove('flow-fullscreen');fullscreen.textContent='크게 보기';fullscreen.setAttribute('aria-expanded','false');if(restoreFocus)fullscreen.focus({preventScroll:true});}
+    const fullscreen=button('크게 보기','secondary',()=>{if(dialog.open){closeMap();return;}dialog.append(box);box.classList.add('flow-fullscreen');fullscreen.textContent='크게 보기 닫기';fullscreen.setAttribute('aria-expanded','true');dialog.showModal();fullscreen.focus({preventScroll:true});dialog.scrollTop=0;requestAnimationFrame(centerSelected);});fullscreen.setAttribute('aria-expanded','false');
+    dialog.addEventListener('keydown',e=>{if(e.key!=='Tab')return;const items=[...dialog.querySelectorAll('button:not(:disabled),[tabindex="0"]')].filter(n=>n.getClientRects().length);const first=items[0],last=items.at(-1);if((e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus();}});
+    dialog.addEventListener('cancel',e=>{e.preventDefault();closeMap();});
+    dialog.addEventListener('close',()=>{if(!dialog.open&&box.parentElement===dialog)closeMap(false);});
     tools.append(current,expand,button('−','secondary',()=>scale(zoom-.15)),zoomLabel,button('＋','secondary',()=>scale(zoom+.15)),button('전체 맞춤','secondary',()=>{scale((viewport.clientWidth-16)/layout.width);viewport.scrollTo(0,0);}),fullscreen);
     tools.children[2].setAttribute('aria-label','맵 축소');tools.children[4].setAttribute('aria-label','맵 확대');
     const legend=el('div',null,'flow-legend');for(const [state,label]of Object.entries(labels)){const item=el('span',label,`flow-key ${state}`);legend.append(item);}
-    function jump(a){const target=document.getElementById(`action-${a.행동ID}`);if(target){box.classList.remove('flow-fullscreen');fullscreen.textContent='크게 보기';fullscreen.setAttribute('aria-pressed','false');target.tabIndex=-1;target.scrollIntoView({block:'start',behavior:'smooth'});target.focus({preventScroll:true});}}
+    function jump(a){const target=document.getElementById(`action-${a.행동ID}`);if(target){if(dialog.open)closeMap(false);target.tabIndex=-1;target.scrollIntoView({block:'start',behavior:'smooth'});target.focus({preventScroll:true});}}
     function select(id){
       selected=id;const n=model.nodes.find(n=>n.id===id);if(!n)return;
       for(const b of canvas.querySelectorAll('.flow-node'))b.setAttribute('aria-pressed',String(b.dataset.nodeId===id));
@@ -116,7 +121,7 @@ export function createFlowMap({el,button}){
       scale(zoom);select(model.nodes.some(n=>n.id===selected)?selected:model.nodes.find(n=>n.status==='late')?.id||model.nodes.find(n=>n.status==='current')?.id||(model.closed?'close':'request'));
     }
     box.append(heading,helper,summary,tools,legend,viewport,inspector,el('p','부서 노드의 완료는 부서 계획 승인을 뜻합니다. 행동 기한 초과와 마일스톤 일정 초과를 구분하며, 새로고침 시 최신 상태를 반영합니다.','hint'));
-    render();requestAnimationFrame(()=>{if(box.isConnected&&viewport.clientWidth>600)scale(Math.max(.65,(viewport.clientWidth-16)/layout.width));});return box;
+    host.append(box,dialog);render();requestAnimationFrame(()=>{if(!box.isConnected)return;if(viewport.clientWidth>600)scale(Math.max(.65,(viewport.clientWidth-16)/layout.width));centerSelected();});return host;
   }
   return {overview};
 }
