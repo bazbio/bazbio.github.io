@@ -6,6 +6,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>책상 · BAZ</title>
+<!-- ▼ PWA (Pages_생성.js가 넣는다 — gas/웹앱.html에는 없다) -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="책상">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- ▲ PWA -->
+
 <meta name="theme-color" content="#4263eb">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234263eb'/%3E%3Ctext x='32' y='43' font-family='Malgun Gothic, Apple SD Gothic Neo, sans-serif' font-size='30' font-weight='800' fill='white' text-anchor='middle'%3E책%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -1999,5 +2008,11 @@ function 초기불러오기() {
 document.getElementById('다시불러오기').addEventListener('click', 초기불러오기);
 초기불러오기();
 </script>
+
+<!-- ▼ 서비스워커 (Pages_생성.js) — 데이터는 캐시하지 않는다. 홈 화면 설치 요건만 채운다 -->
+<script>
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(function () {}); }
+</script>
+<!-- ▲ 서비스워커 -->
 </body>
 </html>
