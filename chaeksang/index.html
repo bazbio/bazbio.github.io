@@ -1292,16 +1292,31 @@ function 일정칸그리기(d, 날글, 다른달, 그날) {
   칸.dataset.date = 날글;
   칸.appendChild(요소('span', 'cal-daynum', String(d.getDate())));
 
-  그날.slice(0, 3).forEach(function (item) {
+  function 칩만들기(item) {
     var 칩 = 요소('button', 'cal-chip', (item.시작시각 ? item.시작시각 + ' ' : '') + item.제목);
     칩.type = 'button';
     칩.addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(item); });
-    칸.appendChild(칩);
-  });
+    return 칩;
+  }
+
+  그날.slice(0, 3).forEach(function (item) { 칸.appendChild(칩만들기(item)); });
+
   if (그날.length > 3) {
-    var 더보기 = 요소('button', 'cal-more', '+' + (그날.length - 3) + '건 더');
+    var 숨은 = 그날.slice(3);
+    var 펼침 = false;
+    var 더보기 = 요소('button', 'cal-more', '+' + 숨은.length + '건 더');
     더보기.type = 'button';
-    더보기.addEventListener('click', function (e) { e.stopPropagation(); 일정모달열기(그날[3]); });
+    더보기.addEventListener('click', function (e) {
+      e.stopPropagation();
+      펼침 = !펼침;
+      if (펼침) {
+        숨은.forEach(function (item) { 칸.insertBefore(칩만들기(item), 더보기); });
+        더보기.textContent = '접기';
+      } else {
+        칸.querySelectorAll('.cal-chip').forEach(function (el, idx) { if (idx >= 3) el.remove(); });
+        더보기.textContent = '+' + 숨은.length + '건 더';
+      }
+    });
     칸.appendChild(더보기);
   }
   칸.addEventListener('click', function () { 일정모달열기(null, 날글); });
