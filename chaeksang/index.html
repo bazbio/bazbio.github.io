@@ -432,6 +432,23 @@
   .field .hint { font-size: 12px; color: var(--ink-45); margin-top: 5px; word-break: keep-all; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+  /* ── 잠금 (PIN 관문, 2026-09-18) ──────────────────────────
+     토큰이 없으면 이 화면만 보인다. 뒤에 아무것도 안 그려 두는 게 중요하다 —
+     화면이 먼저 그려지고 가리는 방식이면 데이터가 이미 브라우저에 와 있다는 뜻이다. */
+  .lock { max-width: 340px; margin: 64px auto 0; text-align: center; }
+  .lock .card { padding: 28px 22px; }
+  .lock h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 6px; }
+  .lock .sub { font-size: 13px; color: var(--ink-45); margin-bottom: 20px; word-break: keep-all; }
+  .lock input {
+    width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md);
+    background: var(--canvas); min-height: 46px; text-align: center;
+    font-size: 19px; font-weight: 700; letter-spacing: 0.2em;
+    transition: border-color .16s var(--ease);
+  }
+  .lock input:focus { border-color: var(--accent); outline: none; }
+  .lock .btn { width: 100%; margin-top: 10px; }
+  .lock .msg { margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--late); min-height: 19px; word-break: keep-all; }
+
   /* ── 상태 ────────────────────────────────────────────────── */
   .loading, .error { padding: 56px 24px; text-align: center; color: var(--ink-45); font-size: 14px; }
   .error b { display: block; color: var(--late); font-weight: 700; margin-bottom: 6px; }
@@ -465,16 +482,28 @@
 </head>
 <body>
 
-<div class="bar">
+<div class="bar hidden" id="상단바">
   <span class="brand">책상</span>
   <span class="today tnum" id="오늘표시"></span>
   <span class="spacer"></span>
+  <button class="btn ghost sm" id="잠그기" title="이 기기에서 로그아웃합니다">잠그기</button>
   <button class="btn inbox-btn" id="받은함열기">받은함<span class="count hidden" id="받은함수">0</span></button>
   <button class="btn primary" id="새로추가">+ 새 할 일</button>
 </div>
 
 <main>
-  <div id="로딩" class="loading"><div class="spin"></div><span id="로딩문">불러오는 중</span></div>
+  <!-- 잠금 화면 — 토큰이 없거나 죽었을 때 여기만 보인다 (PIN 관문, 2026-09-18) -->
+  <div id="잠금" class="lock hidden">
+    <div class="card">
+      <h2>책상</h2>
+      <p class="sub">유영환 개인 업무 보드입니다.<br>PIN을 넣어야 열립니다.</p>
+      <input id="핀칸" type="password" inputmode="numeric" autocomplete="current-password" maxlength="24" placeholder="PIN" aria-label="PIN">
+      <button class="btn primary" id="열기">열기</button>
+      <p class="msg" id="잠금문"></p>
+    </div>
+  </div>
+
+  <div id="로딩" class="loading hidden"><div class="spin"></div><span id="로딩문">불러오는 중</span></div>
   <div id="오류" class="error hidden"><b>불러오지 못했습니다</b><p id="오류문"></p><button class="btn ghost" id="다시불러오기">다시 불러오기</button></div>
 
   <div id="본문" class="hidden">
@@ -545,7 +574,7 @@
           <button class="btn ghost sm" id="일정이번달">이번 달</button>
           <button class="btn ghost sm" id="일정추가">+ 일정 추가</button>
         </div>
-        <p class="ssub">날짜·시각에 묶인 회의·방문. 할 일과 따로 관리합니다 — 칸을 누르면 그 날짜로 바로 추가됩니다.</p>
+        <p class="ssub">날짜·시각에 묶인 회의·방문. 할 일과 따로 관리합니다 — 일정이 있는 칸을 누르면 그 날의 목록이, 빈 칸을 누르면 추가 폼이 뜹니다.</p>
         <div class="card">
           <div class="cal-head">
             <button class="cal-nav" id="일정이전달" aria-label="이전 달">‹</button>
@@ -709,6 +738,21 @@
   </div>
 </div>
 
+<!-- 그 날의 일정 목록 — 달력 칸의 칩이 폰에서는 너무 작아 눈으로도 손가락으로도 정확히
+     짚기 어려워서 뒀다(2026-09-16). 칸을 누르면 이 목록이 뜨고, 줄을 누르면 기존
+     일정모달(수정)로 이어진다 — 칩 자체는 그대로 둔다(데스크톱에서는 이미 잘 읽힌다). -->
+<div class="modal-wrap hidden" id="일정날짜모달틀">
+  <div class="modal" style="width:min(420px,100%)" id="일정날짜모달">
+    <header><h3 id="일정날짜모달제목"></h3></header>
+    <div class="body" id="일정날짜모달목록"></div>
+    <footer>
+      <button class="btn ghost" id="일정날짜모달닫기">닫기</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="일정날짜모달추가">+ 일정 추가</button>
+    </footer>
+  </div>
+</div>
+
 <div class="toast" id="토스트"></div>
 
 <script>
@@ -729,11 +773,51 @@ function 통로_() {
   return (typeof google !== 'undefined' && google.script && google.script.run) ? 'gsrun' : 'fetch';
 }
 
+/* ── 토큰 (PIN 관문, 2026-09-18) ──────────────────────────────
+ * 서버의 모든 웹_ 함수가 첫 인자로 토큰을 본다. 부르는 자리를 17군데 고치는 대신
+ * 여기 한 곳에서 싣는다 — 새 호출을 추가하는 사람이 토큰을 잊어도 자동으로 붙는다.
+ * localStorage가 막힌 브라우저(사생활 보호 모드·file://)에서도 그 세션 동안은
+ * 쓸 수 있게 메모리에도 들고 있는다. */
+var TOKEN_KEY = 'baz_chaeksang_token';
+var 토큰메모리 = '';
+function 토큰_() {
+  if (토큰메모리) return 토큰메모리;
+  try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+}
+function 토큰저장_(t) {
+  토큰메모리 = t || '';
+  try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+}
+
+function 보임_(id, 보이나) {
+  var el = document.getElementById(id);
+  if (el) el.classList[보이나 ? 'remove' : 'add']('hidden');
+}
+
+/** 잠금 화면으로 되돌린다. 본문·상단바를 같이 감춘다 — 뒤에 남아 있으면 가려 둔 것뿐이다. */
+function 잠금보이기(말) {
+  보임_('본문', false); 보임_('상단바', false); 보임_('로딩', false); 보임_('오류', false);
+  보임_('잠금', true);
+  var 문 = document.getElementById('잠금문');
+  if (문) 문.textContent = 말 || '';
+  var 칸 = document.getElementById('핀칸');
+  if (칸) { 칸.value = ''; if (typeof 칸.focus === 'function') 칸.focus(); }
+}
+
 function 서버(이름) {
   var 인자 = Array.prototype.slice.call(arguments, 1);
-  if (통로_() !== 'gsrun') return 서버_fetch(이름, 인자);
-  return new Promise(function (성공, 실패) {
+  if (이름.indexOf('웹_') === 0 && 이름 !== '웹_로그인') 인자 = [토큰_()].concat(인자);
+  var 약속 = (통로_() !== 'gsrun') ? 서버_fetch(이름, 인자) : new Promise(function (성공, 실패) {
     google.script.run.withSuccessHandler(성공).withFailureHandler(실패)[이름].apply(null, 인자);
+  });
+  /* 자격이 죽으면(90일 만료·PIN 변경) 어느 호출에서 터지든 잠금 화면으로 돌아간다.
+     서버가 'AUTH:'를 붙여 보내는 것이 그 신호다 — 사람에게는 접두어를 떼고 보여 준다. */
+  return 약속.catch(function (e) {
+    var 말 = (e && e.message) || String(e);
+    if (말.indexOf('AUTH:') !== 0) throw e;
+    토큰저장_('');
+    잠금보이기(말.slice(5));
+    throw new Error(말.slice(5));
   });
 }
 
@@ -781,6 +865,7 @@ var 일정편집중 = null;      // null이면 새로 추가
 var 펼친것 = {};            // { [업무id]: true } — 다시 그려도 펼침 상태를 기억한다
 var 현재탭 = '오늘';        // '오늘' | '할일' | '일정'
 var 일정달력월 = null;      // { 해, 달 } — null이면 첫 그리기 때 상태.오늘 소속 달로 채운다
+var 일정날짜모달날짜 = null; // 일정날짜모달이 열려 있는 동안 그 날짜('YYYY-MM-DD')를 들고 있는다
 
 // ── 날짜 (전부 'YYYY-MM-DD' 문자열로 다룬다) ─────────────────
 function 파싱(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -1260,8 +1345,11 @@ function 오버레이클릭_(날짜) {
 /**
  * 일정 탭의 달력 — 6주 창(간트 범위)이 아니라 전체 일정을 대상으로 아무 달이나 넘겨볼 수
  * 있다(사용자 결정). 서버는 이미 전체를 다 내려주므로(웹_초기데이터) 여기서는 걸러 쓰기만
- * 한다 — 백엔드 변경 없음. 칸을 누르면 그 날짜로 채운 채 추가 모달이 뜨고, 칩을 누르면
- * 그 일정의 수정 모달이 뜬다.
+ * 한다 — 백엔드 변경 없음. 빈 칸을 누르면 그 날짜로 채운 채 추가 모달이 뜨고, 일정이 있는
+ * 칸을 누르면 그 날의 목록(일정날짜모달)이 뜬다. 칩을 직접 누르면 목록을 건너뛰고 바로
+ * 그 일정의 수정 모달이 뜬다(칩은 데스크톱처럼 화면이 넓을 때 지름길로 남겨 둔다) —
+ * 다만 폰에서는 칩이 35×18px로 작아 정확히 짚기 어려우니(2026-09-16) 칸 전체를 누르는
+ * 쪽이 더 믿을 만하다.
  */
 function 달력그리기() {
   if (!일정달력월) 일정달력월 = 이번달_();
@@ -1328,8 +1416,46 @@ function 일정칸그리기(d, 날글, 다른달, 그날) {
     });
     칸.appendChild(더보기);
   }
-  칸.addEventListener('click', function () { 일정모달열기(null, 날글); });
+  칸.addEventListener('click', function () {
+    if (그날.length > 0) 일정날짜모달열기(날글, 그날);
+    else 일정모달열기(null, 날글);
+  });
   return 칸;
+}
+
+/** 그 날의 일정 목록 모달. 칩이 폰에서 너무 작아(35×18px) 정확히 짚기 어려운 문제를
+ * 우회한다 — 칸 전체가 누르는 자리가 되므로 실수로 못 짚을 일이 없다. 줄을 누르면
+ * 기존 일정모달(수정)로 넘어간다. */
+function 일정날짜모달열기(날짜, 항목들) {
+  일정날짜모달날짜 = 날짜;
+  var d = 파싱(날짜);
+  var 요일 = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  document.getElementById('일정날짜모달제목').textContent =
+    (d.getMonth() + 1) + '월 ' + d.getDate() + '일(' + 요일 + ') · ' + 항목들.length + '건';
+
+  var 목록 = document.getElementById('일정날짜모달목록');
+  목록.innerHTML = '';
+  var 슬롯 = 요소('div', 'tl-slot');
+  항목들.forEach(function (i) {
+    var 단추 = 요소('button', 'tl-ev');
+    if (i.시작시각) 단추.appendChild(요소('span', 't tnum', i.시작시각));
+    단추.appendChild(요소('span', 'n', i.제목));
+    if (i.장소) 단추.appendChild(요소('span', 'p', i.장소));
+    단추.addEventListener('click', function () { 일정날짜모달닫기(); 일정모달열기(i); });
+    슬롯.appendChild(단추);
+  });
+  목록.appendChild(슬롯);
+
+  document.getElementById('일정날짜모달틀').classList.remove('hidden');
+  document.getElementById('스크림').classList.add('on');
+  requestAnimationFrame(function () { document.getElementById('일정날짜모달').classList.add('on'); });
+}
+
+function 일정날짜모달닫기() {
+  document.getElementById('일정날짜모달').classList.remove('on');
+  document.getElementById('스크림').classList.remove('on');
+  setTimeout(function () { document.getElementById('일정날짜모달틀').classList.add('hidden'); }, 200);
+  일정날짜모달날짜 = null;
 }
 
 /** 대기 항목이 하나도 없으면 섹션째 접는다 — 빈 상태 안내문 대신 그 자리를 간트에 돌려준다
@@ -1982,8 +2108,14 @@ document.getElementById('일정모달취소').addEventListener('click', 일정�
 document.getElementById('일정모달저장').addEventListener('click', 일정모달저장);
 document.getElementById('일정모달삭제').addEventListener('click', 일정모달삭제);
 document.getElementById('if시작시각').addEventListener('change', function () { this.value = 시각10분_(this.value); });
-document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); });
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 받은함닫기(); } });
+document.getElementById('일정날짜모달닫기').addEventListener('click', 일정날짜모달닫기);
+document.getElementById('일정날짜모달추가').addEventListener('click', function () {
+  var 날짜 = 일정날짜모달날짜;
+  일정날짜모달닫기();
+  일정모달열기(null, 날짜);
+});
+document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 일정날짜모달닫기(); 받은함닫기(); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 일정날짜모달닫기(); 받은함닫기(); } });
 
 function 초기불러오기() {
   document.getElementById('오류').classList.add('hidden');
@@ -1997,16 +2129,50 @@ function 초기불러오기() {
     상태 = d;
     document.getElementById('로딩').classList.add('hidden');
     document.getElementById('본문').classList.remove('hidden');
+    보임_('상단바', true);
     그리기();
   }).catch(function (e) {
     clearTimeout(안내타이머);
     document.getElementById('로딩').classList.add('hidden');
+    // 자격이 죽어 서버()가 이미 잠금 화면을 띄운 경우다 — 그 위에 오류판을 덮지 않는다
+    if (!document.getElementById('잠금').classList.contains('hidden')) return;
     document.getElementById('오류').classList.remove('hidden');
     document.getElementById('오류문').textContent = e && e.message ? e.message : String(e);
   });
 }
 document.getElementById('다시불러오기').addEventListener('click', 초기불러오기);
-초기불러오기();
+
+// ── 잠금 (PIN 관문, 2026-09-18) ─────────────────────────────
+function 로그인시도() {
+  var 칸 = document.getElementById('핀칸');
+  var 문 = document.getElementById('잠금문');
+  var 단추 = document.getElementById('열기');
+  var pin = (칸.value || '').trim();
+  if (!pin) { 문.textContent = 'PIN을 넣어 주세요.'; return; }
+  단추.disabled = true;
+  문.textContent = '확인하는 중…';
+  서버('웹_로그인', pin).then(function (r) {
+    토큰저장_(r && r.token);
+    칸.value = '';
+    문.textContent = '';
+    보임_('잠금', false);
+    초기불러오기();
+  }).catch(function (e) {
+    문.textContent = (e && e.message) || '열지 못했습니다.';
+  }).then(function () { 단추.disabled = false; });
+}
+document.getElementById('열기').addEventListener('click', 로그인시도);
+document.getElementById('핀칸').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); 로그인시도(); }
+});
+document.getElementById('잠그기').addEventListener('click', function () {
+  토큰저장_('');
+  잠금보이기('잠갔습니다.');
+});
+
+/* 부팅 — 토큰이 없으면 서버를 한 번도 부르지 않는다. */
+if (토큰_()) 초기불러오기();
+else 잠금보이기('');
 </script>
 
 <!-- ▼ 서비스워커 (Pages_생성.js) — 데이터는 캐시하지 않는다. 홈 화면 설치 요건만 채운다 -->
