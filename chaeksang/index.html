@@ -58,6 +58,7 @@
   }
   .bar .brand { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
   .bar .today { font-size: 13px; color: var(--ink-45); }
+  .bar .who { font-size: 13px; font-weight: 600; color: var(--ink-45); white-space: nowrap; }
   .bar .spacer { margin-left: auto; }
   .btn {
     border: none; border-radius: var(--r-md); padding: 9px 14px;
@@ -486,6 +487,7 @@
   <span class="brand">책상</span>
   <span class="today tnum" id="오늘표시"></span>
   <span class="spacer"></span>
+  <span class="who" id="계정이름"></span>
   <button class="btn ghost sm" id="잠그기" title="이 기기에서 로그아웃합니다">잠그기</button>
   <button class="btn inbox-btn" id="받은함열기">받은함<span class="count hidden" id="받은함수">0</span></button>
   <button class="btn primary" id="새로추가">+ 새 할 일</button>
@@ -496,7 +498,7 @@
   <div id="잠금" class="lock hidden">
     <div class="card">
       <h2>책상</h2>
-      <p class="sub">유영환 개인 업무 보드입니다.<br>PIN을 넣어야 열립니다.</p>
+      <p class="sub">개인 업무 보드입니다.<br>내 PIN을 넣으면 내 보드가 열립니다.</p>
       <input id="핀칸" type="password" inputmode="numeric" autocomplete="current-password" maxlength="24" placeholder="PIN" aria-label="PIN">
       <button class="btn primary" id="열기">열기</button>
       <p class="msg" id="잠금문"></p>
@@ -1847,7 +1849,8 @@ function 연동줄그리기(h) {
   document.getElementById('모달저장').classList.toggle('hidden', 거울);
   document.getElementById('모달삭제').classList.toggle('hidden', !h || !!(h && h.브리지id));
 
-  if (!h) {
+  // 브리지 연동은 주인 보드에만 붙는다 (ADR 0007) — 다른 사람에겐 버튼도 없다
+  if (!h || !주인인가_()) {
     줄.classList.add('hidden');
     연동버튼.classList.add('hidden');
     return;
@@ -2129,6 +2132,7 @@ function 초기불러오기() {
     상태 = d;
     document.getElementById('로딩').classList.add('hidden');
     document.getElementById('본문').classList.remove('hidden');
+    계정반영_();
     보임_('상단바', true);
     그리기();
   }).catch(function (e) {
@@ -2139,6 +2143,16 @@ function 초기불러오기() {
     document.getElementById('오류').classList.remove('hidden');
     document.getElementById('오류문').textContent = e && e.message ? e.message : String(e);
   });
+}
+
+/* 여러 사람 (ADR 0007). 서버가 계정을 안 싣고 오면(옛 서버) 주인으로 본다 —
+   계정이 하나뿐이던 때와 똑같이 그려지게. */
+function 주인인가_() { return !상태.계정 || !!상태.계정.주인; }
+
+/** 상단바에 누구 보드인지 띄우고, 주인 것(받은함)은 주인에게만 보인다. */
+function 계정반영_() {
+  document.getElementById('계정이름').textContent = 상태.계정 ? 상태.계정.이름 : '';
+  보임_('받은함열기', 주인인가_());
 }
 document.getElementById('다시불러오기').addEventListener('click', 초기불러오기);
 
