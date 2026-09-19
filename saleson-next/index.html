@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -298,6 +298,22 @@
   .evt-sum .pill.blue { background:#e8f3ff; color:#1b64da; }
   .evt-sum .pill.green { background:#e5f7ef; color:#05754a; }
   .evt-sum .pill.amber { background:#fff4e0; color:#a35c11; }
+  .evt-sum .pill.red { background:#ffeaec; color:#d0223a; }
+  /* 참석 확인 칸 (D-7·D-3·D-1) — 오늘이 그 확인일이면 머리와 칸 전체가 노란빛으로 뜬다 */
+  .dt th.ac { min-width:64px; line-height:1.25; }
+  .dt th.ac .acd { font-size:10.5px; font-weight:500; color:#6b7684; margin-top:1px; }
+  .dt th.ac-today { background:#fff0d1; color:#8a4b00; box-shadow:inset 0 -2px 0 #f5a524; }
+  .dt th.ac-today .acd { color:#a35c11; font-weight:700; }
+  .dt td.ac-today { background:#fff8e8; }
+  .acb { display:inline-block; font:inherit; font-size:11.5px; font-weight:600; padding:4px 9px; border-radius:999px;
+         border:1px solid #d1d6db; background:#fff; color:#4e5968; line-height:1.3; white-space:nowrap; }
+  button.acb { cursor:pointer; }
+  .acb.on { background:#e5f7ef; border-color:#b8e6cf; color:#05754a; }
+  .acb.now { background:#ffb020; border-color:#ffb020; color:#4a2c00; font-weight:700; }
+  .acb.late { background:#fff5f6; border-color:#f3b4bc; color:#d0223a; }
+  .acb.ro { cursor:default; }
+  .acs { font-size:10.5px; color:#6b7684; margin-top:3px; white-space:nowrap; }
+  .acn { color:#b0b8c1; }
 
   /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
   @media (max-width: 899px) {
@@ -1305,7 +1321,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609121254-cb74963';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609192336-58be976';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2993,6 +3009,85 @@ function tgtOptions(cur) {
   }
   return opts;
 }
+/* ── 참석 확인 (2026-09-19) ── 행사 1주 전·3일 전·1일 전에 담당자가 원장님께 참석 여부를 확인하고 체크한다.
+   판정은 서버 `_공유/행사알림.mjs`의 `칸상태_`와 **같은 규칙**이다 — 단일 HTML이라 import를 못 해서
+   한 벌 더 있고, `test/evtattend.test.mjs`가 두 벌을 대조한다.
+   ⚠ 원천이 DB일 때만 연다(`DATA.dbSrc`) — 체크 저장이 관문 `saleson-lead-act`에만 있다. */
+var ATT_PTS = [7, 3, 1];
+var ATT_NAME = { 7: '1주 전', 3: '3일 전', 1: '1일 전' };
+function 날수_(ymd) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''));
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN;
+}
+/** '오늘' 오늘이 그 확인일 · '지남' 확인일이 지났고 행사 전 · '앞' 아직 · '끝' 행사가 끝남 */
+function 확인시점상태_(evDate, today, n) {
+  var 남음 = Math.round((날수_(evDate) - 날수_(today)) / 86400000);
+  if (isNaN(남음)) return '앞';
+  if (남음 < 0) return '끝';
+  if (남음 === n) return '오늘';
+  return 남음 < n ? '지남' : '앞';
+}
+function 확인일표시_(evDate, n) {
+  var ms = 날수_(evDate) - n * 86400000;
+  if (isNaN(ms)) return '';
+  var d = new Date(ms);
+  return ('0' + (d.getUTCMonth() + 1)).slice(-2) + '/' + ('0' + d.getUTCDate()).slice(-2);
+}
+/* 카드 머리의 한 알약 — 지금 챙길 시점의 확인 현황. 행사가 끝났거나 첫 시점 전이면 안 그린다 */
+function 참석요약_(ev) {
+  if (!ev.date || !ev.cnt) return '';
+  var 지금 = 0;
+  ATT_PTS.forEach(function(n) {
+    var s = 확인시점상태_(ev.date, DATA.today, n);
+    if (s === '오늘' || s === '지남') 지금 = n;
+  });
+  if (!지금) return '';
+  var 한 = ev.leads.filter(function(l) { return l.chk && l.chk[지금]; }).length;
+  var 오늘 = 확인시점상태_(ev.date, DATA.today, 지금) === '오늘';
+  var 색 = 한 === ev.cnt ? ' green' : (오늘 ? ' amber' : ' red');
+  return '<span class="pill' + 색 + '">' + ATT_NAME[지금] + ' 참석 확인 <b>' + 한 + '</b>/' + ev.cnt + '</span>';
+}
+function 참석칸_(l, n, 상태, 내것) {
+  var c = (l.chk && l.chk[n]) || null;
+  var 누름 = ' onclick="evtAttend(' + l.k + ',' + n + ')"';
+  var 안;
+  if (c) {
+    var 표시 = String(c.at || '').slice(5).replace('-', '/') + (c.by && c.by !== l.rep ? ' ' + c.by : '');
+    안 = (내것 && 상태 !== '끝'
+        ? '<button class="acb on" title="누르면 확인 표시를 지웁니다"' + 누름 + '>✓ 확인</button>'
+        : '<span class="acb on ro">✓ 확인</span>')
+      + '<div class="acs">' + esc(표시) + '</div>';
+  } else if (상태 === '오늘' || 상태 === '지남') {
+    var 클래스 = 상태 === '오늘' ? 'now' : 'late';
+    안 = 내것
+      ? '<button class="acb ' + 클래스 + '"' + 누름 + '>' + (상태 === '오늘' ? '확인하기' : '확인 필요') + '</button>'
+      : '<span class="acb ' + 클래스 + ' ro">' + (상태 === '오늘' ? '오늘 확인' : '미확인') + '</span>';
+  } else {
+    안 = '<span class="acn">-</span>';
+  }
+  return '<td class="c ac' + (상태 === '오늘' ? ' ac-today' : '') + '">' + 안 + '</td>';
+}
+function evtAttend(k, n) {
+  var 대상 = null;
+  var 행사 = null;
+  ((EVT && EVT.events) || []).forEach(function(ev) {
+    (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; } });
+  });
+  var no = 키_(k).no;
+  if (!대상 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  var 켜기 = !(대상.chk && 대상.chk[n]);
+  if (!켜기 && !confirm('「' + 대상.hname + '」의 ' + ATT_NAME[n] + ' 참석 확인 표시를 지울까요?')) return;
+  busy(true, '저장 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '참석확인', no: no, cp: n, on: 켜기,
+    code: 행사.code, date: 행사.date }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false);
+      대상.chk = 대상.chk || {};
+      if (r.on && r.확인) 대상.chk[n] = r.확인; else delete 대상.chk[n];
+      renderEvt();
+      toast(r.on ? '「' + 대상.hname + '」 ' + ATT_NAME[n] + ' 참석 확인 체크했습니다' : '확인 표시를 지웠습니다');
+    }), function(e) { busy(false); toast(e.message, true); });
+}
 function renderEvt() {
   EVTSIM = [];   // 「이름만 다른 방문」 쌍 — [맞추기] 버튼이 번호로 집는다 (2026-08-16)
   var evs = ((EVT && EVT.events) || []).filter(function(ev) { return ev.group === EVTGRP; });
@@ -3002,6 +3097,8 @@ function renderEvt() {
     return;
   }
   var h = '';
+  // 참석 확인은 원천이 DB이고(저장 관문) 서버가 표를 갖고 있을 때만 — 마이그레이션 전에는 칸을 안 그린다
+  var ATTON = !!(DATA && DATA.dbSrc && EVT && EVT.attendOn);
   evs.forEach(function(ev) {
     var rate = ev.tgt ? Math.round(ev.ach / ev.tgt * 100) : null;
     h += '<div class="card">'
@@ -3020,6 +3117,7 @@ function renderEvt() {
           return '<span class="pill"' + (low ? ' style="background:#ffeaec;color:#d0223a;"' : '') + '>행사 후 방문 <b>'
             + ev.visited + '</b>/' + ev.cnt + (vr === null ? '' : ' (' + vr + '%)') + '</span>';
         })()
+      + (ATTON && ev.group !== '기타' ? 참석요약_(ev) : '')
       + '</div>'
       /* 수정은 여태 「＋ 행사 등록」 폼 안의 드롭다운에만 있었다 — 기능은 있는데 닿을 수가
          없어서 「수정 기능이 없다」는 피드백이 나왔다(8/4). 카드에서 바로 열어 준다.
@@ -3059,15 +3157,30 @@ function renderEvt() {
       /* ⚠ 7열짜리 표라 폰에서 화면을 넘는다 — 실측 375px 화면에 497px가 필요했다.
          컨테이너 없이 두면 **문서 전체가 옆으로 밀려** PC와 다른 화면이 된다.
          KPI 표(1500행 근처)가 쓰는 것과 같은 방식으로 이 표만 옆으로 밀리게 감싼다. */
+      /* 끝난 행사는 **기록이 있을 때만** 칸을 남긴다 — 체크한 적 없는 지난 행사에 「-」만 세 줄 늘어서면
+         표만 넓어진다 */
+      var 확인열 = ATTON && ev.group !== '기타' && !!ev.date
+        && (ATT_PTS.some(function(n) { return 확인시점상태_(ev.date, DATA.today, n) !== '끝'; })
+          || ev.leads.some(function(l) { return l.chk && Object.keys(l.chk).length; }));
+      var 칸수 = 6 + (확인열 ? 3 : 0) + (admin ? 1 : 0);
+      var 확인머리 = '';
+      if (확인열) {
+        ATT_PTS.forEach(function(n) {
+          var s = 확인시점상태_(ev.date, DATA.today, n);
+          확인머리 += '<th class="c ac' + (s === '오늘' ? ' ac-today' : '') + '">' + ATT_NAME[n]
+            + '<div class="acd">' + 확인일표시_(ev.date, n) + (s === '오늘' ? ' · 오늘' : '') + '</div></th>';
+        });
+      }
       h += '<div style="margin-top:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">'
-        + '<table class="dt" style="min-width:520px;"><thead><tr><th>병원 · 참석자</th><th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
+        + '<table class="dt" style="min-width:' + (확인열 ? 700 : 520) + 'px;"><thead><tr><th>병원 · 참석자</th>'
+        + 확인머리 + '<th class="c">담당</th><th class="c">단계</th><th>달성 목표</th><th class="c">행사 후 방문</th><th class="c">현황</th>'
         + (admin ? '<th></th>' : '') + '</tr></thead><tbody>';
       ev.leads.forEach(function(l) {
         if (admin && EVTEDIT === l.k) {
           var opts = '<option value="">— 미배정 —</option>' + (EVT.reps || []).map(function(n) {
             return '<option value="' + esc(n) + '"' + (n === l.rep ? ' selected' : '') + '>' + esc(n) + '</option>';
           }).join('');
-          h += '<tr><td colspan="7" style="background:#e8f3ff;border-radius:10px;">'
+          h += '<tr><td colspan="' + 칸수 + '" style="background:#e8f3ff;border-radius:10px;">'
             + '<div style="font-size:13px;font-weight:700;color:#1b64da;margin:4px 0 2px;">' + esc(l.hname) + ' 수정</div>'
             + '<div class="row2" style="margin-top:6px;">'
             + '<div><label class="f" style="margin:6px 2px 5px;">담당자</label><select id="eeRep">' + opts + '</select></div>'
@@ -3111,6 +3224,11 @@ function renderEvt() {
             + '</div>';
         }
         h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
+          /* 참석 확인은 병원 바로 옆이다 — 폰에서 표가 옆으로 밀려도 담당·단계보다 먼저 손이 닿는다 */
+          + (확인열 ? ATT_PTS.map(function(n) {
+              return 참석칸_(l, n, 확인시점상태_(ev.date, DATA.today, n),
+                !DATA.me.viewer && (admin || l.rep === DATA.me.name));
+            }).join('') : '')
           + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
           + '<td class="c">' + (l.stage === '계약' ? '<b class="blue">계약</b>' : esc(l.stage || '-')) + '</td>'
           + '<td style="font-size:12.5px;">' + (l.target ? esc(l.target) : '<span style="color:#6b7684;">-</span>')
