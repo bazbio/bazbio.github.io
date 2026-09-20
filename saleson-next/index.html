@@ -1321,7 +1321,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609192336-58be976';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609210630-7acd4e1';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3063,7 +3063,8 @@ function 참석칸_(l, n, 상태, 내것) {
       ? '<button class="acb ' + 클래스 + '"' + 누름 + '>' + (상태 === '오늘' ? '확인하기' : '확인 필요') + '</button>'
       : '<span class="acb ' + 클래스 + ' ro">' + (상태 === '오늘' ? '오늘 확인' : '미확인') + '</span>';
   } else {
-    안 = '<span class="acn">-</span>';
+    // 앞: 아직 확인일 전 · 끝: 행사가 끝났는데 확인 기록이 없다 (되돌릴 수 없으니 사실만 적는다)
+    안 = '<span class="acn">' + (상태 === '끝' ? '미확인' : '-') + '</span>';
   }
   return '<td class="c ac' + (상태 === '오늘' ? ' ac-today' : '') + '">' + 안 + '</td>';
 }
@@ -3157,11 +3158,10 @@ function renderEvt() {
       /* ⚠ 7열짜리 표라 폰에서 화면을 넘는다 — 실측 375px 화면에 497px가 필요했다.
          컨테이너 없이 두면 **문서 전체가 옆으로 밀려** PC와 다른 화면이 된다.
          KPI 표(1500행 근처)가 쓰는 것과 같은 방식으로 이 표만 옆으로 밀리게 감싼다. */
-      /* 끝난 행사는 **기록이 있을 때만** 칸을 남긴다 — 체크한 적 없는 지난 행사에 「-」만 세 줄 늘어서면
-         표만 넓어진다 */
-      var 확인열 = ATTON && ev.group !== '기타' && !!ev.date
-        && (ATT_PTS.some(function(n) { return 확인시점상태_(ev.date, DATA.today, n) !== '끝'; })
-          || ev.leads.some(function(l) { return l.chk && Object.keys(l.chk).length; }));
+      /* 날짜가 있는 학회·세미나는 **끝난 행사도** 칸을 그린다 (2026-09-21). 처음엔 끝났고 체크 기록이 없으면
+         칸을 숨겼는데, 배포 직후 열어 본 화면이 마침 9/19에 끝난 행사뿐이라 「반영이 안 됐다」로 읽혔다.
+         끝난 행사의 칸은 읽기 전용이다 (버튼 없음, 안 한 것은 「미확인」). */
+      var 확인열 = ATTON && ev.group !== '기타' && !!ev.date;
       var 칸수 = 6 + (확인열 ? 3 : 0) + (admin ? 1 : 0);
       var 확인머리 = '';
       if (확인열) {
@@ -3249,7 +3249,11 @@ function renderEvt() {
       });
       h += '</tbody></table></div>';   // 위에서 연 가로 스크롤 컨테이너를 닫는다
     } else {
-      h += '<div style="margin-top:12px;font-size:13px;color:#5f6b7a;">등록된 참석자(리드)가 없습니다.</div>';
+      h += '<div style="margin-top:12px;font-size:13px;color:#5f6b7a;">등록된 참석자(리드)가 없습니다.'
+        // 표가 안 그려지니 칸이 있다는 것 자체가 안 보인다 — 행사 전이면 언제 어떤 칸이 열리는지 알린다
+        + (ATTON && ev.group !== '기타' && ev.date && 확인시점상태_(ev.date, DATA.today, 1) !== '끝'
+          ? ' 참석자를 등록하면 행사 1주 전·3일 전·1일 전 참석 확인 칸이 생깁니다.' : '')
+        + '</div>';
     }
     h += '</div>';
   });
