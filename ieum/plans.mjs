@@ -38,12 +38,23 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
     for(const b of data.부서업무){
       const box=el('section',null,'department-plan');box.dataset.subId=b.ID;
       box.append(el('h4',b.부서명),el('span',b.상태,'badge neutral'));
+      if(b.부서ID===data.주관부서?.ID)box.append(el('span','주관 부서','badge'));
+      if(b.요청제목&&b.요청제목!==data.제목)box.append(el('h4',b.요청제목));
       if(b.요청내용)box.append(el('p',b.요청내용,'collaboration-note'));
+      if(b.요청완료기준){const scope=el('div',null,'request-scope');scope.append(el('strong',`요청 완료 기준${b.기준상속?' · 공통 기준 상속':''}`),el('p',b.요청완료기준),el('p',`부서 희망 완료일: ${b.요청희망기한||'미지정'} · 요청 개정 ${b.요청개정}`,'hint'));box.append(scope);}
       if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표 승인 시 반영됩니다.`,'hint'));
       const latest=b.계획[0];
       if(latest)box.append(versionView(latest));else box.append(el('p','부서 계획 작성 전입니다.','muted'));
       if(b.계획.length>1){const history=el('details');history.append(el('summary','이전 계획과 승인 이력'));for(const p of b.계획.slice(1))history.append(versionView(p));box.append(history);}
       const me=getInfo().본인.ID;
+      const editable=!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출');
+      if(data.흐름버전===2&&editable&&b.상태!=='제외제안'&&(me===b.협업요청자ID||me===data.전체책임자?.ID)){
+        const fold=el('details');fold.append(el('summary','부서 요청 범위 수정'));const form=el('form');form.dataset.draftKey=`scope:${b.ID}:${b.요청개정}`;
+        const title=field(form,'수정할 업무 제목','text',b.요청제목),note=field(form,'수정할 요청 내용','textarea',b.요청내용),criteria=field(form,'수정할 완료 기준','textarea',b.요청완료기준),due=field(form,'수정할 희망 완료일','date',b.요청희망기한||'',false),reason=field(form,'요청 수정 사유','textarea');
+        form.append(el('p','해당 부서의 접수와 계획 승인을 다시 진행합니다. 이미 승인된 실행 기준과 이력은 보존됩니다.','hint'));
+        errorBox(form);submit(form,'요청 수정 및 재검토','scope','secondary');
+        form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'부서요청수정',{요청제목:title.value,요청내용:note.value,완료기준:criteria.value,희망기한:due.value||null,사유:reason.value}));});fold.append(form);box.append(fold);
+      }
       if(!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출')&&latest?.상태==='승인'&&b.책임자ID===me){
         const fold=el('details');fold.append(el('summary','계획 수정하기'));const form=el('form');
         const reason=field(form,'계획 수정 사유','textarea');errorBox(form);submit(form,'새 버전 작성 시작','revise','secondary');
@@ -53,8 +64,9 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
         const fold=el('details');fold.append(el('summary','다른 부서에 협업 요청'));const form=el('form');
         const target=field(form,'협업 요청할 부서','select');departments(target,data);
         const note=field(form,'협업 요청 내용','textarea');note.maxLength=10000;
+        let title,criteria,due;if(data.흐름버전===2){note.maxLength=2000;title=field(form,'협업 업무 제목');criteria=field(form,'협업 완료 기준','textarea');due=field(form,'협업 희망 완료일','date','',false);}
         errorBox(form);submit(form,'협업 요청 보내기','collaborate','secondary');
-        form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'협업요청',{수신부서ID:target.value,본문:note.value}));});fold.append(form);box.append(fold);
+        form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'협업요청',{수신부서ID:target.value,본문:note.value,...(title?{요청제목:title.value,완료기준:criteria.value,희망기한:due.value||null}:{})}));});fold.append(form);box.append(fold);
       }
       wrap.append(box);
     }return wrap;
@@ -62,13 +74,22 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
   async function action(data,a){
     if(a.종류==='통합제출')return el('p','부서별 승인 계획이 준비되었습니다. 통합 계획 제출과 대표 승인 기능은 다음 개발 단계에서 연결됩니다. 아직 업무 착수 승인은 나지 않았습니다.','hint');
     const form=el('form');form.className='plan-form';
+    if(['부서요청조정','주관조정'].includes(a.종류))form.dataset.draftKey=`action:${a.행동ID}`;
     const b=data.부서업무.find(x=>x.ID===a.부서업무ID);if(!b)return el('p','처리할 부서 정보를 찾지 못했습니다. 새로고침해 주세요.','error');
-    if(a.종류==='협업후속판단'){
+    if(a.종류==='주관조정'){
+      form.append(el('p','주관 부서의 요청을 재협의하거나 수락한 참여 부서로 주관을 옮겨 주세요. 다른 부서는 계속 검토할 수 있습니다.','hint'));
+      const choice=field(form,'주관 조정 결정','select');choice.append(new Option('주관 부서에 재요청','재요청'));
+      if(!data.통합계획?.length)choice.append(new Option('수락한 부서로 주관 변경','주관변경'));
+      const target=field(form,'새 주관 부서','select');target.append(new Option('수락한 부서를 선택하세요',''),...data.부서업무.filter(x=>['수락','배정완료'].includes(x.상태)&&x.ID!==b.ID).map(x=>new Option(x.부서명,x.부서ID)));target.disabled=true;target.parentElement.hidden=true;
+      choice.addEventListener('change',()=>{target.disabled=choice.value!=='주관변경';target.parentElement.hidden=target.disabled;});
+      const reason=field(form,'주관 조정 사유','textarea');errorBox(form);submit(form,'주관 조정 반영','lead');
+      form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'주관조정',{결정:choice.value,사유:reason.value,주관부서ID:choice.value==='주관변경'?target.value:null},a));});
+    }else if(['협업후속판단','부서요청조정'].includes(a.종류)){
       const choice=field(form,'협업 후속 결정','select');choice.append(new Option('같은 부서에 재요청','재요청'),new Option('다른 부서에 요청','다른부서'),new Option('범위 제외 제안','제외제안'));
       const target=field(form,'대체 요청할 부서','select');departments(target,data);target.disabled=true;target.parentElement.hidden=true;
       choice.addEventListener('change',()=>{target.disabled=choice.value!=='다른부서';target.parentElement.hidden=target.disabled;});
       const reason=field(form,'후속 결정 사유','textarea');errorBox(form);submit(form,'후속 결정 반영','followup');
-      form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'협업후속판단',{결정:choice.value,사유:reason.value,수신부서ID:choice.value==='다른부서'?target.value:null},a));});
+      form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,a.종류,{결정:choice.value,사유:reason.value,수신부서ID:choice.value==='다른부서'?target.value:null},a));});
     }else if(a.종류==='부서승인'){
       const plan=b.계획.find(p=>p.ID===a.계획ID);if(!plan)return el('p','승인 대상 계획을 찾지 못했습니다. 새로고침해 주세요.','error');form.append(el('p',`승인 대상: ${b.부서명} 계획 v${plan.버전}`,'hint'));
       const note=field(form,'계획 검토 의견','textarea','',false);errorBox(form);const buttons=el('div',null,'actions');form.append(buttons);submit(buttons,'부서 계획 승인','부서계획승인');submit(buttons,'계획 보완 요청','부서계획보완','secondary');

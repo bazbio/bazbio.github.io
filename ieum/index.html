@@ -50,6 +50,12 @@
     <div class="form-row"><label>요청할 부서<select name="department" aria-label="요청할 부서" required></select></label><label>희망 완료일 <span class="optional">선택</span><input name="due" type="date" min="2000-01-01" max="2199-12-31"></label></div>
     <label>요청 배경과 목적<textarea name="purpose" rows="3" maxlength="10000" required placeholder="어떤 문제가 있고, 어떤 도움이 필요한가요?"></textarea></label>
     <label>완료 기준<textarea name="criteria" rows="3" maxlength="10000" required placeholder="어떤 결과가 나오면 이 요청이 해결된 것인가요?"></textarea></label>
+    <section id="multi-request" hidden>
+      <div class="request-section-heading"><div><h3>부서별 요청</h3><p class="hint">부서마다 필요한 업무와 완료 기준을 구체적으로 적어 주세요.</p></div><button type="button" id="add-request-department" class="secondary">＋ 부서 추가</button></div>
+      <label>주관 부서<select id="request-lead" aria-label="주관 부서" disabled></select><span class="hint">참여 부서 중 전체 일정과 협의를 조정할 부서입니다.</span></label>
+      <div id="department-requests"></div>
+      <p id="request-count" class="hint" aria-live="polite"></p><p id="request-size" class="error" role="status"></p>
+    </section>
     <p class="hint">희망 완료일은 요청 일정입니다. 담당 부서의 확정 일정과 구분됩니다.</p><p id="request-error" class="error" role="alert"></p>
     <div class="dialog-actions"><button type="button" id="cancel-request" class="secondary">취소</button><button type="submit" class="primary">요청 보내기</button></div>
   </form></dialog>

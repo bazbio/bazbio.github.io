@@ -1,7 +1,8 @@
 import { errorMessage } from './messages.mjs';
+import { getLeadDepartmentWork } from './work-context.mjs';
 // 통합 승인과 실행 UI. 기존 인증·멱등·충돌 처리기를 공유한다.
 export function createExecution({el,button,send,refresh,getInfo,isBusy,message,handleError}){
-  const main=data=>data.부서업무.find(b=>!b.기원부서업무ID);
+  const main=getLeadDepartmentWork;
   const isOwner=data=>data.전체책임자?.ID===getInfo().본인.ID;
   const pending=data=>data.통합계획.find(v=>v.상태==='제출');
   function note(form,label,required=true){const wrap=el('label',label),input=el('textarea');input.rows=3;input.required=required;input.maxLength=2000;input.setAttribute('aria-label',label);wrap.append(input);form.append(wrap);return input;}
@@ -14,7 +15,12 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
   }
   function scopeView(v){
     const box=el('div',null,'integrated-scope');box.append(el('p',v.요약,'collaboration-note'));
-    const list=el('ul');for(const b of v.범위)list.append(el('li',b.제외?`${b.부서명} · 제외 ${v.상태==='승인'?'승인':'제안'}: ${b.제외사유}`:`${b.부서명} · 부서 계획 v${b.부서계획버전}`));box.append(list);
+    const list=el('ul');for(const b of v.범위){
+      const row=el('li',b.제외?`${b.부서명} · 제외 ${v.상태==='승인'?'승인':'제안'}: ${b.제외사유}`:`${b.부서명} · 부서 계획 v${b.부서계획버전}`);
+      const snapshot=b.부서요청스냅샷;
+      if(snapshot){const fold=el('details');fold.append(el('summary',`승인 대상 요청 · 개정 ${b.부서요청개정}`),el('p',snapshot.요청제목),el('p',snapshot.요청내용),el('p',`완료 기준: ${snapshot.완료기준}`),el('p',`희망 기한: ${snapshot.희망기한||'미지정'}`,'hint'));row.append(fold);}
+      list.append(row);
+    }box.append(list);
     const milestones=el('ol',null,'milestone-list');for(const m of v.마일스톤){const row=el('li',null,'milestone-view');row.append(el('strong',m.제목),el('p',`${m.시작일} → ${m.완료일} · ${m.담당자명} · ${m.필수?'종결 필수':'선택'}`),el('p',m.완료기준,'muted'),el('small',m.검증필요?`완료 검증: ${m.검증자명}`:'완료 검증 생략'));milestones.append(row);}box.append(milestones);
     const names=new Map(v.마일스톤.map(m=>[m.ID,m.제목]));if(v.선행관계.length){const deps=el('ul',null,'dependency-list');for(const edge of v.선행관계)deps.append(el('li',`${names.get(edge.선행ID)} 완료 → ${names.get(edge.후행ID)} 착수`));box.append(el('p','선행 작업 관계','plan-state'),deps);}else box.append(el('p','선행 제약 없이 각각 착수할 수 있습니다.','hint'));
     if(v.결정)box.append(el('p',`${v.결정.결정자명} · ${v.결정.결과}${v.결정.사유?' — '+v.결정.사유:''}`,'decision-note'));return box;

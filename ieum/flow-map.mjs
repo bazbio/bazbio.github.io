@@ -16,7 +16,7 @@ export function buildFlowMap(data,{expanded=false}={}){
     const excluded=scope?.제외===true;
     const fallback=excluded?'excluded':b.상태==='비승인'?'stopped':p?.상태==='승인'?'done':'waiting';
     const subtitle=excluded?'대표 승인 범위에서 제외':own.length?own.map(a=>a.종류).filter((v,i,a)=>a.indexOf(v)===i).join(' · '):p?`부서 계획 v${p.버전} · ${p.상태}`:b.상태;
-    add(`dept:${b.ID}`,b.부서명,subtitle,own,fallback,{subId:b.ID,detail:b.요청내용||'접수 → 담당자 배정 → 계획 수립 → 부서 승인',plan:p,department:b});
+    add(`dept:${b.ID}`,`${b.부서명}${b.부서ID===data.주관부서?.ID?' · 주관':''}`,subtitle,own,fallback,{subId:b.ID,detail:[b.요청제목,b.요청내용,b.요청완료기준&&`완료 기준: ${b.요청완료기준}`].filter(Boolean).join('\n')||'접수 → 담당자 배정 → 계획 수립 → 부서 승인',plan:p,department:b});
     link(b.기원부서업무ID?`dept:${b.기원부서업무ID}`:'request',`dept:${b.ID}`,b.기원부서업무ID?'협업 요청':'최초 요청');
   }
   const approvals=actions.filter(a=>['통합제출','통합보완','대표승인'].includes(a.종류));

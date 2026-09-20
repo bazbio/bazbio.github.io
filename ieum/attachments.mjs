@@ -1,4 +1,5 @@
 import { errorMessage } from './messages.mjs';
+import { getLeadDepartmentWork } from './work-context.mjs';
 export const accepted='.jpg,.jpeg,.png,.pdf,.txt,.csv,.docx,.xlsx,.pptx';
 export async function fileData(file){
  if(!file||file.size<1||file.size>5242880)throw new Error('파일당 5MB 이하의 파일을 선택해 주세요.');
@@ -7,7 +8,7 @@ export async function fileData(file){
 }
 export function createAttachments({el,button,send,api,refresh,getInfo,isBusy,message,handleError}){
  function overview(data){const box=el('section',null,'detail-card attachment-overview');box.append(el('h3','업무 첨부 자료'));const total=(data.첨부||[]).reduce((n,f)=>n+f.크기,0);box.append(el('p',`사진·PDF·텍스트·Office 문서 · 파일당 5MB · 누적 ${(total/1048576).toFixed(1)} / 50MB`,'hint'));
-  const frozen=data.종결?.종결시각||data.종결?.심사.some(r=>r.상태==='제출')||data.단계==='비승인';const sub=data.부서업무.find(b=>!b.기원부서업무ID).ID;
+  const frozen=data.종결?.종결시각||data.종결?.심사.some(r=>r.상태==='제출')||data.단계==='비승인';const sub=getLeadDepartmentWork(data).ID;
   const request=(kind,args)=>({종류:kind,업무ID:data.업무ID,부서업무ID:sub,기대업무개정:data.업무개정,인자:args});
   for(const file of data.첨부||[]){const row=el('article',null,'attachment-item');row.append(el('strong',file.파일명),el('p',file.설명),el('p',`${file.작성자} · ${new Date(file.생성시각).toLocaleString('ko-KR')} · ${(file.크기/1024).toFixed(1)}KB`,'hint'));
    if(file.철회시각)row.append(el('p',`철회됨 · ${file.철회사유}`,'hint'));

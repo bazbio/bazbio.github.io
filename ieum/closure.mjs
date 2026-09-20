@@ -1,8 +1,9 @@
 import { errorMessage } from './messages.mjs';
+import { getLeadDepartmentWork } from './work-context.mjs';
 export function createClosure({el,send,refresh,getInfo,isBusy,message,handleError}) {
   const closed=d=>Boolean(d.종결?.종결시각);
   const pending=d=>d.종결?.심사.find(r=>r.상태==='제출');
-  const main=d=>d.부서업무.find(b=>!b.기원부서업무ID).ID;
+  const main=d=>getLeadDepartmentWork(d).ID;
   function request(d,kind,args,a,sub=main(d)){return {종류:kind,업무ID:d.업무ID,부서업무ID:a?.부서업무ID||sub,기대업무개정:d.업무개정,인자:args,...(a?{행동ID:a.행동ID}:{})};}
   function note(form,label,required=true){const wrap=el('label',label),input=el('textarea');input.rows=3;input.required=required;input.maxLength=2000;input.setAttribute('aria-label',label);wrap.append(input);form.append(wrap);return input;}
   function button(form,label,kind,secondary=false){const b=el('button',label,secondary?'secondary':'primary');b.type='submit';b.value=kind;form.append(b);return b;}
