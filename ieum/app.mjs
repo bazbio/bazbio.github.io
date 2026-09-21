@@ -8,6 +8,7 @@ import { createBottlenecks } from './bottlenecks.mjs';
 import { createExecution } from './execution.mjs';
 import { createPlans } from './plans.mjs';
 import { createRequests } from './requests.mjs';
+import { createIntakeProgress } from './intake-progress.mjs';
 import { captureWorkDrafts, restoreWorkDrafts } from './work-context.mjs';
 import { errorMessage } from './messages.mjs';
 const $ = selector => document.querySelector(selector);
@@ -16,6 +17,7 @@ let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let vi
 const descriptions = { 대표승인함:['대표 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
+const intakeProgress=createIntakeProgress({el,button,api});
 const closure=createClosure({el,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const bottlenecks=createBottlenecks({el,button,api,refresh:()=>showList('병목현황'),open:showDetail});
 const collaboration=createCollaboration({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
@@ -90,6 +92,7 @@ function card(item){
   if(item.번호)top.append(el('span',item.번호,'reference'));
   body.append(top,el('div',item.제목,'work-title'));
   if(item.부서요청제목)body.append(el('p',`${item.부서요청제목} · ${item.부서접수상태}`,'collaboration-note'));
+  if(Array.isArray(item.접수현황)&&item.접수현황.length)body.append(intakeProgress.compact(item.접수현황));
   body.append(el('p',action?`${action.담당부서.이름} · ${action.담당자.표시명} · ${action.종류}${action.마일스톤제목?' · '+action.마일스톤제목:''}${item.현재행동?.length>1?' 외 '+(item.현재행동.length-1)+'건 대기':''}`:item.단계==='완료'?'최종 종결 승인이 완료되었습니다.':'접수 판단이 완료되었습니다.','work-meta'));
   const end=el('div',null,'card-end');if(action)end.append(badge(action.기한초과?'기한 초과':`${timestamp(action.처리기한)}까지`,action.기한초과?'late':'neutral'));end.append(el('span','›','chevron'));
   node.append(body,end);return node;
@@ -132,9 +135,8 @@ async function showDetail(id){
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(data.단계),el('span',data.번호,'reference'));
     summary.append(top,el('h2','업무 개요'));const grid=el('div',null,'detail-info');grid.append(infoCell('요청자',data.요청자.표시명),infoCell('전체 책임자',data.전체책임자?.표시명),infoCell('희망 완료일',data.희망기한||'미지정'));
     if(data.주관부서)grid.append(infoCell('주관 부서',data.주관부서.이름));
-    if(data.흐름버전===2){const bs=data.부서업무;summary.append(el('p',`부서 수락 ${bs.filter(b=>['수락','배정완료'].includes(b.상태)).length}/${bs.length} · 보완 ${bs.filter(b=>b.상태==='보완').length} · 조정 ${bs.filter(b=>b.상태==='비승인').length} · 제외 제안 ${bs.filter(b=>b.상태==='제외제안').length}`,'hint'));}
     if(data.현재행동.length){const turns=el('div',null,'current-turns');turns.append(el('p',`현재 차례 · ${data.현재행동.length}건`,'info-label'));for(const a of data.현재행동)turns.append(button(`${a.담당부서.이름} · ${a.담당자.표시명} · ${a.종류}${a.마일스톤제목?' · '+a.마일스톤제목:''}${a.기한초과?' · 기한 초과':''}`,'turn-link',()=>document.getElementById(`action-${a.행동ID}`)?.scrollIntoView({behavior:'smooth',block:'start'})));summary.append(turns);}
-    summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));detail.append(flowMap.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
+    summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));detail.append(intakeProgress.overview(data),flowMap.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
       const section=el('section',null,'detail-card action-card');section.id=`action-${action.행동ID}`;section.append(el('h3',`${action.담당자.표시명} 님의 차례 · ${action.종류}${action.마일스톤제목?' · '+action.마일스톤제목:''}`,'action-title'),el('p',`${action.담당부서.이름} · ${timestamp(action.처리기한)}까지${action.기한초과?' · 기한 초과':''}`,'muted'));
       if(action.미팅대기)section.append(el('p','미팅 결론과 후속 업무를 기다리고 있습니다. 완료되면 이 차례에서 원래 검토를 진행하세요.','notice'));
