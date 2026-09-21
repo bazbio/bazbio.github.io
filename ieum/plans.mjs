@@ -48,7 +48,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
       if(b.계획.length>1){const history=el('details');history.append(el('summary','이전 계획과 승인 이력'));for(const p of b.계획.slice(1))history.append(versionView(p));box.append(history);}
       const me=getInfo().본인.ID;
       const editable=!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출');
-      if(data.흐름버전===2&&editable&&b.상태!=='제외제안'&&(me===b.협업요청자ID||me===data.전체책임자?.ID)){
+      if(data.흐름버전===2&&editable&&!['제외제안','접수준비'].includes(b.상태)&&(me===b.협업요청자ID||me===data.전체책임자?.ID)){
         const fold=el('details');fold.append(el('summary','부서 요청 범위 수정'));const form=el('form');form.dataset.draftKey=`scope:${b.ID}:${b.요청개정}`;
         const title=field(form,'수정할 업무 제목','text',b.요청제목),note=field(form,'수정할 요청 내용','textarea',b.요청내용),criteria=field(form,'수정할 완료 기준','textarea',b.요청완료기준),due=field(form,'수정할 희망 완료일','date',b.요청희망기한||'',false),reason=field(form,'요청 수정 사유','textarea');
         form.append(el('p','해당 부서의 접수와 계획 승인을 다시 진행합니다. 이미 승인된 실행 기준과 이력은 보존됩니다.','hint'));

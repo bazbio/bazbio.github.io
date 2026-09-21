@@ -27,7 +27,7 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
    const select=get(card,'requestDepartment');
    for(const option of select.options)option.disabled=Boolean(option.value&&selected.includes(option.value)&&option.value!==select.value);
    const status=readiness.get(select.value),node=card.querySelector('.request-readiness');
-   node.textContent=status&&!status.접수가능?status.사유:select.value===lead.value?'주관 부서 · 전체 일정과 협의 조정':'';
+   node.textContent=status&&!status.접수가능?[status.상태,status.사유,status.초대상태].filter(Boolean).join(' · '):select.value===lead.value?'주관 부서 · 전체 일정과 협의 조정':'';
    node.className=status&&!status.접수가능?'request-readiness error':'request-readiness hint';
    const isLead=Boolean(lead.value&&select.value===lead.value);
    card.querySelector('.remove-request').disabled=rows.length===1||isLead;
@@ -35,7 +35,7 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
   });
   add.disabled=rows.length>=Math.min(20,getInfo().부서.length);
   submit.textContent=`${rows.length}개 부서에 요청 보내기`;
-  hint.textContent=`${rows.length}개 부서에 각각 접수 요청을 보냅니다. 확정 일정과 실행 순서는 계획 수립 후 정합니다.`;
+  hint.textContent=getInfo().기능?.접수준비대기?`${rows.length}개 부서의 요청을 등록합니다. 가입·담당자 설정을 기다리는 부서는 요청을 저장하고 준비 완료 후 자동으로 전달합니다.`:`${rows.length}개 부서에 각각 접수 요청을 보냅니다. 확정 일정과 실행 순서는 계획 수립 후 정합니다.`;
  }
  function addCard(){
   if(fields().length>=Math.min(20,getInfo().부서.length))return;
@@ -86,7 +86,7 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
     const ids=fields().map(c=>get(c,'requestDepartment').value);
     if(new Set(ids).size!==ids.length)throw new Error('같은 부서를 두 번 선택할 수 없습니다.');
     const unavailable=ids.filter(id=>readiness.get(id)?.접수가능===false);
-    if(unavailable.length)throw new Error(`${getInfo().부서.filter(d=>unavailable.includes(d.ID)).map(d=>d.이름).join(', ')}의 접수 담당자 설정이 필요합니다. 입력 내용은 유지됩니다.`);
+    if(unavailable.length&&!getInfo().기능?.접수준비대기)throw new Error(`${getInfo().부서.filter(d=>unavailable.includes(d.ID)).map(d=>d.이름).join(', ')}의 접수 담당자 설정이 필요합니다. 입력 내용은 유지됩니다.`);
     if(size()>65536)throw new Error('요청 내용이 너무 깁니다. 부서별 내용을 요약해 주세요.');
    }
    const result=await send(input());
