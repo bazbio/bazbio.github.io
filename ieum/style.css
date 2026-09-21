@@ -11,6 +11,29 @@
 .department-plan{border-top:1px solid var(--line,#e3e9f1);padding:24px 0}.department-plan h4{font-size:17px;display:inline;margin-right:12px}.department-plan details{margin-top:18px}.department-plan summary{cursor:pointer;color:#2265c8;font-weight:600;padding:8px 0}.department-plan form{margin-top:12px}.plan-state{font-weight:600;color:#466079;margin-top:18px}.milestone-list{padding-left:24px}.milestone-view{padding:12px 0;border-bottom:1px solid #edf1f5}.milestone-view .badge{margin-left:10px}.milestone-view p{margin:8px 0;overflow-wrap:anywhere}.decision-note{background:#f0f6ff;padding:12px;border-radius:8px;white-space:pre-wrap}.collaboration-note{white-space:pre-wrap;overflow-wrap:anywhere}.milestone-editor fieldset{min-width:0;border:1px solid #dbe4ef;border-radius:12px;padding:20px;margin:12px 0 20px}.milestone-editor legend{font-weight:700;padding:0 8px}.check-label{display:flex;align-items:center;gap:10px;flex-direction:row-reverse;justify-content:flex-end}.check-label input{width:18px;height:18px;margin:0}.plan-form>.actions{margin-top:20px}.plan-form button:disabled{opacity:.45;cursor:not-allowed}@media(max-width:600px){.milestone-editor fieldset{padding:14px}.department-plan h4{display:block;margin:0 0 8px}.milestone-view .badge{display:table;margin:8px 0}.plan-form .actions{align-items:stretch}}
 
 .department-plan form{display:flex;flex-direction:column;gap:16px}.milestone-editor fieldset{display:grid;gap:16px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:650px){.form-grid{grid-template-columns:1fr}}
+/* 부서 단위로 요청 범위와 실행 계획을 구분한다. */
+.department-overview{min-width:0}
+.department-overview>.department-plan{min-width:0;border:1px solid #dce5ef;border-radius:14px;padding:22px;margin-top:18px;overflow-wrap:anywhere}
+.department-plan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.department-plan .department-plan-heading h4{display:block;margin:0;font-size:17px;line-height:1.5}
+.department-plan-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.department-request-title{margin:18px 0 0;font-size:17px;font-weight:700;line-height:1.6;color:#243e5d}
+.department-request-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:18px;font-size:14px;line-height:1.8;color:#435770}
+.department-request-body>div:only-child{grid-column:1/-1}
+.department-request-note,.department-request-body .request-scope{min-width:0;display:block;margin:0}
+.department-section-label{display:block;margin-bottom:8px;font-size:12px;font-weight:700;color:#61738a;line-height:1.6}
+.department-request-body .request-scope strong{font-size:12px}
+.department-request-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin:16px 0 0;color:#708097;font-size:12px;line-height:1.7}
+.department-plan-content{margin-top:18px;padding:16px 18px;border-radius:10px;background:#f5f7fa;font-size:14px;line-height:1.7}
+.department-plan-content>.department-section-label{margin-bottom:6px}
+.department-plan-content .plan-state{margin-top:0}
+.department-plan-content .milestone-list{margin:10px 0 0}
+.department-plan-content .milestone-view:last-child{border-bottom:0;padding-bottom:0}
+.department-plan>details{margin-top:16px;padding-top:8px;border-top:1px solid var(--line)}
+.department-plan>details+details{margin-top:8px}
+.department-plan summary{font-size:13px;line-height:1.7}
+@media(max-width:1050px){.department-request-body{grid-template-columns:1fr;gap:18px}}
+@media(max-width:650px){.department-overview{padding:20px 14px}.department-overview>.department-plan{padding:16px;margin-top:14px}.department-plan-heading{align-items:flex-start;flex-wrap:wrap;gap:8px;padding-bottom:12px}.department-plan-badges{justify-content:flex-start}.department-plan .department-plan-heading h4{font-size:16px}.department-request-title{font-size:16px;margin-top:14px}.department-request-body{margin-top:14px;gap:16px}.department-plan-content{padding:14px}.department-request-meta{font-size:11px}}
 
 .current-turns{margin-top:22px;padding:16px;background:#f1f6ff;border-radius:12px;display:flex;gap:8px;flex-wrap:wrap}.current-turns>.info-label{width:100%;margin:0}.turn-link{font-size:12px;line-height:1.6;text-align:left;padding:8px 12px;border-radius:8px;background:white;color:#2565b5;overflow-wrap:anywhere}.action-card{scroll-margin-top:20px}
 

@@ -33,19 +33,26 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
     return node;
   }
   function overview(data){
-    const wrap=el('section',null,'detail-card');wrap.append(el('h3','부서별 협업과 계획'));
+    const wrap=el('section',null,'detail-card department-overview');wrap.append(el('h3','부서별 협업과 계획'));
     if(data.통합제출대기)wrap.append(el('p','부서 승인이 모두 완료되었습니다. 전체 책임자의 통합 제출을 기다립니다.','notice'));
     for(const b of data.부서업무){
       const box=el('section',null,'department-plan');box.dataset.subId=b.ID;
-      box.append(el('h4',b.부서명),el('span',b.상태,'badge neutral'));
-      if(b.부서ID===data.주관부서?.ID)box.append(el('span','주관 부서','badge'));
-      if(b.요청제목&&b.요청제목!==data.제목)box.append(el('h4',b.요청제목));
-      if(b.요청내용)box.append(el('p',b.요청내용,'collaboration-note'));
-      if(b.요청완료기준){const scope=el('div',null,'request-scope');scope.append(el('strong',`요청 완료 기준${b.기준상속?' · 공통 기준 상속':''}`),el('p',b.요청완료기준),el('p',`부서 희망 완료일: ${b.요청희망기한||'미지정'} · 요청 개정 ${b.요청개정}`,'hint'));box.append(scope);}
+      const heading=el('div',null,'department-plan-heading'),badges=el('div',null,'department-plan-badges');
+      heading.append(el('h4',b.부서명));badges.append(el('span',b.상태,'badge neutral'));
+      if(b.부서ID===data.주관부서?.ID)badges.append(el('span','주관 부서','badge'));
+      heading.append(badges);box.append(heading);
+      if(b.요청제목&&b.요청제목!==data.제목)box.append(el('p',b.요청제목,'department-request-title'));
+      const request=el('div',null,'department-request-body');
+      if(b.요청내용){const note=el('div',null,'department-request-note');note.append(el('strong','요청 내용','department-section-label'),el('p',b.요청내용,'collaboration-note'));request.append(note);}
+      if(b.요청완료기준){const scope=el('div',null,'request-scope');scope.append(el('strong',`요청 완료 기준${b.기준상속?' · 공통 기준 상속':''}`,'department-section-label'),el('p',b.요청완료기준));request.append(scope);}
+      if(request.children.length)box.append(request);
+      if(b.요청완료기준){const meta=el('div',null,'department-request-meta');meta.append(el('span',`희망 완료일: ${b.요청희망기한||'미지정'}`),el('span',`요청 개정 ${b.요청개정}`));box.append(meta);}
       if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표 승인 시 반영됩니다.`,'hint'));
       const latest=b.계획[0];
-      if(latest)box.append(versionView(latest));else box.append(el('p','부서 계획 작성 전입니다.','muted'));
-      if(b.계획.length>1){const history=el('details');history.append(el('summary','이전 계획과 승인 이력'));for(const p of b.계획.slice(1))history.append(versionView(p));box.append(history);}
+      const plan=el('div',null,'department-plan-content');plan.append(el('strong','부서 계획','department-section-label'));
+      if(latest)plan.append(versionView(latest));else plan.append(el('p','부서 계획 작성 전입니다.','muted'));
+      if(b.계획.length>1){const history=el('details');history.append(el('summary','이전 계획과 승인 이력'));for(const p of b.계획.slice(1))history.append(versionView(p));plan.append(history);}
+      box.append(plan);
       const me=getInfo().본인.ID;
       const editable=!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출');
       if(data.흐름버전===2&&editable&&!['제외제안','접수준비'].includes(b.상태)&&(me===b.협업요청자ID||me===data.전체책임자?.ID)){
