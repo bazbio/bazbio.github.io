@@ -96,7 +96,7 @@ export function createFlowMap({el,button}){
     tools.append(current,expand,button('−','secondary',()=>scale(zoom-.15)),zoomLabel,button('＋','secondary',()=>scale(zoom+.15)),button('전체 맞춤','secondary',()=>{scale((viewport.clientWidth-16)/layout.width);viewport.scrollTo(0,0);}),fullscreen);
     tools.children[2].setAttribute('aria-label','맵 축소');tools.children[4].setAttribute('aria-label','맵 확대');
     const legend=el('div',null,'flow-legend');for(const [state,label]of Object.entries(labels)){const item=el('span',label,`flow-key ${state}`);legend.append(item);}
-    function jump(a){const target=document.getElementById(`action-${a.행동ID}`);if(target){if(dialog.open)closeMap(false);target.tabIndex=-1;target.scrollIntoView({block:'start',behavior:'smooth'});target.focus({preventScroll:true});}}
+    function jump(a){const target=document.getElementById(`action-${a.행동ID}`);if(target){if(dialog.open)closeMap(false);for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;target.tabIndex=-1;target.scrollIntoView({block:'start',behavior:'smooth'});target.focus({preventScroll:true});}}
     function select(id){
       selected=id;const n=model.nodes.find(n=>n.id===id);if(!n)return;
       for(const b of canvas.querySelectorAll('.flow-node'))b.setAttribute('aria-pressed',String(b.dataset.nodeId===id));
