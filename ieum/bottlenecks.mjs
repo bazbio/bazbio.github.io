@@ -1,3 +1,4 @@
+import {displayLabel} from './messages.mjs';
 export function createBottlenecks({el,button,api,refresh,open}) {
   let filter={부서ID:null,담당자ID:null,지연만:false,검색:null};
   const duration=seconds=>seconds<60?'1분 미만':seconds<3600?`${Math.floor(seconds/60)}분`:seconds<86400?`${Math.floor(seconds/3600)}시간`:`${Math.floor(seconds/86400)}일 ${Math.floor(seconds%86400/3600)}시간`;
@@ -19,7 +20,7 @@ export function createBottlenecks({el,button,api,refresh,open}) {
     const list=el('section',null,'bottleneck-list');list.append(el('h2','처리가 필요한 차례'));
     if(data.생략건수)list.append(el('p',`처리기한이 빠른 50건을 표시합니다. ${data.생략건수}건은 필터로 범위를 좁혀 확인하세요. 위 집계는 필터에 맞는 전체 건수입니다.`,'notice'));
     if(!data.항목.length)list.append(el('p','필터에 해당하는 차례가 없습니다.','empty'));
-    for(const a of data.항목){const card=el('article',null,'detail-card bottleneck-item');card.dataset.actionId=a.행동ID;const head=el('div',null,'card-top');head.append(el('span',a.종류,'badge'),el('span',a.기한초과?`기한 초과 ${duration(a.기한초과초)}`:'기한 내',`badge ${a.기한초과?'late':'neutral'}`));
+    for(const a of data.항목){const card=el('article',null,'detail-card bottleneck-item');card.dataset.actionId=a.행동ID;const head=el('div',null,'card-top');head.append(el('span',displayLabel(a.종류),'badge'),el('span',a.기한초과?`기한 초과 ${duration(a.기한초과초)}`:'기한 내',`badge ${a.기한초과?'late':'neutral'}`));
       card.append(head,button(a.제목,'bottleneck-title',()=>open(a.업무ID)));if(a.마일스톤제목)card.append(el('p',a.마일스톤제목,'plan-state'));
       if(a.미팅대기)card.append(el('p','미팅 결론·후속 업무 대기','notice'));
       if(a.미팅안건)card.append(el('p',a.미팅후속내용||a.미팅안건,'plan-state'));

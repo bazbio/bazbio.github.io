@@ -1,3 +1,4 @@
+import {displayLabel} from './messages.mjs';
 import {buildFlowMap} from './flow-map.mjs';
 
 const phaseNames={접수판단:'요청 검토',책임자배정:'담당자 배정',계획작성:'계획 작성',부서승인:'계획 승인',자료보완:'자료 보완',부서요청조정:'요청 조정',주관조정:'주관 부서 조정'};
@@ -18,7 +19,7 @@ export function revealWorkElement(target){
 export function createRequestOverview({el,button}){
  function overview(data){
   const {phases,model}=requestProgress(data),box=el('section',null,'request-diagram');box.setAttribute('aria-label','업무 진행 다이어그램');
-  const header=el('div',null,'request-diagram-heading');header.append(el('h2','업무 진행'),el('span',model.closed?'종결 완료':model.rejected?'비승인으로 종료':data.단계,'request-phase-label'));box.append(header);
+  const header=el('div',null,'request-diagram-heading');header.append(el('h2','업무 진행'),el('span',model.closed?'종결 완료':model.rejected?'비승인으로 종료':displayLabel(data.단계),'request-phase-label'));box.append(header);
   const track=el('ol',null,'request-phase-track');track.setAttribute('aria-label','전체 업무 진행 단계');
   for(const phase of phases){const node=el('li',null,`request-phase ${phase.status}`);node.dataset.phase=phase.id;node.append(el('span',phase.status==='done'?'✓':String(phases.indexOf(phase)+1),'request-phase-dot'),el('strong',phase.title),el('small',toneNames[phase.status]));track.append(node);}
   box.append(track);
@@ -45,7 +46,7 @@ export function createRequestOverview({el,button}){
   }
   box.append(branches);
   const current=data.현재행동.filter(a=>['통합제출','통합보완','대표승인','결과확인','결과보완','종결승인'].includes(a.종류));
-  if(current.length){const turns=el('div',null,'request-stage-actions');for(const a of current)turns.append(button(`${a.종류} · ${a.담당자.표시명} →`,'text-button',()=>revealWorkElement(document.getElementById(`action-${a.행동ID}`))));box.append(turns);}
+  if(current.length){const turns=el('div',null,'request-stage-actions');for(const a of current)turns.append(button(`${displayLabel(a.종류)} · ${a.담당자.표시명} →`,'text-button',()=>revealWorkElement(document.getElementById(`action-${a.행동ID}`))));box.append(turns);}
   if(data.변경상태)box.append(el('p',`계획 변경: ${data.변경상태} · 실행은 현재 승인된 계획을 따릅니다.`,'hint'));
   return box;
  }

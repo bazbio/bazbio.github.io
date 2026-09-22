@@ -1,3 +1,7 @@
+export function displayLabel(value) {
+  return ({대표승인:'대표님 승인',대표보완:'대표님 보완',대표승인자:'대표님 승인자'})[value] || value;
+}
+
 export function errorMessage(error) {
   if (error instanceof TypeError || error instanceof ReferenceError || error instanceof RangeError ||
       error instanceof SyntaxError || typeof error?.message !== 'string') {

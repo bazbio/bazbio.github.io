@@ -25,7 +25,7 @@ export function createClosure({el,send,refresh,getInfo,isBusy,message,handleErro
     if(closed(d))box.append(el('p',`업무가 종결되었습니다 · ${new Date(d.종결.종결시각).toLocaleString('ko-KR')}`,'success'));
     else if(d.현재행동.some(a=>['결과확인','종결승인','결과보완'].includes(a.종류))){
       if(d.종결.준비미완료.length){const list=el('ul',null,'closure-checks');for(const reason of d.종결.준비미완료)list.append(el('li',reason));box.append(list);}
-      else box.append(el('p','필수 작업 완료와 선택 작업 정리가 끝났습니다. 요청자 확인과 대표 종결 승인을 진행하세요.','hint'));
+      else box.append(el('p','필수 작업 완료와 선택 작업 정리가 끝났습니다. 요청자 확인과 대표님 종결 승인을 진행하세요.','hint'));
     }else box.append(el('p','필수 작업의 완료와 검증이 끝나면 요청자가 결과를 확인합니다.','hint'));
     for(const r of d.종결.심사){const fold=el('details');fold.append(el('summary',`종결 심사 ${r.회차}회차 · ${r.상태}`),el('p',`${r.승인자명} · ${r.확인본문}`,'report-body'));box.append(fold);}
     for(const r of d.종결.기록){const row=el('div',null,'round-record');row.append(el('strong',`${r.종류} · ${r.작성자}`),el('p',r.본문||''));if(r.대상ids?.length)row.append(el('p',`대상: ${r.대상ids.map(id=>d.실행.find(m=>m.ID===id)?.제목||'과거 작업').join(', ')}`,'hint'));box.append(row);}

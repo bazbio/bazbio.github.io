@@ -47,7 +47,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
       if(b.요청완료기준){const scope=el('div',null,'request-scope');scope.append(el('strong',`요청 완료 기준${b.기준상속?' · 공통 기준 상속':''}`,'department-section-label'),el('p',b.요청완료기준));request.append(scope);}
       if(request.children.length)box.append(request);
       if(b.요청완료기준){const meta=el('div',null,'department-request-meta');meta.append(el('span',`희망 완료일: ${b.요청희망기한||'미지정'}`),el('span',`요청 개정 ${b.요청개정}`));box.append(meta);}
-      if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표 승인 시 반영됩니다.`,'hint'));
+      if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표님 승인 시 반영됩니다.`,'hint'));
       const latest=b.계획[0];
       const plan=el('div',null,'department-plan-content');plan.append(el('strong','부서 계획','department-section-label'));
       if(latest)plan.append(versionView(latest));else plan.append(el('p','부서 계획 작성 전입니다.','muted'));
@@ -79,7 +79,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
     }return wrap;
   }
   async function action(data,a){
-    if(a.종류==='통합제출')return el('p','부서별 승인 계획이 준비되었습니다. 통합 계획 제출과 대표 승인 기능은 다음 개발 단계에서 연결됩니다. 아직 업무 착수 승인은 나지 않았습니다.','hint');
+    if(a.종류==='통합제출')return el('p','부서별 승인 계획이 준비되었습니다. 통합 계획 제출과 대표님 승인 기능은 다음 개발 단계에서 연결됩니다. 아직 업무 착수 승인은 나지 않았습니다.','hint');
     const form=el('form');form.className='plan-form';
     if(['부서요청조정','주관조정'].includes(a.종류))form.dataset.draftKey=`action:${a.행동ID}`;
     const b=data.부서업무.find(x=>x.ID===a.부서업무ID);if(!b)return el('p','처리할 부서 정보를 찾지 못했습니다. 새로고침해 주세요.','error');
