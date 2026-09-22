@@ -1,3 +1,4 @@
+import {createAssignees} from './assignees.mjs';
 import { createClosure } from './closure.mjs';
 import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
@@ -19,7 +20,8 @@ const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
 const intakeProgress=createIntakeProgress({el,button,api});
-const requestOverview=createRequestOverview({el,button});
+const assignees=createAssignees({el,button,api,send,refresh:showDetail,isBusy:()=>busy,message,handleError});
+const requestOverview=createRequestOverview({el,button,assignees});
 const closure=createClosure({el,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const bottlenecks=createBottlenecks({el,button,api,refresh:()=>showList('병목현황'),open:showDetail});
 const collaboration=createCollaboration({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
@@ -29,7 +31,7 @@ descriptions.운영설정=['운영 설정','조직·구성원·승인 경로를 
 let fileCache=null;
 descriptions.알림=['알림','내 차례와 협의 소식, 기한을 넘긴 업무를 확인하세요.'];
 descriptions.병목현황=['병목 현황','어느 부서와 담당자의 차례에서 기다리고 있는지 확인하세요.'];
-const plans=createPlans({el,button,api,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
+const plans=createPlans({el,button,assignees,api,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const requests=createRequests({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,handleError,onCreated:async result=>{await showDetail(result.업무ID);message(result.준비대기부서수?`업무를 등록했습니다. ${result.준비대기부서수}개 부서는 접수 준비 완료 후 자동으로 전달됩니다.`:'업무를 요청했습니다. 각 부서의 접수 판단을 기다립니다.');}});
 const timestamp=value=>new Intl.DateTimeFormat('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
 const pendingKey=()=>`ieum.pending.${info.본인.ID}`;
@@ -151,6 +153,7 @@ async function showDetail(id){
     }else detail.append(flowMap.overview(data),intakeProgress.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
       const section=el('section',null,'detail-card action-card');section.id=`action-${action.행동ID}`;section.append(el('h3',`${action.담당자.표시명} 님의 차례 · ${displayLabel(action.종류)}${action.마일스톤제목?' · '+action.마일스톤제목:''}`,'action-title'),el('p',`${action.담당부서.이름} · ${timestamp(action.처리기한)}까지${action.기한초과?' · 기한 초과':''}`,'muted'));
+      if(action.종류==='계획작성')section.append(assignees.control(data,data.부서업무.find(b=>b.ID===action.부서업무ID)));
       if(action.미팅대기)section.append(el('p','미팅 결론과 후속 업무를 기다리고 있습니다. 완료되면 이 차례에서 원래 검토를 진행하세요.','notice'));
       if(action.담당자.ID===info.본인.ID&&!action.미팅대기){
         if(['미팅진행','미팅후속'].includes(action.종류))section.append(collaboration.action(data,action));

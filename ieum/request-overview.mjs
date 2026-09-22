@@ -16,7 +16,7 @@ export function revealWorkElement(target){
  for(let parent=target.parentElement;parent;parent=parent.parentElement)if(parent.tagName==='DETAILS')parent.open=true;
  target.tabIndex=-1;target.scrollIntoView({block:'center',behavior:'smooth'});target.focus({preventScroll:true});
 }
-export function createRequestOverview({el,button}){
+export function createRequestOverview({el,button,assignees}){
  function overview(data){
   const {phases,model}=requestProgress(data),box=el('section',null,'request-diagram');box.setAttribute('aria-label','업무 진행 다이어그램');
   const header=el('div',null,'request-diagram-heading');header.append(el('h2','업무 진행'),el('span',model.closed?'종결 완료':model.rejected?'비승인으로 종료':displayLabel(data.단계),'request-phase-label'));box.append(header);
@@ -33,15 +33,17 @@ export function createRequestOverview({el,button}){
    let state=own.length?own.map(a=>phaseNames[a.종류]||a.종류).filter((s,i,a)=>a.indexOf(s)===i).join(' · '):b.상태==='접수준비'?intake?.접수준비?.상태||'접수 준비 대기':node?.status==='done'?'부서 계획 승인 완료':b.상태==='제외제안'?'제외 제안 · 승인 대기':b.상태;
    const tone=own.some(a=>a.기한초과)?'late':b.상태==='접수준비'?'waiting':node?.status||'waiting';
    if(model.closed)state='업무 종결';
-   const card=button('',`request-branch ${tone}`,()=>{
+   const card=el('article',null,`request-branch ${tone}`);
+   const main=button('','request-branch-main',()=>{
     const target=own.length?document.getElementById(`action-${own[0].행동ID}`):[...document.querySelectorAll('.department-plan')].find(n=>n.dataset.subId===b.ID);
     revealWorkElement(target);
-   });card.dataset.subId=b.ID;
-   const head=el('div',null,'request-branch-title');head.append(el('strong',b.부서명));if(b.부서ID===data.주관부서?.ID)head.append(el('small','주관'));card.append(head,el('p',b.요청제목||data.제목,'request-branch-task'),el('span',state,'request-branch-state'));
+   });card.dataset.subId=b.ID;card.append(main);
+   const head=el('div',null,'request-branch-title');head.append(el('strong',b.부서명));if(b.부서ID===data.주관부서?.ID)head.append(el('small','주관'));main.append(head,el('p',b.요청제목||data.제목,'request-branch-task'),el('span',state,'request-branch-state'));
    const people=[...new Set(own.map(a=>a.담당자.표시명))];
-   card.append(el('p',people.length?people.join(' · '):intake?.접수준비?.담당자?.표시명||intake?.책임자?.표시명||intake?.접수담당자?.표시명||'담당자 설정 대기','request-branch-person'));
+   main.append(el('p',people.length?people.join(' · '):intake?.접수준비?.담당자?.표시명||intake?.책임자?.표시명||intake?.접수담당자?.표시명||'담당자 설정 대기','request-branch-person'));
    if(own.some(a=>a.기한초과))card.append(el('small','처리 기한 초과','request-branch-late'));
    else if(own.length>1)card.append(el('small',`${own.length}건 진행 중`,'request-branch-hint'));
+   if(assignees)card.append(assignees.control(data,b));
    branches.append(card);
   }
   box.append(branches);

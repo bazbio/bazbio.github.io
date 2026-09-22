@@ -1,6 +1,6 @@
 import { errorMessage } from './messages.mjs';
 // 계획 화면은 공통 명령 전송기를 사용하여 응답 유실·개정 충돌 처리를 공유한다.
-export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,handleError}) {
+export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy,message,handleError}) {
   function field(form,label,type='text',value='',required=true){
     const wrap=el('label',label), input=el(type==='textarea'?'textarea':type==='select'?'select':'input');
     if(!['textarea','select'].includes(type))input.type=type;
@@ -41,6 +41,7 @@ export function createPlans({el,button,api,send,refresh,getInfo,isBusy,message,h
       heading.append(el('h4',b.부서명));badges.append(el('span',b.상태,'badge neutral'));
       if(b.부서ID===data.주관부서?.ID)badges.append(el('span','주관 부서','badge'));
       heading.append(badges);box.append(heading);
+      if(b.책임자ID&&b.책임자변경){const owner=el('div',null,'department-owner');owner.append(el('span',`업무 담당자 · ${b.책임자변경.담당자명}`),assignees.control(data,b));box.append(owner);}
       if(b.요청제목&&b.요청제목!==data.제목)box.append(el('p',b.요청제목,'department-request-title'));
       const request=el('div',null,'department-request-body');
       if(b.요청내용){const note=el('div',null,'department-request-note');note.append(el('strong','요청 내용','department-section-label'),el('p',b.요청내용,'collaboration-note'));request.append(note);}
