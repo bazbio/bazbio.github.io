@@ -121,6 +121,9 @@
   .tag-blue { color:#1b64da; background:#e8f3ff; }
   .tag-green { color:#05754a; background:#e5f7ef; }
   .tag-grey { color:#4e5968; background:#f2f4f6; }
+  /* 문의 업종 필터(0036) — 상태 칩 줄 아래 두 번째 줄. 상태보다 한 단계 작게 */
+  .seg.metacat { margin-top:6px; }
+  .seg.metacat .chip { font-size:12.5px; padding:6px 12px; }
   .badge.tgt { background:#fff4e0; color:#a35c11; }
   /* 폰에서 날짜 입력 두 개가 나란히 서면 최소 폭이 화면을 넘어 **문서 전체가 옆으로 밀린다**
      (2026-08-04 실측: 375px 화면에서 344px 필요 → 문서 스크롤 389px).
@@ -926,6 +929,7 @@
     <button class="refresh" onclick="METAQ=null;loadMeta()">새로고침</button>
   </div>
   <div class="seg scrollx" id="metaSeg"></div>
+  <div class="seg scrollx metacat" id="metaCatSeg"></div>
   <div id="metaAvgResp" style="font-size:12px;color:#5f6b7a;margin:2px 0 10px;"></div>
   <div id="metaBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
@@ -1105,6 +1109,7 @@ var MINEQ = '';         // 내 입력 검색어 (8/13)
 var EDITKEY = '';       // 빈 값이면 새 기록, 아니면 그 열쇠(열쇠_)의 기록을 수정 중
 var METAQ = null;       // Meta DB 탭 데이터
 var METASEG = '전체';
+var METACAT = 0;        // Meta DB 업종 필터 (0 = 전체, 1~5 = 업종, -1 = 분류 전) — 0036
 var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out') — ADR 0022
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
@@ -1321,7 +1326,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609210630-7acd4e1';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609250953-a834d89';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4145,6 +4150,21 @@ function 경과문구_(ms) {
   return Math.round(m / 1440) + '일';
 }
 function metaSeg(s) { METASEG = s; renderMeta(); }
+function metaCat(c) { METACAT = c; renderMeta(); }
+/* 업종 분류(0036) — 서버 `_공유/문의분류.mjs` 업종과 같은 번호다 */
+var 업종이름_ = { 1: '병의원', 2: '치과', 3: '미용', 4: '딜러·대리점', 5: '기타' };
+var 업종색_ = { 1: 'tag-blue', 2: 'tag-green', 3: 'tag-orange', 4: 'tag-orange', 5: 'tag-grey' };
+function 업종태그_(q) {
+  if (!q.bizCat) {
+    var 포기 = q.bizTries >= ((METAQ && METAQ.bizTryLimit) || 2);
+    return '<span class="tag tag-grey" style="font-weight:500;">' + (포기 ? '업종 확인 못 함' : '업종 확인 중') + '</span>';
+  }
+  // 세부는 10자에서 자른다 — 「의약품·의료기기 수입 유통사」가 상호를 두 줄로 밀어냈다(375px 실측). 전체는 title에
+  var 세부 = q.bizDetail && q.bizDetail !== 업종이름_[q.bizCat] ? q.bizDetail : '';
+  var 글 = 업종이름_[q.bizCat] + (세부 ? ' · ' + (세부.length > 10 ? 세부.slice(0, 10) + '…' : 세부) : '');
+  return '<span class="tag ' + 업종색_[q.bizCat] + '" title="' + esc((세부 ? 세부 + ' — ' : '') + (q.bizBasis || '')) + '">'
+    + esc(글) + (q.bizConf === '낮음' ? ' (추정)' : '') + '</span>';
+}
 /* 쓰기 응답에 실려 온 한 건으로 목록의 그 자리만 갈아끼운다.
    예전에는 쓰기가 끝나면 목록을 통째로 다시 받아 왕복이 두 번이었다 — GAS 왕복이 편도
    1.8초라 기다림의 절반이 여기였다. 서버가 못 실어 보냈으면 false를 주고, 부르는 쪽이
@@ -4191,10 +4211,22 @@ function renderMeta() {
   }
 
   var rows = METASEG === '전체' ? list : list.filter(function(q) { return q.status === METASEG; });
+
+  /* 업종 칩 — 위에서 고른 상태 안에서 센다. 「신규 중 병의원만」이 가장 흔한 쓰임이다 */
+  var 업종수 = function(c) { return rows.filter(function(q) { return c === -1 ? !q.bizCat : q.bizCat === c; }).length; };
+  var 업종칩 = [[0, '업종 전체', rows.length]];
+  [1, 2, 3, 4, 5].forEach(function(c) { 업종칩.push([c, 업종이름_[c], 업종수(c)]); });
+  if (업종수(-1)) 업종칩.push([-1, '확인 중', 업종수(-1)]);
+  document.getElementById('metaCatSeg').innerHTML = 업종칩.map(function(t) {
+    return '<div class="chip' + (METACAT === t[0] ? ' on' : '') + '" onclick="metaCat(' + t[0] + ')">' + t[1] + ' ' + t[2] + '</div>';
+  }).join('');
+  if (METACAT) rows = rows.filter(function(q) { return METACAT === -1 ? !q.bizCat : q.bizCat === METACAT; });
+
   var h = rows.length ? rows.map(metaCard).join('')
-    : '<div class="card empty">' + (METASEG === '전체' ? '아직 문의가 없습니다.' : METASEG + ' 문의가 없습니다.') + '</div>';
+    : '<div class="card empty">' + (METASEG === '전체' && !METACAT ? '아직 문의가 없습니다.' : '조건에 맞는 문의가 없습니다.') + '</div>';
   h += '<div class="gnote">문의는 아직 리드가 아닙니다 — 통화로 병원·관심을 확인한 뒤 [계획 등록]하면 리드로 잡힙니다. '
-    + '반응 시간(접수 → 통화)은 접수 순서가 아니라 잡은 시각 기준입니다.</div>';
+    + '반응 시간(접수 → 통화)은 접수 순서가 아니라 잡은 시각 기준입니다. '
+    + '업종은 상호·웹 검색으로 자동으로 붙인 추정이라 틀릴 수 있습니다 — 제외는 통화로 확인한 뒤 눌러 주세요.</div>';
   document.getElementById('metaBody').innerHTML = h;
 }
 function metaCard(q) {
@@ -4205,7 +4237,12 @@ function metaCard(q) {
   var h = '<div class="card">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
     + '<b style="font-size:16px;">' + esc(q.hname2 || q.company || '(업체명 없음)') + '</b>'
-    + '<span class="tag ' + stTag + '">' + esc(q.status) + '</span></div>';
+    + '<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">' + 업종태그_(q)
+    + '<span class="tag ' + stTag + '">' + esc(q.status) + '</span></span></div>';
+  // AI가 검색으로 붙인 업종은 근거를 한 줄 보여 준다 — 영업사원이 믿을지 말지 판단할 거리
+  if (q.bizBy === 'AI' && q.bizBasis && q.status !== '리드 전환') {
+    h += '<div style="margin-top:3px;font-size:11.5px;color:#8b95a1;">🔎 ' + esc(q.bizBasis) + '</div>';
+  }
   h += '<div style="margin-top:4px;font-size:13px;color:#4e5968;">'
     + esc(q.name) + (q.title ? ' · ' + esc(q.title) : '') + ' · ' + esc(q.platform || '')
     + ' · 접수 ' + esc(q.created) + ' <b style="color:' + (q.status === '신규' && Date.now() - q.createdMs > 3600000 ? '#d0223a' : '#5f6b7a') + ';">(' + 경과문구_(q.createdMs) + ' 전)</b></div>';
