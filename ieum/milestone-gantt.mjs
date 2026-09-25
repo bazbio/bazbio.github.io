@@ -12,7 +12,7 @@ export function ganttModel(data,source='latest',today=new Date().toLocaleDateStr
    const run=(data.실행||[]).find(x=>x.ID===m.ID);
    // 초안·변경 계획에 이전 승인 버전의 실행 상태를 섞지 않는다.
    const same=useActive||(scope?.부서계획ID===plan?.ID);
-   const state=same&&run?run.상태:(plan?.상태==='초안'?'초안':plan?.상태==='보완'?'보완 중':'승인 대기');
+   const state=same&&run?run.상태:(plan?.상태==='초안'?'초안':plan?.상태==='보완'?'보완 중':plan?.상태==='승인'?'대표 승인 전':'부서 승인 전');
    const start=day(m.시작일),end=day(m.완료일);
    return {...m,subId:b.ID,department:b.부서명,start,end,valid:start!==null&&end!==null&&start<=end,state,late:!!(same&&run?.현재기한초과&&state!=='완료'&&state!=='종료'),owners:m.담당자목록?.length?m.담당자목록:[{ID:m.담당자ID,표시명:m.담당자명||'미지정'}],predecessors:same?run?.선행ID||[]:[]};
   });
@@ -56,7 +56,7 @@ export function createMilestoneGantt({el,button}){
    content.replaceChildren();inspector.hidden=true;root.classList.toggle('gantt-list-mode',state.view==='list');gantt.setAttribute('aria-pressed',String(state.view==='gantt'));list.setAttribute('aria-pressed',String(state.view==='list'));
    note.textContent=model.source==='approved'?'대표님이 승인한 유효 계획 기준입니다. 새 계획은 승인 후 실행 일정에 반영됩니다.':'최근 부서 계획 기준입니다. 초안과 승인 대기 일정은 아직 실행 기준이 아닙니다.';
    if(!rows.length){content.append(el('p','아직 표시할 마일스톤이 없습니다. 부서 담당자가 계획을 저장하면 일정이 나타납니다.','gantt-empty'));return;}
-   const legend=el('div',null,'gantt-legend');legend.append(el('span',`${rows.length}개 마일스톤`));for(const [text,cls] of [['진행','working'],['완료','done'],['대기·계획','planned']])legend.append(el('span',text,`gantt-status ${cls}`));legend.append(el('span','↳ 저장된 선후 관계','gantt-relation-note'));content.append(legend);
+   const legend=el('div',null,'gantt-legend');legend.append(el('span',`${rows.length}개 마일스톤`));for(const [text,cls] of [['진행','working'],['완료','done'],['대기·계획','planned']])legend.append(el('span',text,`gantt-status ${cls}`));legend.append(el('span',model.edges.length?'↳ 저장된 선후 관계':'선후 관계는 통합 계획에서 설정합니다.','gantt-relation-note'));content.append(legend);
    const scroll=el('div',null,'gantt-scroll');scroll.tabIndex=0;scroll.setAttribute('role','region');scroll.setAttribute('aria-label','마일스톤 간트 차트');const table=el('div',null,'gantt-table');scroll.append(table);
    const header=el('div',null,'gantt-grid gantt-header'),left=el('div',null,'gantt-info');left.append(el('span','마일스톤'),el('span','담당자'),el('span','상태'));const axis=el('div',null,'gantt-axis');
    for(let i=0;i<model.ticks.length;i++){const tick=model.ticks[i],label=el('span',tick.label);label.style.left=`${(tick.day-model.from)/model.span*100}%`;label.style.width=`${((model.ticks[i+1]?.day||model.to)-tick.day)/model.span*100}%`;axis.append(label);}if(model.today>=model.from&&model.today<model.to){const today=el('span',`오늘 ${short(model.today)}`,'gantt-today-label');today.style.left=`${Math.min(90,(model.today-model.from+.5)/model.span*100)}%`;axis.append(today);}header.append(left,axis);table.append(header);
