@@ -67,3 +67,11 @@
 @media(min-width:1000px){.gantt-scroll{display:block}.gantt-cards{display:none}.gantt-list-mode .gantt-scroll{display:none}.gantt-list-mode .gantt-cards{display:block}.gantt-list-mode .gantt-card-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gantt-list-mode .gantt-card-group>h4,.gantt-list-mode .gantt-card-group>small{grid-column:1/-1}.gantt-list-mode .gantt-card{margin:0}}
 @media(max-width:650px){.milestone-gantt{padding:18px 14px}.gantt-controls{justify-content:flex-start;width:100%}.gantt-controls select{flex:1;min-width:0}.gantt-switch{display:none}.gantt-relation-note{display:none}.gantt-card{padding:12px}.gantt-legend{gap:6px}}
 @media(prefers-reduced-motion:reduce){.milestone-gantt *{transition:none!important;scroll-behavior:auto!important}}
+/* 느린 강조는 계속 유지하되 색상 외에 지연 문구로도 상태를 전달한다. */
+.response-delayed{border:2px solid #c62828!important;animation:response-delay-pulse 2.8s ease-in-out infinite}
+.response-delay-note{color:#a21c22;font-size:13px;font-weight:700;line-height:1.6}
+.request-branch>.response-delay-note{padding:0 16px 14px}
+.response-delay-note strong,.response-delay-note small{display:block}
+.response-delay-note small{font-size:11px;font-weight:500}
+@keyframes response-delay-pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.06)}50%{box-shadow:0 0 0 5px rgba(198,40,40,.22)}}
+@media(prefers-reduced-motion:reduce){.response-delayed{animation:none;box-shadow:0 0 0 2px rgba(198,40,40,.14)}}

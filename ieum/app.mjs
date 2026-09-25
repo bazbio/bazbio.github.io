@@ -91,10 +91,13 @@ function emptyState(){
 function card(item){
   const action=view==='내업무'?item:item.현재행동[0];
   const node=button('','work-card',()=>showDetail(item.업무ID));
+  const delayed=item.응답지연?.filter(r=>r.지연)||[];
+  if(delayed.length)node.classList.add('response-delayed');
   const body=el('div');const top=el('div',null,'card-top');
   top.append(badge(displayLabel(view==='내업무'?item.종류:item.단계),item.단계==='비승인'?'neutral':''));
   if(item.번호)top.append(el('span',item.번호,'reference'));
   body.append(top,el('div',item.제목,'work-title'));
+  if(delayed.length)body.append(el('p',`5일 미응답 지연 · ${delayed.map(r=>r.부서명).join(' · ')}`,'response-delay-note'));
   if(item.부서요청제목)body.append(el('p',`${item.부서요청제목} · ${item.부서접수상태}`,'collaboration-note'));
   if(Array.isArray(item.접수현황)&&item.접수현황.length){
     if(view==='내요청'){const rows=item.접수현황;body.append(el('p',`${rows.length}개 부서 · 수락 ${rows.filter(r=>['수락','배정완료'].includes(r.상태)).length}/${rows.length}${rows.some(r=>r.상태==='접수준비')?' · 접수 준비 '+rows.filter(r=>r.상태==='접수준비').length:''}`,'request-list-status'));}

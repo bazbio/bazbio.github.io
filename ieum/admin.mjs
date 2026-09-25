@@ -18,6 +18,7 @@ export function createAdministration({el,button,api,send,refresh,isBusy,getInfo,
   return box;
  }
  async function render(){const data=await api('read',{종류:'운영설정'}),box=el('div',null,'admin-settings');
+  if(data.지연메일){const mail=data.지연메일,section=el('section',null,'detail-card');section.append(el('h2','5일 미응답 지연 알림'),el('p','요청 시각부터 주말·공휴일을 포함한 5일 · 수락, 미팅 요청, 마일스톤 배정 중 하나가 있으면 해제','hint'),el('p',`${mail.사용?'자동 메일 사용':'자동 메일 중지'} · 담당자와 대표님(${mail.대표이메일||'미설정'})에게 요청 회차별 1회`),el('p',`최근 점검: ${mail.최근점검시각?new Date(mail.최근점검시각).toLocaleString('ko-KR'):'아직 없음'} · 발송 완료 ${mail.발송완료} · 대기 ${mail.대기} · 확인 필요 ${mail.확인필요}`,'hint'));if(mail.확인필요)section.append(el('p','전송 실패 또는 결과를 확인할 수 없는 메일이 있습니다. 중복 발송을 막기 위해 자동 재시도하지 않습니다. 발신함과 발송 기록을 확인해 주세요.','error'));box.append(section);}
   const ready=el('section',null,'detail-card');ready.append(el('h2','구성 설정 점검'),el('p',`설정 개정 ${data.설정개정} · 부서 ${data.부서.length}개 · 활성 계정 ${data.구성원.filter(m=>m.활성).length}명`,'hint'));
   if(data.점검.length){const list=el('ul');for(const i of data.점검)list.append(el('li',i.내용));ready.append(list);}else ready.append(el('p','계정과 승인 경로의 기본 설정을 확인했습니다.','success'));
   ready.append(el('p','실제 명단 확인, 실무 시나리오와 복구 검증을 마친 뒤 시범 운영을 시작하세요.','hint'));box.append(ready);
