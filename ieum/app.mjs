@@ -148,14 +148,14 @@ async function showDetail(id){
     if(data.주관부서)grid.append(infoCell('주관 부서',data.주관부서.이름));
     if(!simplified&&data.현재행동.length){const turns=el('div',null,'current-turns');turns.append(el('p',`현재 차례 · ${data.현재행동.length}건`,'info-label'));for(const a of data.현재행동)turns.append(button(`${a.담당부서.이름} · ${a.담당자.표시명} · ${displayLabel(a.종류)}${a.마일스톤제목?' · '+a.마일스톤제목:''}${a.기한초과?' · 기한 초과':''}`,'turn-link',()=>document.getElementById(`action-${a.행동ID}`)?.scrollIntoView({behavior:'smooth',block:'start'})));summary.append(turns);}
     summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));if(simplified){
-      detail.append(requestOverview.overview(data));
+      detail.append(requestOverview.overview(data),plans.timeline(data));
       secondary.push(fold('요청 내용과 부서별 계획',[summary,plans.overview(data)],'request'),fold('수락·가입 현황',[intakeProgress.overview(data)],'intake'),fold('실행과 결과',[execution.overview(data),closure.overview(data)],'execution'),fold('협의와 첨부파일',[collaboration.overview(data),attachments.overview(data)],'collaboration'),fold('상세 흐름 맵',()=>flowMap.overview(data),'map'));
-    }else detail.append(flowMap.overview(data),intakeProgress.overview(data),summary,execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
+    }else detail.append(flowMap.overview(data),intakeProgress.overview(data),summary,plans.timeline(data),execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
       const section=el('section',null,'detail-card action-card');section.id=`action-${action.행동ID}`;section.append(el('h3',`${action.담당자.표시명} 님의 차례 · ${displayLabel(action.종류)}${action.마일스톤제목?' · '+action.마일스톤제목:''}`,'action-title'),el('p',`${action.담당부서.이름} · ${timestamp(action.처리기한)}까지${action.기한초과?' · 기한 초과':''}`,'muted'));
       if(action.종류==='계획작성')section.append(assignees.control(data,data.부서업무.find(b=>b.ID===action.부서업무ID)));
       if(action.미팅대기)section.append(el('p','미팅 결론과 후속 업무를 기다리고 있습니다. 완료되면 이 차례에서 원래 검토를 진행하세요.','notice'));
-      if(action.담당자.ID===info.본인.ID&&!action.미팅대기){
+      if((action.담당자목록||[action.담당자]).some(p=>p.ID===info.본인.ID)&&!action.미팅대기){
         if(['미팅진행','미팅후속'].includes(action.종류))section.append(collaboration.action(data,action));
         else if(data.종결&&['결과확인','종결승인','결과보완'].includes(action.종류))section.append(closure.action(data,action));
         else if(['통합제출','통합보완','대표승인','착수','수행','검증','재작업','결과확인'].includes(action.종류))section.append(execution.action(data,action));
@@ -182,7 +182,7 @@ async function showDetail(id){
           });section.append(form);
         }
         if(!action.미팅대기&&['접수판단','계획작성','부서승인'].includes(action.종류))section.append(collaboration.request(data,action));
-      }if(simplified)(action.담당자.ID===info.본인.ID?myActions:otherActions).push(section);else detail.append(section);
+      }if(simplified)((action.담당자목록||[action.담당자]).some(p=>p.ID===info.본인.ID)?myActions:otherActions).push(section);else detail.append(section);
     }
     const history=el('section',null,'detail-card');history.append(el('h3','업무의 흐름'));const timeline=el('ol',null,'timeline');
     for(const activity of data.활동){const row=el('li');const head=el('div',null,'timeline-head');const who=el('span',displayLabel(activity.종류));who.append(el('small',activity.작성자));head.append(who,el('time',timestamp(activity.시각),'timeline-time'));row.append(head);const args=activity.내용.인자;const note=args.사유||args.본문||args.의견;if(note)row.append(el('p',note));timeline.append(row);}history.append(timeline);if(simplified){if(otherActions.length)secondary.unshift(fold(`담당자별 현재 차례 · ${otherActions.length}건`,otherActions,'actions'));if(myActions.length)secondary.unshift(fold(`내가 처리할 일 · ${myActions.length}건`,myActions,'mine'));detail.append(...secondary,fold('처리 이력',[history],'history'));}else detail.append(history);

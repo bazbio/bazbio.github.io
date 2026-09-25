@@ -1,3 +1,4 @@
+import {createMilestoneGantt} from './milestone-gantt.mjs';
 import { errorMessage } from './messages.mjs';
 // 계획 화면은 공통 명령 전송기를 사용하여 응답 유실·개정 충돌 처리를 공유한다.
 export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy,message,handleError}) {
@@ -51,7 +52,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
       if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표님 승인 시 반영됩니다.`,'hint'));
       const latest=b.계획[0];
       const plan=el('div',null,'department-plan-content');plan.append(el('strong','부서 계획','department-section-label'));
-      if(latest)plan.append(versionView(latest));else plan.append(el('p','부서 계획 작성 전입니다.','muted'));
+      if(latest){const fold=el('details');fold.append(el('summary',`계획 v${latest.버전} · ${latest.상태} · 상세 보기`),versionView(latest));plan.append(fold);}else plan.append(el('p','부서 계획 작성 전입니다.','muted'));
       if(b.계획.length>1){const history=el('details');history.append(el('summary','이전 계획과 승인 이력'));for(const p of b.계획.slice(1))history.append(versionView(p));plan.append(history);}
       box.append(plan);
       const me=getInfo().본인.ID;
@@ -116,7 +117,15 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
         if(rows.children.length>=40)return;
         const row=el('fieldset');row.dataset.id=m.ID;row.append(el('legend',`마일스톤 ${rows.children.length+1}`));
         const title=field(row,'마일스톤 제목','text',m.제목||'');title.name='title';
-        const owner=field(row,'마일스톤 담당자','select');person(owner,m.담당자ID);owner.name='owner';
+        const ownerWrap=el('div',null,'milestone-owners'),selected=el('div',null,'assignee-chips');row.append(ownerWrap);
+        const owner=field(ownerWrap,'마일스톤 담당자','select','',false);person(owner);owner.name='owner';owner.options[0].text='담당자 추가 선택';
+        const owners=(m.담당자목록?.map(p=>p.ID)||[m.담당자ID]).filter(Boolean);
+        row.dataset.owners=JSON.stringify(owners);ownerWrap.append(selected,el('small','여러 명을 선택할 수 있습니다. 담당자 중 한 명이 완료 보고하면 공동으로 반영됩니다.','hint'));
+        function paintOwners(){selected.replaceChildren();for(const id of JSON.parse(row.dataset.owners)){
+          const name=candidates.find(p=>p.ID===id)?.표시명||m.담당자목록?.find(p=>p.ID===id)?.표시명||'현재 배정 불가';
+          const chip=button(name+' ×','assignee-chip',()=>{row.dataset.owners=JSON.stringify(JSON.parse(row.dataset.owners).filter(p=>p!==id));paintOwners();changed();});chip.setAttribute('aria-label',name+' 담당자 제외');selected.append(chip);
+        }owner.setCustomValidity(JSON.parse(row.dataset.owners).length?'':'마일스톤 담당자를 한 명 이상 선택해 주세요.');}
+        owner.addEventListener('change',()=>{if(owner.value){const ids=JSON.parse(row.dataset.owners);if(!ids.includes(owner.value))ids.push(owner.value);row.dataset.owners=JSON.stringify(ids);owner.value='';paintOwners();}});paintOwners();
         const dates=el('div',null,'form-grid');row.append(dates);const start=field(dates,'시작일','date',m.시작일||''),end=field(dates,'완료일','date',m.완료일||'');start.name='start';end.name='end';
         const criteria=field(row,'마일스톤 완료 기준','textarea',m.완료기준||'');criteria.name='criteria';
         const required=field(row,'종결에 필요한 마일스톤','checkbox',m.필수,false);required.name='mandatory';
@@ -132,11 +141,12 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
       form.append(el('p','내용을 바꾼 뒤에는 초안을 먼저 저장하세요. 제출 후에는 승인자가 검토하며, 보완 시 새 버전을 작성합니다.','hint'));
       form.addEventListener('submit',e=>{e.preventDefault();if(isBusy())return;
         if(e.submitter.value==='submit'){if(!draft||dirty)return;run(form,payload(data,b.ID,'계획제출',{계획ID:draft.ID},a));return;}
-        const milestones=[...rows.children].map(row=>{const val=n=>row.querySelector(`[name=${n}]`);return {ID:row.dataset.id,제목:val('title').value,담당자ID:val('owner').value,시작일:val('start').value,완료일:val('end').value,완료기준:val('criteria').value,검증필요:val('verify').checked,검증자ID:val('verify').checked?val('verifier').value:null,필수:val('mandatory').checked};});
+        const milestones=[...rows.children].map(row=>{const val=n=>row.querySelector(`[name=${n}]`);return {ID:row.dataset.id,제목:val('title').value,담당자IDs:JSON.parse(row.dataset.owners),시작일:val('start').value,완료일:val('end').value,완료기준:val('criteria').value,검증필요:val('verify').checked,검증자ID:val('verify').checked?val('verifier').value:null,필수:val('mandatory').checked};});
         if(milestones.some(m=>m.시작일>m.완료일)){form.querySelector('[role=alert]').textContent='완료일은 시작일 이후여야 합니다.';return;}
         run(form,payload(data,b.ID,'계획저장',{계획ID:draft?.ID||null,마일스톤:milestones},a),'초안을 저장했습니다. 내용을 확인한 뒤 부서 승인을 요청하세요.');});
     }
     return form;
   }
-  return {overview,action};
+  const gantt=createMilestoneGantt({el,button});
+  return {overview,action,timeline:gantt.overview};
 }
