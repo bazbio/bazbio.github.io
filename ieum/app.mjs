@@ -92,11 +92,13 @@ function card(item){
   const action=view==='내업무'?item:item.현재행동[0];
   const node=button('','work-card',()=>showDetail(item.업무ID));
   const delayed=item.응답지연?.filter(r=>r.지연)||[];
-  if(delayed.length)node.classList.add('response-delayed');
+  const overdue=(view==='내업무'?[item]:item.현재행동||[]).filter(a=>a.기한초과);
+  if(delayed.length||overdue.length)node.classList.add('response-delayed');
   const body=el('div');const top=el('div',null,'card-top');
   top.append(badge(displayLabel(view==='내업무'?item.종류:item.단계),item.단계==='비승인'?'neutral':''));
   if(item.번호)top.append(el('span',item.번호,'reference'));
   body.append(top,el('div',item.제목,'work-title'));
+  if(overdue.length)body.append(el('p',`⚠ 기한 초과 ${overdue.length}건 · ${[...new Set(overdue.map(a=>a.담당자.표시명))].join(' · ')}`,'deadline-alert'));
   if(delayed.length)body.append(el('p',`5일 미응답 지연 · ${delayed.map(r=>r.부서명).join(' · ')}`,'response-delay-note'));
   if(item.부서요청제목)body.append(el('p',`${item.부서요청제목} · ${item.부서접수상태}`,'collaboration-note'));
   if(Array.isArray(item.접수현황)&&item.접수현황.length){
@@ -104,7 +106,7 @@ function card(item){
     else body.append(intakeProgress.compact(item.접수현황));
   }
   body.append(el('p',action?`${action.담당부서.이름} · ${action.담당자.표시명} · ${displayLabel(action.종류)}${action.마일스톤제목?' · '+action.마일스톤제목:''}${item.현재행동?.length>1?' 외 '+(item.현재행동.length-1)+'건 대기':''}`:item.단계==='완료'?'최종 종결 승인이 완료되었습니다.':item.접수현황?.some(r=>r.상태==='접수준비')?'가입·담당자 설정 완료를 기다리고 있습니다.':'접수 판단이 완료되었습니다.','work-meta'));
-  const end=el('div',null,'card-end');if(action)end.append(badge(action.기한초과?'기한 초과':`${timestamp(action.처리기한)}까지`,action.기한초과?'late':'neutral'));end.append(el('span','›','chevron'));
+  const end=el('div',null,'card-end');if(action)end.append(badge(overdue.length?'기한 초과':`${timestamp(action.처리기한)}까지`,overdue.length?'late':'neutral'));end.append(el('span','›','chevron'));
   node.append(body,end);return node;
 }
 async function showList(next=view,more=false){
@@ -156,6 +158,7 @@ async function showDetail(id){
     }else detail.append(flowMap.overview(data),intakeProgress.overview(data),summary,plans.timeline(data),execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
       const section=el('section',null,'detail-card action-card');section.id=`action-${action.행동ID}`;section.append(el('h3',`${action.담당자.표시명} 님의 차례 · ${displayLabel(action.종류)}${action.마일스톤제목?' · '+action.마일스톤제목:''}`,'action-title'),el('p',`${action.담당부서.이름} · ${timestamp(action.처리기한)}까지${action.기한초과?' · 기한 초과':''}`,'muted'));
+      if(action.기한초과){section.classList.add('response-delayed');section.prepend(el('p','⚠ 처리 기한 초과 · 확인이 필요합니다','deadline-alert'));}
       if(action.종류==='계획작성')section.append(assignees.control(data,data.부서업무.find(b=>b.ID===action.부서업무ID)));
       if(action.미팅대기)section.append(el('p','미팅 결론과 후속 업무를 기다리고 있습니다. 완료되면 이 차례에서 원래 검토를 진행하세요.','notice'));
       if((action.담당자목록||[action.담당자]).some(p=>p.ID===info.본인.ID)&&!action.미팅대기){
