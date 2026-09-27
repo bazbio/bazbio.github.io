@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#579BCE">
+<title>BAZ · 문의 내용 확인</title>
+<style>
+/* 공식 홈페이지 로고/강조색: #579BCE, 회색 #595959. 텍스트용 블루는 대비를 높였다. */
+:root{--brand:#579bce;--ink:#242b32;--muted:#64707b;--line:#e5eaee;--soft:#f3f8fc;--blue-ink:#285c83;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:var(--ink);background:#fff;font-synthesis:none;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;border-top:3px solid var(--brand)}
+.site-header{border-bottom:1px solid var(--line)}.header-inner{max-width:960px;margin:auto;padding:18px 32px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand-logo{display:block;width:99px;height:54px}.service{font-size:13px;color:#595959;letter-spacing:.02em}
+main{max-width:720px;margin:0 auto;padding:52px 32px 36px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--blue-ink);margin:0 0 16px}h1{font-size:36px;letter-spacing:-1.4px;font-weight:700;line-height:1.4;margin:0 0 18px;word-break:keep-all}p{line-height:1.8;color:var(--muted);font-size:15px}.intro-copy{margin:0}.intro-rule{width:36px;height:3px;background:var(--brand);margin:30px 0 0}
+form{margin-top:36px}.panel{padding:0 0 32px;margin:0 0 30px;border-bottom:1px solid var(--line)}.section-heading{display:flex;align-items:baseline;gap:12px;margin-bottom:22px}.section-no{font-size:13px;font-weight:700;color:var(--blue-ink);font-variant-numeric:tabular-nums}h2{font-size:19px;font-weight:700;letter-spacing:-.4px;margin:0}.fields{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{min-width:0}.field label{margin-top:0}label{display:block;font-size:14px;font-weight:600;margin:22px 0 9px}.optional{font-size:12px;font-weight:400;color:var(--muted);margin-left:5px}
+select,input,textarea,button{font:inherit;font-size:16px;width:100%;border:1px solid #c6d1d9;border-radius:7px;padding:14px;color:var(--ink);background:#fff;min-width:0}select,input{min-height:52px}select{padding-right:30px}textarea{resize:vertical;line-height:1.7}input::placeholder,textarea::placeholder{color:#757f88;opacity:1}select:focus,input:focus,textarea:focus{border-color:var(--blue-ink);outline:3px solid #579bce30;outline-offset:1px}button:focus-visible{outline:3px solid var(--blue-ink);outline-offset:3px}input[type=checkbox]{width:20px;height:20px;min-height:0;flex:none;margin:0;accent-color:var(--blue-ink)}
+.check{display:flex;align-items:center;gap:11px;font-weight:400;line-height:1.6;background:var(--soft);padding:15px;border-radius:7px;margin-top:20px}.hint{font-size:13px;margin:0;color:#576773;line-height:1.75}.notice{border-left:2px solid var(--brand);padding:0 0 0 14px;margin:-5px 0 22px}.notice strong{font-weight:600;color:var(--ink)}
+button{background:var(--brand);color:#142e42;border:0;font-weight:700;cursor:pointer;min-height:56px;transition:background .15s}button:hover{background:#70abd6}button:disabled{opacity:.6;cursor:wait}.secondary{background:white;border:1px dashed #a5bacb;color:var(--blue-ink);margin-top:14px;min-height:48px;font-size:14px;font-weight:600}.secondary:hover{background:var(--soft)}#submit{display:flex;align-items:center;justify-content:center;gap:14px}#submit svg{width:18px;height:18px;flex:none}
+#message{border-radius:7px;padding:15px 18px;background:var(--soft);color:var(--blue-ink);line-height:1.7;font-size:14px;margin:24px 0;overflow-wrap:anywhere}#message.error{background:#fff2ee;color:#9c3023}#message:empty{display:none}#previewNotice{background:#f3f8fc;border-bottom:1px solid #e5eaee;text-align:center;padding:9px 16px;font-size:12px;color:var(--blue-ink)}.submit-note{font-size:12px;line-height:1.8;margin:15px 0 0;text-align:center;color:var(--muted)}.site-footer{max-width:656px;border-top:1px solid var(--line);padding:24px 0 0;margin:42px auto 0;text-align:center}.company{font-size:12px;color:#595959;margin:0}.copyright{font-size:10px;letter-spacing:.08em;color:var(--muted);margin:6px 0 0}
+[hidden]{display:none!important}.success{padding:36px 0 48px;text-align:center}.success-mark{display:block;width:64px;height:64px;margin:0 auto 28px;color:var(--blue-ink)}.success h1{font-size:30px}.success-note{margin-top:28px;background:var(--soft);padding:20px;border-radius:7px;font-size:14px}.success-note strong{color:var(--ink)}
+@media(max-width:540px){.header-inner{padding:14px 22px}.brand-logo{width:88px;height:48px}.service{font-size:12px}main{padding:34px 22px 28px}h1{font-size:29px;letter-spacing:-1px}.intro-copy{font-size:14px}.intro-rule{margin-top:25px}form{margin-top:28px}.fields{grid-template-columns:1fr;gap:20px}.panel{padding-bottom:26px;margin-bottom:25px}.section-heading{margin-bottom:20px}h2{font-size:18px}.site-footer{margin-top:34px}.success{padding-top:28px}.success h1{font-size:27px}}
+p,.success-note{word-break:keep-all;overflow-wrap:break-word}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="previewNotice" hidden>디자인 미리보기 · 실제 문자 발송 없음</div>
+<header class="site-header"><div class="header-inner"><img class="brand-logo" src="survey-logo.svg" width="99" height="54" alt="BAZ BIOMEDIC"><span class="service">제품 상담</span></div></header>
+<main>
+<div id="intro"><div class="eyebrow">BAZ CONSULTATION</div><h1>더 알맞은 상담을 위해<br>문의 내용을 알려주세요.</h1><p class="intro-copy">바즈바이오메딕에 관심을 가져주셔서 감사합니다.<br>선택해 주신 내용을 바탕으로 상담을 준비하겠습니다.</p><div class="intro-rule" aria-hidden="true"></div></div>
+<div id="message" role="status" aria-live="polite">설문 링크를 확인하고 있습니다.</div>
+<form id="survey" hidden>
+<section class="panel"><div class="section-heading"><span class="section-no" aria-hidden="true">01</span><h2>분야와 문의 목적</h2></div><div class="fields"><div class="field">
+<label for="cat">종사 분야</label><select id="cat" required><option value="">선택해 주세요</option><option value="1">병의원</option><option value="3">미용 분야</option><option value="2">치과</option><option value="4">대리점·딜러</option><option value="5">기타</option></select>
+</div><div id="detailBox" class="field" hidden><label for="detail">세부 분야</label><select id="detail" required></select></div></div>
+<label for="purpose">문의 목적</label><select id="purpose" required><option value="">선택해 주세요</option><option>제품 데모 요청</option><option>가격·견적 문의</option><option>제품 정보·단순 문의</option><option>대리점·딜러 상담</option><option>기타</option></select></section>
+<section id="demo" class="panel" hidden><div class="section-heading"><span class="section-no" aria-hidden="true">02</span><h2>데모 희망 일정</h2></div><div class="notice"><p class="hint">가능한 일정을 <strong>최대 3개</strong> 알려주세요.<br>한국 시간 기준이며, 담당자와 확인 후 확정됩니다.</p></div>
+<label for="location">데모 희망 지역·장소</label><input id="location" maxlength="150" placeholder="예: 서울 강남구 ○○의원" autocomplete="off">
+<label class="check"><input id="discuss" type="checkbox">일정은 담당자와 협의하겠습니다</label>
+<div id="slots"><label for="slot1">첫 번째 희망 일정</label><input id="slot1" type="datetime-local"><div id="extraSlots"></div><button class="secondary" id="addSlot" type="button">+ 희망 일정 추가</button></div></section>
+<section class="panel"><label for="note" style="margin-top:0">추가로 알려주실 내용 <span class="optional">선택</span></label><textarea id="note" rows="3" maxlength="500" placeholder="궁금한 제품이나 상담 내용을 적어주세요." aria-describedby="noteHint"></textarea><p class="hint" id="noteHint" style="margin-top:8px">민감한 개인정보는 입력하지 마세요.</p></section>
+<button id="submit" type="submit"><span>문의 내용 보내기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button><p class="submit-note">응답은 남겨주신 문의에 연결되어 상담 준비에 사용됩니다.<br>설문 제출로 데모 예약이 확정되지는 않습니다.</p>
+</form>
+<section id="complete" class="success" hidden tabindex="-1"><svg class="success-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="#F3F8FC"/><path d="m20 32 8 8 17-17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="eyebrow">접수 완료</div><h1>문의 내용이 전달되었습니다.</h1><p>답변해 주셔서 감사합니다.<br>남겨주신 내용을 확인한 뒤 상담을 도와드리겠습니다.</p><div class="success-note"><strong>데모를 요청하셨나요?</strong><br>희망 일정은 담당자와 확인 후 확정됩니다.</div></section>
+<footer class="site-footer"><p class="company">바즈바이오메딕 주식회사</p><p class="copyright">BAZ BIOMEDIC</p></footer>
+</main><script>
+'use strict';
+const API = 'https://orttfugxziltenujdlme.supabase.co/functions/v1/saleson-survey';
+const $ = id => document.getElementById(id);
+const token = location.hash.slice(1);
+window.addEventListener('hashchange', () => location.reload());
+// 해시는 서버·리퍼러에 전달되지 않는다. 원문은 DOM·스토리지에 저장하지 않는다.
+const details = {1:['피부과','성형외과','내과','가정의학과','기타 진료과'],2:['치과'],3:['에스테틱','헤드스파','기타 미용'],4:['대리점·딜러'],5:['기타']};
+let extra = 0;
+function localMinute(ms) { return new Date(ms + 9*3600000).toISOString().slice(0,16); }
+function dateBounds(input) { input.min = localMinute(Date.now()+60000); input.max = localMinute(Date.now()+180*86400000); }
+dateBounds($('slot1'));
+$('cat').addEventListener('change', () => {
+  const list = details[$('cat').value] || [];
+  $('detailBox').hidden = !list.length; $('detail').replaceChildren();
+  if (list.length > 1) $('detail').add(new Option('선택해 주세요',''));
+  list.forEach(v => $('detail').add(new Option(v,v)));
+});
+function demoFields() {
+  const demo = $('purpose').value === '제품 데모 요청';
+  $('demo').hidden = !demo; $('location').required = demo;
+  $('slots').hidden = $('discuss').checked;
+  document.querySelectorAll('input[type="datetime-local"]').forEach((input,i) => { input.disabled = !demo || $('discuss').checked; input.required = demo && !$('discuss').checked && i === 0; });
+}
+$('purpose').addEventListener('change',demoFields); $('discuss').addEventListener('change',demoFields);
+$('addSlot').addEventListener('click', () => {
+  if (extra >= 2) return; extra++;
+  const label = document.createElement('label'), input = document.createElement('input');
+  input.id = 'slot'+(extra+1); input.type = 'datetime-local'; dateBounds(input);
+  label.htmlFor = input.id; label.textContent = (extra === 1 ? '두' : '세')+' 번째 희망 일정 (선택)';
+  $('extraSlots').append(label,input); $('addSlot').hidden = extra === 2;
+});
+function message(text,error=false) { $('message').textContent=text; $('message').className=error?'error':''; }
+function complete() { $('survey').hidden=true; $('intro').hidden=true; $('complete').hidden=false; message(''); $('complete').focus(); window.scrollTo(0,0); }
+async function request(answer) {
+  const res = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({token,answer}),signal:AbortSignal.timeout(20000)});
+  const body = await res.json(); if(!res.ok) throw new Error(body.error || '잠시 후 다시 시도해 주세요.'); return body;
+}
+$('survey').addEventListener('submit',async event => {
+  event.preventDefault(); if (!$('survey').reportValidity()) return;
+  $('submit').disabled=true; message('응답을 저장하고 있습니다.');
+  try {
+    await request({cat:Number($('cat').value),detail:$('detail').value,purpose:$('purpose').value,
+      location:$('location').value,note:$('note').value,discuss:$('discuss').checked,
+      slots:Array.from(document.querySelectorAll('input[type="datetime-local"]')).map(e=>e.value).filter(Boolean)});
+    complete();
+  } catch(e) { message(e.name==='TimeoutError'?'응답 확인이 지연되고 있습니다. 다시 보내기를 눌러 확인해 주세요.':e.message,true); }
+  finally { $('submit').disabled=false; }
+});
+(async()=>{
+  if(!/^[a-f0-9]{64}$/.test(token)){message('문자로 받은 설문 링크를 열어주세요.',true);return;}
+  try { const r=await request(); if(r.completed) complete(); else { message(''); $('survey').hidden=false; demoFields(); } }
+  catch(e){message(e.message,true);}
+})();
+</script></body></html>
