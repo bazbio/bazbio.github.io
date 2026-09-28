@@ -3,11 +3,13 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="no-referrer"><title>부스터젯 런칭 · 파일 공유</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E">
-<link rel="stylesheet" href="./style.css"><script type="module" src="./app.mjs"></script></head>
-<body><header><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">B</span><span>BOOSTERJET<small>런칭 프로젝트</small></span></a>
-<div class="account"><span id="identity"></span><button id="logout" class="quiet" hidden>로그아웃</button></div></header>
+<link rel="stylesheet" href="./style.css?v=20260929-apple"><script type="module" src="./app.mjs"></script></head>
+<body>
+<div class="global-nav"><div class="nav-inner"><span class="global-brand">BAZ BIOMEDIC</span><span class="global-caption">Partner workspace</span></div></div>
+<header class="site-header"><div class="nav-inner sub-nav"><a class="brand" href="./">BOOSTERJET<small>런칭 프로젝트</small></a>
+<div class="account"><span id="identity"></span><button id="logout" class="quiet" hidden>로그아웃</button></div></div></header>
 <main>
-<section class="intro"><p class="eyebrow">PARTNER WORKSPACE</p><h1>함께 준비하는 런칭,<br>필요한 파일을 한곳에.</h1><p>내가 올린 자료와 관리자가 공유한 자료를 확인하세요.</p></section>
+<section class="intro"><p class="eyebrow">부스터젯 파일 공유</p><h1>함께 준비하는 런칭.<br>필요한 파일을 한곳에.</h1><p>내가 올린 자료와 관리자가 공유한 자료를 확인하세요.</p></section>
 <p id="notice" class="notice" role="status" aria-live="polite">연결을 확인하고 있습니다.</p>
 <section id="login-panel" class="panel login" hidden><h2>초대받은 계정으로 로그인</h2><p class="muted">처음 이용하시면 전달받은 초대 링크에서 비밀번호를 설정해 주세요.</p>
 <form id="login-form"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required>
@@ -18,18 +20,18 @@
 <label for="confirm-password">비밀번호 확인</label><input id="confirm-password" type="password" minlength="12" autocomplete="new-password" required>
 <button type="submit" class="primary">비밀번호 저장</button></form></section>
 <section id="workspace" hidden>
-<div class="workspace-grid"><aside class="panel upload-panel"><span class="section-number">01 / UPLOAD</span><h2>파일 올리기</h2>
+<div class="workspace-grid"><aside class="panel upload-panel"><span class="section-number">UPLOAD</span><h2>파일 올리기</h2>
 <p class="muted">올린 파일은 나와 관리자에게만 보입니다. 다른 참여자에게는 관리자가 선택해 공유합니다.</p>
 <form id="upload-form"><label for="files" class="file-label">파일 선택</label><input id="files" type="file" multiple required aria-describedby="upload-help">
 <p id="upload-help" class="caption">파일당 최대 50MB · 같은 이름도 새 파일로 저장됩니다.</p><button type="submit" class="primary">선택한 파일 올리기</button></form>
 <progress id="progress" max="100" value="0" hidden aria-label="파일 업로드 진행률"></progress><p id="upload-status" role="status" class="caption"></p>
 <ul id="upload-results" class="upload-results"></ul><div class="privacy"><strong>내 자료를 안전하게</strong><p>기존 파일의 삭제와 덮어쓰기는 제공하지 않습니다.</p></div></aside>
-<section class="panel files-panel"><div class="section-top"><div><span class="section-number">02 / FILES</span><h2 id="files-title">내가 볼 수 있는 파일</h2></div><button id="refresh" class="quiet">새로고침</button></div>
+<section class="panel files-panel"><div class="section-top"><div><span class="section-number">FILES</span><h2 id="files-title">내가 볼 수 있는 파일</h2></div><button id="refresh" class="quiet">새로고침</button></div>
 <form id="search-form" class="search"><label class="sr-only" for="search">파일명 검색</label><input id="search" type="search" placeholder="파일명으로 검색" maxlength="180"><button type="submit">검색</button></form>
 <div id="file-list" class="file-list" aria-live="polite"></div>
 <div class="pagination"><button id="previous" class="quiet" disabled>이전</button><span id="page-label"></span><button id="next" class="quiet" disabled>다음</button></div>
 </section></div></section>
-</main><footer>BOOSTERJET · 초대받은 참여자 전용 공간</footer>
+</main><footer><div class="footer-inner"><span class="footer-brand">BOOSTERJET</span><span>초대받은 참여자 전용 파일 공유 공간</span></div></footer>
 <dialog id="share-dialog"><form id="share-form"><div class="section-top"><h2>파일 공유 대상</h2><button type="button" id="close-share" class="quiet">닫기</button></div>
 <p id="share-filename"></p><p class="muted">선택한 참여자에게만 이 파일이 보입니다. 이미 내려받은 사본은 회수되지 않습니다.</p>
 <div id="share-options"></div><p id="share-error" role="alert"></p><button type="submit" class="primary">공유 대상 저장</button></form></dialog>
