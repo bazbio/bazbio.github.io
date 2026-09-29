@@ -356,7 +356,7 @@
         ❌ <code>세미나 대관료 지급의 건</code> (코드 없음 — 어느 예산에서 나가는지 알 수 없음)
       </div>
       <ul>
-        <li>부서 코드: 연구소_선행연구 <b>PRE</b> · 연구소_연구개발 <b>RND</b> · C-Labs_마케팅 <b>CLM</b> · C-Labs_디자인 <b>CLD</b> · <b>MA</b> · 경영관리부문 <b>MGT</b> · 국내영업 <b>DOM</b> · 글로벌사업 <b>GLB</b> · 생산품질부문 <b>PQC</b> · 인허가 <b>RA</b> · 해외영업 <b>OVS</b></li>
+        <li>부서 코드: 연구소_선행연구 <b>PRE</b> · 연구소_연구개발 <b>RND</b> · C-Labs_마케팅 <b>CLM</b> · C-Labs_디자인 <b>CLD</b> · <b>MA</b> · 경영관리부문 <b>MGT</b> · 국내영업 <b>DOM</b> · 글로벌사업 <b>GLB</b> · 생산본부 <b>PQC</b> · 품질인허가본부 <b>RA</b>·<b>PQC</b> · 해외영업 <b>OVS</b> <span class="muted">(2026-09 조직 개편 — 코드는 그대로, 품질·CS 항목의 PQC 코드는 품질인허가본부 소속)</span></li>
         <li><b>연구소(PRE·RND)와 C-Labs_디자인(CLD)</b>은 코드 가운데에 제품 구분이 들어갑니다:
           <b>BJ</b> 부스터젯 · <b>CJ</b> 큐어젯 · <b>CJP</b> 큐어젯 프로 · <b>HC</b> 홈케어 · <b>HP</b> 핸드피스 · <b>NZ</b> 노즐 · <b>RC</b> 리클락 · <b>PAT</b> 특허 · <b>COM</b> 공통
           — 예: <code>PRE-BJ-001</code>, <code>CLD-CJ-002</code>. 나머지 부서는 기존처럼 <code>MGT-001</code> 형식입니다.</li>
@@ -1672,7 +1672,7 @@ function 사전확인계산(items) {
     누적[code] = (누적[code] || 0) + amt;
     const 기집행 = b.spent + b.pending;
     const remain = b.budget - 기집행 - 누적[code];
-    /* 예산 0원 코드는 판정 자체가 성립하지 않는다 (2026-08-16 훑기 B6). 시드 283개 중 34개가
+    /* 예산 0원 코드는 판정 자체가 성립하지 않는다 (2026-08-16 훑기 B6). 시드 308개 중 57개가
        0원이고 그중 22개는 전 부서 공통 접대비·조직활성화비다 — remain이 언제나 음수라
        무조건 'over'가 되어 「초과 · 반영 후 잔액 -3,000,000원」이라는 없는 숫자를 그렸다.
        같은 사실을 집행률칸(:839)은 「예산없음」으로, 서버 임계 알림(`Code.gs`의 bud<=0)은
