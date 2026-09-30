@@ -1334,7 +1334,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609300450-6905742';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609300502-c8dde96';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5700,6 +5700,13 @@ function nozCoverageSave_(clear) {
 
 function renderNcareStage(mine) {
   var h = '';
+  /* 해지 병원(서버 churned — 이탈 목록에 있고 5단계 미만)은 단계별에서 빼고 「해지·건너뜀」에서만 본다(9/30).
+     퍼널에 해지 칸이 없어 4단계에 쌓이면 「사용 안정화」 숫자가 부푼다. */
+  var 해지수 = mine.filter(function(p) { return p.churned; }).length;
+  mine = mine.filter(function(p) { return !p.churned; });
+  var 담당맞음 = function(r) { return NCSEG === '전체' || (NCSEG === '미지정' ? !r.rep : r.rep === NCSEG); };
+  var 이탈수 = ((NCARE && NCARE.churn) || []).filter(담당맞음).length;
+  var 건너뜀수 = ((NCARE && NCARE.skip) || []).filter(담당맞음).length;
   // 단계 분포 — 타일을 누르면 그 단계만 본다
   var cnt = {};
   mine.forEach(function(p) { cnt[p.stage] = (cnt[p.stage] || 0) + 1; });
@@ -5710,8 +5717,15 @@ function renderNcareStage(mine) {
           + '<div style="font-size:20px;font-weight:700;color:' + NC_COLOR[s.n] + ';">' + (cnt[s.n] || 0) + '</div>'
           + '<div style="margin-top:2px;font-size:11px;color:#4e5968;white-space:nowrap;">' + s.n + '. ' + esc(s.name) + '</div></div>';
       }).join('')
+    // 해지·건너뜀 바로가기 — 단계 타일과 같은 모양, 누르면 그 탭으로 간다
+    + '<div onclick="NCMODE=\'lapse\';renderNcare()" style="flex:1;min-width:64px;text-align:center;padding:10px 4px;border-radius:12px;cursor:pointer;border:1.5px dashed #f0b4bd;background:#fff5f6;">'
+    + '<div style="font-size:20px;font-weight:700;color:#d0223a;">' + 이탈수 + '</div>'
+    + '<div style="margin-top:2px;font-size:11px;color:#4e5968;white-space:nowrap;">해지' + (건너뜀수 ? ' · 건너뜀 ' + 건너뜀수 : '') + ' ›</div></div>'
     + '</div>'
-    + '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳 · 단계 타일을 누르면 그 단계만 봅니다</div>'
+    + '<div style="margin-top:10px;font-size:12px;color:#5f6b7a;">가입(5단계~) ' + mine.filter(function(p) { return p.stage >= 5; }).length + ' / ' + mine.length + '곳'
+    // 모바일에선 타일 줄이 가로로 넘쳐 끝의 바로가기 타일이 가려진다 — 이 문구도 같은 곳으로 보낸다
+    + (해지수 ? ' · <a href="javascript:void(0)" onclick="NCMODE=\'lapse\';renderNcare()" style="color:#d0223a;font-weight:600;">해지 ' + 해지수 + '곳은 「해지·건너뜀」에서 봅니다 ›</a>' : '')
+    + ' · 단계 타일을 누르면 그 단계만 봅니다</div>'
     + '</div>';
 
   /* 목록 — 병원마다 1→7 단계를 쭉 펼치고 지금 어디까지 왔는지를 진행바로 보인다
