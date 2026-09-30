@@ -3,7 +3,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="no-referrer"><title>부스터젯 런칭 · 파일 공유</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E">
-<link rel="stylesheet" href="./style.css?v=20260929-apple"><script type="module" src="./app.mjs"></script></head>
+<link rel="stylesheet" href="./style.css?v=20261001-columns"><script type="module" src="./app.mjs?v=20261001-columns"></script></head>
 <body>
 <div class="global-nav"><div class="nav-inner"><span class="global-brand">BAZ BIOMEDIC</span><span class="global-caption">Partner workspace</span></div></div>
 <header class="site-header"><div class="nav-inner sub-nav"><a class="brand" href="./">BOOSTERJET<small>런칭 프로젝트</small></a>
@@ -28,8 +28,14 @@
 <ul id="upload-results" class="upload-results"></ul><div class="privacy"><strong>내 자료를 안전하게</strong><p>기존 파일의 삭제와 덮어쓰기는 제공하지 않습니다.</p></div></aside>
 <section class="panel files-panel"><div class="section-top"><div><span class="section-number">FILES</span><h2 id="files-title">내가 볼 수 있는 파일</h2></div><button id="refresh" class="quiet">새로고침</button></div>
 <form id="search-form" class="search"><label class="sr-only" for="search">파일명 검색</label><input id="search" type="search" placeholder="파일명으로 검색" maxlength="180"><button type="submit">검색</button></form>
-<div id="file-list" class="file-list" aria-live="polite"></div>
-<div class="pagination"><button id="previous" class="quiet" disabled>이전</button><span id="page-label"></span><button id="next" class="quiet" disabled>다음</button></div>
+<div id="file-list" class="file-columns">
+<section class="file-column" aria-labelledby="mine-title"><h3 id="mine-title">내가 올린 파일</h3><p class="column-help">내 계정으로 올린 자료입니다.</p>
+<div id="mine-list" class="file-list" aria-live="polite"></div>
+<nav class="pagination" aria-label="내 파일 페이지"><button id="mine-previous" class="quiet" disabled>이전</button><span id="mine-page-label"></span><button id="mine-next" class="quiet" disabled>다음</button></nav></section>
+<section class="file-column" aria-labelledby="others-title"><h3 id="others-title">다른 참여자가 올린 파일</h3><p class="column-help">공유 권한이 있는 파일만 표시됩니다.</p>
+<div id="others-list" class="file-list" aria-live="polite"></div>
+<nav class="pagination" aria-label="다른 참여자 파일 페이지"><button id="others-previous" class="quiet" disabled>이전</button><span id="others-page-label"></span><button id="others-next" class="quiet" disabled>다음</button></nav></section>
+</div>
 </section></div></section>
 </main><footer><div class="footer-inner"><span class="footer-brand">BOOSTERJET</span><span>초대받은 참여자 전용 파일 공유 공간</span></div></footer>
 <dialog id="share-dialog"><form id="share-form"><div class="section-top"><h2>파일 공유 대상</h2><button type="button" id="close-share" class="quiet">닫기</button></div>
