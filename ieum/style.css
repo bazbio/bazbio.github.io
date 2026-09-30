@@ -105,3 +105,15 @@ main:has(.project-workspace){max-width:1720px;width:100%}
 
 .comment-choices label{flex-direction:row;text-align:left;justify-content:flex-start;font-weight:400}
 .comments-jump{display:none}@media(max-width:1199px){.comments-jump{display:block;align-self:flex-end;font-size:12px;padding:9px 12px}}
+
+/* 현재 담당자와 해야 할 일을 프로젝트 첫 화면에 표시한다. */
+.next-turns{background:#fff;border:1px solid #c8dafa;border-radius:18px;padding:24px;min-width:0}
+.next-turns-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.next-turns-eyebrow{font-size:11px;font-weight:600;color:#3776cf;margin:0 0 7px}.next-turns h2{font-size:23px;letter-spacing:-.6px;margin:0}.next-turns-description{font-size:12px;color:#657992;line-height:1.7;margin:10px 0 18px}
+.next-turn-counts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.next-turn-count{border-radius:6px;padding:6px 9px;font-size:11px;white-space:nowrap;background:#edf4ff;color:#2465c0}.next-turn-count.late{background:#fff0f1;color:#b82235}
+.next-turn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px}
+.next-turn-card{display:flex;flex-direction:column;align-items:stretch;text-align:left;min-width:0;padding:17px 16px;border:1px solid #dce5f0;border-top:3px solid #8eb7ed;background:#fff;border-radius:10px;color:#203856;overflow-wrap:anywhere;transition:background .15s,border-color .15s}.next-turn-card:hover{background:#f6f9ff;border-color:#6096e2}.next-turn-card.mine{background:#f0f6ff;border-color:#83b0f1;border-top-color:#2878ed}.next-turn-card:focus-visible{outline:3px solid #2878ed;outline-offset:3px}
+.next-turn-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#657b95;margin-bottom:11px}.next-turn-me{background:#2878ed;color:white;padding:3px 7px;border-radius:5px;font-size:10px}
+.next-turn-person{font-size:22px;letter-spacing:-.6px;line-height:1.4}.next-turn-task{font-size:15px;font-weight:700;margin-top:7px;color:#2766b5}.next-turn-scope{font-size:12px;line-height:1.6;color:#72829a;margin:8px 0 16px;white-space:pre-wrap}
+.next-turn-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:9px;margin-top:auto;padding-top:12px;border-top:1px solid #e6edf7;font-size:10px;line-height:1.5}.next-turn-due{color:#6c7e95}.next-turn-late{color:#ba2235;font-weight:700}.next-turn-link{font-size:11px;font-weight:600;color:#286abf}
+.next-turn-waiting{border-top:1px solid #e7edf5;margin-top:18px;padding-top:14px;color:#738197}.next-turn-waiting h3{font-size:12px;margin:0 0 6px}.next-turn-waiting p,.next-turn-wait-link{font-size:12px;line-height:1.7;margin:0;padding:5px 0;text-align:left;overflow-wrap:anywhere}.next-turn-wait-link{display:block;background:none;color:#647b97;max-width:100%}
+@media(max-width:650px){.next-turns{padding:20px 16px}.next-turns h2{font-size:21px}.next-turn-person{font-size:21px}.next-turn-card{padding:16px}.next-turns-heading{align-items:flex-start}}
