@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -725,6 +725,7 @@
     <button class="refresh" onclick="MATL=null;loadMat()">새로고침</button>
   </div>
   <!-- 병원 사전분석 진입점 (슬라이스 C-1, §5-3) — 사전분석카드갱신_이 표시 여부를 정한다 -->
+  <button class="btn ghost" id="maManageBtn" style="display:none;margin-bottom:10px;" onclick="openMA()">제안서 자료 검토</button>
   <div class="card" id="intelCard" style="display:none;cursor:pointer;" onclick="openIntelList()">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:14px;font-weight:600;">🏥 병원 사전분석 — 전체 병원의 홈페이지 분석 결과를 봅니다</span>
@@ -874,7 +875,7 @@
       <button class="refresh" onclick="NCARE=null;loadNcare()">새로고침</button>
     </div>
   </div>
-  <div class="seg" id="ncModeSeg"></div>
+  <div class="seg scrollx" id="ncModeSeg"></div>
   <div class="seg scrollx" id="ncSeg"></div>
   <div id="ncBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
@@ -1058,6 +1059,13 @@
   </div>
 </div>
 
+<div id="maModal" role="dialog" aria-modal="true" aria-label="제안서 자료 검토" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeMA()">
+  <div class="card" style="max-width:720px;width:100%;margin:0;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;"><strong>제안서 자료 검토</strong><button class="btn ghost" onclick="closeMA()">닫기</button></div>
+    <p style="font-size:12px;color:#5f6b7a;">SalesON에 등록된 자료에서 제안서에 사용할 표현과 적용 조건을 검토합니다.</p>
+    <div id="maContent"></div><div id="maEditor"></div>
+  </div>
+</div>
 <div id="loading"><div class="spin"></div><div id="loadMsg" style="margin-top:14px;font-size:12px;color:#4e5968;">불러오는 중…</div></div>
 <!-- 갱신 알약 (8/15, 설계 D2) — 지난 숫자를 보고 있다는 것을 화면을 지우지 않고 알린다 -->
 <div id="refreshBar"><div class="spin"></div>갱신 중…</div>
@@ -1114,7 +1122,7 @@ var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
 var NCST = 0;           // 단계 필터 (0 = 전체)
-var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2) / 'noz'(주문 확인, 작업 B)
+var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2) / 'noz'(주문 확인, 작업 B) / 'lapse'(해지·건너뛰기, 9/30)
 var NOZTGT = null;      // /saleson-nozzle 대상목록 응답
 var NOZTGT_KEY = null;  // 마지막으로 불러온 rep|status|page 조합 — 바뀌면 다시 불러온다
 var NOZTGT_STATUS = ''; // 상태 필터 ('' = 전체)
@@ -1326,7 +1334,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609250953-a834d89';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202609300450-6905742';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1361,7 +1369,7 @@ try {
    빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
 var 당김시작_ = 0, 당김중_ = false;
 function 모달열림_() {
-  return ['hospModal', 'failModal', 'intelModal'].some(function(id) {
+  return ['hospModal', 'failModal', 'intelModal', 'maModal'].some(function(id) {
     var m = document.getElementById(id);
     return m && m.style.display && m.style.display !== 'none';
   });
@@ -1626,6 +1634,7 @@ function onData(d) {
 }
 function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
+  closeMA();
   if (typeof wkReset === 'function') wkReset();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
@@ -1776,6 +1785,7 @@ function 화면이력_(v) {
 }
 function 모달닫기_() {
   입력시트콜백_ = null;   // 입력 시트를 뒤로가기로 닫았으면 콜백도 같이 버린다
+  closeMA();
   ['hospModal', 'failModal', 'intelModal'].forEach(function(id) {
     var m = document.getElementById(id);
     if (m) m.style.display = 'none';
@@ -5522,7 +5532,7 @@ function ncRowSet_(p) {
 
 function renderNcare() {
   var d = NCARE;
-  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리'], ['noz', '주문 확인']].map(function(m) {
+  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리'], ['lapse', '해지·건너뜀'], ['noz', '주문 확인']].map(function(m) {
     return '<div class="chip' + (NCMODE === m[0] ? ' on' : '') + '" onclick="NCMODE=\'' + m[0] + '\';renderNcare()">' + m[1] + '</div>';
   }).join('');
 
@@ -5543,7 +5553,8 @@ function renderNcare() {
   });
 
   document.getElementById('ncBody').innerHTML =
-    NCMODE === 'exp' ? renderNcareExp(d, mine) : NCMODE === 'noz' ? renderNozzleTargets() : renderNcareStage(mine);
+    NCMODE === 'exp' ? renderNcareExp(d, mine) : NCMODE === 'lapse' ? renderNcareLapse(d)
+      : NCMODE === 'noz' ? renderNozzleTargets() : renderNcareStage(mine);
 }
 
 /* 주문 확인 — 판매 후 30일 첫 단품 주문 확인 대상목록(작업 B, 명세 §5·§6). N-Care 목록의 기존
@@ -5818,10 +5829,52 @@ function renderNcareExp(d, mine) {
   h += kick('이미 만료 ' + 만료됨.length + '곳', true) + 목록(만료됨);
   h += kick('6개월 임박 ' + 임박.length + '곳') + 목록(임박);
 
-  var 이탈대상 = 전체이탈.filter(function(c) {
-    return NCSEG === '전체' || (NCSEG === '미지정' ? !c.rep : c.rep === NCSEG);
-  }).sort(function(a, b) { return (a.churnedOn || '') < (b.churnedOn || '') ? 1 : -1; });
-  h += kick('이탈 ' + 이탈대상.length + '곳', true) + renderNcareChurn(이탈대상);
+  // 이탈 목록 편집은 「해지·건너뛰기」 탭으로 옮겼다(9/30) — 여기는 요약 줄의 건수만 남긴다
+  h += '<div class="card empty" style="cursor:pointer;" onclick="NCMODE=\'lapse\';renderNcare()">해지 병원은 「해지·건너뜀」 탭에서 관리합니다 ›</div>';
+  return h;
+}
+
+/* 해지·건너뛰기 (2026-09-30) — 구독을 끊었거나 한 달 이상 건너뛴 병원을 한곳에서 본다.
+   해지 = ncare_churn(재가입 상태·사유·전략 편집, renderNcareChurn 재사용).
+   건너뛰기 = 관리 시트 구독 탭의 결제일 「건너뛰기」 행(서버가 병원 단위로 묶어 d.skip으로 준다).
+   건너뛰는 병원은 구독이 살아 있어 Pool 5단계 그대로다 — 이번 달·다음 달 건너뛰면 이탈 신호로 강조한다. */
+function renderNcareLapse(d) {
+  var 담당맞음 = function(r) { return NCSEG === '전체' || (NCSEG === '미지정' ? !r.rep : r.rep === NCSEG); };
+  var 이탈대상 = (d.churn || []).filter(담당맞음)
+    .sort(function(a, b) { return (a.churnedOn || '') < (b.churnedOn || '') ? 1 : -1; });
+  var 이번달 = String(DATA.today || '').slice(0, 7);
+  var 건너뜀 = (d.skip || []).filter(담당맞음).map(function(s) {
+    var 앞으로 = s.months.filter(function(m) { return m >= 이번달; });
+    return { s: s, 진행중: 앞으로.length > 0 };
+  }).sort(function(a, b) { return (b.진행중 - a.진행중) || (b.s.months.length - a.s.months.length); });
+
+  var h = kick('건너뛰기 ' + 건너뜀.length + '곳');
+  h += 건너뜀.length
+    ? '<div class="card" style="padding:4px 16px;">'
+      + 건너뜀.map(function(x, i) {
+          var s = x.s;
+          var 열기 = s.poolId ? ' cursor:pointer;" onclick="ncOpen(' + s.poolId + ')' : '';
+          return '<div style="padding:12px 0;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + 열기 + '">'
+            + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            + '<b style="font-size:14.5px;color:#191f28;">' + esc(s.hname) + '</b>'
+            + '<span style="font-size:12px;color:#5f6b7a;">' + esc(s.region) + '</span>'
+            + (NCSEG === '전체' || NCSEG === '미지정' ? '<span style="font-size:12px;color:#5f6b7a;">· ' + esc(s.rep || '담당 미지정') + '</span>' : '')
+            + (x.진행중 ? '<span class="tag-red">건너뛰는 중</span>' : '')
+            + (s.poolId ? '' : '<span class="tag-blue">Pool 미연결</span>')
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;">'
+            + s.months.map(function(m) {
+                return '<span class="' + (m >= 이번달 ? 'tag-red' : 'tag-blue') + '">' + Number(m.slice(5)) + '월</span>';
+              }).join('')
+            + '<span style="margin-left:auto;font-size:12px;color:#5f6b7a;white-space:nowrap;">'
+            + (s.nextShip ? '다음 출고 ' + Number(s.nextShip.slice(5)) + '월' : '다음 출고 없음') + '</span>'
+            + '</div>'
+            + '</div>';
+        }).join('')
+      + '</div>'
+    : '<div class="card empty">건너뛰는 병원이 없습니다</div>';
+
+  h += kick('해지 ' + 이탈대상.length + '곳', true) + renderNcareChurn(이탈대상);
   return h;
 }
 
@@ -6281,6 +6334,8 @@ function loadMat(조용히) {
 }
 function renderMat() {
   var d = MATL;
+  document.getElementById('maManageBtn').style.display = DATA && DATA.dbSrc && DATA.me
+    && (DATA.me.admin || String(DATA.me.team || '').trim() === 'MA') ? 'inline-block' : 'none';
   var up = document.getElementById('matUpCard');
   up.style.display = d.canUpload ? 'block' : 'none';
   if (d.canUpload && !document.getElementById('mCat').innerHTML) {
@@ -6376,6 +6431,104 @@ function matDelete(row, no) {
   gsrun().withSuccessHandler(function(d) { MATL = d; busy(false); renderMat(); toast('삭제했습니다'); })
     .withFailureHandler(function(e) { busy(false); toast(e.message, true); })
     .웹_영업자료삭제(TOKEN, row, no || 0);   // no가 정본 — 행 번호는 다른 삭제로 밀린다
+}
+
+/* ── 제안서 MA 자료 검토 ── */
+var MA_DATA = null, MA_EDIT = null, MA_REQUEST = 0, MA_BUSY = false;
+function closeMA() {
+  MA_REQUEST++; MA_DATA = null; MA_EDIT = null; MA_BUSY = false;
+  var modal = document.getElementById('maModal');
+  if (modal) modal.style.display = 'none';
+  ['maContent','maEditor'].forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = ''; });
+}
+function openMA() {
+  document.getElementById('maModal').style.display = 'flex';
+  document.getElementById('maEditor').innerHTML = '';
+  document.getElementById('maContent').textContent = '자료를 불러오는 중…';
+  MA_EDIT = null; MA_DATA = null;
+  var request = ++MA_REQUEST, token = TOKEN;
+  return 관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: 'MA목록' })).then(function(r) {
+    if (request !== MA_REQUEST || token !== TOKEN) return;
+    MA_DATA = r; renderMA();
+  }, function(e) {
+    if (request !== MA_REQUEST || token !== TOKEN) return;
+    document.getElementById('maContent').textContent = e.message || '자료를 불러오지 못했습니다.';
+  });
+}
+function renderMA() {
+  var d = MA_DATA;
+  var status = { draft: '초안', approved: '승인됨', withdrawn: '철회됨' };
+  document.getElementById('maContent').innerHTML = (d.canCurate ? '' : '<p>조회 권한으로 열었습니다. 수정에는 별도 자료 관리 권한이 필요합니다.</p>')
+    + d.sources.map(function(s) {
+      var items = d.items.filter(function(m) { return m.materialNo === s.no; });
+      return '<div class="card"><strong>' + esc(s.title) + '</strong><p style="font-size:12px;">' + esc(s.category || '') + '</p>'
+        + '<a class="btn ghost" href="' + esc(/^https?:\/\//i.test(s.url || '') ? s.url : '#') + '" target="_blank" rel="noopener noreferrer">원문 열기</a> '
+        + (d.canCurate ? '<button class="btn ghost" onclick="editMA(' + Number(s.no) + ',0)">사용 표현 추가</button>' : '')
+        + (items.length ? items.map(function(m) { return '<p>' + esc(status[m.state]) + ' · v' + Number(m.version) + ' · ' + esc(m.sourceStatus)
+          + '<br>' + esc(m.approvedClaim) + (d.canCurate ? ' <button class="btn ghost" onclick="editMA(' + Number(s.no) + ',' + Number(m.id) + ')">검토</button>' : '') + '</p>'; }).join('') : '<p style="font-size:12px;">제안서에 사용할 표현을 아직 등록하지 않았습니다.</p>') + '</div>';
+    }).join('')
+    + d.items.filter(function(m) { return m.sourceStatus === '삭제됨'; }).map(function(m) {
+      return '<p>원본 삭제됨 · ' + esc(m.title) + ' · ' + esc(status[m.state]) + ' (제안서 연결 제외)</p>';
+    }).join('');
+}
+function editMA(no, id) {
+  if (!MA_DATA || !MA_DATA.canCurate || MA_BUSY) return;
+  var source = MA_DATA.sources.find(function(s) { return s.no === no; });
+  var item = id ? MA_DATA.items.find(function(m) { return Number(m.id) === id; }) : null;
+  if (!source || (id && !item)) return;
+  MA_EDIT = { source: source, item: item };
+  item = item || { tags: [], product: '큐어젯' };
+  function field(id, label, value, limit) {
+    return '<label class="f" for="' + id + '">' + label + '</label><textarea id="' + id + '" maxlength="' + limit + '" rows="2">' + esc(value || '') + '</textarea>';
+  }
+  document.getElementById('maEditor').innerHTML = '<h3>' + esc(source.title) + '</h3>'
+    + '<p style="font-size:12px;">원문에서 확인한 표현만 입력해 주세요. 승인한 내용을 수정하면 다시 초안이 됩니다.</p>'
+    + field('maTags','적용 장비·시술명 (쉼표로 구분)',(item.tags || []).join(', '),3600)
+    + field('maClaim','제안서 사용 표현',item.approvedClaim,2500)
+    + field('maLimits','적용 조건·연구 한계',item.limitations,1500)
+    + field('maQuote','근거 원문',item.evidenceQuote,4000)
+    + field('maLocation','근거 페이지 또는 슬라이드',item.evidenceLocation,300)
+    + '<label class="f"><input type="checkbox" id="maShareable"' + (item.sourceShareable ? ' checked' : '') + '> 원문·파일 링크의 제안서 사용 가능</label>'
+    + field('maPermission','자료 사용 승인 근거',item.sourcePermissionNote,1000)
+    + '<p><button class="btn pri" onclick="saveMA()">초안 저장</button> '
+    + (item.state === 'draft' && item.sourceStatus === '현재' ? '<button class="btn ghost" onclick="approveMA()">원문 확인 후 승인</button> ' : '')
+    + (item.id && item.state !== 'withdrawn' ? '<button class="btn ghost" onclick="mutateMA(\'철회\')">표현 사용 철회</button>' : '') + '</p>'
+    + '<p id="maMessage" role="status"></p>';
+}
+function maFields_() {
+  function value(id) { return document.getElementById(id).value.trim(); }
+  return { product: '큐어젯', tags: value('maTags').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+    approvedClaim: value('maClaim'), limitations: value('maLimits'), evidenceQuote: value('maQuote'), evidenceLocation: value('maLocation'),
+    sourceShareable: document.getElementById('maShareable').checked === true, sourcePermissionNote: value('maPermission') };
+}
+function saveMA() { return mutateMA('저장', maFields_()); }
+function approveMA() {
+  if (!MA_EDIT || !MA_EDIT.item) return;
+  var fields = maFields_(), item = MA_EDIT.item;
+  if (['approvedClaim','limitations','evidenceQuote','evidenceLocation'].some(function(k) { return fields[k] !== item[k]; })
+      || fields.tags.join(',') !== item.tags.join(',') || fields.sourceShareable !== !!item.sourceShareable
+      || fields.sourcePermissionNote !== (item.sourcePermissionNote || '')) {
+    document.getElementById('maMessage').textContent = '수정한 내용을 먼저 초안으로 저장한 뒤 승인해 주세요.'; return;
+  }
+  if (!confirm('원문과 대조하여 표현·적용 조건·근거 위치를 확인했으며 이 표현의 병원 제안서 사용을 승인합니까?')) return;
+  return mutateMA('승인', { confirmSourceReviewed: true });
+}
+function mutateMA(action, extra) {
+  if (MA_BUSY || !MA_EDIT || !MA_DATA || !MA_DATA.canCurate) return;
+  var item = MA_EDIT.item, source = MA_EDIT.source, token = TOKEN, request = MA_REQUEST;
+  var body = Object.assign({ 토큰: token, 동작: 'MA' + action, id: item ? item.id : 0, materialNo: source.no,
+    expectedVersion: item ? item.version : 0, sourceFingerprint: source.fingerprint }, extra || {});
+  MA_BUSY = true;
+  document.getElementById('maMessage').textContent = '저장 중…';
+  document.querySelectorAll('#maEditor button').forEach(function(b) { b.disabled = true; });
+  return 관문호출_('/saleson-clinic-intel', JSON.stringify(body)).then(function() {
+    if (request !== MA_REQUEST || token !== TOKEN) return;
+    MA_BUSY = false; toast('자료 검토 내용을 저장했습니다.'); return openMA();
+  }, function(e) {
+    if (request !== MA_REQUEST || token !== TOKEN) return;
+    MA_BUSY = false; document.getElementById('maMessage').textContent = e.message || '저장하지 못했습니다.';
+    document.querySelectorAll('#maEditor button').forEach(function(b) { b.disabled = false; });
+  });
 }
 
 /* ── 병원 사전분석 — 공통 목록 (슬라이스 C-1, §5-3) ──
