@@ -91,7 +91,7 @@
   .card:focus-visible { outline:3px solid var(--on-dark); outline-offset:3px; }
 
   .card--hero { grid-row:span 2; padding:26px 26px 28px; }
-  .card--ieum { grid-column:1 / -1; min-height:184px; }
+  .card--ieum, .card--boosterjet { grid-column:1 / -1; min-height:184px; }
   .card__status { font-size:11px; font-weight:700; padding:6px 10px; border:1px solid rgba(8,19,31,.24); border-radius:999px; }
 
   .card__top { display:flex; align-items:flex-start; justify-content:space-between; }
@@ -356,6 +356,26 @@
         <span class="card__cat">부서 간 업무 협업</span>
         <h2 class="card__name">이음</h2>
         <p class="card__desc">요청 · 승인 · 마일스톤 · 병목 관리</p>
+      </div>
+    </a>
+
+    <!-- 부스터젯 -->
+    <a class="card t3 card--boosterjet" href="https://bazbio.github.io/boosterjet/" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>
+            <path d="M12 10v6m-3-3 3 3 3-3"/>
+          </svg>
+        </span>
+        <span class="card__go" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+        </span>
+      </div>
+      <div>
+        <span class="card__cat">런칭 프로젝트 파일 공유</span>
+        <h2 class="card__name">부스터젯</h2>
+        <p class="card__desc">초대된 참여자와 파일 업로드 · 다운로드</p>
       </div>
     </a>
 
