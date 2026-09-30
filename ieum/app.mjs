@@ -1,4 +1,5 @@
 import {createAssignees} from './assignees.mjs';
+import {createComments} from './comments.mjs';
 import { createClosure } from './closure.mjs';
 import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
@@ -16,6 +17,7 @@ import { errorMessage, displayLabel } from './messages.mjs';
 const $ = selector => document.querySelector(selector);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!=null) node.textContent=text; if(className)node.className=className; return node; };
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
+const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
 const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
@@ -67,7 +69,7 @@ async function execute(request){
   catch(error){if(!error.uncertain&&error.status!==401)sessionStorage.removeItem(key);throw error;}
   finally{setBusy(false);showPending();}
 }
-function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
+function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());comments.reset();token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
 function handleError(error){if(error.status===401){logout();$('#login-error').textContent=errorMessage(error);}else message(errorMessage(error),true);}
 function badge(text,kind=''){return el('span',text,`badge ${kind}`);}
 function button(text,className,handler){const b=el('button',text,className);b.type='button';b.addEventListener('click',handler);return b;}
@@ -133,7 +135,7 @@ async function showList(next=view,more=false){
 async function refreshNotices(){const session=token;if(!session||document.hidden)return;try{const data=await api('read',{종류:'알림',한도:1});if(token===session)$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';}catch(e){if(token===session&&e.status===401)handleError(e);}}
 setInterval(()=>void refreshNotices(),60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshNotices();});
-function noticeCard(n){const node=button('','work-card notice-card',async()=>{try{await api('notice',{종류:'알림읽음',알림ID:n.ID});void refreshNotices();await showDetail(n.업무ID);if(n.행동ID)document.getElementById(`action-${n.행동ID}`)?.scrollIntoView({block:'start'});}catch(e){handleError(e);}});const body=el('div');body.append(el('span',`${n.종류} · ${n.읽음시각?'읽음':'읽지 않음'}`,'badge'),el('p',n.제목,'work-title'),el('p',timestamp(n.생성시각),'hint'));node.append(body,el('span','›','chevron'));return node;}
+function noticeCard(n){const node=button('','work-card notice-card',async()=>{try{await api('notice',{종류:'알림읽음',알림ID:n.ID});void refreshNotices();await showDetail(n.업무ID);if(n.코멘트ID)await comments.focus(n.코멘트ID);else if(n.행동ID)document.getElementById(`action-${n.행동ID}`)?.scrollIntoView({block:'start'});}catch(e){handleError(e);}});const body=el('div');body.append(el('span',`${n.작성자명?n.작성자명+'님의 ':''}${n.종류} · ${n.읽음시각?'읽음':'읽지 않음'}`,'badge'),el('p',n.제목,'work-title'));if(n.코멘트미리보기)body.append(el('p',n.코멘트미리보기,'work-meta'));body.append(el('p',timestamp(n.생성시각),'hint'));node.append(body,el('span','›','chevron'));return node;}
 function infoCell(label,value){const cell=el('div');cell.append(el('p',label,'info-label'),el('p',value||'미지정','info-value'));return cell;}
 function textBlock(label,value){const node=el('div',null,'text-block');node.append(el('h3',label),el('p',value));return node;}
 async function showDetail(id){
@@ -192,14 +194,14 @@ async function showDetail(id){
     }
     const history=el('section',null,'detail-card');history.append(el('h3','업무의 흐름'));const timeline=el('ol',null,'timeline');
     for(const activity of data.활동){const row=el('li');const head=el('div',null,'timeline-head');const who=el('span',displayLabel(activity.종류));who.append(el('small',activity.작성자));head.append(who,el('time',timestamp(activity.시각),'timeline-time'));row.append(head);const args=activity.내용.인자;const note=args.사유||args.본문||args.의견;if(note)row.append(el('p',note));timeline.append(row);}history.append(timeline);if(simplified){if(otherActions.length)secondary.unshift(fold(`담당자별 현재 차례 · ${otherActions.length}건`,otherActions,'actions'));if(myActions.length)secondary.unshift(fold(`내가 처리할 일 · ${myActions.length}건`,myActions,'mine'));detail.append(...secondary,fold('처리 이력',[history],'history'));}else detail.append(history);
-    restoreWorkDrafts(detail,drafts);$('#content').replaceChildren(detail);if(opening)$('#page-title').focus({preventScroll:true});
+    restoreWorkDrafts(detail,drafts);detail.prepend(button('프로젝트 대화 ↓','comments-jump secondary',()=>comments.focus()));const workspace=el('div',null,'project-workspace');workspace.append(detail,comments.mount(id));$('#content').replaceChildren(workspace);if(opening)$('#page-title').focus({preventScroll:true});
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(button('목록으로 돌아가기','secondary',()=>showList()));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
 }
 $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=errorMessage(error);}finally{submit.disabled=false;}});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showList(b.dataset.view)));
 $('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
-$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
+$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
 async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
  await showEnrollment({el,button,api,token:secret,back:()=>{$('#enroll-view').hidden=true;$('#enroll-view').replaceChildren();$('#login-view').hidden=false;}});

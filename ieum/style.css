@@ -76,3 +76,32 @@
 .response-delay-note small{font-size:11px;font-weight:500}
 @keyframes response-delay-pulse{0%,100%{box-shadow:0 0 0 2px rgba(198,40,40,.13),0 3px 12px rgba(198,40,40,.07)}50%{box-shadow:0 0 0 7px rgba(198,40,40,.32),0 7px 24px rgba(198,40,40,.2)}}
 @media(prefers-reduced-motion:reduce){.response-delayed{animation:none;box-shadow:0 0 0 2px rgba(198,40,40,.14)}}
+
+/* 업무 본문과 독립적으로 갱신되는 프로젝트 대화 */
+main:has(.project-workspace){max-width:1720px;width:100%}
+.project-workspace{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:22px;align-items:start}
+.project-workspace>.detail{min-width:0}
+.project-comments{position:sticky;top:24px;max-height:calc(100dvh - 48px);overflow:auto;background:#fff;border:1px solid #dce5f1;border-radius:18px;padding:22px;min-width:0;scrollbar-width:thin}
+.comments-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.comments-heading h2{font-size:19px;margin:0;letter-spacing:-.4px}
+.project-comments .quiet{font-size:12px;padding:5px 0;background:transparent;color:#3973ba;min-height:28px}
+.project-comments .hint{font-size:11px;line-height:1.7;margin:10px 0}
+.comment-compose{display:grid;gap:12px;margin-top:18px}
+.comment-compose>label{display:grid;gap:8px;font-size:12px;font-weight:600}
+.comment-compose textarea{width:100%;min-height:100px;resize:vertical;font-size:13px;line-height:1.7;padding:12px}
+.comment-compose>.primary{justify-self:end;font-size:12px;padding:10px 15px;min-height:38px}
+.comment-compose>.hint{margin:0}.comment-status:empty{display:none}.comment-status{font-size:12px;line-height:1.6;margin:0}
+.comment-recipients summary{font-size:12px;cursor:pointer;color:#356db2;padding:4px 0}
+.comment-choices{max-height:190px;overflow:auto;border:1px solid #e4ebf4;border-radius:8px;margin-top:8px;padding:6px}
+.comment-choices label{display:flex;align-items:center;gap:8px;padding:7px;font-size:12px;cursor:pointer}
+.comment-choices input{width:16px;height:16px;flex:none;margin:0}.comment-choices small{display:block;color:#718297;font-size:10px;margin-top:4px}
+.project-comments .comments-order{border-top:1px solid #e7edf5;margin-top:20px;padding-top:16px}
+.comments-feed{display:grid;gap:14px}.comment-entry{border-bottom:1px solid #edf1f6;padding-bottom:14px;overflow-wrap:anywhere;scroll-margin:16px}.comment-entry:focus{outline:2px solid #82acf0;outline-offset:4px;border-radius:4px}
+.comment-meta{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px}.comment-meta time{font-size:10px;color:#7c8ba0}
+.comment-body{white-space:pre-wrap;line-height:1.8;font-size:13px;margin:9px 0 2px;color:#30465f}.comment-addressed{font-size:11px;color:#3776c6;margin:8px 0 0}.comment-empty{font-size:13px;color:#8796aa;text-align:center;padding:24px 0}
+.project-comments>.secondary{margin-top:14px;width:100%;font-size:12px}
+@media(max-width:1199px){.project-workspace{grid-template-columns:minmax(0,1fr)}.project-comments{position:static;max-height:none}.comment-compose textarea{min-height:90px}}
+@media(max-width:650px){.project-workspace{gap:16px}.project-comments{padding:20px 16px}.comments-heading h2{font-size:18px}}
+
+.comment-choices label{flex-direction:row;text-align:left;justify-content:flex-start;font-weight:400}
+.comments-jump{display:none}@media(max-width:1199px){.comments-jump{display:block;align-self:flex-end;font-size:12px;padding:9px 12px}}
