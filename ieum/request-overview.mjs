@@ -41,7 +41,7 @@ export function createRequestOverview({el,button,assignees}){
    const meta=el('div',null,'next-turn-meta');meta.append(el('span',a.담당부서?.이름||'프로젝트'));if(r.mine)meta.append(el('span','내 차례','next-turn-me'));card.append(meta);
    card.append(el('strong',r.people.map(p=>p.표시명).join(' · ')||'담당자 확인 필요','next-turn-person'),el('span',r.title,'next-turn-task'),el('span',r.scope,'next-turn-scope'));
    const foot=el('div',null,'next-turn-foot'),date=a.처리기한?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(a.처리기한)):'기한 미지정';
-   foot.append(el('span',`${a.기한초과?'기한 초과 · ':''}${date}${a.처리기한?'까지':''}`,a.기한초과?'next-turn-late':'next-turn-due'),el('span',r.mine?'바로 처리 →':'상세 보기 →','next-turn-link'));card.append(foot);grid.append(card);
+   foot.append(el('span',`${a.기한초과?'기한 초과 · ':''}${date}${a.처리기한?'까지':''}`,a.기한초과?'next-turn-late':'next-turn-due'),el('span',r.mine?'바로 처리 ›':'상세 보기 ›','next-turn-link'));card.append(foot);grid.append(card);
   }if(model.ready.length)box.append(grid);
   if(model.waiting.length||model.preparing.length){const wait=el('div',null,'next-turn-waiting');wait.append(el('h3','지금은 대기 중'));
    for(const r of model.waiting)wait.append(button(`${r.people.map(p=>p.표시명).join(' · ')} · ${r.title} — ${r.action.미팅대기?'미팅 결론·후속 업무 대기':'선행 처리 대기'} →`,'next-turn-wait-link',()=>revealWorkElement(document.getElementById(`action-${r.action.행동ID}`))));
