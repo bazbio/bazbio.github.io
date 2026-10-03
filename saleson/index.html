@@ -732,7 +732,7 @@
       <span style="color:#5f6b7a;">›</span>
     </div>
   </div>
-  <div class="card" id="matUpCard" style="display:none;border-color:#c9e0ff;"
+  <div class="card" id="matUpCard" style="display:none;border-color:#c9e0ff;">
     <div style="font-size:15px;font-weight:700;color:#1b64da;margin-top:2px;">자료 업로드 — 등록하면 영업사원 전체에게 메일이 갑니다</div>
     <label class="f">카테고리 *</label>
     <div class="chips" id="mCat"></div>
@@ -1334,7 +1334,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202609300502-c8dde96';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610031250-e2d0e91';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
