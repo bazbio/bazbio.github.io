@@ -148,14 +148,14 @@ async function showDetail(id){
     const data=await api('read',{종류:'업무상세',업무ID:id});if(version!==loadVersion)return;
     $('#page-title').textContent=data.제목;$('#page-description').textContent=`${data.번호||''} · ${displayLabel(data.단계)}`;
     const simplified=view==='내요청',detail=el('div',null,simplified?'detail request-detail':'detail');$('.request-back')?.remove();const back=button('← 목록으로',simplified?'text-button request-back':'text-button back',()=>showList());if(simplified)$('#toolbar').prepend(back);else detail.append(back);
-    detail.append(requestOverview.turns(data,info.본인.ID));
+    detail.append(requestOverview.overview(data),requestOverview.turns(data,info.본인.ID));
     const secondary=[],otherActions=[],myActions=[];
     function fold(title,nodes,key){const box=el('details',null,'detail-fold');box.dataset.fold=key;box.append(el('summary',title));const body=el('div',null,'detail-fold-body');box.append(body);let rendered=false;const render=()=>{if(rendered)return;rendered=true;body.append(...(typeof nodes==='function'?[nodes()]:nodes));};box.addEventListener('toggle',()=>{if(box.open)render();});if(typeof nodes!=='function')render();if(openFolds.includes(key)){box.open=true;render();}return box;}
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(displayLabel(data.단계)),el('span',data.번호,'reference'));
     summary.append(top,el('h2','업무 개요'));const grid=el('div',null,'detail-info');grid.append(infoCell('요청자',data.요청자.표시명),infoCell('전체 책임자',data.전체책임자?.표시명),infoCell('희망 완료일',data.희망기한||'미지정'));
     if(data.주관부서)grid.append(infoCell('주관 부서',data.주관부서.이름));
     summary.append(grid,textBlock('요청 배경과 목적',data.목적),textBlock('완료 기준',data.완료기준));if(simplified){
-      detail.append(requestOverview.overview(data),plans.timeline(data));
+      detail.append(plans.timeline(data));
       secondary.push(fold('요청 내용과 부서별 계획',[summary,plans.overview(data)],'request'),fold('수락·가입 현황',[intakeProgress.overview(data)],'intake'),fold('실행과 결과',[execution.overview(data),closure.overview(data)],'execution'),fold('협의와 첨부파일',[collaboration.overview(data),attachments.overview(data)],'collaboration'),fold('상세 흐름 맵',()=>flowMap.overview(data),'map'));
     }else detail.append(flowMap.overview(data),intakeProgress.overview(data),summary,plans.timeline(data),execution.overview(data),closure.overview(data),plans.overview(data),collaboration.overview(data),attachments.overview(data));
     for(const action of data.현재행동){
