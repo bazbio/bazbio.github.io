@@ -147,6 +147,6 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
     }
     return form;
   }
-  const gantt=createMilestoneGantt({el,button});
+  const gantt=createMilestoneGantt({el,button,send,refresh,getInfo,isBusy,handleError});
   return {overview,action,timeline:gantt.overview};
 }
