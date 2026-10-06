@@ -1,5 +1,6 @@
 import {createAssignees} from './assignees.mjs';
 import {createComments} from './comments.mjs';
+import {createProjects} from './projects.mjs';
 import { createClosure } from './closure.mjs';
 import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
@@ -18,6 +19,8 @@ const $ = selector => document.querySelector(selector);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!=null) node.textContent=text; if(className)node.className=className; return node; };
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
 const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
+let selectedProject=null;
+const projects=createProjects({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,open:showProject,openWork:showDetail,handleError});
 const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
@@ -30,6 +33,7 @@ const collaboration=createCollaboration({el,button,send,refresh:showDetail,getIn
 const attachments=createAttachments({el,button,send,api,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const administration=createAdministration({el,button,api,send,refresh:()=>showList('운영설정'),getInfo:()=>info,isBusy:()=>busy,message,handleError});
 descriptions.운영설정=['운영 설정','조직·구성원·승인 경로를 설정하고 시범 운영을 준비하세요.'];
+descriptions.프로젝트승인=['프로젝트 승인','부서 검토와 대표님 승인을 거쳐 업무로 연결하세요.'];
 let fileCache=null;
 descriptions.알림=['알림','내 차례와 협의 소식, 기한을 넘긴 업무를 확인하세요.'];
 descriptions.병목현황=['병목 현황','어느 부서와 담당자의 차례에서 기다리고 있는지 확인하세요.'];
@@ -69,7 +73,7 @@ async function execute(request){
   catch(error){if(!error.uncertain&&error.status!==401)sessionStorage.removeItem(key);throw error;}
   finally{setBusy(false);showPending();}
 }
-function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());comments.reset();token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
+function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());comments.reset();projects.reset();selectedProject=null;token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
 function handleError(error){if(error.status===401){logout();$('#login-error').textContent=errorMessage(error);}else message(errorMessage(error),true);}
 function badge(text,kind=''){return el('span',text,`badge ${kind}`);}
 function button(text,className,handler){const b=el('button',text,className);b.type='button';b.addEventListener('click',handler);return b;}
@@ -95,11 +99,11 @@ function card(item){
   const node=button('','work-card',()=>showDetail(item.업무ID));
   const delayed=item.응답지연?.filter(r=>r.지연)||[];
   const overdue=(view==='내업무'?[item]:item.현재행동||[]).filter(a=>a.기한초과);
-  if(delayed.length||overdue.length)node.classList.add('response-delayed');
+  if(delayed.length||overdue.length)node.classList.add('response-delayed');if(item.프로젝트보류)node.setAttribute('aria-label',item.제목+' · 프로젝트 승인 대기');
   const body=el('div');const top=el('div',null,'card-top');
   top.append(badge(displayLabel(view==='내업무'?item.종류:item.단계),item.단계==='비승인'?'neutral':''));
   if(item.번호)top.append(el('span',item.번호,'reference'));
-  body.append(top,el('div',item.제목,'work-title'));
+  body.append(top,el('div',item.제목,'work-title'));if(item.프로젝트보류)body.append(el('p','프로젝트 승인 대기 · 업무 보류','notice'));
   if(overdue.length)body.append(el('p',`⚠ 기한 초과 ${overdue.length}건 · ${[...new Set(overdue.map(a=>a.담당자.표시명))].join(' · ')}`,'deadline-alert'));
   if(delayed.length)body.append(el('p',`5일 미응답 지연 · ${delayed.map(r=>r.부서명).join(' · ')}`,'response-delay-note'));
   if(item.부서요청제목)body.append(el('p',`${item.부서요청제목} · ${item.부서접수상태}`,'collaboration-note'));
@@ -112,6 +116,7 @@ function card(item){
   node.append(body,end);return node;
 }
 async function showList(next=view,more=false){
+  selectedProject=null;
   const version=++loadVersion;view=next;selected=null;
   $('.request-back')?.remove();$('.workspace').classList.toggle('request-workspace',view==='내요청');
   if(!more){cursor=null;$('#content').replaceChildren(el('p','업무를 불러오고 있어요.','loading'));message();}
@@ -120,6 +125,7 @@ async function showList(next=view,more=false){
   document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});
   $('#content').setAttribute('aria-busy','true');
   try{
+    if(view==='프로젝트승인'){const node=await projects.list();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     if(view==='병목현황'){const node=await bottlenecks.render();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     if(view==='운영설정'){const node=await administration.render();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     const data=await api('read',{종류:view,...(view==='부서받은함'?{부서ID:$('#inbox-department').value}:{}),...(cursor?{커서:cursor}:{}),한도:30});
@@ -129,8 +135,18 @@ async function showList(next=view,more=false){
     data.항목.forEach(item=>list.append(view==='알림'?noticeCard(item):card(item)));cursor=data.다음커서;$('#load-more').hidden=!cursor;
     if(view==='알림')$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';
     if(!list.children.length)$('#content').replaceChildren(view==='알림'?el('p','아직 도착한 알림이 없습니다.','empty'):emptyState());
+    if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);}
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(el('p','불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.','loading'));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
+}
+async function showProject(id){
+  if(!id)return showList('프로젝트승인');
+  const version=++loadVersion;selected=null;selectedProject=id;view='프로젝트승인';
+  $('.request-back')?.remove();$('.workspace').classList.remove('request-workspace');$('#department-filter').hidden=true;$('#load-more').hidden=true;
+  document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  $('#content').replaceChildren(el('p','프로젝트를 불러오고 있어요.','loading'));message();
+  try{const result=await projects.detail(id);if(version!==loadVersion)return;$('#content').replaceChildren(result.node);$('#page-title').textContent=result.title;$('#page-description').textContent=result.subtitle;}
+  catch(e){if(version===loadVersion){handleError(e);$('#content').replaceChildren(button('프로젝트 목록으로','secondary',()=>showList('프로젝트승인')));}}
 }
 async function refreshNotices(){const session=token;if(!session||document.hidden)return;try{const data=await api('read',{종류:'알림',한도:1});if(token===session)$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';}catch(e){if(token===session&&e.status===401)handleError(e);}}
 setInterval(()=>void refreshNotices(),60000);
@@ -139,6 +155,7 @@ function noticeCard(n){const node=button('','work-card notice-card',async()=>{tr
 function infoCell(label,value){const cell=el('div');cell.append(el('p',label,'info-label'),el('p',value||'미지정','info-value'));return cell;}
 function textBlock(label,value){const node=el('div',null,'text-block');node.append(el('h3',label),el('p',value));return node;}
 async function showDetail(id){
+  selectedProject=null;
   const opening=selected!==id;
   const openFolds=opening?[]:[...document.querySelectorAll('.detail-fold[open]')].map(n=>n.dataset.fold);
   const drafts=opening?[]:captureWorkDrafts($('#content'));
@@ -148,7 +165,8 @@ async function showDetail(id){
     const data=await api('read',{종류:'업무상세',업무ID:id});if(version!==loadVersion)return;
     $('#page-title').textContent=data.제목;$('#page-description').textContent=`${data.번호||''} · ${displayLabel(data.단계)}`;
     const simplified=view==='내요청',detail=el('div',null,simplified?'detail request-detail':'detail');$('.request-back')?.remove();const back=button('← 목록으로',simplified?'text-button request-back':'text-button back',()=>showList());if(simplified)$('#toolbar').prepend(back);else detail.append(back);
-    detail.append(requestOverview.overview(data),requestOverview.turns(data,info.본인.ID));
+    const projectControl=projects.workControl(data);if(projectControl)detail.append(projectControl);
+    detail.append(requestOverview.overview(data));if(!data.프로젝트?.보류)detail.append(requestOverview.turns(data,info.본인.ID));
     const secondary=[],otherActions=[],myActions=[];
     function fold(title,nodes,key){const box=el('details',null,'detail-fold');box.dataset.fold=key;box.append(el('summary',title));const body=el('div',null,'detail-fold-body');box.append(body);let rendered=false;const render=()=>{if(rendered)return;rendered=true;body.append(...(typeof nodes==='function'?[nodes()]:nodes));};box.addEventListener('toggle',()=>{if(box.open)render();});if(typeof nodes!=='function')render();if(openFolds.includes(key)){box.open=true;render();}return box;}
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(displayLabel(data.단계)),el('span',data.번호,'reference'));
@@ -200,8 +218,8 @@ async function showDetail(id){
 }
 $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=errorMessage(error);}finally{submit.disabled=false;}});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showList(b.dataset.view)));
-$('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
-$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
+$('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selectedProject?showProject(selectedProject):selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
+$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else if(request.종류.startsWith('프로젝트')){if(request.종류==='프로젝트전환')await showDetail(request.인자.업무ID);else await showProject(result.프로젝트ID);}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
 async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
  await showEnrollment({el,button,api,token:secret,back:()=>{$('#enroll-view').hidden=true;$('#enroll-view').replaceChildren();$('#login-view').hidden=false;}});
