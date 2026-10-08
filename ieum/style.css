@@ -159,3 +159,14 @@ main:has(.project-workspace){max-width:1720px;width:100%}
 
 /* 승인 여부와 실제 마일스톤 진척을 별도로 읽고 처리한다. */
 .gantt-grid{grid-template-columns:560px minmax(440px,1fr)}.gantt-info{grid-template-columns:minmax(0,1fr) 120px 170px}.gantt-row{min-height:138px}.gantt-state-cell{display:grid;gap:7px;padding:5px 0;overflow-wrap:anywhere}.gantt-state-cell>.hint{font-size:11px}.gantt-progress-actions{display:flex;gap:5px;flex-wrap:wrap}.gantt-progress-actions button{font-size:11px;padding:7px 10px;min-height:34px;border-radius:8px}.gantt-delay-summary{border:1px solid #f0b8be;background:#fff5f5;padding:14px 18px;margin:14px 0;border-radius:12px;display:grid;gap:6px}.gantt-delay-summary>strong{color:#a92736;font-size:14px}.gantt-delay-summary button{text-align:left;font-size:12px;white-space:normal;line-height:1.6;color:#a92736}.gantt-record{white-space:pre-wrap;font-size:13px;line-height:1.7;border-top:1px solid #e5ebf4;padding-top:12px}.gantt-card{cursor:default}.gantt-card>.gantt-state-cell{grid-column:1/-1}.gantt-card>.gantt-task{grid-column:1/-1;font-weight:700}.gantt-inspector .gantt-progress-actions{margin:12px 0}
+/* 마일스톤 상태 입력창: 공통 dialog의 padding:0을 전용 폼 여백으로 보완한다. */
+.milestone-progress-dialog{width:min(560px,calc(100vw - 32px));max-width:560px;max-height:calc(100dvh - 32px);overflow:auto;color:#192d49;background:#fff}
+.milestone-progress-dialog form{display:grid;gap:18px;padding:32px;min-width:0}
+.milestone-progress-dialog h2{margin:0;font-size:23px;line-height:1.4;letter-spacing:-.6px;overflow-wrap:anywhere}
+.milestone-progress-dialog h3{margin:0;padding:14px 16px;border-radius:12px;background:#f5f7fb;color:#29415e;font-size:15px;font-weight:600;line-height:1.6;overflow-wrap:anywhere}
+.milestone-progress-dialog .hint{margin:0;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.milestone-progress-dialog label{display:grid;gap:10px;font-size:14px;font-weight:600;line-height:1.5;min-width:0}
+.milestone-progress-dialog textarea{box-sizing:border-box;width:100%;min-width:0;min-height:136px;max-height:40dvh;resize:vertical;font-size:14px;line-height:1.7;font-weight:400}
+.milestone-progress-dialog .error{margin:0;font-size:13px;line-height:1.6;overflow-wrap:anywhere}.milestone-progress-dialog .error:empty{display:none}
+.milestone-progress-dialog .dialog-actions{margin:2px 0 0;padding-top:18px;border-top:1px solid var(--line);gap:10px}.milestone-progress-dialog .dialog-actions button{min-height:44px;min-width:84px}
+@media(max-width:600px){.milestone-progress-dialog{border-radius:20px}.milestone-progress-dialog form{padding:24px 20px;gap:16px}.milestone-progress-dialog h2{font-size:21px}.milestone-progress-dialog .dialog-actions button{flex:1;padding:12px 10px}}

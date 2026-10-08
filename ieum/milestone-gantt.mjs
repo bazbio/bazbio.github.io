@@ -37,9 +37,9 @@ export function createMilestoneGantt({el,button,send,refresh,getInfo,isBusy,hand
  const stateByWork=new Map();
  function record(data,m,status){
   const dialog=el('dialog',null,'milestone-progress-dialog'),form=el('form'),label=el('label',status==='정체'?'정체 사유와 필요한 도움':status==='완료취소'?'완료 취소 사유':status==='완료'?'완료한 내용':'진행 상황'),input=el('textarea');input.required=true;input.maxLength=2000;input.rows=3;input.setAttribute('aria-label',label.textContent);label.append(input);
-  form.append(el('h2',status==='완료'?'마일스톤 완료 확인':status==='정체'?'마일스톤 정체 기록':status==='완료취소'?'완료 기록 취소':'진행 상황 기록'),el('h3',m.제목));
+  const heading=el('h2',status==='완료'?'마일스톤 완료 확인':status==='정체'?'마일스톤 정체 기록':status==='완료취소'?'완료 기록 취소':'진행 상황 기록');heading.id='milestone-dialog-'+crypto.randomUUID();dialog.setAttribute('aria-labelledby',heading.id);form.append(heading,el('h3',m.제목));
   form.append(el('p',m.approved?(status==='완료'?(m.검증필요?'완료 보고 후 검증 담당자의 확인을 기다립니다.':'저장하면 실행 완료로 반영됩니다.'):'진행 상황을 기록합니다. 승인된 일정과 완료 기준은 그대로 유지됩니다.'):'실제 진행 사실을 기록합니다. 대표님 승인 상태는 그대로 유지됩니다.','hint'),label);
-  const err=el('p','','error');err.setAttribute('role','alert');const submit=el('button',status==='완료'?'완료 확인':status==='완료취소'?'완료 취소 확인':'상태 저장','primary');submit.type='submit';form.append(err,submit,button('닫기','secondary',()=>{if(!isBusy())dialog.close();}));
+  const err=el('p','','error');err.setAttribute('role','alert');const submit=el('button',status==='완료'?'완료 확인':status==='완료취소'?'완료 취소 확인':'상태 저장','primary');submit.type='submit';const actions=el('div',null,'dialog-actions');actions.append(button('닫기','secondary',()=>{if(!isBusy())dialog.close();}),submit);form.append(err,actions);
   form.addEventListener('submit',async e=>{e.preventDefault();if(isBusy())return;submit.disabled=true;err.textContent='';try{const p=m.progress;const result=await send({종류:'마일스톤진척기록',업무ID:data.업무ID,인자:{계획ID:m.planId,마일스톤ID:m.ID,계획해시:p.계획해시,실행회차:p.실행회차,기대기록ID:p.기록?.ID||null,상태:status,본문:input.value}});if(result){dialog.close();await refresh(data.업무ID);}}catch(e){err.textContent=e.message;if(e.status===401)handleError(e);}finally{submit.disabled=false;}});
   dialog.addEventListener('cancel',e=>{if(isBusy())e.preventDefault();});dialog.addEventListener('close',()=>dialog.remove());dialog.append(form);document.body.append(dialog);dialog.showModal();
  }
