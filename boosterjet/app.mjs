@@ -83,6 +83,17 @@ async function download(file, target) {
  } catch(error) { if(version===authVersion){if(error.status===401)reset();notice(message(error),true);} }
  finally {target.disabled=false;}
 }
+async function removeFile(file,target) {
+ if(file.owner_id!==profile?.id||!confirm('「'+file.filename+'」을 삭제하시겠습니까?\n공유받은 사람의 목록에서도 사라지며 복구할 수 없습니다.'))return;
+ target.disabled=true;const version=authVersion;
+ try{
+  await request('/functions/v1/boosterjet-delete',{body:{fileId:file.id}});
+  if(version!==authVersion)return;
+  if(currentShare?.id===file.id)$('share-dialog').close();
+  firstPages();await loadFiles();notice('「'+file.filename+'」을 삭제했습니다.');
+ }catch(error){if(version===authVersion)notice(message(error),true);}
+ finally{target.disabled=false;}
+}
 function renderFiles(scope) {
  const {rows,offset}=columns[scope],list=$(scope+'-list');list.replaceChildren();
  if (!rows.length) {const p=document.createElement('p');p.className='empty';p.textContent=search?'검색 결과가 없습니다. 다른 파일명으로 검색해 주세요.':scope==='mine'?'아직 올린 파일이 없습니다. 파일을 선택해 올려 주세요.':profile.role==='admin'?'다른 참여자가 올린 파일이 아직 없습니다.':'아직 공유받은 파일이 없습니다. 관리자가 공유하면 여기에 표시됩니다.';list.append(p);}
@@ -96,6 +107,7 @@ function renderFiles(scope) {
   info.append(title,meta);const actions=document.createElement('div');actions.className='file-actions';
   const down=button('다운로드',()=>download(file,down));actions.append(down);
   if(profile.role==='admin')actions.append(button('공유 대상',()=>openShare(file)));
+  if(file.owner_id===profile.id){const del=button('삭제',()=>removeFile(file,del));del.className='delete-file';actions.append(del);}
   row.append(info,actions);list.append(row);
  }
  $(scope+'-previous').disabled=offset===0;$(scope+'-next').disabled=rows.length<=50;$(scope+'-page-label').textContent=(offset/50+1)+'페이지';

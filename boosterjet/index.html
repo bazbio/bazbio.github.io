@@ -3,7 +3,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.supabase.co; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="no-referrer"><title>부스터젯 런칭 · 파일 공유</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E">
-<link rel="stylesheet" href="./style.css?v=20261001-columns"><script type="module" src="./app.mjs?v=20261001-columns"></script></head>
+<link rel="stylesheet" href="./style.css?v=20261009-delete"><script type="module" src="./app.mjs?v=20261009-delete"></script></head>
 <body>
 <div class="global-nav"><div class="nav-inner"><span class="global-brand">BAZ BIOMEDIC</span><span class="global-caption">Partner workspace</span></div></div>
 <header class="site-header"><div class="nav-inner sub-nav"><a class="brand" href="./">BOOSTERJET<small>런칭 프로젝트</small></a>
@@ -25,7 +25,7 @@
 <form id="upload-form"><label for="files" class="file-label">파일 선택</label><input id="files" type="file" multiple required aria-describedby="upload-help">
 <p id="upload-help" class="caption">파일당 최대 50MB · 같은 이름도 새 파일로 저장됩니다.</p><button type="submit" class="primary">선택한 파일 올리기</button></form>
 <progress id="progress" max="100" value="0" hidden aria-label="파일 업로드 진행률"></progress><p id="upload-status" role="status" class="caption"></p>
-<ul id="upload-results" class="upload-results"></ul><div class="privacy"><strong>내 자료를 안전하게</strong><p>기존 파일의 삭제와 덮어쓰기는 제공하지 않습니다.</p></div></aside>
+<ul id="upload-results" class="upload-results"></ul><div class="privacy"><strong>내 자료를 안전하게</strong><p>내가 올린 파일은 삭제할 수 있습니다. 삭제하면 공유받은 사람의 목록에서도 사라집니다.</p></div></aside>
 <section class="panel files-panel"><div class="section-top"><div><span class="section-number">FILES</span><h2 id="files-title">내가 볼 수 있는 파일</h2></div><button id="refresh" class="quiet">새로고침</button></div>
 <form id="search-form" class="search"><label class="sr-only" for="search">파일명 검색</label><input id="search" type="search" placeholder="파일명으로 검색" maxlength="180"><button type="submit">검색</button></form>
 <div id="file-list" class="file-columns">
