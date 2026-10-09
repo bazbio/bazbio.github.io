@@ -1,3 +1,4 @@
+import {initBoard} from './board.mjs?v=20261009-board';
 const $ = id => document.getElementById(id);
 const storageKey = 'boosterjet-session';
 let config, session, profile, search = '', currentShare, refreshPromise, busy = false, authVersion = 0, shareVersion = 0;
@@ -14,6 +15,7 @@ function message(error) {
 }
 function saveSession(value) { if(value&&!value.expires_at)value.expires_at=Date.now()/1000+Number(value.expires_in||0); session = value; if(value) sessionStorage.setItem(storageKey, JSON.stringify(value)); else sessionStorage.removeItem(storageKey); }
 function reset() {
+ board.reset();
  authVersion++; shareVersion++; currentShare=null; firstPages(); search='';
  $('search-form').reset(); $('upload-form').reset(); $('password-form').reset(); $('password').value='';
  $('upload-results').replaceChildren(); $('upload-status').textContent=''; $('share-options').replaceChildren();
@@ -66,6 +68,7 @@ async function request(path, {method='POST',body,authenticated=true} = {}, retry
  await parseResponse(response); return response.status===204 ? null : response.json();
 }
 const rpc = (name, body={}) => request('/rest/v1/rpc/'+name,{body});
+const board=initBoard({rpc,getProfile:()=>profile});
 function formatSize(bytes) { return bytes < 1024*1024 ? Math.ceil(bytes/1024)+'KB' : (bytes/1024/1024).toFixed(1)+'MB'; }
 function button(text,action) { const el=document.createElement('button');el.type='button';el.textContent=text;el.addEventListener('click',action);return el; }
 async function download(file, target) {
@@ -129,8 +132,8 @@ async function enter() {
  profile=await rpc('bj_profile');$('identity').textContent=profile.name;$('logout').hidden=false;
  $('login-panel').hidden=true;$('password-panel').hidden=true;$('workspace').hidden=false;
  $('files-title').textContent=profile.role==='admin'?'프로젝트 파일':'내가 볼 수 있는 파일';
- notice(profile.role==='admin'?'관리자 계정입니다. 파일별로 공유할 참여자를 선택할 수 있습니다.':'내 파일과 관리자가 공유한 파일만 표시됩니다.');
- firstPages();await loadFiles();
+ notice(profile.role==='admin'?'관리자 계정입니다. 공지사항을 작성하고 파일별 공유 대상을 관리할 수 있습니다.':'파일은 내 자료와 공유받은 자료만, 게시글은 모든 참여자에게 표시됩니다.');
+ board.enter();firstPages();await loadFiles();
 }
 async function openShare(file) {
  const version=++shareVersion; const dialog=$('share-dialog');currentShare=file;$('share-filename').textContent=file.filename;$('share-error').textContent='';
