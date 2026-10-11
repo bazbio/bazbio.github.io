@@ -24,7 +24,7 @@ export function directiveModel(p,now=new Date().toISOString()){
 }
 
 export function createDirectives({el,button,api,send,isBusy,openWork,onNavigate}){
- let selected=null,department='',filter='전체',query='',listScroll=0;
+ let selected=null,department='',filter='전체',query='',listScroll=0,createDialog=null,departmentNames=[];
  const choose=async id=>{if(isBusy())return;if(!selected)listScroll=scrollY;selected=id;history.pushState({directiveView:true,id},'');await onNavigate();window.scrollTo({top:id?0:listScroll,behavior:'instant'});};
  window.addEventListener('popstate',async e=>{if(!e.state?.directiveView)return;selected=e.state.id||null;await onNavigate();window.scrollTo({top:selected?0:listScroll,behavior:'instant'});});
  const openLinked=id=>{history.pushState({directiveWork:id},'');openWork(id);};
@@ -44,9 +44,26 @@ export function createDirectives({el,button,api,send,isBusy,openWork,onNavigate}
    formAction(form,'책임자 지정 · 요청 보내기',async()=>{const result=await send(request(p,'과제설정',{담당자ID:select.value,목표일:due.value||null,사유:reason.value}));if(result){dialog.close();await refresh();}});
   }catch(e){err.textContent=e.message;form.append(err);}form.append(button('닫기','secondary',close));
  }
+ function acceptCreated(result){createDialog?.remove();createDialog=null;selected=result.과제ID;department='';filter='전체';query='';}
+ async function openCreate(){
+  if(isBusy())return;if(createDialog){createDialog.showModal();return;}
+  const dialog=el('dialog',null,'directive-assign-dialog directive-create-dialog'),form=el('form');createDialog=dialog;dialog.append(form);document.body.append(dialog);
+  const title=el('h2','지시 업무 만들기');title.id='directive-create-title';dialog.setAttribute('aria-labelledby',title.id);form.append(title,el('p','제목만 적어도 저장할 수 있어요. 책임자와 일정은 나중에 정해도 됩니다.','hint'));
+  const name=field(form,'업무 제목','','text',true);name.maxLength=200;name.placeholder='어떤 일을 진행하면 될까요?';
+  const content=field(form,'요청 내용 (선택)');content.maxLength=2000;content.placeholder='생각나신 내용이나 기대하는 결과를 적어 주세요.';
+  const fold=el('details',null,'directive-create-options');fold.append(el('summary','책임자·목표일 함께 지정 (선택)'));const options=el('div');fold.append(options);form.append(fold);
+  const ownerLabel=el('label','책임자'),owner=el('select');owner.setAttribute('aria-label','새 업무 책임자');owner.append(new Option('나중에 지정',''));ownerLabel.append(owner);options.append(ownerLabel);
+  const deptLabel=el('label','담당 부서'),dept=el('select');dept.setAttribute('aria-label','새 업무 부서');dept.append(new Option('미정 · 책임자 선택 시 소속 부서',''));deptLabel.append(dept);options.append(deptLabel);
+  const due=field(options,'새 업무 목표일','','date');options.append(el('p','책임자를 함께 지정하면 개인 업무 요청과 메일을 보냅니다.','hint'));
+  formAction(form,'지시 업무 저장',async()=>{const result=await send({종류:'과제간편등록',인자:{제목:name.value,내용:content.value,부서:dept.value,담당자ID:owner.value||null,목표일:due.value||null}});if(result){acceptCreated(result);await onNavigate();window.scrollTo({top:0,behavior:'instant'});}});
+  form.append(button('닫기','secondary',()=>{if(!isBusy())dialog.close();}));dialog.addEventListener('cancel',e=>{if(isBusy())e.preventDefault();});dialog.showModal();name.focus();
+  try{const data=await api('read',{종류:'과제후보'});if(createDialog!==dialog)return;owner.append(...data.담당자.map(m=>new Option(`${m.이름} · ${m.부서}`,m.ID)));dept.append(...[...new Set([...departmentNames,...data.담당자.map(m=>m.부서)])].filter(v=>v!=='부서 미정').sort().map(v=>new Option(v,v)));}
+  catch{options.append(el('p','책임자 목록을 불러오지 못했습니다. 제목으로 먼저 저장한 뒤 책임자를 지정할 수 있습니다.','hint'));}
+ }
  async function render(){
   history.replaceState({directiveView:true,id:selected},'');
   const data=await api('read',{종류:'과제목록'}),root=el('div',null,'directive-board'),models=data.항목.map(p=>directiveModel(p,data.시각));
+  departmentNames=[...new Set(models.map(p=>p.부서))];
   const refresh=async()=>{const next=await render();root.replaceWith(next);};
   const intro=el('div',null,'directive-intro');intro.append(el('p','대표님 지시 과제의 실제 차례와 병목을 확인합니다.'),el('small',`조회 ${new Date(data.시각).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})} · 제안 자료와 실제 진행을 구분합니다.`));root.append(intro);
   if(!models.length){root.append(el('p','등록된 지시 과제가 없습니다.','empty'));return root;}
@@ -75,7 +92,7 @@ export function createDirectives({el,button,api,send,isBusy,openWork,onNavigate}
 
   async function detail(id){body.replaceChildren(el('p','과제를 불러오고 있습니다.','loading'));try{
    const d=await api('read',{종류:'과제상세',과제ID:id});if(selected!==id)return;const p=directiveModel(d.항목[0],d.시각);body.replaceChildren(button('← 대시보드로 돌아가기','secondary directive-back',()=>choose(null)));
-   const summary=card(p.제목);summary.append(el('p',`${p.부서} · ${p.코드} · ${p.영역||'영역 미정'}`,'hint'),badge(p.state,p.late||p.blocked?'danger':''),el('p','목표 (원본 보강안): '+(p.목표||'구체화 필요'),'directive-copy'),el('p',`과제 책임자: ${p.담당자||'미정'} · 목표일: ${p.목표일||'미정'}`));
+   const summary=card(p.제목);summary.append(el('p',`${p.부서} · ${p.코드} · ${p.영역||'영역 미정'}`,'hint'),badge(p.state,p.late||p.blocked?'danger':''),el('p',(p.원천.종류==='직접등록'?'요청 내용: ':'목표 (원본 보강안): ')+(p.목표||'구체화 필요'),'directive-copy'),el('p',`과제 책임자: ${p.담당자||'미정'} · 목표일: ${p.목표일||'미정'}`));
    for(const n of p.notes)summary.append(el('p',`${n.kind} · ${n.who?n.who+' · ':''}${n.text}`,['지연','정체','결정'].includes(n.kind)?'directive-warning':'hint'));body.append(summary);
    const flow=card('병목 현황');
    if(!p.연결업무.length)flow.append(el('p','연결된 실행 업무가 없습니다. 아래 현황 기록과 담당자·일정을 먼저 확인해 주세요.','hint'));
@@ -86,11 +103,11 @@ export function createDirectives({el,button,api,send,isBusy,openWork,onNavigate}
    if(p.보고가능){const fold=el('details',null,'directive-edit'),f=el('form');fold.append(el('summary','진행 상황 기록'));const l=el('label','현재 상태'),s=el('select');s.setAttribute('aria-label','과제 보고 상태');for(const v of states)s.append(new Option(v,v));s.value=p.보고.상태;l.append(s);f.append(l);const fields={};for(const [label,type]of [['내용','textarea'],['정체사유','textarea'],['필요결정','textarea'],['다음행동','textarea'],['다음확인일','date'],['예상완료일','date']])fields[label]=field(f,label,p.보고[label],type,label==='내용');f.append(el('p','연결 업무의 담당·기한·승인은 바뀌지 않습니다. 정체 시 사유를, 완료 시 결과 근거를 적어 주세요.','hint'));formAction(f,'현황 저장',async()=>{const args={상태:s.value,...Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v.type==='date'?(v.value||null):v.value]))};const r=await send(request(p,'과제보고',args));if(r)await refresh();});fold.append(f);body.append(fold);}
    if(d.관리가능){const candidates=await api('read',{종류:'과제후보'});if(selected!==id)return;const fold=el('details',null,'directive-edit');fold.append(el('summary','담당자·목표일·업무 연결 관리'));const f=el('form'),l=el('label','과제 책임자'),s=el('select');s.setAttribute('aria-label','과제 책임자');s.append(new Option('미정',''),...candidates.담당자.map(m=>new Option(`${m.이름} · ${m.부서}`,m.ID)));s.value=p.담당자ID||'';l.append(s);f.append(l);const due=field(f,'과제 목표일',p.목표일,'date'),reason=field(f,'설정 사유','','textarea',true);formAction(f,'담당자·목표일 저장',async()=>{if(await send(request(p,'과제설정',{담당자ID:s.value||null,목표일:due.value||null,사유:reason.value})))await refresh();});fold.append(f);
     const links=el('form'),choices=[];links.append(el('h3','기존 업무 연결'));for(const w of candidates.업무){const label=el('label',null,'directive-checkbox'),input=el('input');input.type='checkbox';input.value=w.ID;input.checked=p.연결업무.some(x=>x.ID===w.ID);label.append(input,el('span',`${w.제목} · ${w.단계}`));links.append(label);choices.push(input);}const why=field(links,'연결 변경 사유','','textarea',true);links.append(el('p','실행 업무 전체를 참고 연결합니다. 업무 자체의 승인이나 참여 권한은 변경하지 않습니다.','hint'));formAction(links,'업무 연결 저장',async()=>{if(await send(request(p,'과제연결',{업무IDs:choices.filter(c=>c.checked).map(c=>c.value),사유:why.value})))await refresh();});fold.append(links);body.append(fold);}
-   const source=el('details',null,'directive-edit');source.append(el('summary','원본 계획과 보강 제안'));source.append(el('p',`${p.원천.파일} · ${p.원천.시트} ${p.원천.행}행${p.원천.원문위치?' · '+p.원천.원문위치:''}`,'hint'),el('p','아래 내용은 원본의 보강 제안입니다. 실제 승인·완료 사실과 구분합니다.','hint'));for(const [k,v]of Object.entries(p.보강안))if(v)source.append(el('h3',k),el('p',v,'directive-copy'));body.append(source);
+   const source=el('details',null,'directive-edit');source.append(el('summary',p.원천.종류==='직접등록'?'등록 정보':'원본 계획과 보강 제안'));if(p.원천.종류==='직접등록')source.append(el('p','지시 업무 화면에서 직접 등록한 업무입니다.','hint'));else source.append(el('p',`${p.원천.파일} · ${p.원천.시트} ${p.원천.행}행${p.원천.원문위치?' · '+p.원천.원문위치:''}`,'hint'),el('p','아래 내용은 원본의 보강 제안입니다. 실제 승인·완료 사실과 구분합니다.','hint'));for(const [k,v]of Object.entries(p.보강안))if(v)source.append(el('h3',k),el('p',v,'directive-copy'));body.append(source);
    const history=el('details',null,'directive-edit');history.append(el('summary','변경 이력'));for(const h of d.이력){const entry=el('div',null,'directive-history');entry.append(el('strong',`${h.작성자} · ${h.종류.replace('과제','')} · ${new Date(h.시각).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})}`),el('p',h.내용.입력.사유||h.내용.입력.내용||'원본 계획 등록','directive-copy'));history.append(entry);}body.append(history,button('← 대시보드로 돌아가기','secondary directive-back',()=>choose(null)));
   }catch(e){body.replaceChildren(el('p',e.message,'error'),button('다시 불러오기','secondary',()=>choose(id)));}}
   draw();if(selected)await detail(selected);return root;
  }
- function reset(){selected=null;department='';filter='전체';query='';}
- return {render,reset};
+ function reset(){selected=null;department='';filter='전체';query='';createDialog?.remove();createDialog=null;}
+ return {render,reset,openCreate,acceptCreated};
 }

@@ -93,7 +93,7 @@ async function bootstrap(){
   requests.configure();
   $('#login-view').hidden=true;$('#app-view').hidden=false;showPending();await showList('내업무');void refreshNotices();
 }
-function newRequest(){void requests.open();}
+function newRequest(){if(view==='대표현황'&&info?.대표현황권한)void directives.openCreate();else void requests.open();}
 function emptyState(){
   const node=el('div',null,'empty');node.append(el('div','✓','empty-symbol'));
   node.append(el('h2',view==='내업무'?'지금은 기다리는 업무가 없어요':view==='내요청'?'첫 업무를 연결해 보세요':'새로운 요청을 기다리고 있어요'));
@@ -127,6 +127,7 @@ async function showList(next=view,more=false){
   $('.request-back')?.remove();$('.workspace').classList.toggle('request-workspace',view==='내요청');
   if(!more){cursor=null;$('#content').replaceChildren(el('p','업무를 불러오고 있어요.','loading'));message();}
   $('#page-title').textContent=descriptions[view][0];$('#page-description').textContent=descriptions[view][1];
+  $('#new-request').textContent=view==='대표현황'?'+ 지시 업무 만들기':'+ 업무 요청';
   $('#toolbar').hidden=false;$('#department-filter').hidden=view!=='부서받은함';$('#load-more').hidden=true;
   document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});
   $('#content').setAttribute('aria-busy','true');
@@ -226,7 +227,7 @@ async function showDetail(id){
 $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=errorMessage(error);}finally{submit.disabled=false;}});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showList(b.dataset.view)));
 $('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selectedProject?showProject(selectedProject):selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
-$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else if(request.종류.startsWith('프로젝트')){if(request.종류==='프로젝트전환')await showDetail(request.인자.업무ID);else await showProject(result.프로젝트ID);}else if(request.종류.startsWith('과제')){if(request.종류==='과제실행요청'){requests.acceptResult();await showDetail(result.업무ID);}else await showList('대표현황');}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
+$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else if(request.종류.startsWith('프로젝트')){if(request.종류==='프로젝트전환')await showDetail(request.인자.업무ID);else await showProject(result.프로젝트ID);}else if(request.종류.startsWith('과제')){if(request.종류==='과제실행요청'){requests.acceptResult();await showDetail(result.업무ID);}else{if(request.종류==='과제간편등록')directives.acceptCreated(result);await showList('대표현황');}}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
 async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
  await showEnrollment({el,button,api,token:secret,back:()=>{$('#enroll-view').hidden=true;$('#enroll-view').replaceChildren();$('#login-view').hidden=false;}});
