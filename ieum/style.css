@@ -385,6 +385,20 @@ dialog::backdrop{background:#191f2866}
 .directive-assign-dialog form{padding:32px;display:grid;gap:20px}.directive-assign-dialog h2{margin:0;font-size:25px}.directive-assign-dialog label{display:grid;gap:8px}.directive-assign-dialog input,.directive-assign-dialog select,.directive-assign-dialog textarea{width:100%;min-width:0}
 .directive-task-list{display:grid;gap:16px;margin-bottom:28px}.directive-task-list>h2{margin:0;font-size:24px}.directive-task-card{background:white;border-radius:24px;padding:28px;display:grid;gap:14px}.directive-task-card h3,.directive-task-card p{margin:0}.directive-task-card button{justify-self:start}.directive-task-card small{color:var(--muted)}
 .directive-create-options>div{display:grid;gap:18px;padding-top:20px}.directive-create-options summary{font-weight:600;cursor:pointer}
+/* 공통 상호작용: 기존 색과 상태는 유지하고 움직임·그림자로 반응한다. */
+:is(.primary,.secondary,.text-button,.icon-button,.nav,.work-card,.next-turn-card,.directive-open,.directive-metrics>button,.proposal-turn-link,.bottleneck-title):not(:disabled):not([aria-disabled=true]){transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease,border-color .2s ease,color .2s ease}
+:is(.request-branch,.directive-task-card,.bottleneck-metrics>div,.proposal-person){transition:box-shadow .2s ease,background-color .2s ease}
+summary{transition:background-color .2s ease,box-shadow .2s ease}input,select,textarea{transition:border-color .2s ease,box-shadow .2s ease}
+@media(hover:hover){
+ :is(.primary,.secondary,.icon-button,.work-card,.next-turn-card,.directive-open,.directive-metrics>button,.proposal-turn-link):not(:disabled):not([aria-disabled=true]):hover{transform:translateY(-2px);box-shadow:0 6px 18px #191f2814}
+ :is(.text-button,.bottleneck-title):not(:disabled):not([aria-disabled=true]):hover{transform:translateY(-1px)}
+ .nav:not(:disabled):hover{transform:translateX(3px);box-shadow:inset 3px 0 0 #8b95a1}
+ :is(.request-branch,.directive-task-card,.bottleneck-metrics>div,.proposal-person):hover{box-shadow:0 5px 18px #191f2812}
+ summary:hover{background-color:#191f2805;box-shadow:inset 3px 0 0 #b0b8c1}
+ :is(input,select,textarea):not(:disabled):not(:focus):hover{border-color:#8b95a1;box-shadow:0 2px 8px #191f2808}
+ :is(.primary,.secondary,.icon-button,.work-card,.next-turn-card,.directive-open,.directive-metrics>button,.proposal-turn-link):not(:disabled):not([aria-disabled=true]):active{transform:translateY(0);box-shadow:0 2px 6px #191f2810}
+}
+@media(prefers-reduced-motion:reduce){:is(.primary,.secondary,.text-button,.icon-button,.nav,.work-card,.next-turn-card,.directive-open,.directive-metrics>button,.proposal-turn-link,.bottleneck-title,.request-branch,.directive-task-card,.bottleneck-metrics>div,.proposal-person,summary,input,select,textarea){transition:none!important;transform:none!important}}
 .directive-step,.directive-step.late,.directive-step.done{transition:background-color .24s ease,box-shadow .24s ease}
 @media(hover:hover){.directive-step:hover,.directive-step.late:hover,.directive-step.done:hover{background:#dbeafe;box-shadow:inset 0 0 0 1px #b8d5ff}}
 @media(prefers-reduced-motion:reduce){.directive-step,.directive-step.late,.directive-step.done{transition:none}}
