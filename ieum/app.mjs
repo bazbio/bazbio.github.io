@@ -1,6 +1,7 @@
 import {createAssignees} from './assignees.mjs';
 import {createComments} from './comments.mjs';
 import {createProjects} from './projects.mjs';
+import {createDirectives} from './directives.mjs';
 import { createClosure } from './closure.mjs';
 import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
@@ -21,6 +22,7 @@ let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let vi
 const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
 let selectedProject=null;
 const projects=createProjects({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,open:showProject,openWork:showDetail,handleError});
+const directives=createDirectives({el,button,api,send,isBusy:()=>busy,openWork:showDetail});
 const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
@@ -34,6 +36,7 @@ const attachments=createAttachments({el,button,send,api,refresh:showDetail,getIn
 const administration=createAdministration({el,button,api,send,refresh:()=>showList('운영설정'),getInfo:()=>info,isBusy:()=>busy,message,handleError});
 descriptions.운영설정=['운영 설정','조직·구성원·승인 경로를 설정하고 시범 운영을 준비하세요.'];
 descriptions.프로젝트승인=['프로젝트 승인','부서 검토와 대표님 승인을 거쳐 업무로 연결하세요.'];
+descriptions.대표현황=['대표님 현황','지시 과제의 진행 상황과 현재 병목을 확인하세요.'];
 let fileCache=null;
 descriptions.알림=['알림','내 차례와 협의 소식, 기한을 넘긴 업무를 확인하세요.'];
 descriptions.병목현황=['병목 현황','어느 부서와 담당자의 차례에서 기다리고 있는지 확인하세요.'];
@@ -73,7 +76,7 @@ async function execute(request){
   catch(error){if(!error.uncertain&&error.status!==401)sessionStorage.removeItem(key);throw error;}
   finally{setBusy(false);showPending();}
 }
-function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());comments.reset();projects.reset();selectedProject=null;token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
+function logout(){document.querySelectorAll('dialog[open]').forEach(d=>d.close());comments.reset();projects.reset();directives.reset();selectedProject=null;token=null;fileCache=null;requests.reset();administration.reset();bottlenecks.reset();selected=null;sessionStorage.removeItem('ieum.token');loadVersion++;$('#app-view').hidden=true;$('#login-view').hidden=false;$('#login-form [name=password]').value='';$('#retry-file').value='';$('#notice-count').textContent='';}
 function handleError(error){if(error.status===401){logout();$('#login-error').textContent=errorMessage(error);}else message(errorMessage(error),true);}
 function badge(text,kind=''){return el('span',text,`badge ${kind}`);}
 function button(text,className,handler){const b=el('button',text,className);b.type='button';b.addEventListener('click',handler);return b;}
@@ -83,6 +86,7 @@ async function bootstrap(){
   $('#department-name').textContent=info.부서.find(d=>d.ID===info.본인.부서ID)?.이름||'';
   $('#inbox-nav').hidden=!info.승인부서.length;$('#executive-nav').hidden=!info.대표권한;
   $('#admin-nav').hidden=!info.관리권한;
+  $('#directives-nav').hidden=!info.대표현황권한;
   $('#inbox-department').replaceChildren(...info.부서.filter(d=>info.승인부서.includes(d.ID)).map(d=>new Option(d.이름,d.ID)));
   requests.configure();
   $('#login-view').hidden=true;$('#app-view').hidden=false;showPending();await showList('내업무');void refreshNotices();
@@ -125,6 +129,7 @@ async function showList(next=view,more=false){
   document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});
   $('#content').setAttribute('aria-busy','true');
   try{
+    if(view==='대표현황'){if(!info.대표현황권한)throw new Error('대표님과 지정 관리자만 볼 수 있는 화면입니다.');const node=await directives.render();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     if(view==='프로젝트승인'){const node=await projects.list();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     if(view==='병목현황'){const node=await bottlenecks.render();if(version===loadVersion)$('#content').replaceChildren(node);return;}
     if(view==='운영설정'){const node=await administration.render();if(version===loadVersion)$('#content').replaceChildren(node);return;}
