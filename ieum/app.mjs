@@ -1,4 +1,5 @@
 import {createAssignees} from './assignees.mjs';
+import {createDeadlineExtensions} from './deadline-extensions.mjs';
 import {createComments} from './comments.mjs';
 import {createProjects} from './projects.mjs';
 import {createDirectives} from './directives.mjs';
@@ -26,6 +27,7 @@ const projects=createProjects({el,button,api,send,getInfo:()=>info,isBusy:()=>bu
 const directives=createDirectives({el,button,api,send,isBusy:()=>busy,openWork:showDetail,onNavigate:()=>token&&info?.대표현황권한?showList('대표현황'):Promise.resolve()});
 const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
+const extensions=createDeadlineExtensions({el,button,api,send,refresh:showDetail,refreshList:()=>showList('내업무'),isBusy:()=>busy,message});
 const flowMap=createFlowMap({el,button});
 const intakeProgress=createIntakeProgress({el,button,api});
 const assignees=createAssignees({el,button,api,send,refresh:showDetail,isBusy:()=>busy,message,handleError});
@@ -143,7 +145,7 @@ async function showList(next=view,more=false){
     data.항목.forEach(item=>list.append(view==='알림'?noticeCard(item):card(item)));cursor=data.다음커서;$('#load-more').hidden=!cursor;
     if(view==='알림')$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';
     if(!list.children.length)$('#content').replaceChildren(view==='알림'?el('p','아직 도착한 알림이 없습니다.','empty'):emptyState());
-    if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);const tasks=await directiveTasks.myTurns();if(version===loadVersion&&tasks)$('#content').prepend(tasks);}
+    if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);const tasks=await directiveTasks.myTurns();if(version===loadVersion&&tasks)$('#content').prepend(tasks);const delays=await extensions.myTurns();if(version===loadVersion&&delays)$('#content').prepend(delays);}
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(el('p','불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.','loading'));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
 }
@@ -175,6 +177,7 @@ async function showDetail(id){
     const simplified=view==='내요청',detail=el('div',null,simplified?'detail request-detail':'detail');$('.request-back')?.remove();const back=button('← 목록으로',simplified?'text-button request-back':'text-button back',()=>showList());if(simplified)$('#toolbar').prepend(back);else detail.append(back);
     const projectControl=projects.workControl(data);if(projectControl)detail.append(projectControl);
     detail.append(requestOverview.overview(data));if(!data.프로젝트?.보류)detail.append(requestOverview.turns(data,info.본인.ID));
+    const extensionHistory=extensions.history(data);if(extensionHistory)detail.append(extensionHistory);
     const secondary=[],otherActions=[],myActions=[];
     function fold(title,nodes,key){const box=el('details',null,'detail-fold');box.dataset.fold=key;box.append(el('summary',title));const body=el('div',null,'detail-fold-body');box.append(body);let rendered=false;const render=()=>{if(rendered)return;rendered=true;body.append(...(typeof nodes==='function'?[nodes()]:nodes));};box.addEventListener('toggle',()=>{if(box.open)render();});if(typeof nodes!=='function')render();if(openFolds.includes(key)){box.open=true;render();}return box;}
     const summary=el('section',null,'detail-card');const top=el('div',null,'card-top');top.append(badge(displayLabel(data.단계)),el('span',data.번호,'reference'));
@@ -216,7 +219,7 @@ async function showDetail(id){
           });section.append(form);
         }
         if(!action.미팅대기&&['접수판단','계획작성','부서승인'].includes(action.종류))section.append(collaboration.request(data,action));
-      }if(simplified)((action.담당자목록||[action.담당자]).some(p=>p.ID===info.본인.ID)?myActions:otherActions).push(section);else detail.append(section);
+      }const extensionRequest=extensions.request(data,action);if(extensionRequest)section.append(extensionRequest);if(simplified)((action.담당자목록||[action.담당자]).some(p=>p.ID===info.본인.ID)?myActions:otherActions).push(section);else detail.append(section);
     }
     const history=el('section',null,'detail-card');history.append(el('h3','업무의 흐름'));const timeline=el('ol',null,'timeline');
     for(const activity of data.활동){const row=el('li');const head=el('div',null,'timeline-head');const who=el('span',displayLabel(activity.종류));who.append(el('small',activity.작성자));head.append(who,el('time',timestamp(activity.시각),'timeline-time'));row.append(head);const args=activity.내용.인자;const note=args.사유||args.본문||args.의견;if(note)row.append(el('p',note));timeline.append(row);}history.append(timeline);if(simplified){if(otherActions.length)secondary.unshift(fold(`담당자별 현재 차례 · ${otherActions.length}건`,otherActions,'actions'));if(myActions.length)secondary.unshift(fold(`내가 처리할 일 · ${myActions.length}건`,myActions,'mine'));detail.append(...secondary,fold('처리 이력',[history],'history'));}else detail.append(history);
