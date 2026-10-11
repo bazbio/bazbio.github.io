@@ -369,6 +369,10 @@ dialog::backdrop{background:#191f2866}
 .directive-department strong{font-size:18px}.directive-department span{font-weight:600}.directive-department small{color:var(--muted);line-height:1.7}
 .directive-department progress{width:100%;height:8px;appearance:none;border:0;border-radius:8px;overflow:hidden;background:#e5e8eb}
 .directive-department progress::-webkit-progress-bar{background:#e5e8eb}.directive-department progress::-webkit-progress-value{background:var(--blue);border-radius:8px}
+.directive-department{transition:background-color .24s ease,color .24s ease,box-shadow .24s ease}.directive-department small{transition:color .24s ease}
+.directive-department:focus-visible{background:#3182f6;color:white;box-shadow:0 8px 24px #3182f629;outline:3px solid #a8cfff;outline-offset:3px}.directive-department:focus-visible small{color:#fff}.directive-department:focus-visible progress::-webkit-progress-bar{background:#ffffff40}.directive-department:focus-visible progress::-webkit-progress-value{background:white}
+@media(hover:hover){.directive-department:hover{background:#3182f6;color:white;box-shadow:0 8px 24px #3182f629}.directive-department:hover small{color:#fff}.directive-department:hover progress::-webkit-progress-bar{background:#ffffff40}.directive-department:hover progress::-webkit-progress-value{background:white}}
+@media(prefers-reduced-motion:reduce){.directive-department,.directive-department small{transition:none}}
 .directive-row{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(180px,.75fr);padding:20px 0;gap:24px;cursor:default}
 .directive-row:hover{background:transparent}.directive-open{padding:12px;border-radius:16px;text-align:left;background:transparent;color:var(--ink);min-width:0}
 .directive-open:hover{background:var(--surface-soft)}.directive-open h3{font-size:17px;margin:8px 0 0}.directive-owner{display:grid;gap:8px;justify-items:start;min-width:0}.directive-assign{font-size:14px;max-width:100%;white-space:normal}
