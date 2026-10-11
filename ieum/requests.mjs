@@ -7,7 +7,7 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
  const lead=document.querySelector('#request-lead'),add=document.querySelector('#add-request-department');
  const error=document.querySelector('#request-error'),submit=form.querySelector('button[type=submit]');
  const hint=document.querySelector('#request-count'),sizeHint=document.querySelector('#request-size');
- let modern=false,readiness=new Map(),load=0;
+ let modern=false,readiness=new Map(),load=0,directive=null;
  const fields=()=>[...cards.children];
  function field(parent,label,name,type,max){
   const wrap=el('label',label),input=el(type==='select'?'select':type==='textarea'?'textarea':'input');
@@ -54,7 +54,7 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
  function input(){
   const common={제목:form.elements.title.value,목적:form.elements.purpose.value,완료기준:form.elements.criteria.value,희망기한:form.elements.due.value||null};
   if(!modern)return {종류:'요청제출',인자:{...common,수신부서ID:form.elements.department.value}};
-  return {종류:'다부서요청제출',인자:{...common,주관부서ID:lead.value,부서요청:fields().map(c=>({수신부서ID:get(c,'requestDepartment').value,요청제목:get(c,'requestTitle').value,요청내용:get(c,'requestContent').value,완료기준:get(c,'requestCriteria').value,희망기한:get(c,'requestDue').value||null}))}};
+  return {종류:directive?'과제실행요청':'다부서요청제출',...(directive?{과제ID:directive.과제ID,배정ID:directive.배정ID}:{}),인자:{...common,주관부서ID:lead.value,부서요청:fields().map(c=>({수신부서ID:get(c,'requestDepartment').value,요청제목:get(c,'requestTitle').value,요청내용:get(c,'requestContent').value,완료기준:get(c,'requestCriteria').value,희망기한:get(c,'requestDue').value||null}))}};
  }
  function size(){return new TextEncoder().encode(JSON.stringify({...input(),멱등키:'00000000-0000-4000-8000-000000000000'})).length;}
  function configure(){
@@ -71,7 +71,15 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
   try{const data=await api('read',{종류:'요청가능부서'});if(version!==load)return;readiness=new Map(data.항목.map(d=>[d.ID,d]));update();}
   catch(e){if(version===load){error.textContent=errorMessage(e);if(e.status===401)handleError(e);}}
  }
- function reset(){load++;form.reset();cards.replaceChildren();readiness.clear();sizeHint.textContent='';error.textContent='';}
+ function reset(){load++;directive=null;form.reset();cards.replaceChildren();readiness.clear();sizeHint.textContent='';error.textContent='';}
+ async function openDirective(d){
+  if(isBusy())return;
+  if(directive?.배정ID!==d.배정ID){reset();configure();directive=d;
+   form.elements.title.value=d.제목;form.elements.purpose.value=d.목표||d.실행내용||'';form.elements.criteria.value=d.완료기준||'';form.elements.due.value=d.목표일||'';
+   const row=fields()[0];if(row){get(row,'requestTitle').value=d.제목;get(row,'requestContent').value=(d.실행내용||d.목표||'').slice(0,2000);get(row,'requestCriteria').value=(d.완료기준||'').slice(0,2000);get(row,'requestDue').value=d.목표일||'';}
+  }await open();
+ }
+ function openNormal(){if(directive){reset();configure();}return open();}
  function acceptResult(){dialog.close();reset();configure();}
  function close(){if(!isBusy())dialog.close();}
  document.querySelector('#close-dialog').addEventListener('click',close);
@@ -94,5 +102,5 @@ export function createRequests({el,button,api,send,getInfo,isBusy,onCreated,hand
    else error.textContent='기존 요청의 처리 결과를 먼저 확인해 주세요.';
   }catch(e){error.textContent=errorMessage(e);if(e.status===401)handleError(e);}
  });
- return {configure,open,reset,acceptResult};
+ return {configure,open:openNormal,openDirective,reset,acceptResult};
 }

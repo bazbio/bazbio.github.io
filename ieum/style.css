@@ -361,3 +361,24 @@ dialog::backdrop{background:#191f2866}
   footer{padding:12px 20px 28px}.directive-panel,.directive-edit{border-radius:20px}
 }
 @media(prefers-reduced-motion:reduce){.primary,.secondary,.work-card,.next-turn-card{transition:none}}
+
+/* 지시 업무: 공통 Toss 카드 면·상태 배지·실행 동선을 사용한다. */
+.directive-board{gap:24px}.directive-panel{margin-bottom:20px;padding:28px}.directive-panel h2{font-size:23px;margin-bottom:22px}
+.directive-departments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.directive-department{display:grid;gap:12px;text-align:left;background:var(--surface-soft);color:var(--ink);padding:22px;border:0;border-radius:20px}
+.directive-department strong{font-size:18px}.directive-department span{font-weight:600}.directive-department small{color:var(--muted);line-height:1.7}
+.directive-department progress{width:100%;height:8px;appearance:none;border:0;border-radius:8px;overflow:hidden;background:#e5e8eb}
+.directive-department progress::-webkit-progress-bar{background:#e5e8eb}.directive-department progress::-webkit-progress-value{background:var(--blue);border-radius:8px}
+.directive-row{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(180px,.75fr);padding:20px 0;gap:24px;cursor:default}
+.directive-row:hover{background:transparent}.directive-open{padding:12px;border-radius:16px;text-align:left;background:transparent;color:var(--ink);min-width:0}
+.directive-open:hover{background:var(--surface-soft)}.directive-open h3{font-size:17px;margin:8px 0 0}.directive-owner{display:grid;gap:8px;justify-items:start;min-width:0}.directive-assign{font-size:14px;max-width:100%;white-space:normal}
+.directive-priority{background:var(--surface-soft);border:0;border-radius:20px;padding:22px;gap:10px}.directive-warning{background:var(--surface-soft);color:var(--ink);border-radius:16px;padding:16px 20px}
+.directive-badge{border-radius:8px;background:var(--blue-soft);color:#1b64da}.directive-badge.danger{background:#fff0f1;color:var(--red)}.directive-badge.done{background:#e8f7ef;color:#158457}
+.directive-work{padding-top:24px}.directive-milestones{gap:14px}.directive-step,.directive-step.late,.directive-step.done{padding:24px;border:0;border-radius:20px;background:var(--surface-soft);box-shadow:none;gap:12px;font-size:14px;min-width:0}
+.directive-step strong{font-size:15px;overflow-wrap:anywhere}.directive-step.late>span{color:var(--red)}.directive-step.done>span{color:#158457}.directive-step small{font-size:12px;line-height:1.7}
+.directive-back{justify-self:start;margin-bottom:8px}.directive-edit{padding:24px 28px}.directive-edit summary{font-size:16px}
+.directive-assign-dialog{padding:0;border:0;border-radius:28px;width:min(580px,calc(100vw - 32px));max-height:90vh;color:var(--ink)}
+.directive-assign-dialog form{padding:32px;display:grid;gap:20px}.directive-assign-dialog h2{margin:0;font-size:25px}.directive-assign-dialog label{display:grid;gap:8px}.directive-assign-dialog input,.directive-assign-dialog select,.directive-assign-dialog textarea{width:100%;min-width:0}
+.directive-task-list{display:grid;gap:16px;margin-bottom:28px}.directive-task-list>h2{margin:0;font-size:24px}.directive-task-card{background:white;border-radius:24px;padding:28px;display:grid;gap:14px}.directive-task-card h3,.directive-task-card p{margin:0}.directive-task-card button{justify-self:start}.directive-task-card small{color:var(--muted)}
+@media(max-width:1200px){.directive-departments{grid-template-columns:repeat(2,minmax(0,1fr))}.directive-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.directive-owner{grid-column:2}}
+@media(max-width:600px){.directive-panel{padding:24px 18px}.directive-panel h2{font-size:21px}.directive-departments{gap:10px}.directive-department{padding:16px;gap:10px}.directive-department strong{font-size:16px}.directive-department small{font-size:12px}.directive-row{grid-template-columns:1fr;gap:12px}.directive-owner{grid-column:auto;justify-items:stretch}.directive-open{padding:8px 0}.directive-step{padding:20px}.directive-assign-dialog form{padding:24px 20px}.directive-task-card{padding:24px 20px}.directive-back{width:100%}}

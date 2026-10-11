@@ -2,6 +2,7 @@ import {createAssignees} from './assignees.mjs';
 import {createComments} from './comments.mjs';
 import {createProjects} from './projects.mjs';
 import {createDirectives} from './directives.mjs';
+import {createDirectiveTasks} from './directive-tasks.mjs';
 import { createClosure } from './closure.mjs';
 import { createFlowMap } from './flow-map.mjs';
 import { createCollaboration } from './collaboration.mjs';
@@ -22,7 +23,7 @@ let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let vi
 const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
 let selectedProject=null;
 const projects=createProjects({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,open:showProject,openWork:showDetail,handleError});
-const directives=createDirectives({el,button,api,send,isBusy:()=>busy,openWork:showDetail});
+const directives=createDirectives({el,button,api,send,isBusy:()=>busy,openWork:showDetail,onNavigate:()=>token&&info?.대표현황권한?showList('대표현황'):Promise.resolve()});
 const descriptions = { 대표승인함:['대표님 승인함','제출된 통합 계획과 실행 범위를 검토하세요.'], 내업무:['지금 내 차례','내가 처리해야 할 다음 행동을 확인하세요.'], 내요청:['내가 요청한 업무','요청한 업무가 어디까지 왔는지 확인하세요.'], 참여업무:['참여 업무','함께하는 부서의 계획과 다음 차례를 확인하세요.'], 부서받은함:['부서 받은함','우리 부서에 도착한 요청을 확인하고 연결하세요.'] };
 const execution=createExecution({el,button,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const flowMap=createFlowMap({el,button});
@@ -36,12 +37,13 @@ const attachments=createAttachments({el,button,send,api,refresh:showDetail,getIn
 const administration=createAdministration({el,button,api,send,refresh:()=>showList('운영설정'),getInfo:()=>info,isBusy:()=>busy,message,handleError});
 descriptions.운영설정=['운영 설정','조직·구성원·승인 경로를 설정하고 시범 운영을 준비하세요.'];
 descriptions.프로젝트승인=['프로젝트 승인','부서 검토와 대표님 승인을 거쳐 업무로 연결하세요.'];
-descriptions.대표현황=['대표님 현황','지시 과제의 진행 상황과 현재 병목을 확인하세요.'];
+descriptions.대표현황=['지시 업무 진행현황','부서별 진행 상황과 병목을 확인하고 책임자를 지정하세요.'];
 let fileCache=null;
 descriptions.알림=['알림','내 차례와 협의 소식, 기한을 넘긴 업무를 확인하세요.'];
 descriptions.병목현황=['병목 현황','어느 부서와 담당자의 차례에서 기다리고 있는지 확인하세요.'];
 const plans=createPlans({el,button,assignees,api,send,refresh:showDetail,getInfo:()=>info,isBusy:()=>busy,message,handleError});
 const requests=createRequests({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,handleError,onCreated:async result=>{await showDetail(result.업무ID);message(result.준비대기부서수?`업무를 등록했습니다. ${result.준비대기부서수}개 부서는 접수 준비 완료 후 자동으로 전달됩니다.`:'업무를 요청했습니다. 각 부서의 접수 판단을 기다립니다.');}});
+const directiveTasks=createDirectiveTasks({el,button,api,openRequest:d=>requests.openDirective(d),openWork:showDetail});
 const timestamp=value=>new Intl.DateTimeFormat('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value));
 const pendingKey=()=>`ieum.pending.${info.본인.ID}`;
 function getPending(){ try{return JSON.parse(sessionStorage.getItem(pendingKey()));}catch{return null;} }
@@ -140,7 +142,7 @@ async function showList(next=view,more=false){
     data.항목.forEach(item=>list.append(view==='알림'?noticeCard(item):card(item)));cursor=data.다음커서;$('#load-more').hidden=!cursor;
     if(view==='알림')$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';
     if(!list.children.length)$('#content').replaceChildren(view==='알림'?el('p','아직 도착한 알림이 없습니다.','empty'):emptyState());
-    if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);}
+    if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);const tasks=await directiveTasks.myTurns();if(version===loadVersion&&tasks)$('#content').prepend(tasks);}
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(el('p','불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.','loading'));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
 }
@@ -224,7 +226,7 @@ async function showDetail(id){
 $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button');submit.disabled=true;$('#login-error').textContent='';try{const data=await api('login',{이메일:form.email.value,비밀번호:form.password.value});token=data.토큰;sessionStorage.setItem('ieum.token',token);form.password.value='';await bootstrap();}catch(error){$('#login-error').textContent=errorMessage(error);}finally{submit.disabled=false;}});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showList(b.dataset.view)));
 $('#logout').addEventListener('click',logout);$('#new-request').addEventListener('click',newRequest);$('#refresh').addEventListener('click',()=>selectedProject?showProject(selectedProject):selected?showDetail(selected):showList());$('#load-more').addEventListener('click',()=>showList(view,true));$('#inbox-department').addEventListener('change',()=>showList());
-$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else if(request.종류.startsWith('프로젝트')){if(request.종류==='프로젝트전환')await showDetail(request.인자.업무ID);else await showProject(result.프로젝트ID);}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
+$('#retry-pending').addEventListener('click',async()=>{if(busy)return;const request=getPending();if(!request)return;try{const result=await execute(request);if(result){if(request.전송모드==='admin'){administration.acceptResult(result);await showList('운영설정');}else if(request.종류.startsWith('프로젝트')){if(request.종류==='프로젝트전환')await showDetail(request.인자.업무ID);else await showProject(result.프로젝트ID);}else if(request.종류.startsWith('과제')){if(request.종류==='과제실행요청'){requests.acceptResult();await showDetail(result.업무ID);}else await showList('대표현황');}else{if(['요청제출','다부서요청제출'].includes(request.종류))requests.acceptResult();comments.settled(result,request);await showDetail(result.업무ID);}message('요청의 처리 결과를 확인했습니다.');}}catch(error){handleError(error);}});
 async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
  await showEnrollment({el,button,api,token:secret,back:()=>{$('#enroll-view').hidden=true;$('#enroll-view').replaceChildren();$('#login-view').hidden=false;}});
