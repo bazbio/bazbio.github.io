@@ -368,7 +368,7 @@
   /* PC 화면: 왼쪽 사이드바 + 본문 왼쪽 정렬 + 글씨 확대 */
   @media (min-width: 900px) {
     body { padding-left:200px; padding-bottom:24px; }
-    .nav { top:0; bottom:0; left:0; right:auto; width:200px; background:#fff; backdrop-filter:none; border-top:none; border-right:1px solid #e5e8eb; flex-direction:column; justify-content:flex-start; padding:26px 14px 0; gap:6px; }
+    .nav { top:0; bottom:0; left:0; right:auto; width:200px; background:#fff; backdrop-filter:none; border-top:none; border-right:1px solid #e5e8eb; flex-direction:column; justify-content:flex-start; padding:26px 14px 0; gap:6px; overflow-y:auto; }
     .nav button { flex:0 0 auto; width:100%; text-align:left; padding:13px 18px; font-size:15px; border-radius:12px; }
     .nav button.on { background:#1b64da; color:#fff; }
     .hero { padding-left:36px; padding-right:36px; }
@@ -507,9 +507,9 @@
           <div class="qi" style="background:#f3e8fa;color:#7b1fa2;">자</div>
           <div class="qt">자료</div><div class="qs">공식 영업 자료실</div>
         </div>
-        <div class="qtile" onclick="show('kpi')">
-          <div class="qi" style="background:#e5f7ef;color:#05754a;">K</div>
-          <div class="qt">KPI</div><div class="qs">목표 · 달성 관리</div>
+        <div class="qtile" id="quick-demofail" style="display:none" onclick="show('demofail')">
+          <div class="qi" style="background:#e5f7ef;color:#05754a;">재</div>
+          <div class="qt">데모 실패관리</div><div class="qs">담당 배정 · 컨택 관리</div>
         </div>
       </div>
     </div>
@@ -719,6 +719,26 @@
 </div></div>
 
 <!-- 영업자료 — MA·C-Labs 공식 배포 자료 -->
+<div class="view" id="view-demofail"><div class="wrap">
+  <div class="kicker"><div class="bar"></div><div class="lbl">데모 실패관리</div></div>
+  <div class="gnote">과거 실패와 현재 재공략 상태를 함께 관리합니다. 재데모는 신규 데모 실적에 다시 더하지 않습니다.</div>
+  <div id="dfSummary" class="gnote" role="status"></div>
+  <div id="dfOwners" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;"></div>
+  <div class="gnote">컨택 집계는 현재 담당자의 배정 이후 기록 기준입니다. 연결 완료는 실제 통화·응답이 있었던 경우에만 선택하세요.</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;">
+    <input type="text" id="dfQuery" aria-label="병원명 검색" placeholder="병원명 검색" style="flex:1;min-width:140px;" onkeydown="if(event.key==='Enter')loadDemoFailures()">
+    <select id="dfStatus" aria-label="관리 상태" style="width:auto;" onchange="loadDemoFailures()"><option value="">전체 상태</option></select>
+    <select id="dfProductFilter" aria-label="제품 필터" style="width:auto;" onchange="loadDemoFailures()"><option value="">모든 제품</option><option value="CUREJET">큐어젯</option><option value="NOVOJET">노보젯</option><option value="UNKNOWN">제품 미확인</option></select>
+    <select id="dfDue" aria-label="연락 일정" style="width:auto;" onchange="loadDemoFailures()"><option value="">모든 일정</option><option value="overdue">기한 지연</option><option value="today">오늘 연락</option><option value="unscheduled">일정 미정</option></select>
+    <select id="dfOwnerFilter" aria-label="담당자 필터" style="width:auto;" onchange="loadDemoFailures()"><option value="">전체 권한 범위</option><option value="me">내 담당</option><option value="unassigned">미배정</option></select>
+    <select id="dfContactFilter" aria-label="컨택 여부" style="width:auto;" onchange="loadDemoFailures()"><option value="">모든 컨택</option><option value="none">미컨택</option><option value="attempted">시도·미연결</option><option value="connected">연결 완료</option></select>
+    <button class="btn ghost" onclick="loadDemoFailures()">조회</button>
+  </div>
+  <div id="dfList"></div><button id="dfMore" class="btn ghost" style="display:none" onclick="loadDemoFailures(true)">더 보기</button>
+  <section id="dfDetail" class="card" style="display:none;margin-top:18px;overflow-wrap:anywhere;"></section>
+</div></div>
+
+<!-- 영업자료 -->
 <div class="view" id="view-mat"><div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
     <span style="font-size:13px;color:#4e5968;">회사 공식 영업 자료 — 항상 최신 자료를 사용하세요</span>
@@ -800,11 +820,10 @@
       <tr><td style="white-space:nowrap;"><b>홈</b></td><td>이번 주 내 계획 + 내 KPI + 월별 누적. 하단 [더보기]에서 전체 메뉴</td></tr>
       <tr><td><b>계획</b></td><td>방문 계획 등록 (새 병원이면 리드도 자동 생성)</td></tr>
       <tr><td><b>기록</b></td><td>방문 결과 입력</td></tr>
-      <tr><td><b>리드</b></td><td>내 리드 단계 관리 · 실패 리드 재컨택 추적</td></tr>
+      <tr><td><b>실패관리</b></td><td>데모 실패 병원 담당 배정 · 컨택 기록 · 다음 연락 관리</td></tr>
       <tr><td><b>자료</b></td><td>회사 공식 영업 자료실 (MA·C-Labs 업로드) — 항상 여기 있는 최신 자료로 배포</td></tr>
       <tr><td style="white-space:nowrap;"><b>학회/세미나</b></td><td>행사별 참석자·달성 현황, 내 모객 등록</td></tr>
       <tr><td><b>흐름</b></td><td>월별 영업 퍼널 (리드→제안→계약→입금)</td></tr>
-      <tr><td><b>KPI</b></td><td>내 목표 대비 달성률, 목표 시기 임박 리드</td></tr>
       <tr><td><b>N-Care</b></td><td>Pool 병원별 진행 단계(제팅교육→가입→업그레이드) 관리 · 우선 방문 후보</td></tr>
       <tr><td><b>현황</b></td><td>이번 주 팀 활동 모니터링</td></tr>
       </tbody>
@@ -973,6 +992,10 @@
       <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
       <div class="mc">›</div>
     </div>
+    <div class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')">
+      <div class="mi" style="background:#a35f00;">재</div>
+      <div class="mb2"><div class="mn">데모 실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div>
+    </div>
     <div class="mrow" id="more-mat" onclick="show('mat')">
       <div class="mi" style="background:#a234c7;">자</div>
       <div class="mb2"><div class="mn">자료</div><div class="ms2">공식 영업 자료실</div></div>
@@ -983,19 +1006,9 @@
       <div class="mb2"><div class="mn">학회 / 세미나</div><div class="ms2">행사별 참석자 · 달성</div></div>
       <div class="mc">›</div>
     </div>
-    <div class="mrow" id="more-kpi" onclick="show('kpi')">
-      <div class="mi" style="background:#058652;">K</div>
-      <div class="mb2"><div class="mn">KPI</div><div class="ms2">목표 · 달성 관리</div></div>
-      <div class="mc">›</div>
-    </div>
     <div class="mrow" id="more-flow" onclick="show('flow')">
       <div class="mi" style="background:#8E7CF8;">흐</div>
       <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-week" onclick="show('week')">
-      <div class="mi" style="background:#1b64da;">주</div>
-      <div class="mb2"><div class="mn">주간</div><div class="ms2">주간 계획서 · 실행 리포트 · 승인</div></div>
       <div class="mc">›</div>
     </div>
     <div class="mrow" id="more-guide" onclick="show('guide')">
@@ -1010,16 +1023,14 @@
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
   <button id="nav-dash" onclick="show('dash')">현황</button>
   <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
-  <button id="nav-week" onclick="show('week')">주간</button>
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
   <button id="nav-log" onclick="show('log')">기록</button>
-  <button id="nav-lead" onclick="show('lead')">리드</button>
+  <button id="nav-demofail" style="display:none" onclick="show('demofail')">실패관리</button>
   <button id="nav-meta" onclick="show('meta')">Meta DB</button>
   <button id="nav-mine" onclick="show('mine')">내 입력</button>
   <button id="nav-mat" onclick="show('mat')">자료</button>
   <button id="nav-evt" onclick="show('evt')">학회<span class="pconly">/세미나</span></button>
-  <button id="nav-kpi" onclick="show('kpi')">KPI</button>
   <button id="nav-more" onclick="show('more')">더보기</button>
 </div>
 
@@ -1234,6 +1245,8 @@ var API_URL = 'https://script.google.com/macros/s/'
 var API_TIMEOUT = 60000;   // 쓰기는 잠금 대기 20초가 붙을 수 있다 — 넉넉히 잡는다
 // 관문(Supabase 엣지 펑션). 부트 스냅샷과 「내 입력」이 여기로 간다 — 00_설정.gs CONFIG.GATE_URL과 같다
 var GATE_URL = 'https://orttfugxziltenujdlme.supabase.co/functions/v1';
+// DB 마이그레이션·관문 배포·반입 검증 후 공개한다. DB settings.enabled와 함께 전환.
+var DEMO_FAILURE_ON = true;
 
 function gsrun() { return 러너_(null, null); }
 
@@ -1334,7 +1347,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610031250-e2d0e91';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610140613-28fc504';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1603,6 +1616,9 @@ function onData(d) {
   var vw = !!d.me.viewer;
   // C-Labs 조회 계정(8/6) — Meta DB·자료·학회/세미나만 연다. 영업 지표(현황·흐름·KPI)는 숨긴다
   var cl = vw && String(d.me.team || '').trim() === 'C-Labs';
+  ['nav-demofail','more-demofail','quick-demofail'].forEach(function(id) {
+    document.getElementById(id).style.display = DEMO_FAILURE_ON && d.dbSrc && !vw ? '' : 'none';
+  });
   // 조회 전용은 입력을 못 하니 '내 입력'도 볼 게 없다 — 함께 숨긴다.
   // Meta DB는 개인 연락처(휴대폰)가 있어 조회 전용 계정에게도 숨긴다
   ['home', 'plan', 'log', 'lead', 'mine', 'meta'].forEach(function(k) {
@@ -1708,10 +1724,13 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'kpi', 'guide', 'mine', 'meta', 'flow', 'week'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail'];
 var 현재뷰_ = 'home';
 function show(v) {
+  // 제거한 탭의 옛 주소·저장 후 이동은 기본 화면으로 안내한다. 기존 데이터는 보존한다.
+  if (['kpi','week','lead'].indexOf(v)>=0) v=기본화면_();
+  if (v === 'demofail' && (!DEMO_FAILURE_ON || !DATA || !DATA.dbSrc || DATA.me.viewer)) { toast('데모 실패관리는 아직 사용할 수 없습니다.', true); return; }
   if (typeof wkFlush === 'function' && 현재뷰_ === 'week' && v !== 'week') wkFlush();
   현재뷰_ = v;
   /* 계획 화면을 떠나면 「옮기는 중」을 끊는다 (8/15, 설계 D5) — 쥔 채로 두면 한참 뒤에 저장한
@@ -1750,6 +1769,7 @@ function show(v) {
   if (v === 'meta') { if (METAQ) { renderMeta(); loadMeta(true); } else loadMeta(); }
   if (v === 'ncare') { if (NCARE) { renderNcare(); loadNcare(true); } else loadNcare(); }
   if (v === 'week') { if (WEEK) { renderWeek(); loadWeek(true); } else loadWeek(); }
+  if (v === 'demofail') loadDemoFailures();
   if (v === 'flow') {
     if (FLOW) {
       document.getElementById('fMonth').value = FLOW.ym;
@@ -1794,6 +1814,7 @@ function 모달닫기_() {
 /* 조회 전용 계정이 갈 수 있는 화면인가 — onData의 탭 숨김과 같은 규칙이다.
    여기가 어긋나면 숨긴 탭이 hash로 열린다 */
 function 갈수있나_(v) {
+  if (['kpi','week','lead'].indexOf(v)>=0) return false;
   if (화면목록_.indexOf(v) < 0) return false;
   if (!DATA || !DATA.me || !DATA.me.viewer) return !!DATA;
   var cl = String(DATA.me.team || '').trim() === 'C-Labs';
@@ -1841,13 +1862,10 @@ function prefetch() {
       }, 조용);
     if (!FLOW) 관문호출_('/saleson-flow', JSON.stringify({ 토큰: TOKEN, ym: '' }))
       .then(function(d) { FLOW = d; FLOWX = {}; }, 조용);
-    if (!KPIT) 관문호출_('/saleson-kpi', JSON.stringify({ 토큰: TOKEN }))
-      .then(function(d) { KPIT = d; }, 조용);
   } else {
     if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
     if (!EVT) gsrun().withSuccessHandler(function(d) { EVT = d; }).웹_행사현황(TOKEN);
     if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
-    if (!KPIT) gsrun().withSuccessHandler(function(d) { KPIT = d; }).웹_KPI현황(TOKEN);
   }
   // 자료는 관문이 없다 (Drive 링크·권한이 GAS 전용 — 감사 2차 결정)
   if (!MATL) gsrun().withSuccessHandler(function(d) { MATL = d; }).웹_영업자료목록(TOKEN);
@@ -5176,7 +5194,127 @@ function failCard(l) {
     + '<div style="margin-top:10px;display:flex;gap:8px;">'
     + '<button class="btn pri" onclick="retryLead(' + l.k + ')">재컨택 시작</button>'
     + '<button class="btn ghost" onclick="openFail(' + l.k + ')">사유 수정</button>'
+    + (DEMO_FAILURE_ON && DATA.dbSrc ? '<button class="btn ghost" onclick="demoFailureFromLead(' + l.k + ')">실패 이력</button>' : '')
     + '</div></div>';
+}
+// 데모 실패관리: 서버가 권한·전이·집계를 판정한다. GAS 쓰기 폴백 없음.
+var DF = { rows:[], cursor:null, generation:0, detailGeneration:0, current:null, data:null, pending:null, dirty:false, saving:false };
+function demoFailureFromLead(row) { var l=DATA.leads.filter(function(x){return x.k===row;})[0];if(l){document.getElementById('dfQuery').value=l.hname;show('demofail');} }
+function dfCall(body) { body.토큰=TOKEN; return 관문호출_('/saleson-demo-failures',JSON.stringify(body)); }
+function dfOptions(values,selected,blank) {
+  return (blank?'<option value="">'+esc(blank)+'</option>':'')+values.map(function(v){return '<option value="'+esc(v)+'"'+(v===selected?' selected':'')+'>'+esc(v)+'</option>';}).join('');
+}
+function dfFilters() { return {q:document.getElementById('dfQuery').value,status:document.getElementById('dfStatus').value,product:document.getElementById('dfProductFilter').value,due:document.getElementById('dfDue').value,owner:document.getElementById('dfOwnerFilter').value,contact:document.getElementById('dfContactFilter').value}; }
+function dfRepOptions(reps,selected) { return '<option value="">미배정</option>'+reps.map(function(p){return '<option value="'+p.id+'"'+(Number(p.id)===Number(selected)?' selected':'')+'>'+esc(p.name)+'</option>';}).join(''); }
+function dfContactLabel(c) {return !c.owner_rep_id?'담당 배정 필요':c.owner_connected?'연결 완료':Number(c.owner_contact_count)>0?'시도·미연결':'미컨택';}
+function loadDemoFailures(more) {
+  if(!DEMO_FAILURE_ON || !DATA || DATA.me.viewer) return;
+  var generation=++DF.generation, summary=document.getElementById('dfSummary');summary.textContent='불러오는 중…';
+  document.getElementById('dfMore').disabled=true;
+  dfCall({action:'list',filters:dfFilters(),limit:50,cursor:more?DF.cursor:null}).then(function(r){
+    if(generation!==DF.generation)return;
+    if(!r.available){summary.textContent='관리 기능이 아직 활성화되지 않았습니다.';document.getElementById('dfList').innerHTML='';return;}
+    DF.data=r;DF.rows=more?DF.rows.concat(r.items):r.items;DF.cursor=r.nextCursor;
+    var status=document.getElementById('dfStatus'), selected=status.value;status.innerHTML=dfOptions(r.states,selected,'전체 상태');
+    var ownerFilter=document.getElementById('dfOwnerFilter'),ownerSelected=ownerFilter.value;
+    ownerFilter.innerHTML='<option value="">전체 권한 범위</option><option value="me">내 담당</option><option value="unassigned">미배정</option>'+(r.reps||[]).map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('');ownerFilter.value=ownerSelected;
+    var s=r.summary;summary.textContent='전체 '+s.total+'건 · 미배정 '+s.unassigned+'건 · 미컨택(진행 중) '+s.untouched+'건 · 연결 완료 '+s.connected+'건 · 기한 지연 '+s.overdue+'건 · 오늘 연락 '+s.today+'건';
+    document.getElementById('dfOwners').innerHTML=(r.owners||[]).map(function(o){return '<div class="card" style="flex:1;min-width:180px;margin:0;padding:12px;"><b>'+esc(o.owner_name)+' · '+o.total+'건</b><div class="gnote">미컨택(진행 중) '+o.untouched+' · 컨택 기록 '+o.attempted+' · 연결 완료 '+o.connected+'<br>기한 지연 '+o.overdue+' · 재데모 '+o.redemo+' · 종결 '+o.closed+'</div></div>';}).join('');
+    document.getElementById('dfList').innerHTML=DF.rows.length?DF.rows.map(function(c){
+      var due=c.status==='종결'?'':!c.next_contact_on?'일정 미정':c.next_contact_on<r.asOf?'기한 지연':c.next_contact_on===r.asOf?'오늘 연락':c.next_contact_on;
+      return '<article class="card" style="margin-top:10px;overflow-wrap:anywhere;"><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;"><b>'+esc(c.hospital_name)+'</b><button class="btn ghost" data-df-id="'+esc(c.id)+'" onclick="openDemoFailure(this.dataset.dfId)">상세·관리</button></div>'
+        +'<div class="gnote">'+esc(c.owner_name||'미배정')+' · '+esc(c.status)+' · '+esc(c.reason_code)+' · '+esc(due)+'</div>'
+        +'<div><b>'+esc(dfContactLabel(c))+'</b> · '+(c.owner_contact_on?esc(c.owner_contact_on)+' / '+esc(c.owner_contact_outcome)+' / '+c.owner_contact_count+'회':'현재 담당자의 연락 기록 없음')+'</div>'
+        +(c.owner_contact_note?'<div class="gnote">최근 결과: '+esc(c.owner_contact_note)+'</div>':'')
+        +'<div>다음: '+esc(c.next_action||'행동을 입력하세요')+' · '+esc(c.next_contact_on||'일정 미정')+'</div>'
+        +(DATA.me.admin?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><select aria-label="'+esc(c.hospital_name)+' 담당자" id="dfOwner-'+c.id+'" style="flex:1;min-width:140px;">'+dfRepOptions(r.reps||[],c.owner_rep_id)+'</select><button class="btn ghost" data-df-id="'+c.id+'" onclick="dfAssignInline(this.dataset.dfId,this)">담당 배정</button></div>':'')+'</article>';
+    }).join(''):'<div class="card empty">조건에 맞는 실패 사례가 없습니다.</div>';
+    document.getElementById('dfMore').style.display=DF.cursor?'':'none';document.getElementById('dfMore').disabled=false;
+  },function(e){if(generation!==DF.generation)return;summary.textContent=e.message+' 입력 내용은 유지됩니다.';document.getElementById('dfMore').disabled=false;});
+}
+function dfAssignInline(id,button) {
+  if(DF.saving)return;
+  if(DF.dirty){toast('상세 화면의 입력을 먼저 저장하거나 기록을 다시 열어 주세요.',true);return;}
+  var c=DF.rows.filter(function(x){return x.id===id;})[0],value=document.getElementById('dfOwner-'+id).value;
+  if(!c)return;
+  var body={action:'assign',caseId:id,expectedVersion:c.version,ownerRepId:value?Number(value):null};
+  var fingerprint=JSON.stringify(body);
+  if(!DF.pending||DF.pending.fingerprint!==fingerprint)DF.pending={fingerprint:fingerprint,id:crypto.randomUUID()};
+  body.requestId=DF.pending.id;DF.saving=true;button.disabled=true;
+  dfCall(body).then(function(){DF.saving=false;DF.pending=null;toast('담당자를 배정했습니다.');loadDemoFailures();if(DF.current&&DF.current.id===id)openDemoFailure(id,true);},function(e){DF.saving=false;button.disabled=false;toast(e.message,true);});
+}
+function dfField(id,label,value,type) {return '<label class="f" for="'+id+'">'+label+'</label><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(value||'')+'" oninput="DF.dirty=true">';}
+function dfArea(id,label,value) {return '<label class="f" for="'+id+'">'+label+'</label><textarea id="'+id+'" maxlength="4000" oninput="DF.dirty=true">'+esc(value||'')+'</textarea>';}
+function dfEvidence(id,label,rows,selected) {return '<label class="f" for="'+id+'">'+label+'</label><select id="'+id+'" onchange="DF.dirty=true"><option value="">선택</option>'+rows.map(function(p){return '<option value="'+p.id+'"'+(Number(p.id)===Number(selected)?' selected':'')+'>'+esc(p.date)+' · '+esc(p.activity_type)+'</option>';}).join('')+'</select>';}
+function dfFindLeads() {
+  var caseId=DF.current.id;
+  dfCall({action:'candidates',query:document.getElementById('dfLeadQuery').value}).then(function(r){
+    if(!DF.current||DF.current.id!==caseId)return;
+    document.getElementById('dfLeadId').innerHTML='<option value="">'+(r.items.length?'연결할 리드 선택':'검색 결과 없음')+'</option>'+r.items.map(function(l){return '<option value="'+l.id+'">'+esc(l.hospital_name)+' · '+esc(l.stage)+' · '+esc(l.demo_on||'데모일 미확인')+'</option>';}).join('');
+  },function(e){toast(e.message,true);});
+}
+function openDemoFailure(id,force) {
+  if(DF.saving)return;
+  if(DF.dirty&&!force&&!confirm('저장하지 않은 입력을 버리고 다른 기록을 열까요?'))return;
+  var seq=++DF.detailGeneration;
+  dfCall({action:'detail',caseId:id}).then(function(r){
+    if(seq!==DF.detailGeneration)return;
+    DF.current=r.item;DF.pending=null;DF.dirty=false;
+    var c=r.item,d=DF.data,host=document.getElementById('dfDetail');
+    if(!d){toast('목록을 먼저 불러와 주세요.',true);return;}
+    var h='<h3>'+esc(c.hospital_name)+'</h3><div class="gnote">'+esc({UNKNOWN:'제품 미확인',CUREJET:'큐어젯',NOVOJET:'노보젯'}[c.product_code])+' · 실패 '+c.episode_no+'회차 · 현재 리드 '+esc(c.lead_stage||'미연결')+'</div>'
+      +'<div id="dfError" role="alert" style="color:#b42318;white-space:pre-wrap;"></div>'
+      +'<h4>담당자 · 컨택 진행</h4><div><b>'+esc(c.owner_name||'미배정')+' · '+esc(dfContactLabel(c))+'</b>'+ (c.assigned_on?' · 배정일 '+esc(c.assigned_on):'')+'</div>'
+      +'<div class="gnote">'+(c.owner_contact_on?'최근 연락 '+esc(c.owner_contact_on)+' · '+esc(c.owner_contact_outcome)+' · '+esc(c.owner_contact_note):'현재 담당자의 배정 이후 연락 기록이 없습니다.')+'</div>'
+      +(DATA.me.admin?'<label class="f" for="dfAssign">담당자 지정</label><select id="dfAssign">'+dfRepOptions(d.reps||[],c.owner_rep_id)+'</select><button class="btn ghost" onclick="saveDemoFailure(\'assign\')">담당 배정</button>':'')
+      +'<div class="card" style="margin-top:14px;background:#f5f8ff;"><h4>컨택 결과 기록</h4><div class="gnote">실제 연락 담당: '+esc(c.owner_name||'먼저 배정하세요')+(DATA.me.admin?' · 관리자가 대신 입력하면 입력자도 이력에 남습니다.':'')+'<br>저장하면 확인대기·재접촉예정 사례는 접촉중으로 바뀝니다.</div>'
+      +dfField('dfContactDate','실제 연락일',d.asOf,'date')+'<label class="f" for="dfContactOutcome">연락 결과</label><select id="dfContactOutcome" onchange="DF.dirty=true">'+dfOptions(d.contactOutcomes||[],'','선택')+'</select>'
+      +dfArea('dfContactNote','연락 내용 / 종결 재개 사유','')+dfField('dfContactNextDate','다음 연락일 (컨택 기록)',c.next_contact_on&&c.next_contact_on>=d.asOf?c.next_contact_on:d.asOf,'date')+dfField('dfContactNextAction','다음 행동 (컨택 기록)',c.next_action)
+      +'<button class="btn pri" onclick="saveDemoFailure(\'logContact\')">컨택 결과 저장</button>'+(c.status==='종결'?' <button class="btn ghost" onclick="saveDemoFailure(\'reopen\')">종결 재개</button>':'')+'</div>'
+      +'<h4>재공략 진행 상태</h4><div class="gnote">컨택 기록과 별도로 저장합니다. 재접촉 시작만 눌러서는 컨택 완료로 집계되지 않습니다.</div>'
+      +'<label class="f" for="dfEditStatus">관리 상태</label><select id="dfEditStatus" onchange="DF.dirty=true">'+dfOptions(d.states,c.status)+'</select>'
+      +'<label class="f" for="dfReason">실패 사유 분류</label><select id="dfReason" onchange="DF.dirty=true">'+dfOptions(d.reasons,c.reason_code)+'</select>'
+      +dfArea('dfReasonText','확인된 실패 사유',c.reason_detail)+dfArea('dfCondition','재접촉 조건',c.retry_condition)
+      +dfField('dfNextDate','다음 연락일',c.next_contact_on,'date')+dfField('dfNextAction','다음 행동',c.next_action)
+      +'<label class="f" for="dfCloseReason">종결 사유</label><select id="dfCloseReason" onchange="DF.dirty=true">'+dfOptions(d.closeReasons,c.close_reason,'선택')+'</select>'
+      +dfEvidence('dfPlanId','예약된 재데모 계획',r.plans||[],c.redemo_plan_id)+dfEvidence('dfActivityId','완료된 재데모 기록',r.visits||[],c.redemo_activity_id)
+      +'<div class="gnote">재데모 상태에서는 같은 병원의 실제 계획·완료 기록을 연결하세요. 계약 확인 종결은 연결 리드의 유효 계약을 검사합니다.</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;"><button class="btn pri" onclick="saveDemoFailure(\'save\')">변경 저장</button><button class="btn ghost" onclick="saveDemoFailure(\'startContact\')">재접촉 시작</button></div>';
+    if(DATA.me.admin){
+      h+='<details style="margin-top:18px;"><summary>리드 연결</summary>'
+        +dfField('dfLeadQuery','연결할 리드 병원명',c.hospital_name)+'<button class="btn ghost" onclick="dfFindLeads()">리드 찾기</button><label class="f" for="dfLeadId">검색된 리드</label><select id="dfLeadId"><option value="'+(c.lead_id||'')+'">'+(c.lead_id?'현재 연결된 리드':'병원명으로 검색하세요')+'</option></select>'
+        +'<label class="f" for="dfProduct">확인한 제품</label><select id="dfProduct"><option value="">선택</option><option value="CUREJET"'+(c.product_code==='CUREJET'?' selected':'')+'>큐어젯</option><option value="NOVOJET"'+(c.product_code==='NOVOJET'?' selected':'')+'>노보젯</option></select><button class="btn ghost" onclick="saveDemoFailure(\'match\')">리드 연결</button></details>';
+    }
+    var originals=(r.sources||[]).map(function(s){return s.raw;});if(!originals.length)originals=[c.source_snapshot||{}];
+    h+='<details style="margin-top:18px;"><summary>원본 이력</summary>'+originals.map(function(raw){return '<p>과거 담당: '+esc(raw.pastOwner||'미확인')+'<br>데모: '+esc(raw.demoMonth||raw.demo_on||'날짜 미확인')+'<br>과거 결과: '+esc(raw.result||raw.stage||'실패')+'</p><p style="white-space:pre-wrap">'+esc(raw.memo||raw.fail_reason||'원본 메모 없음')+'</p>';}).join('')+'</details>'
+      +'<details style="margin-top:18px;" open><summary>활동·변경 이력</summary>'+(r.actions||[]).map(function(a){return '<p>'+esc(String(a.happened_on).slice(0,10))+' · '+esc(a.action_kind==='contact'?a.outcome:a.action_kind==='reopen'?'종결 재개':'기존 기록')+' · 실제 연락: '+esc(a.contact_name||'해당 없음')+' · 입력: '+esc(a.actor_name)+'<br>'+esc(a.note)+'</p>';}).join('')
+      +(r.history||[]).map(function(a){return '<p class="gnote">'+esc(a.at)+' · '+esc(a.actor)+' · '+esc(a.action)+' · '+esc(a.after_data&&a.after_data.status||'')+'</p>';}).join('')+'</details>';
+    host.innerHTML=h;host.style.display='';host.scrollIntoView({behavior:'smooth',block:'start'});
+  },function(e){toast(e.message,true);});
+}
+function saveDemoFailure(action) {
+  if(!DF.current||DF.saving)return;
+  var c=DF.current,val=function(id){return document.getElementById(id).value;};
+  var changes={status:val('dfEditStatus'),reason_code:val('dfReason'),reason_detail:val('dfReasonText'),retry_condition:val('dfCondition'),next_contact_on:val('dfNextDate'),next_action:val('dfNextAction'),close_reason:val('dfCloseReason')};
+  if(action==='save')action=changes.status==='종결'?'close':'update';
+  if(action==='startContact')changes.status='접촉중';
+  var body={action:action,caseId:c.id,expectedVersion:c.version,changes:changes};
+  if(action==='assign')body={action:action,caseId:c.id,expectedVersion:c.version,ownerRepId:val('dfAssign')?Number(val('dfAssign')):null};
+  if(action==='match')body={action:action,caseId:c.id,expectedVersion:c.version,leadId:Number(val('dfLeadId')),productCode:val('dfProduct')};
+  if(action==='logContact'||action==='reopen'){body.note=val('dfContactNote');body.happenedOn=val('dfContactDate');}
+  if(['logContact','assign','match','reopen'].indexOf(action)>=0&&Object.keys(changes).some(function(k){return String(changes[k]||'')!==String(c[k]||'');})) {document.getElementById('dfError').textContent='변경한 재공략 진행 상태를 먼저 변경 저장한 뒤 진행하세요.';return;}
+  if(action==='logContact'){delete body.changes;body.contactRepId=c.owner_rep_id;body.outcome=val('dfContactOutcome');body.followUp={nextContactOn:val('dfContactNextDate'),nextAction:val('dfContactNextAction')};}
+  if(['update','close','startContact','logContact'].indexOf(action)>=0){body.planId=val('dfPlanId');body.activityId=val('dfActivityId');}
+  var fingerprint=JSON.stringify(body);
+  if(!DF.pending||DF.pending.fingerprint!==fingerprint)DF.pending={fingerprint:fingerprint,id:crypto.randomUUID()};
+  body.requestId=DF.pending.id;DF.saving=true;document.getElementById('dfError').textContent='저장 중…';
+  Array.prototype.forEach.call(document.querySelectorAll('#dfDetail button'),function(b){b.disabled=true;});
+  dfCall(body).then(function(r){
+    DF.saving=false;DF.dirty=false;DF.pending=null;DF.current=r.item;toast('저장했습니다.');loadDemoFailures();openDemoFailure(c.id,true);
+  },function(e){
+    DF.saving=false;document.getElementById('dfError').textContent=e.message+' 입력 내용은 유지됩니다. 최신 기록을 다시 열려면 목록의 상세·관리를 누르세요.';
+    Array.prototype.forEach.call(document.querySelectorAll('#dfDetail button'),function(b){b.disabled=false;});
+  });
 }
 function retryLead(row) {
   if (!confirm('이 리드의 재컨택을 시작할까요? 단계가 \'컨택\'으로 변경됩니다.')) return;
