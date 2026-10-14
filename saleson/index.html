@@ -723,6 +723,8 @@
   <div class="kicker"><div class="bar"></div><div class="lbl">데모 실패관리</div></div>
   <div class="gnote">과거 실패와 현재 재공략 상태를 함께 관리합니다. 재데모는 신규 데모 실적에 다시 더하지 않습니다.</div>
   <div id="dfSummary" class="gnote" role="status"></div>
+  <div id="dfSatisfactionTabs" role="tablist" aria-label="원본 Success 만족도" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;"></div>
+  <div class="gnote">만족도는 원본 Success 기준입니다. 탭 건수에는 아래 검색·담당자·컨택 조건이 적용됩니다. Remark와 VOC는 원본 기재값입니다.</div>
   <div id="dfOwners" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;"></div>
   <div class="gnote">컨택 집계는 현재 담당자의 배정 이후 기록 기준입니다. 연결 완료는 실제 통화·응답이 있었던 경우에만 선택하세요.</div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;">
@@ -734,7 +736,7 @@
     <select id="dfContactFilter" aria-label="컨택 여부" style="width:auto;" onchange="loadDemoFailures()"><option value="">모든 컨택</option><option value="none">미컨택</option><option value="attempted">시도·미연결</option><option value="connected">연결 완료</option></select>
     <button class="btn ghost" onclick="loadDemoFailures()">조회</button>
   </div>
-  <div id="dfList"></div><button id="dfMore" class="btn ghost" style="display:none" onclick="loadDemoFailures(true)">더 보기</button>
+  <div id="dfList" role="tabpanel" aria-label="만족도별 실패 사례"></div><button id="dfMore" class="btn ghost" style="display:none" onclick="loadDemoFailures(true)">더 보기</button>
   <section id="dfDetail" class="card" style="display:none;margin-top:18px;overflow-wrap:anywhere;"></section>
 </div></div>
 
@@ -1347,7 +1349,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610140613-28fc504';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610140823-919b2f8';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5198,13 +5200,37 @@ function failCard(l) {
     + '</div></div>';
 }
 // 데모 실패관리: 서버가 권한·전이·집계를 판정한다. GAS 쓰기 폴백 없음.
-var DF = { rows:[], cursor:null, generation:0, detailGeneration:0, current:null, data:null, pending:null, dirty:false, saving:false };
+var DF = { rows:[], cursor:null, satisfaction:'', generation:0, detailGeneration:0, current:null, data:null, pending:null, dirty:false, saving:false };
 function demoFailureFromLead(row) { var l=DATA.leads.filter(function(x){return x.k===row;})[0];if(l){document.getElementById('dfQuery').value=l.hname;show('demofail');} }
 function dfCall(body) { body.토큰=TOKEN; return 관문호출_('/saleson-demo-failures',JSON.stringify(body)); }
 function dfOptions(values,selected,blank) {
   return (blank?'<option value="">'+esc(blank)+'</option>':'')+values.map(function(v){return '<option value="'+esc(v)+'"'+(v===selected?' selected':'')+'>'+esc(v)+'</option>';}).join('');
 }
-function dfFilters() { return {q:document.getElementById('dfQuery').value,status:document.getElementById('dfStatus').value,product:document.getElementById('dfProductFilter').value,due:document.getElementById('dfDue').value,owner:document.getElementById('dfOwnerFilter').value,contact:document.getElementById('dfContactFilter').value}; }
+function dfFilters() { return {satisfaction:DF.satisfaction,q:document.getElementById('dfQuery').value,status:document.getElementById('dfStatus').value,product:document.getElementById('dfProductFilter').value,due:document.getElementById('dfDue').value,owner:document.getElementById('dfOwnerFilter').value,contact:document.getElementById('dfContactFilter').value}; }
+function dfSatisfactionTabs(counts) {
+  var host=document.getElementById('dfSatisfactionTabs'), focused=host.contains(document.activeElement);
+  host.innerHTML=['전체','만족','불만족','보통','미확인'].map(function(label,i){
+    var value=i?label:'', selected=value===DF.satisfaction;
+    return '<button type="button" role="tab" aria-controls="dfList" aria-selected="'+selected+'" tabindex="'+(selected?'0':'-1')+'" class="btn '+(selected?'pri':'ghost')+'" data-satisfaction="'+value+'" onclick="dfSelectSatisfaction(this.dataset.satisfaction)" onkeydown="dfSatisfactionKey(event,this)">'+label+' '+Number(counts[label]||0)+'건</button>';
+  }).join('');
+  if(focused)host.querySelector('[aria-selected="true"]').focus();
+}
+function dfSelectSatisfaction(value) {DF.satisfaction=value;DF.cursor=null;loadDemoFailures();}
+function dfSatisfactionKey(event,button) {
+  var tabs=Array.from(button.parentNode.children),index=tabs.indexOf(button);
+  if(event.key==='ArrowRight')index=(index+1)%tabs.length;
+  else if(event.key==='ArrowLeft')index=(index+tabs.length-1)%tabs.length;
+  else if(event.key==='Home')index=0;else if(event.key==='End')index=tabs.length-1;else return;
+  event.preventDefault();tabs[index].focus();dfSelectSatisfaction(tabs[index].dataset.satisfaction);
+}
+function dfSourceFields(raw) {
+  raw=raw||{};var success=String(raw.satisfaction||'').trim(),label=['만족','불만족','보통'].indexOf(success)>=0?success:'미확인';
+  var remark=raw.remark!=null?raw.remark:raw.memo;
+  return '<div class="df-source" style="margin:12px 0;padding:12px;background:#f5f7fa;border-radius:10px;overflow-wrap:anywhere;">'
+    +'<b>Success · '+esc(label)+'</b>'+(success&&label==='미확인'?' <span>원본: '+esc(success)+'</span>':'')
+    +'<div style="margin-top:6px;white-space:pre-wrap"><b>Remark</b><br>'+esc(remark||'원본 기재 없음')+'</div>'
+    +'<div style="margin-top:6px;white-space:pre-wrap"><b>VOC</b><br>'+esc(raw.voc||'원본 기재 없음')+'</div></div>';
+}
 function dfRepOptions(reps,selected) { return '<option value="">미배정</option>'+reps.map(function(p){return '<option value="'+p.id+'"'+(Number(p.id)===Number(selected)?' selected':'')+'>'+esc(p.name)+'</option>';}).join(''); }
 function dfContactLabel(c) {return !c.owner_rep_id?'담당 배정 필요':c.owner_connected?'연결 완료':Number(c.owner_contact_count)>0?'시도·미연결':'미컨택';}
 function loadDemoFailures(more) {
@@ -5215,6 +5241,7 @@ function loadDemoFailures(more) {
     if(generation!==DF.generation)return;
     if(!r.available){summary.textContent='관리 기능이 아직 활성화되지 않았습니다.';document.getElementById('dfList').innerHTML='';return;}
     DF.data=r;DF.rows=more?DF.rows.concat(r.items):r.items;DF.cursor=r.nextCursor;
+    dfSatisfactionTabs(r.satisfactionCounts||{});
     var status=document.getElementById('dfStatus'), selected=status.value;status.innerHTML=dfOptions(r.states,selected,'전체 상태');
     var ownerFilter=document.getElementById('dfOwnerFilter'),ownerSelected=ownerFilter.value;
     ownerFilter.innerHTML='<option value="">전체 권한 범위</option><option value="me">내 담당</option><option value="unassigned">미배정</option>'+(r.reps||[]).map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('');ownerFilter.value=ownerSelected;
@@ -5227,6 +5254,7 @@ function loadDemoFailures(more) {
         +'<div><b>'+esc(dfContactLabel(c))+'</b> · '+(c.owner_contact_on?esc(c.owner_contact_on)+' / '+esc(c.owner_contact_outcome)+' / '+c.owner_contact_count+'회':'현재 담당자의 연락 기록 없음')+'</div>'
         +(c.owner_contact_note?'<div class="gnote">최근 결과: '+esc(c.owner_contact_note)+'</div>':'')
         +'<div>다음: '+esc(c.next_action||'행동을 입력하세요')+' · '+esc(c.next_contact_on||'일정 미정')+'</div>'
+        +dfSourceFields(c.source_snapshot)
         +(DATA.me.admin?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><select aria-label="'+esc(c.hospital_name)+' 담당자" id="dfOwner-'+c.id+'" style="flex:1;min-width:140px;">'+dfRepOptions(r.reps||[],c.owner_rep_id)+'</select><button class="btn ghost" data-df-id="'+c.id+'" onclick="dfAssignInline(this.dataset.dfId,this)">담당 배정</button></div>':'')+'</article>';
     }).join(''):'<div class="card empty">조건에 맞는 실패 사례가 없습니다.</div>';
     document.getElementById('dfMore').style.display=DF.cursor?'':'none';document.getElementById('dfMore').disabled=false;
@@ -5264,6 +5292,7 @@ function openDemoFailure(id,force) {
     if(!d){toast('목록을 먼저 불러와 주세요.',true);return;}
     var h='<h3>'+esc(c.hospital_name)+'</h3><div class="gnote">'+esc({UNKNOWN:'제품 미확인',CUREJET:'큐어젯',NOVOJET:'노보젯'}[c.product_code])+' · 실패 '+c.episode_no+'회차 · 현재 리드 '+esc(c.lead_stage||'미연결')+'</div>'
       +'<div id="dfError" role="alert" style="color:#b42318;white-space:pre-wrap;"></div>'
+      +dfSourceFields(c.source_snapshot)
       +'<h4>담당자 · 컨택 진행</h4><div><b>'+esc(c.owner_name||'미배정')+' · '+esc(dfContactLabel(c))+'</b>'+ (c.assigned_on?' · 배정일 '+esc(c.assigned_on):'')+'</div>'
       +'<div class="gnote">'+(c.owner_contact_on?'최근 연락 '+esc(c.owner_contact_on)+' · '+esc(c.owner_contact_outcome)+' · '+esc(c.owner_contact_note):'현재 담당자의 배정 이후 연락 기록이 없습니다.')+'</div>'
       +(DATA.me.admin?'<label class="f" for="dfAssign">담당자 지정</label><select id="dfAssign">'+dfRepOptions(d.reps||[],c.owner_rep_id)+'</select><button class="btn ghost" onclick="saveDemoFailure(\'assign\')">담당 배정</button>':'')
@@ -5286,7 +5315,7 @@ function openDemoFailure(id,force) {
         +'<label class="f" for="dfProduct">확인한 제품</label><select id="dfProduct"><option value="">선택</option><option value="CUREJET"'+(c.product_code==='CUREJET'?' selected':'')+'>큐어젯</option><option value="NOVOJET"'+(c.product_code==='NOVOJET'?' selected':'')+'>노보젯</option></select><button class="btn ghost" onclick="saveDemoFailure(\'match\')">리드 연결</button></details>';
     }
     var originals=(r.sources||[]).map(function(s){return s.raw;});if(!originals.length)originals=[c.source_snapshot||{}];
-    h+='<details style="margin-top:18px;"><summary>원본 이력</summary>'+originals.map(function(raw){return '<p>과거 담당: '+esc(raw.pastOwner||'미확인')+'<br>데모: '+esc(raw.demoMonth||raw.demo_on||'날짜 미확인')+'<br>과거 결과: '+esc(raw.result||raw.stage||'실패')+'</p><p style="white-space:pre-wrap">'+esc(raw.memo||raw.fail_reason||'원본 메모 없음')+'</p>';}).join('')+'</details>'
+    h+='<details style="margin-top:18px;"><summary>원본 이력</summary>'+originals.map(function(raw){return '<p>과거 담당: '+esc(raw.pastOwner||'미확인')+'<br>데모: '+esc(raw.demoMonth||raw.demo_on||'날짜 미확인')+'<br>과거 결과: '+esc(raw.result||raw.stage||'실패')+'</p>'+dfSourceFields(raw)+(raw.sourceSheet?'<p class="gnote">'+esc(raw.sourceWorkbook)+'<br>'+esc(raw.sourceSheet)+' · '+esc(raw.sourceRow)+'행</p>':'')+(raw.fail_reason?'<p>'+esc(raw.fail_reason)+'</p>':'');}).join('')+'</details>'
       +'<details style="margin-top:18px;" open><summary>활동·변경 이력</summary>'+(r.actions||[]).map(function(a){return '<p>'+esc(String(a.happened_on).slice(0,10))+' · '+esc(a.action_kind==='contact'?a.outcome:a.action_kind==='reopen'?'종결 재개':'기존 기록')+' · 실제 연락: '+esc(a.contact_name||'해당 없음')+' · 입력: '+esc(a.actor_name)+'<br>'+esc(a.note)+'</p>';}).join('')
       +(r.history||[]).map(function(a){return '<p class="gnote">'+esc(a.at)+' · '+esc(a.actor)+' · '+esc(a.action)+' · '+esc(a.after_data&&a.after_data.status||'')+'</p>';}).join('')+'</details>';
     host.innerHTML=h;host.style.display='';host.scrollIntoView({behavior:'smooth',block:'start'});
