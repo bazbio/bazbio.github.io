@@ -320,8 +320,11 @@
   /* 불참 (2026-10-16) — 행은 남기되 흐리게, 이름 옆에 배지. 토글은 작은 글자 버튼이라 표가 안 넓어진다 */
   .badge.abs { background:#ffeaec; color:#d0223a; margin-left:5px; }
   .dt tr.absent td, .dt tr.absent td b { color:#8b95a1; }
-  .absb { display:inline-block; font:inherit; font-size:11px; color:#8b95a1; background:none; border:0; padding:0; margin-top:3px; cursor:pointer; text-decoration:underline dotted; }
-  .absb:hover { color:#d0223a; }
+  /* 회색 글자 밑줄은 안 보였다(10/16 피드백) — 참석 확인 칸의 「확인 필요」와 같은 붉은 알약으로. 취소는 회색 알약 */
+  .absb { display:inline-block; font:inherit; font-size:11px; font-weight:600; color:#d0223a; background:#fff5f6; border:1px solid #f3b4bc; border-radius:999px; padding:2px 9px; margin-top:4px; cursor:pointer; }
+  .absb:hover { background:#ffeaec; }
+  .absb.off { color:#4e5968; background:#f2f4f6; border-color:#d9dee3; }
+  .absb.off:hover { background:#e8ebee; }
 
   /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
   @media (max-width: 899px) {
@@ -1354,7 +1357,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610152302-dc0f2cd';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610152333-76b5fea';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3305,7 +3308,7 @@ function renderEvt() {
         if (l.absent) {
           불참토글 = '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;">' + esc(String(l.absent.at || '').slice(5).replace('-', '/'))
             + (l.absent.by ? ' ' + esc(l.absent.by) : '') + ' 표시'
-            + (ABSON && 내리드 ? ' · <button class="absb" style="margin:0;" onclick="evtAbsent(' + l.k + ')">불참 취소</button>' : '') + '</div>';
+            + (ABSON && 내리드 ? ' · <button class="absb off" style="margin:0;" onclick="evtAbsent(' + l.k + ')">불참 취소</button>' : '') + '</div>';
         } else if (ABSON && 내리드) {
           불참토글 = '<div><button class="absb" onclick="evtAbsent(' + l.k + ')">불참 표시</button></div>';
         }
