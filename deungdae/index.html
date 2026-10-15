@@ -240,6 +240,8 @@ table.pl tbody tr:hover td:first-child{background:var(--soft)}
 .r-leaf>td:first-child{padding-left:40px}
 .r-leaf2>td{color:var(--ink-2);font-size:12.5px}
 .r-leaf2>td:first-child{padding-left:54px}
+/* 자금 탭 — 거래 내역을 연 거래처 줄 (2026-10-15) */
+tr.sel>td,tr.sel>td:first-child{background:var(--blue-bg)}
 /* 노즐 유상·무상 (0046) — 쌍이 한눈에 갈리게: 배지 + 무상 행 옅은 호박색 */
 .nz-pill{display:inline-block;padding:1px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:700;vertical-align:1px;margin-left:6px}
 .nz-pill.paid{color:var(--blue);background:var(--blue-bg)}
@@ -406,7 +408,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">6d4029e · 260911</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">919b2f8 · 261015</span>
     </header>
 
     <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
@@ -860,19 +862,28 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         </div>
         <p class="note" id="cashChartNote"></p>
       </div>
+      <div class="card" id="cashFvCard" style="margin-top:12px" hidden>
+        <h3 class="ct">자금 흐름 — 고정비 · 변동비<span class="u">백만원 · 눌러서 세분화</span></h3>
+        <div class="scroll">
+          <table class="pl" id="cashFv"><thead><tr id="cashFvHead"></tr></thead><tbody id="cashFvBody"></tbody></table>
+        </div>
+        <p class="note" id="cashFvNote"></p>
+      </div>
       <div class="card" id="cashCard" style="margin-top:12px" hidden>
-        <h3 class="ct">월별 입출금 — 눌러서 세분화<span class="u">백만원</span></h3>
+        <h3 class="ct">월별 입출금 — 재경팀 분류<span class="u">백만원 · 눌러서 세분화</span></h3>
         <div class="scroll">
           <table class="pl" id="cash"><thead><tr id="cashHead"></tr></thead><tbody id="cashBody"></tbody></table>
         </div>
         <p class="note" id="cashNote"></p>
       </div>
-      <div class="card" id="cashFvCard" style="margin-top:12px" hidden>
-        <h3 class="ct">월별 고정비 · 변동비<span class="u">백만원 · 눌러서 세분화</span></h3>
-        <div class="scroll">
-          <table class="pl" id="cashFv"><thead><tr id="cashFvHead"></tr></thead><tbody id="cashFvBody"></tbody></table>
+      <div class="card" id="cashTxCard" style="margin-top:12px" hidden>
+        <h3 class="ct" id="cashTxTitle">거래 내역</h3>
+        <div class="scroll" style="max-height:520px">
+          <table class="pl" id="cashTx"><thead><tr><th scope="col">일자</th><th scope="col" style="text-align:left">적요</th>
+            <th scope="col" style="text-align:left">분류</th><th scope="col" style="text-align:left">계좌</th><th scope="col">금액(원)</th></tr></thead>
+            <tbody id="cashTxBody"></tbody></table>
         </div>
-        <p class="note" id="cashFvNote"></p>
+        <p class="note" id="cashTxNote"></p>
       </div>
       <div class="card" id="cashTrendCard" style="margin-top:12px" hidden>
         <h3 class="ct">지출 추세 — 무엇이 늘고 줄었나<span class="u">백만원/월</span></h3>
@@ -1033,15 +1044,16 @@ function 권한적용() {
   var 손익 = 권한 === '전체' || 권한 === '재무';
   var 재무 = 권한 === '재무';
   var 원가 = 손익 || 권한 === '원가';   // 원가 탭은 손익보다 한 칸 아래다 (0052)
+  var 일본 = 손익 || 권한 === '일본';   // 「일본」은 매출 + 일본법인 탭만 (2026-09-12)
   $('tabBtnPL').hidden = !손익;
   $('tabBtnBEP').hidden = !손익;     // BEP는 판관비·원가가 다 드러난다 — 손익과 같은 권한이다
   $('tabBtnCost').hidden = !원가;    // 전사 카드 셋은 원가탭그리기가 따로 감춘다 (0052)
-  $('tabBtnJP').hidden = !손익;      // 일본법인 비용은 손익의 일부다
+  $('tabBtnJP').hidden = !일본;
   $('tabBtnKPI').hidden = !손익;
   $('tabBtnFIN').hidden = !재무;     // 현금 잔고·매출채권은 한 단계 위다
   $('tabBtnCash').hidden = !재무;    // 자금(은행 원장)도 같다
   // 지금 탭이 권한 밖이면 볼 수 있는 곳으로 옮긴다
-  var 갈곳 = 손익 ? 탭 : (원가 && 탭 === 'cost' ? 'cost' : 'sales');
+  var 갈곳 = 손익 ? 탭 : (원가 && 탭 === 'cost' ? 'cost' : (일본 && 탭 === 'jp' ? 'jp' : 'sales'));
   if ((갈곳 === 'fin' || 갈곳 === 'cash') && !재무) 갈곳 = 'pl';
   탭설정(갈곳);                       // 탭설정이 그린다 — 여기서 또 그리지 않는다
 }
@@ -4514,9 +4526,11 @@ function 자금일회성(r) {
  *     송금 계좌 라벨뿐) 통째로 이 갈래에 둔다 — 국내 딜러분이 소액 섞여 있어도, 정밀 분리보다
  *     안전한 쪽을 택한다는 사용자 확인(2026-08-24).
  *   - 변동비: 매출·생산량에 연동되는 항목(외상대=매입 지급, 물류비, 외주가공비, 금형).
- *   - 고정비: 나머지 전부(인건비·마케팅·연구개발·임차료·출장·이자비용 …) — 「기타」
- *     (2년반 월평균 약 205백만, 거래처명이 은행계좌 라벨뿐이라 실체 미상)도 여기 기본 편입
- *     한다(2026-08-24 사용자 확인). 일회성(자금일회성)은 애초에 이 분류에 들어오지 않는다.
+ *   - 고정비: 나머지 전부(인건비·마케팅·연구개발·임차료·출장·이자비용 …). 일회성(자금일회성)은
+ *     애초에 이 분류에 들어오지 않는다.
+ *   - 「기타」: 2026-08-24엔 실체를 못 봐 통째로 고정비에 넣었다. 2026-10-15부터 적재기가 적요로
+ *     상세 범주를 붙이고(자금분류.mjs) 재경팀 「고정비용」 시트 규칙·계약성 범주에 걸린 거래에
+ *     고정 표시를 단다 — 그 표시가 있으면 고정비, 없으면 변동비다.
  */
 function 자금갈래(r) {
   if (자금일회성(r)) return null;
@@ -4524,6 +4538,9 @@ function 자금갈래(r) {
   if (구 === '내부거래') return null;
   if (세 === '판매수수료') return '그룹내부';
   if (구 === '외상대' || 세 === '물류비' || 세 === '외주가공비' || 세 === '금형') return '변동비';
+  // 기타는 상세 범주로 가른다 (2026-10-15) — 적재기가 재경팀 「고정비용」 시트 규칙·계약성 범주로
+  // 판정한 고정 표시를 따른다. 법인카드·직원 경비정산·특허·건별 용역은 변동비가 된다
+  if (세 === '기타') return r['고정'] ? '고정비' : '변동비';
   return '고정비';
 }
 
@@ -4566,8 +4583,13 @@ function 자금탭그리기() {
    * **안 줄인 지출이 줄었다고 읽힌다** — 2026-08에 이자비용이 △26% 감소로 떴는데 온전한
    * 두 달로 재면 +10.7% 증가였다. 인건비 △34%도 실제로는 △3.5%였다 (2026-08-16).
    *
-   * 건수가 신호다 — 8월 28건 대 직전 3개월 평균 335건(8.4%). 금액은 큰 건 하나로 튀지만
-   * 건수는 안 튄다. 절반을 못 넘으면 진행 중으로 보고 창을 한 달 앞으로 당긴다.
+   * 신호는 둘이고 **하나라도 걸리면** 진행 중이다.
+   *  ① 원장 마지막 거래일 — 적재기가 잔액 라벨에 「원장 ~YYYY-MM-DD」로 싣는다. 마지막 달의
+   *     말일에서 2일(주말 은행 휴무) 넘게 모자라면 진행 중. 날짜가 직접 말해 주는 신호다.
+   *  ② 건수 — 8월 28건 대 직전 3개월 평균 335건(8.4%). 절반을 못 넘으면 진행 중.
+   *     ②만 쓰던 시절 2026-09 파일(원장 9/11까지)이 53%로 문턱을 넘어 완결 달로 세졌고,
+   *     월평균이 △185.8 → △97.9로 절반 가까이 덜 마르는 것처럼 나왔다 (2026-09-21).
+   *     라벨이 없거나 마지막 달과 안 맞으면 ②만 쓴다.
    */
   var 건수 = function (y, m) {
     return 더(행.filter(function (r) { return +r['연도'] === y && +r['월'] === m; }),
@@ -4578,7 +4600,13 @@ function 자금탭그리기() {
     var 합계 = 0, n = 0;
     for (var i = 끝색인 - 3; i <= 끝색인 - 1; i++) { var p = 달풀기(i); 합계 += 건수(p[0], p[1]); n++; }
     var 평균 = n ? 합계 / n : 0;
-    return 평균 > 0 && 건수(끝연, 끝월) < 평균 * 0.5;
+    var 건수적음 = 평균 > 0 && 건수(끝연, 끝월) < 평균 * 0.5;
+    var 잔행0 = DB['자금잔액'] || [];
+    var 끝일 = /원장 ~(\d{4})-(\d{2})-(\d{2})/.exec(잔행0.length ? String(잔행0[0]['라벨'] || '') : '');
+    var 월말전 = false;
+    if (끝일 && +끝일[1] === 끝연 && +끝일[2] === 끝월)
+      월말전 = +끝일[3] < new Date(끝연, 끝월, 0).getDate() - 2;
+    return 월말전 || 건수적음;
   })();
   // 평균·전망이 서는 축. 진행 중인 달은 표에는 그대로 보이되 **평균에서는 뺀다**
   var 완결색인 = 진행중 ? 끝색인 - 1 : 끝색인;
@@ -4628,144 +4656,255 @@ function 자금탭그리기() {
         + ' (2026-08-16 합의). 아래 전망의 출발점도 이 값입니다.'
       : '');
 
-  // ── 월별 입출 드릴다운 — 2026 월별 + 연 합계 열 ──
+  // ── 월별 표 두 장 — 고정비·변동비로 본 흐름 / 재경팀 분류 그대로. 둘 다 거래처·거래까지 편다 ──
   var 달 = [];
   for (var m = 1; m <= (끝연 === 2026 ? 끝월 : 12); m++) 달.push(m);
-  $('cashHead').innerHTML = ['<th scope="col">항목</th>']
-    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
-    .concat(['<th scope="col">2026 누계</th>', '<th scope="col">2025 연간</th>', '<th scope="col">2024 연간</th>'])
-    .join('');
-  var 줄 = function (이름, f, 급, 키) {
-    var 화살 = 키 ? (자금펼침[키] ? '▾ ' : '▸ ') : '';
-    var 칸 = 달.map(function (m) {
-      var v = 월합(2026, m, f);
-      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
-    }).join('');
-    var 연합 = function (y) {
-      var v = 합(function (r) { return +r['연도'] === y && (!f || f(r)); });
-      return '<td class="num' + (v < 0 ? ' neg' : ' muted') + '">' + 백만(v) + '</td>';
-    };
-    return '<tr class="' + 급 + '"><td>' + (키
-      ? '<button type="button" class="toggle" data-키="' + 키 + '">' + 화살 + 이름 + '</button>'
-      : 이름) + '</td>' + 칸 + 연합(2026) + 연합(2025) + 연합(2024) + '</tr>';
-  };
-  var 이름들 = function (자료, 칸) {
-    var 봤 = {}, 순서 = [];
-    자료.forEach(function (r) { var k = r[칸] || '(없음)'; if (!봤[k]) { 봤[k] = 1; 순서.push(k); } });
-    return 순서.sort();
-  };
-  var html = '';
-  [['2.입금', '입금'], ['3.출금', '출금']].forEach(function (p) {
-    var 방향 = p[0];
-    var f0 = function (r) { return r['입출'] === 방향 && 실질(r); };
-    html += 줄(p[1] + ' 계', f0, 'r-total');
-    // 내부거래·금융상품은 자리 이동이라 줄 자체를 안 낸다 — 예전엔 줄로 남기고 계에서만
-    // 뺐는데, 「계 제외」 표시가 화면을 채워 정작 실제 지출 갈래를 가렸다 (2026-08-24)
-    이름들(행.filter(f0), '구분').forEach(function (구) {
-      var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
-      var 키1 = 방향 + '|' + 구;
-      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
-      if (!자금펼침[키1]) return;
-      이름들(행.filter(f1), '세부').forEach(function (세) {
-        var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
-        var 키2 = 키1 + '|' + 세;
-        html += 줄('　　' + 자금이름(세), f2, 'r-leaf', 키2);
-        if (!자금펼침[키2]) return;
-        이름들(행.filter(f2), '세세부').forEach(function (세세) {
-          html += 줄('　　　' + 자금이름(세세), function (r) {
-            return f2(r) && (r['세세부'] || '(없음)') === 세세;
-          }, 'r-leaf2');
-        });
-      });
-    });
-  });
-  html += 줄('순증감', 실질, 'r-op');
-  $('cashBody').innerHTML = html;
-  Array.prototype.forEach.call($('cashBody').querySelectorAll('.toggle'), function (b) {
-    b.addEventListener('click', function () {
-      자금펼침[b.dataset['키']] = !자금펼침[b.dataset['키']]; 자금탭그리기();
-    });
+  var 완결달수 = 끝연 === 2026 ? (진행중 ? 끝월 - 1 : 끝월) : 12;
+  var 내역 = (DB['자금내역'] || []).filter(function (r) { return r['일자'] >= 끝연 + '-01-01'; });
+  자금흐름그리기(행, 내역, 달, 끝연, 완결달수, 진행중 ? 끝월 : null);
+  자금드릴({
+    자료: 행, 내역: 내역, 달: 달, 연도: 끝연, 연열: [끝연, 끝연 - 1, 끝연 - 2],
+    머리: 'cashHead', 몸: 'cashBody', 접두: 'IO',
+    뿌리: [['2.입금', '입금'], ['3.출금', '출금']].map(function (p) {
+      return { 이름: p[1] + ' 계', f: function (r) { return r['입출'] === p[0] && 실질(r); },
+               단계: ['구분', '세부', '세세부', '상세'], 키: 'IO|' + p[0], 열림: true };
+    }),
+    끝: [{ 이름: '순증감', f: 실질, 급: 'r-op' }],
   });
   $('cashNote').innerHTML =
-    '구분을 누르면 세부, 세부를 누르면 세세부까지 펼쳐집니다 — 3단 분류는 재경팀이 '
-    + '원천에서 붙인 것을 그대로 씁니다. 입금 양수 · 출금 음수(△)입니다. '
+    '구분 → 세부 → 세세부 → 상세 → 거래처 순으로 펼쳐집니다. 3단 분류는 재경팀이 원천에서 붙인 것이고, '
+    + '<strong>「기타」의 상세 범주와 매입대금(외상대)의 매입처는 등대가 적요로 가른 것</strong>입니다 '
+    + '(적요 규칙 → 직원 이름 → 분개장에서 같은 거래처가 잡힌 비용 계정 순). '
+    + '<strong>거래처 줄을 누르면 아래에 거래 내역</strong>이 나옵니다 — 거래처·내역은 '
+    + 끝연 + '년만 있습니다. 입금 양수 · 출금 음수(△)입니다. '
     + '<strong>내부거래(계좌 간 이체)와 금융상품(정기예치)은 이 표에서 아예 뺐습니다</strong> '
-    + '— 자리 이동일 뿐 실제 입출금이 아니라서입니다(2026 누계 이체 규모 '
+    + '— 자리 이동일 뿐 실제 입출금이 아니라서입니다(' + 끝연 + ' 누계 이체 규모 '
     // 내부거래는 A계좌 출금·B계좌 입금이 쌍으로 잡혀 두 방향을 그냥 더하면 서로 상쇄돼
     // 거의 0이 된다 — 출금 쪽 절대값만 「이체 규모」로 보여준다 (2026-08-24 실측으로 확인)
-    + 백만(-합(function (r) { return +r['연도'] === 2026 && r['입출'] === '3.출금' && /내부거래/.test(r['구분'] || ''); })) + ').';
+    + 백만(-합(function (r) { return +r['연도'] === 끝연 && r['입출'] === '3.출금' && /내부거래/.test(r['구분'] || ''); })) + ').';
+  자금내역그리기();
 
   // **완결 축을 넘긴다** — 추세·전망의 기준선은 진행 중인 달을 빼고 잡아야 한다
   자금추세그리기(행, 창합, 완결색인, 진행중 ? 끝월 : null);
   자금전망그리기(행, 창합, 월합, 완결[0], 완결[1], 잔, 끝월);
   자금차트그리기(달, 월합, 실질);
-  자금고정변동그리기(행, 달);
 }
 
-/* 월별 고정비 · 변동비 · 그룹내부 — 자금갈래() 판정을 갈래→구분→세부 3단 드릴다운으로 편다.
-   일회성(자금일회성)은 자금갈래()가 null을 돌려줘 애초에 빠진다 — 그래서 이 표의 합계는
-   위 「월별 입출금」 표의 출금 계보다 작다(아래 각주에 그 차액을 밝힌다). */
-function 자금고정변동그리기(행, 달) {
-  var 지출 = 행.filter(function (r) { return r['입출'] === '3.출금' && 자금갈래(r) != null; });
-  var 합 = function (f) { return 더(지출.filter(f), function (r) { return Number(r['금액']); }); };
-  var 월합 = function (m, f) {
-    return 합(function (r) { return +r['연도'] === 2026 && +r['월'] === m && (!f || f(r)); });
+/* 자금 드릴다운 표 (2026-10-15) — 두 월별 표가 같이 쓴다.
+ *
+ *   뿌리마다 단계(구분·세부·세세부·상세)를 차례로 펴고, 마지막에 올해 거래(자금내역)의
+ *   **거래처** 단을 붙인다. 거래처 줄을 누르면 「거래 내역」 카드가 그 거래들을 보여 준다.
+ *
+ *   · 이름은 번호를 떼고 묶는다 — 원천이 같은 세부를 「1.고정자산」과 「고정자산」으로 섞어 적어
+ *     같은 이름 두 줄이 떴다 (2026-10-15 사용자 화면: 고정자산·출장·판매수수료가 두 번씩).
+ *   · 자식이 하나뿐이고 이름이 부모와 같으면(인건비>인건비, 기타>기타) 그 단은 건너뛴다.
+ *   · 상세·거래처 단은 금액이 큰 순, 그 위는 재경팀 번호 순이다.
+ */
+var 자금단계값 = {
+  // 외상대는 매입대금이다 — 재경팀 월별집계 시트도 「원재료(외상대)」로 적는다
+  구분: function (r) { var 구 = 자금이름(r['구분']) || '(없음)'; return 구 === '외상대' ? '매입대금(외상대)' : 구; },
+  세부: function (r) { return 자금이름(r['세부']) || '(없음)'; },
+  세세부: function (r) { return 자금이름(r['세세부']) || '(없음)'; },
+  상세: function (r) { return r['상세'] || ''; },
+};
+var 자금내역선택 = null;
+
+function 자금드릴(o) {
+  var 집계월 = function (f, y, m) {
+    return 더(o.자료.filter(function (r) { return +r['연도'] === y && (m == null || +r['월'] === m) && f(r); }),
+      function (r) { return Number(r['금액']); });
   };
-  var 이름들 = function (자료, 칸) {
-    var 봤 = {}, 순서 = [];
-    자료.forEach(function (r) { var k = r[칸] || '(없음)'; if (!봤[k]) { 봤[k] = 1; 순서.push(k); } });
-    return 순서.sort();
+  var 내역월 = function (f, m) {
+    return 더(o.내역.filter(function (r) { return (m == null || +r['일자'].slice(5, 7) === m) && f(r); }),
+      function (r) { return Number(r['금액']); }) / 1e6;
   };
-  $('cashFvHead').innerHTML = ['<th scope="col">항목</th>']
-    .concat(달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
-    .concat(['<th scope="col">2026 누계</th>']).join('');
-  var 줄 = function (이름, f, 급, 키) {
-    var 화살 = 키 ? (자금펼침[키] ? '▾ ' : '▸ ') : '';
-    var 칸 = 달.map(function (m) {
-      var v = 월합(m, f);
-      return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + (Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
-    }).join('');
-    var 누계 = 합(function (r) { return !f || f(r); });
-    return '<tr class="' + 급 + '"><td>' + (키
-      ? '<button type="button" class="toggle" data-키="' + 키 + '">' + 화살 + 이름 + '</button>'
-      : 이름) + '</td>' + 칸 + '<td class="num' + (누계 < 0 ? ' neg' : ' muted') + '">' + 백만(누계) + '</td></tr>';
+  var 칸 = function (v, 흐림) {
+    return '<td class="num' + (v < 0 ? ' neg' : 흐림 ? ' muted' : '') + '">' + (Math.abs(v) < 0.05 ? '—' : 백만(v)) + '</td>';
+  };
+  $(o.머리).innerHTML = ['<th scope="col">항목</th>']
+    .concat(o.달.map(function (m) { return '<th scope="col">' + m + '월</th>'; }))
+    .concat(o.평균 ? ['<th scope="col">월평균</th>'] : [])
+    .concat(o.연열.map(function (y, i) {
+      return '<th scope="col">' + y + (i ? ' 연간' : ' 누계') + '</th>';
+    })).join('');
+  var 들여 = function (깊이) {
+    return 깊이 >= 3 ? ' style="padding-left:' + (54 + 14 * (깊이 - 3)) + 'px"' : '';
+  };
+  var 급of = function (깊이) { return ['r-total', 'r-child', 'r-leaf'][깊이] || 'r-leaf2'; };
+  // 키가 「TX|」로 시작하면 펼침이 아니라 거래 내역을 여는 줄이다
+  var 제목 = function (이름, 키, 깊이) {
+    if (키 && 키.indexOf('TX|') === 0)
+      return '<td' + 들여(깊이) + '><button type="button" class="toggle cash-tx" data-키="' + 벗기(키) + '">'
+        + 벗기(이름) + ' <span class="share">내역 ›</span></button></td>';
+    return '<td' + 들여(깊이) + '>' + (키
+      ? '<button type="button" class="toggle" data-키="' + 벗기(키) + '">' + (자금펼침[키] ? '▾ ' : '▸ ') + 벗기(이름) + '</button>'
+      : 벗기(이름)) + '</td>';
+  };
+  var 선택됨 = function (키) { return 자금내역선택 && 자금내역선택.키 === 키 ? ' sel' : ''; };
+  // 분류 단의 한 줄 — 집계(자금_월별)로 그린다. 지난 해 열까지 다 있다
+  var 분류줄 = function (이름, f, 급, 키, 깊이) {
+    return '<tr class="' + 급 + (키 ? 선택됨(키) : '') + '">' + 제목(이름, 키, 깊이)
+      + o.달.map(function (m) { return 칸(집계월(f, o.연도, m)); }).join('')
+      + (o.평균 ? 칸(o.평균.f(function (m) { return 집계월(f, o.연도, m); }), true) : '')
+      + o.연열.map(function (y) { return 칸(집계월(f, y), true); }).join('') + '</tr>';
+  };
+  // 거래처 줄 — 올해 거래(자금내역)로 그린다. 지난 해 열은 비운다 (거래를 올해만 싣는다)
+  var 거래처줄 = function (이름, f, 깊이, 경로) {
+    var 키 = 'TX|' + 경로;
+    자금내역선택후보[키] = { 제목: 경로.split('|').join(' › '), f: f };
+    return '<tr class="r-leaf2' + 선택됨(키) + '">' + 제목(이름, 키, Math.max(깊이, 3))
+      + o.달.map(function (m) { return 칸(내역월(f, m)); }).join('')
+      + (o.평균 ? 칸(o.평균.f(function (m) { return 내역월(f, m); }), true) : '')
+      + o.연열.map(function (y, i) { return i ? '<td class="num muted"></td>' : 칸(내역월(f), true); }).join('') + '</tr>';
+  };
+  // 한 단의 자식들 — [이름, 술어] 목록. 번호 뗀 이름으로 묶는다
+  var 자식들 = function (단, f, 큰순, 원천) {
+    var 값 = 자금단계값[단] || function (r) { return r[단] || ''; };
+    var 원 = {}, 순서 = [];
+    원천.filter(f).forEach(function (r) {
+      var k = 값(r);
+      if (!(k in 원)) { 원[k] = { 원본: String(r[단] || ''), 합: 0 }; 순서.push(k); }
+      원[k].합 += Number(r['금액']);
+      if (String(r[단] || '') < 원[k].원본) 원[k].원본 = String(r[단] || '');
+    });
+    순서.sort(큰순
+      ? function (a, b) { return Math.abs(원[b].합) - Math.abs(원[a].합); }
+      : function (a, b) { return 원[a].원본 < 원[b].원본 ? -1 : 원[a].원본 > 원[b].원본 ? 1 : 0; });
+    return 순서.map(function (k) {
+      return [k, function (r) { return f(r) && 값(r) === k; }];
+    });
   };
   var html = '';
-  ['고정비', '변동비', '그룹내부'].forEach(function (갈래) {
-    var f0 = function (r) { return 자금갈래(r) === 갈래; };
-    if (Math.abs(합(f0)) < 0.5) return;
-    var 키0 = 'FV|' + 갈래;
-    html += 줄(갈래 + ' 계', f0, 'r-total', 키0);
-    if (!자금펼침[키0]) return;
-    이름들(지출.filter(f0), '구분').forEach(function (구) {
-      var f1 = function (r) { return f0(r) && (r['구분'] || '(없음)') === 구; };
-      var 키1 = 키0 + '|' + 구;
-      html += 줄('　' + 자금이름(구), f1, 'r-child', 키1);
-      if (!자금펼침[키1]) return;
-      이름들(지출.filter(f1), '세부').forEach(function (세) {
-        var f2 = function (r) { return f1(r) && (r['세부'] || '(없음)') === 세; };
-        html += 줄('　　' + 자금이름(세), f2, 'r-leaf');
+  var 펴기 = function (f, 단계, 깊이, 경로, 부모이름) {
+    if (!단계.length) {
+      자식들('이름', f, true, o.내역).forEach(function (c) {
+        if (Math.abs(내역월(c[1])) < 0.05) return;
+        html += 거래처줄(c[0] || '(적요 없음)', c[1], 깊이, 경로 + '|' + c[0]);
       });
+      return;
+    }
+    var 단 = 단계[0], 큰 = 단 === '상세';
+    // 매입대금은 세세부를 건너뛰고 바로 매입처로 편다 — 재경팀이 같은 지급을 달마다 「외상대」·
+    // 「원재료」로 바꿔 적어(2026-06·07만 원재료) 같은 매입처가 두 갈래로 쪼개졌다
+    if (단 === '세세부' && /\|매입대금\(외상대\)/.test(경로)) return 펴기(f, 단계.slice(1), 깊이, 경로, 부모이름);
+    // 보이는 해(연열)에 금액이 있는 자식만 — 안 보이는 해에만 있는 자식(지난해 기부금)이 남아
+    // 「기타 > 기타」 한 단을 못 접었다
+    var 들 = 자식들(단, f, 큰, o.자료).filter(function (c) {
+      return o.연열.some(function (y) { return Math.abs(집계월(c[1], y)) >= 0.05; });
     });
+    // 건너뛸 단 — 자식이 없거나, 하나뿐인데 이름이 비었거나 부모와 같다
+    if (!들.length || (들.length === 1 && (!들[0][0] || 들[0][0] === 부모이름)))
+      return 펴기(f, 단계.slice(1), 깊이, 경로, 부모이름);
+    들.forEach(function (c) {
+      var 이름 = c[0] || '(상세 없음)', 키 = o.접두 + '|' + 경로 + '|' + 이름;
+      // 마지막 분류 단에서 거래처가 하나뿐이고 이름도 같으면(매입처 「모델솔루션」 아래 거래처
+      // 「모델솔루션」) 한 단을 접어 이 줄이 바로 내역을 연다
+      if (단계.length === 1) {
+        var 처 = 자식들('이름', c[1], true, o.내역);
+        if (처.length === 1 && 처[0][0] === 이름) {
+          var tx = 'TX|' + 경로 + '|' + 이름;
+          자금내역선택후보[tx] = { 제목: (경로 + '|' + 이름).split('|').join(' › '), f: c[1] };
+          html += 분류줄(이름, c[1], 급of(깊이), tx, 깊이);
+          return;
+        }
+      }
+      html += 분류줄(이름, c[1], 급of(깊이), 키, 깊이);
+      if (자금펼침[키]) 펴기(c[1], 단계.slice(1), 깊이 + 1, 경로 + '|' + 이름, 이름);
+    });
+  };
+  var 자금내역선택후보 = {};
+  o.뿌리.forEach(function (뿌) {
+    if (Math.abs(집계월(뿌.f, o.연도)) < 0.05) return;
+    if (뿌.열림 && !(뿌.키 in 자금펼침)) 자금펼침[뿌.키] = true;
+    var 밑 = 뿌.깊이 || 0;    // 「출금 계」 아래 고정비·변동비처럼 한 단 들어간 뿌리
+    html += 분류줄(뿌.이름, 뿌.f, 뿌.급 || 급of(밑), 뿌.단계 ? 뿌.키 : null, 밑);
+    if (뿌.단계 && 자금펼침[뿌.키]) 펴기(뿌.f, 뿌.단계, 밑 + 1, 뿌.이름.replace(/ 계$/, ''), '');
   });
-  html += 줄('합계(3갈래)', null, 'r-op');
-  $('cashFvBody').innerHTML = html;
-  Array.prototype.forEach.call($('cashFvBody').querySelectorAll('.toggle'), function (b) {
+  (o.끝 || []).forEach(function (끝) { html += 분류줄(끝.이름, 끝.f, 끝.급, null, 0); });
+  $(o.몸).innerHTML = html;
+  Array.prototype.forEach.call($(o.몸).querySelectorAll('.toggle'), function (b) {
     b.addEventListener('click', function () {
-      자금펼침[b.dataset['키']] = !자금펼침[b.dataset['키']]; 자금탭그리기();
+      var 키 = b.dataset['키'];
+      if (/^TX\|/.test(키)) {
+        var 후 = 자금내역선택후보[키];
+        자금내역선택 = 자금내역선택 && 자금내역선택.키 === 키 ? null : { 키: 키, 제목: 후.제목, f: 후.f };
+        자금탭그리기();
+        if (자금내역선택) $('cashTxCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      자금펼침[키] = !자금펼침[키]; 자금탭그리기();
     });
   });
-  var 일회성합 = 더(행.filter(function (r) {
-    return r['입출'] === '3.출금' && 자금갈래(r) == null && !/내부거래/.test(r['구분'] || '');
-  }), function (r) { return Number(r['금액']); });
+}
+
+/* 거래 내역 — 드릴다운 표에서 고른 거래처의 올해 거래 한 건씩 */
+function 자금내역그리기() {
+  var 카드 = $('cashTxCard');
+  var 내역 = DB['자금내역'] || [];
+  if (!자금내역선택 || !내역.length) {
+    $('cashTxTitle').innerHTML = '거래 내역<span class="u">표에서 거래처 줄을 누르세요</span>';
+    $('cashTxBody').innerHTML = '';
+    $('cashTxNote').textContent = 내역.length
+      ? '위 두 표의 맨 아래 단(거래처 · 「내역 ›」)을 누르면 그 거래처의 올해 은행 거래가 여기 한 건씩 나옵니다.'
+      : '거래 내역이 아직 실리지 않았습니다.';
+    카드.hidden = !(DB['자금'] || []).length;
+    return;
+  }
+  카드.hidden = false;
+  var 건 = 내역.filter(자금내역선택.f).slice().sort(function (a, b) {
+    return a['일자'] < b['일자'] ? 1 : a['일자'] > b['일자'] ? -1 : 0;
+  });
+  var 합계 = 더(건, function (r) { return Number(r['금액']); }) / 1e6;
+  $('cashTxTitle').innerHTML = '거래 내역 — ' + 벗기(자금내역선택.제목)
+    + '<span class="u">' + 건.length + '건 · ' + 백만(합계) + ' 백만원</span>';
+  var 보일 = 건.slice(0, 300);
+  $('cashTxBody').innerHTML = 보일.map(function (r) {
+    var 분류 = [자금이름(r['구분']), 자금이름(r['세부']), r['상세']]
+      .filter(function (s, i, a) { return s && a.indexOf(s) === i; }).join(' › ');
+    var v = Number(r['금액']);
+    return '<tr><td>' + r['일자'].slice(5).replace('-', '/') + '</td><td style="text-align:left">' + 벗기(r['적요'] || '') + '</td>'
+      + '<td style="text-align:left" class="muted">' + 벗기(분류) + (r['고정'] ? ' · 고정' : '') + '</td>'
+      + '<td style="text-align:left" class="muted">' + 벗기(r['계좌'] || '') + '</td>'
+      + '<td class="num' + (v < 0 ? ' neg' : '') + '">' + Math.round(v).toLocaleString('ko-KR').replace('-', '△') + '</td></tr>';
+  }).join('');
+  $('cashTxNote').textContent = (건.length > 보일.length ? '최근 ' + 보일.length + '건만 보입니다. ' : '')
+    + '금액은 원 단위 · 출금 △. 계좌는 원장의 거래처명 칸(일반·달러·엔화 계좌 라벨)입니다. 같은 줄을 다시 누르면 닫힙니다.';
+}
+
+/* 자금 흐름 — 고정비 · 변동비로 본 월별 표 (2026-08-24 3갈래 → 2026-10-15 입금·일회성까지 닫히게).
+   입금 계 + 출금(고정비 · 변동비 · 그룹내부 · 일회성·투자) = 순증감으로 **위 표와 같은 값에서 닫힌다.**
+   「기타」는 이제 상세 범주로 갈라 고정·변동을 정한다(자금갈래). */
+function 자금흐름그리기(행, 내역, 달, 연도, 완결달수, 진행월) {
+  var 실질 = function (r) { return !/내부거래|금융상품/.test(r['구분'] || ''); };
+  var 출금 = function (r) { return r['입출'] === '3.출금' && 실질(r); };
+  var 갈래f = function (갈) { return function (r) { return 출금(r) && (자금갈래(r) || '일회성·투자') === 갈; }; };
+  var 평균 = 완결달수 > 0 ? {
+    f: function (월값) { var s = 0; for (var m = 1; m <= 완결달수; m++) s += 월값(m); return s / 완결달수; },
+  } : null;
+  자금드릴({
+    자료: 행, 내역: 내역, 달: 달, 연도: 연도, 연열: [연도], 평균: 평균,
+    머리: 'cashFvHead', 몸: 'cashFvBody', 접두: 'FV',
+    뿌리: [
+      { 이름: '입금 계', f: function (r) { return r['입출'] === '2.입금' && 실질(r); },
+        단계: ['구분', '세부', '세세부', '상세'], 키: 'FV|입금' },
+      { 이름: '출금 계', f: 출금, 급: 'r-total' },
+      { 이름: '고정비', f: 갈래f('고정비'), 단계: ['구분', '세부', '세세부', '상세'], 키: 'FV|고정비', 깊이: 1 },
+      { 이름: '변동비', f: 갈래f('변동비'), 단계: ['구분', '세부', '세세부', '상세'], 키: 'FV|변동비', 깊이: 1 },
+      { 이름: '그룹내부 (판매수수료)', f: 갈래f('그룹내부'), 단계: ['구분', '세부', '세세부', '상세'], 키: 'FV|그룹내부', 깊이: 1 },
+      { 이름: '일회성·투자', f: 갈래f('일회성·투자'), 단계: ['구분', '세부', '세세부', '상세'], 키: 'FV|일회성', 깊이: 1 },
+    ],
+    끝: [{ 이름: '순증감', f: 실질, 급: 'r-op' }],
+  });
   $('cashFvNote').innerHTML =
-    '분개장 판관비 3분류(결정_비용구분_260807)와 같은 원칙을 자금 원장에 적용했습니다. '
-    + '<strong>그룹내부는 「판매수수료」 전체</strong>입니다 — 자금 원장엔 거래처코드가 없어 '
-    + '일본향·국내딜러분을 못 가르므로(대부분은 일본법인 코스트플러스 청구로 추정) 정밀 분리 '
-    + '대신 통째로 여기 뒀습니다. <strong>「기타」(월평균 약 205백만, 거래처명이 은행계좌 라벨뿐)는 '
-    + '고정비에 기본 편입</strong>했습니다 — 실체를 못 가려 근거는 약합니다. '
-    + '<strong>대출금·퇴직금·고정자산·투자금·정기예금·IPO는 일회성이라 이 표에서 아예 뺐습니다</strong> '
-    + '(2026 누계 ' + 백만(일회성합) + ') — 위 「월별 입출금」 표의 출금 계와 이 표의 합계가 다른 이유입니다.';
+    '<strong>고정비</strong>는 매달 계약대로 나가는 돈(인건비·임차료·이자·마케팅·연구개발 …), '
+    + '<strong>변동비</strong>는 매출·생산·필요에 따라 나가는 돈(매입대금·물류·외주가공·금형 …)입니다 — '
+    + '분개장 판관비 3분류(결정_비용구분_260807)와 같은 원칙입니다. '
+    + '<strong>「기타」는 상세 범주로 갈라 정합니다</strong>: 재경팀 「고정비용」 시트 규칙(급여·4대보험·임차·전기·더존·식대·자문 …)에 '
+    + '걸리거나 계약성 범주(임차·관리비·공과금·IT·보험·인력 아웃소싱·용역 대행)면 고정비, 법인카드·직원 경비정산·특허·'
+    + '건별 용역 등은 변동비입니다. 예전엔 기타 전체(월 200백만 안팎)를 근거 없이 고정비로 넣었습니다. '
+    + '<strong>그룹내부는 「판매수수료」 전체</strong>(대부분 일본법인 코스트플러스 청구)이고, '
+    + '<strong>일회성·투자</strong>는 고정자산·IPO·퇴직금·대출원금·투자·정기예금입니다. '
+    + (평균 ? '월평균은 ' + 완결달수 + '월까지의 평균' + (진행월 ? '(진행 중인 ' + 진행월 + '월 제외)' : '') + '입니다.' : '');
 }
 
 /* Chart.js는 자금 탭을 열 때 처음 받는다 (엑셀SDK와 같은 지연 로딩 패턴) */
@@ -4935,8 +5074,8 @@ function 자금추세그리기(행, 창합, 끝색인, 진행월) {
     + '늘었다</strong>는 뜻입니다. '
     + (진행월
       ? '<strong>진행 중인 ' + 진행월 + '월은 창에서 뺐습니다</strong> — 은행 원장이 주 단위로 들어와 '
-        + '그 달은 며칠분뿐이고(건수가 직전 평균의 절반 미만), 완결 달로 세면 세 갈래 모두 3분의 1 '
-        + '낮게 나와 <strong>안 줄인 지출이 줄었다고 읽힙니다.</strong> '
+        + '그 달은 며칠분뿐이고(원장이 월말까지 안 왔거나 건수가 직전 평균의 절반 미만), 완결 달로 세면 '
+        + '갈래마다 실제보다 낮게 나와 <strong>안 줄인 지출이 줄었다고 읽힙니다.</strong> '
       : '')
     + '일회성이 낀 갈래(고정자산·투자)는 창이 짧아 흔들립니다 — 전년 동기 열로 같이 보십시오.';
 }
