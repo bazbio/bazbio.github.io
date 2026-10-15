@@ -317,6 +317,11 @@
   .acb.ro { cursor:default; }
   .acs { font-size:10.5px; color:#6b7684; margin-top:3px; white-space:nowrap; }
   .acn { color:#b0b8c1; }
+  /* 불참 (2026-10-16) — 행은 남기되 흐리게, 이름 옆에 배지. 토글은 작은 글자 버튼이라 표가 안 넓어진다 */
+  .badge.abs { background:#ffeaec; color:#d0223a; margin-left:5px; }
+  .dt tr.absent td, .dt tr.absent td b { color:#8b95a1; }
+  .absb { display:inline-block; font:inherit; font-size:11px; color:#8b95a1; background:none; border:0; padding:0; margin-top:3px; cursor:pointer; text-decoration:underline dotted; }
+  .absb:hover { color:#d0223a; }
 
   /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
   @media (max-width: 899px) {
@@ -1349,7 +1354,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610140823-919b2f8';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610152302-dc0f2cd';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -3070,19 +3075,22 @@ function 확인일표시_(evDate, n) {
 }
 /* 카드 머리의 한 알약 — 지금 챙길 시점의 확인 현황. 행사가 끝났거나 첫 시점 전이면 안 그린다 */
 function 참석요약_(ev) {
-  if (!ev.date || !ev.cnt) return '';
+  var 참석수 = ev.cnt - (ev.absent || 0);   // 불참자는 확인 대상이 아니다
+  if (!ev.date || !참석수) return '';
   var 지금 = 0;
   ATT_PTS.forEach(function(n) {
     var s = 확인시점상태_(ev.date, DATA.today, n);
     if (s === '오늘' || s === '지남') 지금 = n;
   });
   if (!지금) return '';
-  var 한 = ev.leads.filter(function(l) { return l.chk && l.chk[지금]; }).length;
+  var 한 = ev.leads.filter(function(l) { return !l.absent && l.chk && l.chk[지금]; }).length;
   var 오늘 = 확인시점상태_(ev.date, DATA.today, 지금) === '오늘';
-  var 색 = 한 === ev.cnt ? ' green' : (오늘 ? ' amber' : ' red');
-  return '<span class="pill' + 색 + '">' + ATT_NAME[지금] + ' 참석 확인 <b>' + 한 + '</b>/' + ev.cnt + '</span>';
+  var 색 = 한 === 참석수 ? ' green' : (오늘 ? ' amber' : ' red');
+  return '<span class="pill' + 색 + '">' + ATT_NAME[지금] + ' 참석 확인 <b>' + 한 + '</b>/' + 참석수 + '</span>';
 }
 function 참석칸_(l, n, 상태, 내것) {
+  // 불참으로 표시한 참석자는 확인할 것이 없다 — 칸을 잠근다 (체크 기록이 있었어도 안 그린다)
+  if (l.absent) return '<td class="c ac' + (상태 === '오늘' ? ' ac-today' : '') + '"><span class="acn">불참</span></td>';
   var c = (l.chk && l.chk[n]) || null;
   var 누름 = ' onclick="evtAttend(' + l.k + ',' + n + ')"';
   var 안;
@@ -3124,6 +3132,34 @@ function evtAttend(k, n) {
       toast(r.on ? '「' + 대상.hname + '」 ' + ATT_NAME[n] + ' 참석 확인 체크했습니다' : '확인 표시를 지웠습니다');
     }), function(e) { busy(false); toast(e.message, true); });
 }
+/* 불참 표시 (2026-10-16) — 등록한 원장님이 끝내 안 오게 됐을 때. 리드는 그대로 두고 표시만 한다:
+   참석 확인 칸이 잠기고, 참석자 수·행사 후 방문·참석 확인 비율과 D-7·3·1 알림 대상에서 빠진다.
+   저장은 관문 `saleson-lead-act`의 `불참`(0039)뿐이라 원천이 DB이고 서버가 표를 갖고 있을 때만 버튼이 보인다. */
+function evtAbsent(k) {
+  var 대상 = null;
+  var 행사 = null;
+  ((EVT && EVT.events) || []).forEach(function(ev) {
+    (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; } });
+  });
+  var no = 키_(k).no;
+  if (!대상 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  var 켜기 = !대상.absent;
+  var 누구 = '「' + 대상.hname + '」' + (대상.contact ? ' ' + 대상.contact : '');
+  if (켜기 && !confirm(누구 + ' 불참으로 표시할까요?\n참석 확인·알림 대상에서 빠집니다. 리드는 그대로 남습니다.')) return;
+  if (!켜기 && !confirm(누구 + ' 불참 표시를 지울까요?')) return;
+  busy(true, '저장 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '불참', no: no, on: 켜기, code: 행사.code }))
+    .then(화면갱신감싸기_(function(r) {
+      busy(false);
+      대상.absent = r.on ? (r.불참 || { by: DATA.me.name, at: DATA.today }) : null;
+      // 서버(saleson-evt)와 같은 규칙으로 카드 숫자를 다시 센다 — 목록을 다시 안 받는다
+      var 참석 = 행사.leads.filter(function(l) { return !l.absent; });
+      행사.absent = 행사.leads.length - 참석.length;
+      행사.visited = 참석.filter(function(l) { return l.visits > 0; }).length;
+      renderEvt();
+      toast(r.on ? '「' + 대상.hname + '」 불참으로 표시했습니다' : '불참 표시를 지웠습니다');
+    }), function(e) { busy(false); toast(e.message, true); });
+}
 function renderEvt() {
   EVTSIM = [];   // 「이름만 다른 방문」 쌍 — [맞추기] 버튼이 번호로 집는다 (2026-08-16)
   var evs = ((EVT && EVT.events) || []).filter(function(ev) { return ev.group === EVTGRP; });
@@ -3135,23 +3171,27 @@ function renderEvt() {
   var h = '';
   // 참석 확인은 원천이 DB이고(저장 관문) 서버가 표를 갖고 있을 때만 — 마이그레이션 전에는 칸을 안 그린다
   var ATTON = !!(DATA && DATA.dbSrc && EVT && EVT.attendOn);
+  var ABSON = !!(DATA && DATA.dbSrc && EVT && EVT.absentOn);   // 불참 표시 — 저장이 관문(0039)에만 있다
   evs.forEach(function(ev) {
     var rate = ev.tgt ? Math.round(ev.ach / ev.tgt * 100) : null;
+    var 불참수 = ev.absent || 0;
+    var 참석수 = ev.cnt - 불참수;   // 「참석자」는 등록자에서 불참을 뺀 수 — 서버와 같은 규칙
     h += '<div class="card">'
       + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
       + '<div style="font-size:16.5px;font-weight:700;color:#191f28;">' + esc(ev.name) + '</div>'
       + '<div style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(ev.type) + (ev.date ? ' · ' + esc(ev.date) : '') + '</div></div>'
       + '<div class="evt-sum">'
-      + '<span class="pill">참석자 <b>' + ev.cnt + '</b></span>'
+      + '<span class="pill">참석자 <b>' + 참석수 + '</b></span>'
+      + (불참수 ? '<span class="pill" style="background:#ffeaec;color:#d0223a;">불참 <b>' + 불참수 + '</b></span>' : '')
       + '<span class="pill blue">데모 <b>' + ev.demos + '</b></span>'
       + '<span class="pill blue">계약 <b>' + ev.deals + '</b></span>'
       + '<span class="pill amber">달성 목표 <b>' + ev.tgt + '</b></span>'
       + '<span class="pill green">달성 <b>' + ev.ach + '</b>' + (rate === null ? '' : ' (' + rate + '%)') + '</span>'
       + (function() {
-          var vr = ev.cnt ? Math.round(ev.visited / ev.cnt * 100) : null;
+          var vr = 참석수 ? Math.round(ev.visited / 참석수 * 100) : null;
           var low = vr !== null && vr < 50;
           return '<span class="pill"' + (low ? ' style="background:#ffeaec;color:#d0223a;"' : '') + '>행사 후 방문 <b>'
-            + ev.visited + '</b>/' + ev.cnt + (vr === null ? '' : ' (' + vr + '%)') + '</span>';
+            + ev.visited + '</b>/' + 참석수 + (vr === null ? '' : ' (' + vr + '%)') + '</span>';
         })()
       + (ATTON && ev.group !== '기타' ? 참석요약_(ev) : '')
       + '</div>'
@@ -3258,7 +3298,19 @@ function renderEvt() {
               : '<div style="margin-top:4px;">' + 맞춤('a', l.hname) + 맞춤('b', l.near.name) + '</div>')
             + '</div>';
         }
-        h += '<tr><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '') + near + '</td>'
+        /* 불참 (2026-10-16) — 이름 옆 배지와 작은 토글. 담당자(본인)와 관리자만 누른다 */
+        var 내리드 = !DATA.me.viewer && (admin || l.rep === DATA.me.name);
+        var 불참배지 = l.absent ? '<span class="badge abs">불참</span>' : '';
+        var 불참토글 = '';
+        if (l.absent) {
+          불참토글 = '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;">' + esc(String(l.absent.at || '').slice(5).replace('-', '/'))
+            + (l.absent.by ? ' ' + esc(l.absent.by) : '') + ' 표시'
+            + (ABSON && 내리드 ? ' · <button class="absb" style="margin:0;" onclick="evtAbsent(' + l.k + ')">불참 취소</button>' : '') + '</div>';
+        } else if (ABSON && 내리드) {
+          불참토글 = '<div><button class="absb" onclick="evtAbsent(' + l.k + ')">불참 표시</button></div>';
+        }
+        h += '<tr' + (l.absent ? ' class="absent"' : '') + '><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '')
+          + 불참배지 + near + 불참토글 + '</td>'
           /* 참석 확인은 병원 바로 옆이다 — 폰에서 표가 옆으로 밀려도 담당·단계보다 먼저 손이 닿는다 */
           + (확인열 ? ATT_PTS.map(function(n) {
               return 참석칸_(l, n, 확인시점상태_(ev.date, DATA.today, n),
@@ -3271,7 +3323,7 @@ function renderEvt() {
           /* 미방문인데 **행사 전에** 다녀온 기록이 있으면 같이 보여 준다 (2026-08-11).
              「행사 후 방문」은 행사일 뒤만 세는 것이 맞고 그 숫자는 안 건드린다. 다만 방문하고
              기록까지 넣은 담당자에게 「미방문」만 보이면 「입력이 인식이 안 된다」로 읽힌다. */
-          + '<td class="c">' + (l.stage === '계약' || l.achv === '달성'
+          + '<td class="c">' + (l.stage === '계약' || l.achv === '달성' || l.absent
             ? (l.visits > 0 ? l.visits + '회' : '-')
             : (l.visits > 0 ? '<b class="blue">' + l.visits + '회</b>' : '<span style="font-size:11px;font-weight:700;color:#d0223a;">미방문</span>'))
           + (l.visits === 0 && l.pre
