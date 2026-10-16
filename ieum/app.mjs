@@ -1,4 +1,5 @@
 import {createAssignees} from './assignees.mjs';
+import {createWorkChanges} from './work-changes.mjs';
 import {createDeadlineExtensions} from './deadline-extensions.mjs';
 import {createComments} from './comments.mjs';
 import {createProjects} from './projects.mjs';
@@ -22,6 +23,7 @@ const $ = selector => document.querySelector(selector);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!=null) node.textContent=text; if(className)node.className=className; return node; };
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
 const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
+const workChanges=createWorkChanges({el,button,api,send,refresh:showDetail,open:showDetail,isBusy:()=>busy,message});
 let selectedProject=null;
 const projects=createProjects({el,button,api,send,getInfo:()=>info,isBusy:()=>busy,open:showProject,openWork:showDetail,handleError});
 const directives=createDirectives({el,button,api,send,isBusy:()=>busy,openWork:showDetail,onNavigate:()=>token&&info?.대표현황권한?showList('대표현황'):Promise.resolve()});
@@ -145,6 +147,7 @@ async function showList(next=view,more=false){
     data.항목.forEach(item=>list.append(view==='알림'?noticeCard(item):card(item)));cursor=data.다음커서;$('#load-more').hidden=!cursor;
     if(view==='알림')$('#notice-count').textContent=data.미읽음?String(data.미읽음):'';
     if(!list.children.length)$('#content').replaceChildren(view==='알림'?el('p','아직 도착한 알림이 없습니다.','empty'):emptyState());
+    if(['내업무','대표승인함'].includes(view)){const deletions=await workChanges.myTurns();if(version===loadVersion&&deletions)$('#content').prepend(deletions);}
     if(view==='내업무'){const turns=await projects.myTurns();if(version===loadVersion&&turns)$('#content').prepend(turns);const tasks=await directiveTasks.myTurns();if(version===loadVersion&&tasks)$('#content').prepend(tasks);const delays=await extensions.myTurns();if(version===loadVersion&&delays)$('#content').prepend(delays);}
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(el('p','불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.','loading'));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
@@ -176,6 +179,7 @@ async function showDetail(id){
     $('#page-title').textContent=data.제목;$('#page-description').textContent=`${data.번호||''} · ${displayLabel(data.단계)}`;
     const simplified=view==='내요청',detail=el('div',null,simplified?'detail request-detail':'detail');$('.request-back')?.remove();const back=button('← 목록으로',simplified?'text-button request-back':'text-button back',()=>showList());if(simplified)$('#toolbar').prepend(back);else detail.append(back);
     const projectControl=projects.workControl(data);if(projectControl)detail.append(projectControl);
+    detail.append(workChanges.overview(data));
     detail.append(requestOverview.overview(data));if(!data.프로젝트?.보류)detail.append(requestOverview.turns(data,info.본인.ID));
     const extensionHistory=extensions.history(data);if(extensionHistory)detail.append(extensionHistory);
     const secondary=[],otherActions=[],myActions=[];
@@ -201,7 +205,7 @@ async function showDetail(id){
           const form=el('form');form.dataset.draftKey=`action:${action.행동ID}`;let input;
           if(action.종류==='책임자배정'){
             const candidates=await api('read',{종류:'배정후보',업무ID:id,부서업무ID:action.부서업무ID});if(version!==loadVersion)return;
-            const label=el('label','업무를 담당할 사람');input=el('select');input.setAttribute('aria-label','업무를 담당할 사람');input.required=true;input.name='assignee';input.append(new Option('담당자를 선택하세요',''),...candidates.항목.map(m=>new Option(m.표시명,m.ID)));label.append(input);form.append(label);
+            input=assignees.picker(form,candidates.항목);
           }else{
             const label=el('label',action.종류==='자료보완'?'보완 내용':'검토 의견');input=el('textarea');input.name='note';input.rows=3;input.maxLength=action.종류==='자료보완'?10000:2000;input.required=action.종류==='자료보완';label.append(input);form.append(label);
           }
@@ -213,7 +217,7 @@ async function showDetail(id){
           form.addEventListener('submit',async event=>{
             event.preventDefault();if(busy)return;const kind=event.submitter?.value||choices[0];
             if(['비승인','보완요청'].includes(kind)&&!input.value.trim()){err.textContent='요청자에게 전달할 사유를 적어 주세요.';input.focus();return;}
-            const args=kind==='수락'?{의견:input.value.trim()||null}:['비승인','보완요청'].includes(kind)?{사유:input.value}:kind==='책임자배정'?{구성원ID:input.value}:{본문:input.value};
+            const args=kind==='수락'?{의견:input.value.trim()||null}:['비승인','보완요청'].includes(kind)?{사유:input.value}:kind==='책임자배정'?{구성원IDs:JSON.parse(input.value)}:{본문:input.value};
             try{err.textContent='';const result=await send({종류:kind,업무ID:id,부서업무ID:action.부서업무ID,행동ID:action.행동ID,기대업무개정:data.업무개정,인자:args});if(result){await showDetail(id);message('처리가 반영되었습니다. 다음 차례를 확인하세요.');}}
             catch(error){err.textContent=errorMessage(error);if(error.status===409)message('화면 상단의 새로고침으로 최신 내용을 확인해 주세요. 작성한 내용은 유지됩니다.',true);if(error.status===401)handleError(error);}
           });section.append(form);
@@ -223,7 +227,9 @@ async function showDetail(id){
     }
     const history=el('section',null,'detail-card');history.append(el('h3','업무의 흐름'));const timeline=el('ol',null,'timeline');
     for(const activity of data.활동){const row=el('li');const head=el('div',null,'timeline-head');const who=el('span',displayLabel(activity.종류));who.append(el('small',activity.작성자));head.append(who,el('time',timestamp(activity.시각),'timeline-time'));row.append(head);const args=activity.내용.인자;const note=args.사유||args.본문||args.의견;if(note)row.append(el('p',note));timeline.append(row);}history.append(timeline);if(simplified){if(otherActions.length)secondary.unshift(fold(`담당자별 현재 차례 · ${otherActions.length}건`,otherActions,'actions'));if(myActions.length)secondary.unshift(fold(`내가 처리할 일 · ${myActions.length}건`,myActions,'mine'));detail.append(...secondary,fold('처리 이력',[history],'history'));}else detail.append(history);
-    restoreWorkDrafts(detail,drafts);detail.prepend(button('프로젝트 대화 ↓','comments-jump secondary',()=>comments.focus()));const workspace=el('div',null,'project-workspace');workspace.append(detail,comments.mount(id));$('#content').replaceChildren(workspace);if(opening)$('#page-title').focus({preventScroll:true});
+    restoreWorkDrafts(detail,drafts);
+    if(data.삭제시각||data.삭제요청?.some(r=>r.상태==='대기'))for(const input of detail.querySelectorAll('form input,form select,form textarea,form button'))if(!input.closest('.work-changes'))input.disabled=true;
+    detail.prepend(button('프로젝트 대화 ↓','comments-jump secondary',()=>comments.focus()));const workspace=el('div',null,'project-workspace');workspace.append(detail,comments.mount(id));$('#content').replaceChildren(workspace);if(opening)$('#page-title').focus({preventScroll:true});
   }catch(error){if(version===loadVersion){handleError(error);$('#content').replaceChildren(button('목록으로 돌아가기','secondary',()=>showList()));}}
   finally{if(version===loadVersion)$('#content').setAttribute('aria-busy','false');}
 }

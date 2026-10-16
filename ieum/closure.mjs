@@ -1,5 +1,6 @@
 import { errorMessage } from './messages.mjs';
 import { getLeadDepartmentWork } from './work-context.mjs';
+import {changeHistory} from './work-changes.mjs';
 export function createClosure({el,send,refresh,getInfo,isBusy,message,handleError}) {
   const closed=d=>Boolean(d.종결?.종결시각);
   const pending=d=>d.종결?.심사.find(r=>r.상태==='제출');
@@ -44,7 +45,7 @@ export function createClosure({el,send,refresh,getInfo,isBusy,message,handleErro
       form.addEventListener('submit',e=>{e.preventDefault();const kind=e.submitter.value;if(kind==='결과보완요청'&&!selected().length){err.textContent='보완할 완료 작업을 선택해 주세요.';return;}
         run(form,request(d,kind,{통합계획ID:d.유효통합계획ID,...(kind==='결과확인'?{본문:input.value}:{사유:input.value,마일스톤IDs:selected()})},a));});
     }else if(a.종류==='종결승인'){
-      const review=pending(d);form.append(el('p',`종결 심사 ${review.회차}회차 · 요청자 확인`,'plan-state'),el('p',review.확인본문,'report-body'));
+      const review=pending(d);form.append(el('p',`종결 심사 ${review.회차}회차 · 요청자 확인`,'plan-state'),el('p',review.확인본문,'report-body'),changeHistory(el,review.수정이력));
       for(const m of review.당시실행){const row=el('div',null,'round-record');row.append(el('strong',`${m.제목} · ${m.상태} · ${m.실행회차}회차`),el('p',m.정리사유||m.회차이력.at(-1)?.보고본문||''));form.append(row);}
       const input=note(form,'종결 검토 의견',false),err=error(form),buttons=el('div',null,'actions');form.append(buttons);button(buttons,'종결 승인','종결승인');button(buttons,'종결 보완 요청','종결보완',true);
       form.addEventListener('submit',e=>{e.preventDefault();const kind=e.submitter.value;if(kind==='종결보완'&&!input.value.trim()){err.textContent='보완이 필요한 이유를 적어 주세요.';return;}run(form,request(d,kind,{심사ID:review.id,...(kind==='종결승인'?{의견:input.value.trim()||null}:{사유:input.value})},a));});

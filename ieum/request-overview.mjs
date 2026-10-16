@@ -91,6 +91,7 @@ export function createRequestOverview({el,button,assignees}){
    let state=own.length?own.map(a=>phaseNames[a.종류]||a.종류).filter((s,i,a)=>a.indexOf(s)===i).join(' · '):b.상태==='접수준비'?intake?.접수준비?.상태||'접수 준비 대기':node?.status==='done'?'부서 계획 승인 완료':b.상태==='제외제안'?'제외 제안 · 승인 대기':b.상태;
    const tone=own.some(a=>a.기한초과)?'late':b.상태==='접수준비'?'waiting':node?.status||'waiting';
    if(model.closed)state='업무 종결';
+   if(b.삭제시각)state='삭제 승인 완료';
    const delayed=data.응답지연?.find(r=>r.부서업무ID===b.ID&&r.지연);
    const lateActions=own.filter(a=>a.기한초과);
    const card=el('article',null,`request-branch ${tone}${delayed||lateActions.length?' response-delayed':''}`);

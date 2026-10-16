@@ -5,7 +5,7 @@ const short=n=>{const d=new Date(n*DAY);return `${d.getUTCMonth()+1}.${String(d.
 export function ganttModel(data,source='latest',today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})){
  const active=(data.통합계획||[]).find(p=>p.ID===data.유효통합계획ID)||null;
  const useActive=source==='approved'&&active;
- const groups=(data.부서업무||[]).map(b=>{
+ const groups=(data.삭제시각?[]:data.부서업무||[]).filter(b=>!b.삭제시각).map(b=>{
   const plan=b.계획?.[0],scope=active?.범위?.find(s=>s.부서업무ID===b.ID);
   const items=useActive?(active.마일스톤||[]).filter(m=>m.부서업무ID===b.ID):(plan?.마일스톤||[]);
   const rows=items.map(m=>{
@@ -45,7 +45,7 @@ export function createMilestoneGantt({el,button,send,refresh,getInfo,isBusy,hand
  }
  function progressControls(data,m){
   const node=el('div',null,'gantt-progress-actions');
-  if(!m.progress||!send)return node;
+  if(!m.progress||!send||data.삭제시각||data.삭제요청?.some(r=>r.상태==='대기'))return node;
   const can=m.owners.some(p=>p.ID===getInfo().본인.ID)&&!data.프로젝트?.보류&&!['완료','비승인'].includes(data.단계);
   if(m.state==='완료'){node.append(el('span','✓ 완료','gantt-status done'));if(can&&!m.approved)node.append(button('완료 취소','text-button',()=>record(data,m,'완료취소')));return node;}
   if(m.approved&&['검증','종료'].includes(m.state))return node;

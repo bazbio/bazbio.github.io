@@ -1,5 +1,6 @@
 import { errorMessage } from './messages.mjs';
 import { getLeadDepartmentWork } from './work-context.mjs';
+import {changeHistory} from './work-changes.mjs';
 // 통합 승인과 실행 UI. 기존 인증·멱등·충돌 처리기를 공유한다.
 export function createExecution({el,button,send,refresh,getInfo,isBusy,message,handleError}){
   const main=getLeadDepartmentWork;
@@ -15,6 +16,7 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
   }
   function scopeView(v){
     const box=el('div',null,'integrated-scope');box.append(el('p',v.요약,'collaboration-note'));
+    box.append(changeHistory(el,v.수정이력));
     const list=el('ul');for(const b of v.범위){
       const row=el('li',b.제외?`${b.부서명} · 제외 ${v.상태==='승인'?'승인':'제안'}: ${b.제외사유}`:`${b.부서명} · 부서 계획 v${b.부서계획버전}`);
       const snapshot=b.부서요청스냅샷;

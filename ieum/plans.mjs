@@ -39,7 +39,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
     for(const b of data.부서업무){
       const box=el('section',null,'department-plan');box.dataset.subId=b.ID;
       const heading=el('div',null,'department-plan-heading'),badges=el('div',null,'department-plan-badges');
-      heading.append(el('h4',b.부서명));badges.append(el('span',b.상태,'badge neutral'));
+      heading.append(el('h4',b.부서명));badges.append(el('span',b.삭제시각?'삭제 승인 완료':b.상태,'badge neutral'));
       if(b.부서ID===data.주관부서?.ID)badges.append(el('span','주관 부서','badge'));
       heading.append(badges);box.append(heading);
       if(b.책임자ID&&b.책임자변경){const owner=el('div',null,'department-owner');owner.append(el('span',`업무 담당자 · ${b.책임자변경.담당자명}`),assignees.control(data,b));box.append(owner);}
@@ -49,7 +49,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
       if(b.요청완료기준){const scope=el('div',null,'request-scope');scope.append(el('strong',`요청 완료 기준${b.기준상속?' · 공통 기준 상속':''}`,'department-section-label'),el('p',b.요청완료기준));request.append(scope);}
       if(request.children.length)box.append(request);
       if(b.요청완료기준){const meta=el('div',null,'department-request-meta');meta.append(el('span',`희망 완료일: ${b.요청희망기한||'미지정'}`),el('span',`요청 개정 ${b.요청개정}`));box.append(meta);}
-      if(b.제외제안사유)box.append(el('p',`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표님 승인 시 반영됩니다.`,'hint'));
+      if(b.제외제안사유)box.append(el('p',b.삭제시각?b.제외제안사유:`범위 제외 제안: ${b.제외제안사유} · 최종 결정은 대표님 승인 시 반영됩니다.`,'hint'));
       const latest=b.계획[0];
       const plan=el('div',null,'department-plan-content');plan.append(el('strong','부서 계획','department-section-label'));
       if(latest){const fold=el('details');fold.append(el('summary',`계획 v${latest.버전} · ${latest.상태} · 상세 보기`),versionView(latest));plan.append(fold);}else plan.append(el('p','부서 계획 작성 전입니다.','muted'));
@@ -64,12 +64,12 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
         errorBox(form);submit(form,'요청 수정 및 재검토','scope','secondary');
         form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'부서요청수정',{요청제목:title.value,요청내용:note.value,완료기준:criteria.value,희망기한:due.value||null,사유:reason.value}));});fold.append(form);box.append(fold);
       }
-      if(!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출')&&latest?.상태==='승인'&&b.책임자ID===me){
+      if(!b.삭제시각&&!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출')&&latest?.상태==='승인'&&(b.책임자목록||[{ID:b.책임자ID}]).some(p=>p.ID===me)){
         const fold=el('details');fold.append(el('summary','계획 수정하기'));const form=el('form');
         const reason=field(form,'계획 수정 사유','textarea');errorBox(form);submit(form,'새 버전 작성 시작','revise','secondary');
         form.addEventListener('submit',e=>{e.preventDefault();if(!isBusy())run(form,payload(data,b.ID,'계획수정시작',{사유:reason.value}));});fold.append(form);box.append(fold);
       }
-      if(!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출')&&b.상태==='배정완료'&&data.전체책임자&&(me===b.책임자ID||me===data.전체책임자.ID)){
+      if(!data.종결?.종결시각&&!data.종결?.심사.some(r=>r.상태==='제출')&&!data.통합계획?.some(v=>v.상태==='제출')&&b.상태==='배정완료'&&data.전체책임자&&((b.책임자목록||[{ID:b.책임자ID}]).some(p=>p.ID===me)||me===data.전체책임자.ID)){
         const fold=el('details');fold.append(el('summary','다른 부서에 협업 요청'));const form=el('form');
         const target=field(form,'협업 요청할 부서','select');departments(target,data);
         const note=field(form,'협업 요청 내용','textarea');note.maxLength=10000;
