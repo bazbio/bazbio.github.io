@@ -466,6 +466,24 @@
 @media(max-width:850px){.wkgrid{grid-template-columns:minmax(0,1fr)}.wktoolbar{align-items:flex-start}.wktoolbar>div{width:100%}.wkqueue{font-size:13px}.wkdoc{padding:16px}.wktools .btn{flex:1}.wktools select{min-width:0}.wkactivity select{max-width:100%}}
 /* Q4-CSS-START */
 /* 4분기 실적관리 — 기존 SalesON 카드·버튼·색상 유지 */
+
+#view-performance .q4-goal-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+#view-performance .q4-goal-summary>div{padding:16px;background:#f2f6fc;border-radius:12px;font-size:13px;color:#4e5968}
+#view-performance .q4-goal-summary b{display:block;font-size:25px;color:#191f28;margin-top:6px}
+#view-performance .q4-goal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+#view-performance .q4-goal-card{margin-top:14px}
+#view-performance .q4-goal-item{padding:18px 0;border-top:1px solid #e5e8eb}
+#view-performance .q4-goal-count{font-size:24px;font-weight:700;margin:8px 0;font-variant-numeric:tabular-nums}
+#view-performance .q4-goal-count small{font-size:13px;font-weight:400;color:#5f6b7a}
+#view-performance .q4-goal-badge{padding:4px 9px;border-radius:8px;background:#f2f4f6;color:#4e5968;font-size:12px;display:inline-block}
+#view-performance .q4-goal-badge.done{background:#e7f6ee;color:#14734d}
+#view-performance .q4-goal-badge.behind,#view-performance .q4-goal-badge.pending{background:#fff3df;color:#80531b}
+#view-performance .q4-goal-track{height:8px;position:relative;background:#edf0f4;border-radius:8px;margin:12px 0}
+#view-performance .q4-goal-track span{display:block;height:100%;background:#1b64da;border-radius:8px}
+#view-performance .q4-goal-track i{position:absolute;top:-3px;height:14px;border-left:2px solid #8b95a1}
+#view-performance .q4-goal-foot{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+@media(max-width:600px){#view-performance .q4-goal-summary{gap:6px}#view-performance .q4-goal-summary>div{padding:11px 8px;font-size:12px}#view-performance .q4-goal-count{font-size:22px}}
+
 #view-performance .q4-wrap{max-width:960px}
 #view-performance .q4-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 20px}
 #view-performance h2{margin:0;font-size:25px;letter-spacing:-.7px}
@@ -795,7 +813,7 @@
 <div class="view" id="view-performance"><div class="wrap q4-wrap">
   <div class="q4-head"><div><div class="q4-eyebrow">2026년 4분기 · SalesON</div><h2>목표·실적 관리</h2><div class="gnote">목표에서 병원별 다음 행동까지</div></div><button class="btn pri" onclick="q4Record()">데모 기록</button></div>
   <div class="q4-controls"><label>조회 기간 <select id="q4Period" onchange="q4PeriodChange()"><option value="2026-Q4">4분기 전체</option><option value="2026-10">2026년 10월</option><option value="2026-11">2026년 11월</option><option value="2026-12">2026년 12월</option></select></label><button class="btn ghost" onclick="loadPerformance()">새로고침</button><span id="q4AsOf" class="gnote"></span></div>
-  <nav class="q4-tabs" aria-label="4분기 실적 화면"><button class="btn ghost" data-q4-tab="team" onclick="q4Tab('team')">팀 현황</button><button class="btn ghost" data-q4-tab="role" onclick="q4Tab('role')">역할별 실적</button><button class="btn ghost" data-q4-tab="evidence" onclick="q4Tab('evidence')">실적 근거</button><button class="btn ghost" data-q4-tab="rules" onclick="q4Tab('rules')">관리 기준</button></nav>
+  <nav class="q4-tabs" aria-label="4분기 실적 화면"><button class="btn ghost" data-q4-tab="goals" onclick="q4Tab('goals')">성과관리</button><button class="btn ghost" data-q4-tab="team" onclick="q4Tab('team')">팀 현황</button><button class="btn ghost" data-q4-tab="role" onclick="q4Tab('role')">역할별 실적</button><button class="btn ghost" data-q4-tab="evidence" onclick="q4Tab('evidence')">실적 근거</button><button class="btn ghost" data-q4-tab="rules" onclick="q4Tab('rules')">관리 기준</button></nav>
   <div id="q4Message" role="status" aria-live="polite"></div><div id="q4Body"></div>
 </div></div>
 <div id="q4Modal" class="q4-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="실적 근거와 다음 행동">
@@ -1078,7 +1096,7 @@
       <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
       <div class="mc">›</div>
     </div>
-    <div class="mrow" id="more-performance" style="display:none" onclick="show('performance')"><div class="mi" style="background:#1b64da;">4Q</div><div class="mb2"><div class="mn">4분기 목표·실적</div><div class="ms2">역할별 실적 · 근거 · 다음 행동</div></div><div class="mc">›</div></div>
+    <div class="mrow" id="more-performance" style="display:none" onclick="q4OpenGoals()"><div class="mi" style="background:#1b64da;">4Q</div><div class="mb2"><div class="mn">성과관리</div><div class="ms2">직원별 목표 달성 · 4분기 실적 · 다음 행동</div></div><div class="mc">›</div></div>
     <div class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')">
       <div class="mi" style="background:#a35f00;">재</div>
       <div class="mb2"><div class="mn">데모 실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div>
@@ -1113,7 +1131,7 @@
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
   <button id="nav-log" onclick="show('log')">기록</button>
-  <button id="nav-performance" style="display:none" onclick="show('performance')">4분기 실적</button>
+  <button id="nav-performance" style="display:none" onclick="q4OpenGoals()">성과관리</button>
   <button id="nav-demofail" style="display:none" onclick="show('demofail')">실패관리</button>
   <button id="nav-meta" onclick="show('meta')">Meta DB</button>
   <button id="nav-mine" onclick="show('mine')">내 입력</button>
@@ -1435,7 +1453,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610181331-a51aca2';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610181341-009e055';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5346,6 +5364,77 @@ function failCard(l) {
     + '</div></div>';
 }
 /* Q4-JS-START */
+// 기존 API의 개인별 확정 집계를 그대로 표시한다. 단위가 다른 목표를 평균 점수로 합치지 않는다.
+var Q4G={person:'',status:'all',detail:null};
+var q4GoalLabels={contract:'큐어젯 계약',demo:'큐어젯 데모 전체',new:'큐어젯 신규 데모',repeat:'큐어젯 재데모',referral:'N-Care 추천 데모'};
+function q4OpenGoals(){Q4.tab='goals';Q4G.detail=null;show('performance');}
+function q4GoalProgress(goal,actual,asOf,period,pending){
+  var start=period==='2026-Q4'?'2026-10-01':period+'-01';
+  var end=period==='2026-10'?'2026-11-01':period==='2026-11'?'2026-12-01':'2027-01-01';
+  var day=86400000,total=(Date.parse(end)-Date.parse(start))/day;
+  var elapsed=Math.max(0,Math.min(total,(Date.parse(asOf)-Date.parse(start))/day+1)),left=total-elapsed;
+  var target=Number(goal.value),rate=target>0&&actual!==null?Math.round(actual/target*1000)/10:null;
+  var remaining=actual===null?null:Math.max(0,target-actual),expected=target*elapsed/total;
+  var state=actual===null?'unlinked':target===0?'zero':elapsed===0?'future':actual>=target?'done':pending?'pending':elapsed===total?'missed':actual<expected?'behind':'ontrack';
+  return {target:target,actual:actual,rate:rate,remaining:remaining,expected:expected,elapsed:elapsed,left:left,pace:Math.round(elapsed/total*1000)/10,state:state};
+}
+function q4GoalPeople(){
+  var d=Q4.data,active=d.reps.map(function(r){return r.id;});
+  var people=d.people.filter(function(p){return active.indexOf(p.id)>=0||d.goals.some(function(g){return g.owner_name===p.name;});}).slice();
+  d.goals.forEach(function(g){if(g.owner_name!=='@team'&&!people.some(function(p){return p.name===g.owner_name;}))people.push({id:null,name:g.owner_name,team:'계정 연결 확인'});});
+  return people;
+}
+function q4GoalRows(person,metric){
+  return Q4.data.items.filter(function(r){
+    var a=r.annotation;if(!r.classified||!a||a.product!=='CUREJET')return false;
+    if(metric==='referral')return a.kind==='new'&&a.channel==='referral'&&Number(a.referral_rep_id)===person.id;
+    if(r.owner_id!==person.id)return false;
+    return metric==='demo'?['new','repeat'].indexOf(a.kind)>=0:a.kind===metric;
+  });
+}
+function q4GoalEntries(person){
+  return Q4.data.goals.filter(function(g){return g.owner_name===person.name;}).map(function(g){
+    var actual=person.id===null?null:Number(person[g.metric==='referral'?'referralCredit':g.metric]||0);
+    var pending=g.metric==='referral'?0:Number(g.metric==='contract'?person.pendingContract:person.pendingDemo)||0;
+    return {goal:g,progress:q4GoalProgress(g,actual,Q4.data.asOf,Q4.data.period,pending),pending:pending};
+  });
+}
+function q4GoalEvidence(name,metric){Q4G.detail={name:name,metric:metric};renderPerformance();document.getElementById('q4GoalDetail').scrollIntoView({block:'start',behavior:'smooth'});}
+function q4GoalsHTML(){
+  var d=Q4.data,people=q4GoalPeople();
+  if(Q4G.person&&!people.some(function(p){return p.name===Q4G.person;}))Q4G.person='';
+  var selected=people.filter(function(p){return !Q4G.person||p.name===Q4G.person;});
+  var entries=[];selected.forEach(function(p){entries=entries.concat(q4GoalEntries(p));});
+  var done=entries.filter(function(e){return e.progress.state==='done';}).length;
+  var needs=entries.filter(function(e){return ['behind','missed','pending','unlinked'].indexOf(e.progress.state)>=0;}).length;
+  var h='<div class="q4-goal-head"><div><h3>직원별 성과관리</h3><div class="q4-caption">각 목표의 달성 현황을 확인하고 근거와 다음 행동으로 연결합니다.</div></div></div>';
+  h+='<div class="q4-controls"><label>직원 <select id="q4GoalPerson" onchange="Q4G.person=this.value;Q4G.detail=null;renderPerformance()"><option value="">'+(d.scope==='team'?'전체 직원':'본인')+'</option>'+people.map(function(p){return '<option value="'+esc(p.name)+'"'+(Q4G.person===p.name?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select></label><label>목표 상태 <select id="q4GoalStatus" onchange="Q4G.status=this.value;Q4G.detail=null;renderPerformance()">'+[['all','전체'],['attention','확인 필요'],['done','달성'],['missing','목표 미설정']].map(function(x){return '<option value="'+x[0]+'"'+(Q4G.status===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></label></div>';
+  h+='<div class="q4-goal-summary"><div>조회 기간 개인 목표<b>'+entries.length+'개</b></div><div>달성한 목표<b>'+done+'개</b></div><div>확인 필요한 목표<b>'+needs+'개</b></div></div>';
+  h+='<p class="q4-caption">큐어젯 기준 · 기존 개인 목표는 v7 배분안입니다. 회색 선은 조회일의 달력 경과 비율이며 평가 점수가 아닙니다. 신규·재데모는 데모 전체에, 추천은 신규 데모에 포함되어 중복 합산하지 않습니다. 미분류 추천 실적은 추천인 연결 전까지 반영되지 않습니다.</p>';
+  var shown=0,states={done:'달성',behind:'진도 확인 필요',pending:'분류 확인 필요',missed:'기간 종료 · 미달',future:'시작 전',ontrack:'현재 진도 충족',zero:'목표 0 · 달성률 제외',unlinked:'담당 계정 확인'};
+  selected.forEach(function(p){
+    var all=q4GoalEntries(p),rows=all.filter(function(e){return Q4G.status==='all'||Q4G.status==='done'&&e.progress.state==='done'||Q4G.status==='attention'&&['behind','missed','pending','unlinked'].indexOf(e.progress.state)>=0;});
+    if(!rows.length&&(all.length||['all','missing'].indexOf(Q4G.status)<0))return;
+    shown++;h+='<section class="card q4-goal-card" data-goal-person="'+esc(p.name)+'"><div class="q4-goal-head"><h3>'+esc(p.name)+'</h3><span class="q4-caption">'+esc(p.team||'소속 미지정')+'</span></div>';
+    if(!all.length)h+='<div class="empty">이 기간의 개인 목표가 없습니다. 목표 미설정<br><span class="q4-caption">분기 목표가 있더라도 월별 목표를 임의로 나누지 않습니다. 관리자와 목표·배분을 확인하세요.</span></div>';
+    rows.forEach(function(e){var g=e.goal,s=e.progress,unit=g.metric==='contract'?'대':'건';
+      h+='<div class="q4-goal-item" data-goal-metric="'+esc(g.metric)+'"><div class="q4-goal-head"><strong>'+esc(q4GoalLabels[g.metric]||g.metric)+'</strong><span class="q4-goal-badge '+s.state+'">'+states[s.state]+'</span></div>';
+      h+='<div class="q4-goal-count">'+(s.actual===null?'확인 필요':s.actual+unit)+' <small>/ 목표 '+s.target+unit+' · '+(s.rate===null?'달성률 —':s.rate+'% 달성')+'</small></div>';
+      h+='<div class="q4-goal-track" role="img" aria-label="'+(s.rate===null?'달성률 산정 제외':s.rate+'% 달성')+'"><span style="width:'+Math.max(0,Math.min(100,s.rate||0))+'%"></span><i style="left:'+Math.min(99.5,s.pace)+'%"></i></div>';
+      h+='<div class="q4-goal-foot"><span class="q4-caption">'+(s.remaining===null?'담당 계정을 확인해야 집계할 수 있습니다.':'남은 목표 '+s.remaining+unit+' · '+(s.left?'기간 종료까지 '+s.left+'일':'기간 종료'))+'<br>'+(s.target>0?'기간 경과 '+s.pace+'% · 균등 진도 참고 '+(Math.round(s.expected*10)/10)+unit:'목표가 0인 항목은 달성률을 계산하지 않습니다.')+(e.pending?'<br>해당 직원 미분류 '+e.pending+'건 · 확인 후 실적이 달라질 수 있습니다.':'')+'</span>'+(p.id!==null?'<button class="btn ghost" data-goal-owner="'+esc(p.name)+'" data-goal-kind="'+esc(g.metric)+'" onclick="q4GoalEvidence(this.dataset.goalOwner,this.dataset.goalKind)">실적·다음 행동</button>':'')+'</div><div class="q4-caption">'+(g.status==='confirmed'?'확정 목표':'배분안 · 확정 전')+' · '+esc(g.basis||'')+'</div></div>';
+    });h+='</section>';
+  });
+  if(!shown)h+='<div class="empty">선택한 조건에 해당하는 직원 목표가 없습니다.</div>';
+  if(Q4G.detail){var focus=people.filter(function(p){return p.name===Q4G.detail.name;})[0];if(focus){
+    var metric=Q4G.detail.metric,rows=q4GoalRows(focus,metric);
+    h+='<section class="card q4-section" id="q4GoalDetail"><div class="q4-goal-head"><h3>'+esc(focus.name)+' · '+esc(q4GoalLabels[metric])+'</h3>'+q4Button('접기','Q4G.detail=null;renderPerformance()')+'</div><p class="q4-caption">집계에 반영된 근거 '+rows.length+'건 · 다음 행동과 기한은 방문기록에서 함께 저장한 내용입니다.</p>'+q4Rows(rows);
+    var pending=d.items.filter(function(r){return r.owner_id===focus.id&&!r.classified&&(metric==='contract'?r.type==='contract':r.type==='demo');});
+    if(metric!=='referral'&&pending.length)h+='<h3 class="q4-section">분류 확인 필요 · '+pending.length+'건</h3>'+q4Rows(pending);
+    h+='</section>';
+  }}
+  return h;
+}
+
 // 4분기 실적관리. 숫자는 DB 원천에서 조회하며 목업 자료를 운영에 넣지 않는다.
 var Q4={data:null,tab:'team',role:'sales',person:'',filter:'all',week:'',generation:0,detailGeneration:0,current:null,saving:false,pending:null};
 var q4Channels={dealer:'딜러',conference:'학회',referral:'N-Care 추천',network:'네트워크',marketing:'마케팅',outbound:'아웃바운드',unknown:'미확인'};
@@ -5353,7 +5442,7 @@ var q4Kinds={new:'신규 데모',repeat:'재데모',followup:'후속 방문 · �
 function q4Call(body){return 관문호출_('/saleson-performance',JSON.stringify(Object.assign({토큰:TOKEN},body)));}
 function q4Allowed(){return !!(DATA&&DATA.dbSrc&&DATA.me&&!DATA.me.viewer);}
 function q4Period(){return document.getElementById('q4Period').value;}
-function q4PeriodChange(){Q4.data=null;Q4.week='';q4Close();loadPerformance();}
+function q4PeriodChange(){Q4G.detail=null;Q4.data=null;Q4.week='';q4Close();loadPerformance();}
 function loadPerformance(){
   if(!q4Allowed())return;
   var generation=++Q4.generation,token=TOKEN,period=q4Period();
@@ -5382,7 +5471,7 @@ function renderPerformance(){
   document.getElementById('q4AsOf').textContent=d.asOf+'까지 DB 기록 · '+(d.scope==='team'?'팀 전체':'본인 실적·기여');
   document.querySelectorAll('[data-q4-tab]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.q4Tab===Q4.tab));if(b.dataset.q4Tab==='team')b.textContent=d.scope==='team'?'팀 현황':'내 현황';});
   var h='';
-  if(Q4.tab==='team'){
+  if(Q4.tab==='goals'){h=q4GoalsHTML();}else if(Q4.tab==='team'){
     h='<div class="q4-grid">'+q4Metric('큐어젯 계약',m.contract,'contract','대','제품 확인된 계약 · 대수 기준')+q4Metric('데모 전체',m.demo,'demo','건','신규 '+m.new+' · 재데모 '+m.repeat)+q4Metric('N-Care 추천',m.referral,'referral','건','신규 데모에 포함 · 중복 합산 없음')+'</div>';
     h+='<div class="q4-notice">'+(m.pending?'분류 대기 '+m.pending+'건 · 계약 '+m.pendingContract+' / 데모 '+m.pendingDemo+' — 확인 완료분만 위 실적에 집계됩니다.':'현재 조회된 원천의 분류가 완료되었습니다. 입력 누락 여부는 주간 점검에서 확인하세요.')+' '+q4Button('근거 확인',"q4Filter('pending')")+'</div>';
     h+='<section class="card q4-section"><h3>담당자별 목표와 실적 <span class="q4-caption">개인 목표는 배분안</span></h3><div class="q4-grid q4-persons">'+d.people.filter(function(p){return q4Target(p.name,'contract')!==null||q4Target(p.name,'demo')!==null;}).map(function(p){return '<button class="q4-person" data-person="'+esc(p.name)+'" onclick="q4ChoosePerson(this.dataset.person)"><b>'+esc(p.name)+' ›</b><span>계약 '+p.contract+' / '+q4GoalText(p.name,'contract','대')+'</span><span>데모 '+p.demo+' / '+q4GoalText(p.name,'demo','건')+'</span><span class="q4-caption">미분류 '+p.pending+'건</span></button>';}).join('')+'</div></section>';
