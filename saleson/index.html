@@ -1456,7 +1456,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610181355-e4ced2e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610181400-489f4a1';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5406,9 +5406,10 @@ async function q4GoalSave(status){
   if(Q4GE.saving||!Q4GE.current||!Q4.data||!Q4.data.me.admin)return;
   var form=document.getElementById('q4GoalForm');if(!form.reportValidity())return;
   var body=Object.assign({},Q4GE.current,{action:'goalSave',value:Number(document.getElementById('q4GoalValue').value),basis:document.getElementById('q4GoalBasis').value,status:status});
+  var targetName=(Q4.data.reps.filter(function(r){return r.id===body.ownerId;})[0]||{}).name||'';
   var fingerprint=JSON.stringify(body);if(!Q4GE.pending||Q4GE.pending.fingerprint!==fingerprint)Q4GE.pending={fingerprint:fingerprint,id:crypto.randomUUID()};body.requestId=Q4GE.pending.id;
   Q4GE.saving=true;document.getElementById('q4GoalError').textContent='';document.getElementById('q4GoalFields').disabled=true;form.querySelectorAll('button').forEach(function(b){b.disabled=true;});var token=TOKEN;
-  try{await q4Call(body);Q4GE.saving=false;if(token!==TOKEN)return;q4Close();toast(status==='confirmed'?'직원 목표를 저장하고 확정했습니다.':'직원 목표를 배분안으로 저장했습니다.');await loadPerformance();}
+  try{await q4Call(body);Q4GE.saving=false;if(token!==TOKEN)return;Q4G.person=targetName;Q4G.status='all';Q4G.detail=null;Q4.tab='goals';q4Close();toast(status==='confirmed'?'직원 목표를 저장하고 확정했습니다.':'직원 목표를 배분안으로 저장했습니다.');await loadPerformance();}
   catch(e){Q4GE.saving=false;if(token!==TOKEN)return;document.getElementById('q4GoalFields').disabled=false;form.querySelectorAll('button').forEach(function(b){b.disabled=false;});document.getElementById('q4GoalError').textContent=e.message||'저장하지 못했습니다. 입력을 유지했습니다.';}
 }
 function q4GoalChecksHTML(){
