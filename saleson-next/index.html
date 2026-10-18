@@ -464,6 +464,56 @@
 .wkdoc .wktools .btn{padding:10px 12px;font-size:13px;white-space:nowrap}
 .wkdialog{border:0;border-radius:18px;max-width:460px;width:calc(100% - 40px);padding:24px}.wkdialog::backdrop{background:#17233788}.wkdialog input,.wkdialog textarea{box-sizing:border-box;width:100%}
 @media(max-width:850px){.wkgrid{grid-template-columns:minmax(0,1fr)}.wktoolbar{align-items:flex-start}.wktoolbar>div{width:100%}.wkqueue{font-size:13px}.wkdoc{padding:16px}.wktools .btn{flex:1}.wktools select{min-width:0}.wkactivity select{max-width:100%}}
+/* Q4-CSS-START */
+/* 4분기 실적관리 — 기존 SalesON 카드·버튼·색상 유지 */
+#view-performance .q4-wrap{max-width:960px}
+#view-performance .q4-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 20px}
+#view-performance h2{margin:0;font-size:25px;letter-spacing:-.7px}
+#view-performance .q4-eyebrow{font-size:12px;color:#1b64da;font-weight:700;margin-bottom:6px}
+#view-performance .q4-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+#view-performance .q4-controls label{display:flex;align-items:center;gap:8px;font-size:13px}
+#view-performance .q4-controls select{width:auto;margin:0}
+#view-performance .q4-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid #e5e8eb;padding-bottom:10px}
+#view-performance .q4-tabs [aria-pressed=true]{background:#e8f3ff;color:#1b64da}
+#view-performance .q4-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#view-performance .q4-stat{border:1px solid #e5e8eb;border-radius:16px;padding:18px;background:#fff;text-align:left;color:#191f28;width:100%}
+#view-performance .q4-stat .q4-value{font-size:30px;line-height:1.35;font-weight:750;letter-spacing:-.7px;display:block;margin:10px 0;font-variant-numeric:tabular-nums}
+#view-performance .q4-value small{font-size:13px;font-weight:500;color:#5f6b7a;letter-spacing:0}
+#view-performance .q4-stat-title{color:#4e5968;font-size:13px;font-weight:600}
+#view-performance .q4-track{height:5px;background:#f2f4f6;border-radius:5px;overflow:hidden;margin:10px 0}
+#view-performance .q4-track span{display:block;height:100%;background:#1b64da}
+#view-performance .q4-caption,#q4Modal .q4-caption{font-size:12px;color:#5f6b7a;line-height:1.65}
+#view-performance .q4-section{margin-top:16px}
+#view-performance h3,#q4Modal h3{font-size:16px;margin:0 0 12px}
+#view-performance .q4-person{border:1px solid #e5e8eb;border-radius:12px;background:#fff;padding:14px;text-align:left;color:#191f28;line-height:1.8}
+#view-performance .q4-person b{display:block;font-size:15px}
+#view-performance .q4-person span{display:block;font-size:13px}
+#view-performance .q4-notice{background:#fff7e9;color:#80531b;border-radius:12px;padding:12px 14px;font-size:13px;margin:16px 0}
+#view-performance .q4-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #e5e8eb}
+#view-performance .q4-row:last-child{border-bottom:0}
+#view-performance .q4-row-main{flex:1;min-width:0;overflow-wrap:anywhere}
+#view-performance .q4-row-main strong{display:block;font-size:14px}
+#view-performance .q4-pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+#view-performance .q4-pills [aria-pressed=true]{background:#e8f3ff;color:#1b64da}
+#view-performance .q4-roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#view-performance .q4-rule{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:13px 0;border-bottom:1px solid #e5e8eb;font-size:13px}
+#view-performance .q4-rule>span:first-child{color:#5f6b7a}
+#view-performance .q4-rule:last-child{border:0}
+#q4Modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:65;align-items:center;justify-content:center;padding:18px}
+#q4Modal .q4-dialog{width:100%;max-width:620px;max-height:90vh;overflow:auto;margin:0}
+#q4Modal .q4-editor-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#q4Modal .q4-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}
+#q4Modal label{font-size:13px;color:#4e5968;display:block}
+#q4Modal input,#q4Modal select,#q4Modal textarea{width:100%;margin-top:6px;min-width:0}
+#q4Modal .q4-wide{grid-column:1/-1}
+#q4Modal .q4-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-top:16px}
+#q4Modal #q4Error{font-size:13px;color:#b54708;margin-top:12px;white-space:pre-wrap}
+#q4Modal .q4-support{display:flex;flex-wrap:wrap;gap:10px}
+#q4Modal .q4-support label{display:flex;align-items:center;gap:5px}
+#q4Modal .q4-support input{width:auto;margin:0}
+@media(max-width:600px){#view-performance .q4-grid{gap:8px}#view-performance .q4-stat{padding:13px 10px}#view-performance .q4-stat .q4-value{font-size:23px}#view-performance .q4-value small{display:block}#view-performance .q4-persons{grid-template-columns:1fr}#view-performance .q4-tabs{gap:3px}#view-performance .q4-tabs button{padding:10px;font-size:12px}#view-performance .q4-row{flex-wrap:wrap;gap:8px}#view-performance .q4-roles{grid-template-columns:1fr}#view-performance .q4-rule{grid-template-columns:85px 1fr;gap:8px}#q4Modal{padding:10px}#q4Modal .q4-form-grid{grid-template-columns:1fr}#q4Modal .q4-wide{grid-column:auto}}
+
+/* Q4-CSS-END */
 </style>
 </head>
 <body>
@@ -682,7 +732,7 @@
       </div>
     </div>
     <div class="row2">
-      <div><label class="f" for="fDate">방문일</label><input type="date" id="fDate" onchange="계획일안내_()"></div>
+      <div><label class="f" for="fDate">방문일</label><input type="date" id="fDate" onchange="계획일안내_();q4VisitToggle()"></div>
       <div><label class="f" for="fNext">다음 방문 예정일</label><input type="date" id="fNext"></div>
     </div>
     <label class="f">판매 카테고리 *</label>
@@ -697,7 +747,21 @@
       전화·이메일·세미나였다면 위에서 그 칩을 골라 주세요.
     </div>
     <label class="f" for="fStage">판매 단계</label>
-    <select id="fStage"><option value="">선택 안 함</option></select>
+    <select id="fStage" onchange="q4VisitToggle()"><option value="">선택 안 함</option></select>
+
+    <section id="fPerformance" style="display:none;margin-top:16px;padding:14px;border:1px solid #c9e0ff;border-radius:14px;background:#f4f8ff;">
+      <b>4분기 실적 · 방문기록과 함께 저장</b>
+      <p class="q4-caption">논의 내용은 실적 근거로, Follow-up과 다음 방문 예정일은 후속 조치로 함께 연결됩니다.</p>
+      <div class="row2">
+        <div><label class="f" for="fProduct">제품 *</label><select id="fProduct" onchange="q4VisitChanged()"><option value="">선택</option><option value="CUREJET">큐어젯</option><option value="NOVOJET">노보젯</option></select></div>
+        <div id="fDemoKindWrap"><label class="f" for="fDemoKind">데모 구분 *</label><select id="fDemoKind" onchange="q4VisitChanged()"><option value="">선택</option><option value="new">신규 데모</option><option value="repeat">재데모</option><option value="followup">후속 방문 · 데모 집계 제외</option></select></div>
+      </div>
+      <div id="fRetryWrap" style="display:none"><label class="f" for="fRetryReason">재시도 사유 *</label><input id="fRetryReason" maxlength="1000" placeholder="예: 다른 적응증을 확인하기 위한 재데모" oninput="q4VisitChanged()"></div>
+      <label class="f" for="fSourceChannel">유입 경로</label><select id="fSourceChannel" onchange="q4VisitChanged()"><option value="unknown">미확인</option><option value="dealer">딜러</option><option value="conference">학회·세미나</option><option value="referral">N-Care 추천</option><option value="network">인맥</option><option value="marketing">마케팅</option><option value="outbound">직접 발굴</option></select>
+      <div id="fReferralWrap" style="display:none"><label class="f" for="fReferral">추천 담당자 *</label><select id="fReferral" onchange="q4VisitChanged()"><option value="">추천 담당자 선택</option></select></div>
+      <div id="fPerformanceStatus" role="status" class="q4-caption"></div>
+      <button type="button" class="btn ghost" onclick="q4VisitLoad(true)">분류 정보 다시 불러오기</button>
+    </section>
     <label class="f">데모 노즐 사용량 (개)</label>
     <input type="text" id="fNozzle" inputmode="numeric" placeholder="데모에 사용한 노즐 수량 (없으면 비워두기)">
     <label class="f">배포 자료 (복수 선택 가능)</label>
@@ -727,6 +791,18 @@
 </div></div>
 
 <!-- 영업자료 — MA·C-Labs 공식 배포 자료 -->
+<!-- Q4-MARKUP-START -->
+<div class="view" id="view-performance"><div class="wrap q4-wrap">
+  <div class="q4-head"><div><div class="q4-eyebrow">2026년 4분기 · SalesON</div><h2>목표·실적 관리</h2><div class="gnote">목표에서 병원별 다음 행동까지</div></div><button class="btn pri" onclick="q4Record()">데모 기록</button></div>
+  <div class="q4-controls"><label>조회 기간 <select id="q4Period" onchange="q4PeriodChange()"><option value="2026-Q4">4분기 전체</option><option value="2026-10">2026년 10월</option><option value="2026-11">2026년 11월</option><option value="2026-12">2026년 12월</option></select></label><button class="btn ghost" onclick="loadPerformance()">새로고침</button><span id="q4AsOf" class="gnote"></span></div>
+  <nav class="q4-tabs" aria-label="4분기 실적 화면"><button class="btn ghost" data-q4-tab="team" onclick="q4Tab('team')">팀 현황</button><button class="btn ghost" data-q4-tab="role" onclick="q4Tab('role')">역할별 실적</button><button class="btn ghost" data-q4-tab="evidence" onclick="q4Tab('evidence')">실적 근거</button><button class="btn ghost" data-q4-tab="rules" onclick="q4Tab('rules')">관리 기준</button></nav>
+  <div id="q4Message" role="status" aria-live="polite"></div><div id="q4Body"></div>
+</div></div>
+<div id="q4Modal" class="q4-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="실적 근거와 다음 행동">
+  <div class="card q4-dialog" id="q4Editor"></div>
+</div>
+
+<!-- Q4-MARKUP-END -->
 <div class="view" id="view-demofail"><div class="wrap">
   <div class="kicker"><div class="bar"></div><div class="lbl">데모 실패관리</div></div>
   <div class="gnote">과거 실패와 현재 재공략 상태를 함께 관리합니다. 재데모는 신규 데모 실적에 다시 더하지 않습니다.</div>
@@ -1002,6 +1078,7 @@
       <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
       <div class="mc">›</div>
     </div>
+    <div class="mrow" id="more-performance" style="display:none" onclick="show('performance')"><div class="mi" style="background:#1b64da;">4Q</div><div class="mb2"><div class="mn">4분기 목표·실적</div><div class="ms2">역할별 실적 · 근거 · 다음 행동</div></div><div class="mc">›</div></div>
     <div class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')">
       <div class="mi" style="background:#a35f00;">재</div>
       <div class="mb2"><div class="mn">데모 실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div>
@@ -1036,6 +1113,7 @@
   <button id="nav-flow" onclick="show('flow')">흐름</button>
   <button id="nav-plan" onclick="show('plan')">계획</button>
   <button id="nav-log" onclick="show('log')">기록</button>
+  <button id="nav-performance" style="display:none" onclick="show('performance')">4분기 실적</button>
   <button id="nav-demofail" style="display:none" onclick="show('demofail')">실패관리</button>
   <button id="nav-meta" onclick="show('meta')">Meta DB</button>
   <button id="nav-mine" onclick="show('mine')">내 입력</button>
@@ -1357,7 +1435,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610180003-d931c03';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610181331-a51aca2';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1392,7 +1470,7 @@ try {
    빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
 var 당김시작_ = 0, 당김중_ = false;
 function 모달열림_() {
-  return ['hospModal', 'failModal', 'intelModal', 'maModal'].some(function(id) {
+  return ['hospModal', 'failModal', 'intelModal', 'maModal', 'q4Modal'].some(function(id) {
     var m = document.getElementById(id);
     return m && m.style.display && m.style.display !== 'none';
   });
@@ -1624,6 +1702,7 @@ function onData(d) {
   document.getElementById('heroMeta').textContent = (d.me.team ? d.me.team + ' · ' : '') + d.today;
   // 조회 전용 계정: 입력 탭(홈·계획·기록·리드) 숨기고 현황부터
   var vw = !!d.me.viewer;
+  ['nav-performance','more-performance'].forEach(function(id){document.getElementById(id).style.display=d.dbSrc&&!vw?'':'none';});
   // C-Labs 조회 계정(8/6) — Meta DB·자료·학회/세미나만 연다. 영업 지표(현황·흐름·KPI)는 숨긴다
   var cl = vw && String(d.me.team || '').trim() === 'C-Labs';
   ['nav-demofail','more-demofail','quick-demofail'].forEach(function(id) {
@@ -1734,12 +1813,14 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow', 'performance'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail', 'performance'];
 var 현재뷰_ = 'home';
 function show(v) {
+  if(v==='log')q4VisitLoad();
   // 제거한 탭의 옛 주소·저장 후 이동은 기본 화면으로 안내한다. 기존 데이터는 보존한다.
   if (['kpi','week','lead'].indexOf(v)>=0) v=기본화면_();
+  if (v === 'performance' && !q4Allowed()) { toast('DB 연결된 영업 계정에서 사용할 수 있습니다.', true); return; }
   if (v === 'demofail' && (!DEMO_FAILURE_ON || !DATA || !DATA.dbSrc || DATA.me.viewer)) { toast('데모 실패관리는 아직 사용할 수 없습니다.', true); return; }
   if (typeof wkFlush === 'function' && 현재뷰_ === 'week' && v !== 'week') wkFlush();
   현재뷰_ = v;
@@ -1780,6 +1861,7 @@ function show(v) {
   if (v === 'ncare') { if (NCARE) { renderNcare(); loadNcare(true); } else loadNcare(); }
   if (v === 'week') { if (WEEK) { renderWeek(); loadWeek(true); } else loadWeek(); }
   if (v === 'demofail') loadDemoFailures();
+  if (v === 'performance') loadPerformance();
   if (v === 'flow') {
     if (FLOW) {
       document.getElementById('fMonth').value = FLOW.ym;
@@ -1816,6 +1898,7 @@ function 화면이력_(v) {
 function 모달닫기_() {
   입력시트콜백_ = null;   // 입력 시트를 뒤로가기로 닫았으면 콜백도 같이 버린다
   closeMA();
+  q4Close();
   ['hospModal', 'failModal', 'intelModal'].forEach(function(id) {
     var m = document.getElementById(id);
     if (m) m.style.display = 'none';
@@ -1826,6 +1909,7 @@ function 모달닫기_() {
 function 갈수있나_(v) {
   if (['kpi','week','lead'].indexOf(v)>=0) return false;
   if (화면목록_.indexOf(v) < 0) return false;
+  if (v === 'performance') return q4Allowed();
   if (!DATA || !DATA.me || !DATA.me.viewer) return !!DATA;
   var cl = String(DATA.me.team || '').trim() === 'C-Labs';
   var 막힘 = ['home', 'plan', 'log', 'lead', 'mine'].concat(
@@ -3695,6 +3779,7 @@ function pickPCat(el) {
 }
 function pickFCat(el) {
   selFCat = el.getAttribute('data-v');
+  q4VisitToggle();
   document.querySelectorAll('#fCat .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   임시저장_();   // 칩만 누르고 앱을 닫아도 남아야 한다 (감사 화11 — 계획 폼 pickP*와 같은 규칙)
 }
@@ -3880,6 +3965,7 @@ function resetPlanForm(keepDate) {
 }
 function pickType(el) {
   selType = el.getAttribute('data-v');
+  q4VisitToggle();
   document.querySelectorAll('#fType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   var etc = document.getElementById('fTypeEtc');
   if (etc) {
@@ -3975,6 +4061,7 @@ function 방문유형_(s) {
   return v.indexOf('방문') === 0 ? v : '방문/' + v;
 }
 function saveLog() {
+  if(document.getElementById('fSave').disabled)return;
   var name = document.getElementById('fHosp').value.trim();
   var code = '';
   DATA.hospitals.forEach(function(h) { if (h.name === name) code = h.code; });
@@ -4025,6 +4112,7 @@ function saveLog() {
   }
   if (!f.type) return 검증실패_('활동 유형을 선택해 주세요', selType === '__etc' ? 'fTypeEtc' : 'fType');
   if (!f.note.trim()) return 검증실패_('논의 내용을 입력해 주세요', 'fNote');
+  if(!q4VisitAttach(f))return;
   document.getElementById('fSave').disabled = true;
   busy(true, '저장 중…');
   if (EDITKEY) {
@@ -4125,6 +4213,7 @@ function saveLog() {
   gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
 }
 function resetForm() {
+  q4VisitReset();
   ['fHosp', 'fNext', 'fContact', 'fNote', 'fReaction', 'fFu', 'fNozzle'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('fDate').value = DATA.today;
   document.getElementById('fStage').value = '';
@@ -4660,6 +4749,7 @@ function 임시저장_() {
       reaction: document.getElementById('fReaction').value,
       fu: document.getElementById('fFu').value,
       nozzle: document.getElementById('fNozzle').value,
+      performance:q4VisitValue(),performancePending:Q4V.pending,
       type: selType, cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value,
       web: selFWeb, webUrl: document.getElementById('fWebUrl').value, at: Date.now(),
       /* 여태 이 셋이 빠져 있었다 (감사 화11) — 「기타」로 직접 적은 유형, 배포 자료 선택,
@@ -4713,6 +4803,7 @@ function 임시저장복구_() {
       c.classList.toggle('on', selMats.indexOf(c.getAttribute('data-v')) >= 0);
     });
     renderMatDetails();
+    q4VisitFill(d.performance);Q4V.pending=d.performancePending||null;
     el.style.display = 'none';
     show('log');
   };
@@ -5254,6 +5345,170 @@ function failCard(l) {
     + (DEMO_FAILURE_ON && DATA.dbSrc ? '<button class="btn ghost" onclick="demoFailureFromLead(' + l.k + ')">실패 이력</button>' : '')
     + '</div></div>';
 }
+/* Q4-JS-START */
+// 4분기 실적관리. 숫자는 DB 원천에서 조회하며 목업 자료를 운영에 넣지 않는다.
+var Q4={data:null,tab:'team',role:'sales',person:'',filter:'all',week:'',generation:0,detailGeneration:0,current:null,saving:false,pending:null};
+var q4Channels={dealer:'딜러',conference:'학회',referral:'N-Care 추천',network:'네트워크',marketing:'마케팅',outbound:'아웃바운드',unknown:'미확인'};
+var q4Kinds={new:'신규 데모',repeat:'재데모',followup:'후속 방문 · 집계 제외',contract:'계약'};
+function q4Call(body){return 관문호출_('/saleson-performance',JSON.stringify(Object.assign({토큰:TOKEN},body)));}
+function q4Allowed(){return !!(DATA&&DATA.dbSrc&&DATA.me&&!DATA.me.viewer);}
+function q4Period(){return document.getElementById('q4Period').value;}
+function q4PeriodChange(){Q4.data=null;Q4.week='';q4Close();loadPerformance();}
+function loadPerformance(){
+  if(!q4Allowed())return;
+  var generation=++Q4.generation,token=TOKEN,period=q4Period();
+  document.getElementById('q4Message').textContent='실적을 불러오는 중…';
+  return q4Call({action:'list',period:period}).then(function(d){
+    if(generation!==Q4.generation||token!==TOKEN)return;
+    Q4.data=d;document.getElementById('q4Message').textContent='';renderPerformance();
+  }).catch(function(e){if(generation!==Q4.generation||token!==TOKEN)return;Q4.data=null;document.getElementById('q4Body').innerHTML='';document.getElementById('q4AsOf').textContent='';document.getElementById('q4Message').textContent=e.message||'실적을 불러오지 못했습니다. 새로고침해 주세요.';});
+}
+function q4Tab(tab){Q4.tab=tab;renderPerformance();}
+function q4ChoosePerson(name){Q4.person=name;Q4.role='sales';Q4.tab='role';renderPerformance();}
+function q4Filter(filter){Q4.filter=filter;Q4.tab='evidence';renderPerformance();}
+function q4Target(owner,metric){var g=Q4.data.goals.filter(function(g){return g.owner_name===owner&&g.metric===metric;})[0];return g?g.value:null;}
+function q4GoalText(owner,metric,unit){var g=q4Target(owner,metric);return g===null?'목표 미설정':g+unit;}
+function q4Button(text,handler,cls){return '<button type="button" class="btn '+(cls||'ghost')+'" onclick="'+handler+'">'+text+'</button>';}
+function q4Metric(label,value,metric,unit,detail){
+  var d=Q4.data,owner=d.scope==='team'?'@team':d.me.name,target=q4Target(owner,metric);
+  return '<button type="button" class="q4-stat" onclick="q4Filter(\''+metric+'\')"><span class="q4-stat-title">'+label+' ↗</span><span class="q4-value">'+value+'<small> / '+q4GoalText(owner,metric,unit)+'</small></span><div class="q4-track"><span style="width:'+Math.min(100,target?value/target*100:0)+'%"></span></div><span class="q4-caption">'+detail+'</span></button>';
+}
+function q4Rows(rows){
+  if(!rows.length)return '<div class="empty">해당 실적 근거가 없습니다.</div>';
+  return rows.map(function(r){var a=r.classified?r.annotation:null;return '<div class="q4-row"><span class="q4-caption">'+esc(r.date.slice(5))+'<br>'+esc(r.week)+'</span><div class="q4-row-main"><strong>'+esc(r.hospital_name)+'</strong><span class="q4-caption">'+esc(r.owner_name||'담당 미지정')+' · '+(a?(a.product==='CUREJET'?'큐어젯':'노보젯')+' · '+q4Kinds[a.kind]+' · '+q4Channels[a.channel]:(r.type==='contract'?'계약':'데모')+' · '+(r.stale?'원천 변경 · 재확인':'분류 대기'))+'</span>'+(a&&a.next_action?'<div class="q4-caption">다음: '+esc(a.next_action)+' · '+esc(a.next_on||'')+'</div>':'')+'</div><button class="btn ghost" data-key="'+esc(r.key)+'" onclick="q4Open(this.dataset.key)">'+(r.editable?'확인·수정':'근거 보기')+'</button></div>';}).join('');
+}
+function renderPerformance(){
+  var d=Q4.data;if(!d)return;var m=d.summary,body=document.getElementById('q4Body');
+  document.getElementById('q4AsOf').textContent=d.asOf+'까지 DB 기록 · '+(d.scope==='team'?'팀 전체':'본인 실적·기여');
+  document.querySelectorAll('[data-q4-tab]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.q4Tab===Q4.tab));if(b.dataset.q4Tab==='team')b.textContent=d.scope==='team'?'팀 현황':'내 현황';});
+  var h='';
+  if(Q4.tab==='team'){
+    h='<div class="q4-grid">'+q4Metric('큐어젯 계약',m.contract,'contract','대','제품 확인된 계약 · 대수 기준')+q4Metric('데모 전체',m.demo,'demo','건','신규 '+m.new+' · 재데모 '+m.repeat)+q4Metric('N-Care 추천',m.referral,'referral','건','신규 데모에 포함 · 중복 합산 없음')+'</div>';
+    h+='<div class="q4-notice">'+(m.pending?'분류 대기 '+m.pending+'건 · 계약 '+m.pendingContract+' / 데모 '+m.pendingDemo+' — 확인 완료분만 위 실적에 집계됩니다.':'현재 조회된 원천의 분류가 완료되었습니다. 입력 누락 여부는 주간 점검에서 확인하세요.')+' '+q4Button('근거 확인',"q4Filter('pending')")+'</div>';
+    h+='<section class="card q4-section"><h3>담당자별 목표와 실적 <span class="q4-caption">개인 목표는 배분안</span></h3><div class="q4-grid q4-persons">'+d.people.filter(function(p){return q4Target(p.name,'contract')!==null||q4Target(p.name,'demo')!==null;}).map(function(p){return '<button class="q4-person" data-person="'+esc(p.name)+'" onclick="q4ChoosePerson(this.dataset.person)"><b>'+esc(p.name)+' ›</b><span>계약 '+p.contract+' / '+q4GoalText(p.name,'contract','대')+'</span><span>데모 '+p.demo+' / '+q4GoalText(p.name,'demo','건')+'</span><span class="q4-caption">미분류 '+p.pending+'건</span></button>';}).join('')+'</div></section>';
+    h+='<section class="card"><h3>주간 관리 흐름</h3><div class="q4-rule"><span>월 · 담당자</span><span>실적 근거와 다음 행동·기한 업데이트</span></div><div class="q4-rule"><span>화 · 팀장</span><span>미달 원인·재공략·지원 필요 사항 점검 '+q4Button('실패관리',"show('demofail')")+'</span></div><div class="q4-rule"><span>월 마감</span><span>기간별 실적·분류 대기·다음 행동 확인 후 보고</span></div></section>';
+  }else if(Q4.tab==='role'){
+    h='<div class="q4-pills">'+[['sales','장비영업'],['education','교육 · N-Care'],['lead','총괄 · 지원']].map(function(x){return '<button class="btn ghost" aria-pressed="'+(Q4.role===x[0])+'" onclick="Q4.role=\''+x[0]+'\';renderPerformance()">'+x[1]+'</button>';}).join('')+'</div>';
+    if(Q4.role==='sales'){
+      var choices=d.people.filter(function(p){return q4Target(p.name,'demo')!==null||p.demo||p.contract||p.pending;});
+      if(!choices.some(function(p){return p.name===Q4.person;}))Q4.person=choices.length?choices[0].name:d.me.name;
+      h+='<div class="q4-pills">'+choices.map(function(p){return '<button class="btn ghost" aria-pressed="'+(Q4.person===p.name)+'" data-name="'+esc(p.name)+'" onclick="q4ChoosePerson(this.dataset.name)">'+esc(p.name)+'</button>';}).join('')+'</div><section class="card"><h3>'+esc(Q4.person)+' · 실적과 다음 행동</h3>'+q4Rows(d.items.filter(function(r){return r.owner_name===Q4.person;}))+'</section>';
+    }else if(Q4.role==='education'){
+      h+='<div class="q4-roles">'+d.people.filter(function(p){return /교육/.test(p.team)||['손지윤','유비야','김민주','한송이'].indexOf(p.name)>=0;}).map(function(p){return '<section class="card"><h3>'+esc(p.name)+'</h3><div>추천 데모 '+p.referralCredit+' / '+q4GoalText(p.name,'referral','건')+'</div><p class="q4-caption">N-Care 방문기록 '+p.visits+'회 · 지원 '+p.support+'건<br>방문 횟수는 관리 병원 커버리지와 다릅니다.</p></section>';}).join('')+'</div><p class="gnote">추천 기여는 제품·신규 데모·추천 담당자가 확인된 기록만 집계합니다. 미분류 기록은 0으로 확정하지 않습니다.</p>';
+      h+='<section class="card"><h3>추천·지원 근거</h3>'+q4Rows(d.items.filter(function(r){return r.classified&&(r.annotation.referral_rep_id||(r.annotation.support_rep_ids||[]).length);}))+'</section>';
+    }else h+='<section class="card"><h3>운영 책임</h3><div class="q4-rule"><span>천상훈</span><span>영업 실행 총괄 · 미달 원인·후속 조치 점검</span></div><div class="q4-rule"><span>유영환</span><span>운영 설계 · 조건·예산·예외 판단</span></div><div class="q4-rule"><span>마케팅</span><span>유입→데모 근거 확인 · 실행 담당 지정 필요</span></div><div class="q4-rule"><span>노보젯</span><span>큐어젯 실적과 분리 · 담당 지정 필요<br>파트너 분기 10처·메디스트림 월 2건은 제안 목표</span></div></section>';
+  }else if(Q4.tab==='evidence'){
+    var filters={all:'전체',contract:'계약',demo:'데모',referral:'N-Care 추천',pending:'분류 대기',novo:'노보젯'};
+    h='<p class="gnote">방문기록에서 실적을 함께 저장합니다. 과거 기록은 여기서 보완할 수 있습니다. '+q4Button('방문 기록 작성',"q4NewVisit()")+'</p><div class="q4-pills">'+Object.keys(filters).map(function(f){return '<button class="btn ghost" aria-pressed="'+(Q4.filter===f)+'" onclick="q4Filter(\''+f+'\')">'+filters[f]+'</button>';}).join('')+'</div>';
+    var weeks=Array.from(new Set(d.items.map(function(r){return r.week;}))).sort();
+    h+='<label class="q4-caption" for="q4Week">ISO 주차</label><select id="q4Week" onchange="Q4.week=this.value;renderPerformance()"><option value="">전체 주차</option>'+weeks.map(function(w){return '<option'+(w===Q4.week?' selected':'')+'>'+w+'</option>';}).join('')+'</select>';
+    var rows=d.items.filter(function(r){var a=r.classified?r.annotation:null;return (!Q4.week||r.week===Q4.week)&&(Q4.filter==='all'||Q4.filter==='pending'&&!a||Q4.filter==='contract'&&r.type==='contract'||Q4.filter==='demo'&&r.type==='demo'||Q4.filter==='referral'&&a&&a.channel==='referral'||Q4.filter==='novo'&&a&&a.product==='NOVOJET');});
+    h+='<section class="card q4-section"><h3>집계 근거 · '+rows.length+'건</h3>'+q4Rows(rows)+'</section>';
+  }else{
+    h='<section class="card"><h3>목표 기준 · v7 유지</h3><div class="q4-rule"><span>큐어젯 계약</span><b>월 30대 · 분기 90대</b></div><div class="q4-rule"><span>데모 전체</span><span><b>월 90건 = 신규 80 + 재데모 10</b><br>분기 270건 = 신규 240 + 재데모 30</span></div><div class="q4-rule"><span>N-Care 추천</span><span>분기 30건 · 신규 데모에 포함</span></div><div class="q4-rule"><span>개인 목표</span><span>v7 배분안으로 구분 · 월별·분기별 합계 대사</span></div></section><section class="card"><h3>입력·집계 기준</h3><div class="q4-rule"><span>원천 연결</span><span>기존 방문·리드 기록을 사용 · 병원코드 필수</span></div><div class="q4-rule"><span>책임·기여</span><span>실적 책임자는 원천 담당자 · 추천·지원은 별도 기여</span></div><div class="q4-rule"><span>신규·재데모</span><span>병원·제품 최초 데모 확인 · 재데모는 이전 데모 근거와 재시도 사유 필수 · 후속 방문 제외</span></div><div class="q4-rule"><span>제품·채널</span><span>큐어젯·노보젯 분리 · 재데모와 유입 채널 별도</span></div><div class="q4-rule"><span>기간·정정</span><span>실제 실시일로 월·ISO 주차 집계 · 원천 변경 시 재확인 · 변경 이력 보존</span></div><div class="q4-rule"><span>기존 현황</span><span>기존 월 데모처는 병원 수, 이 화면의 데모는 확인된 실시 건수입니다. 계약 원천 판정은 기존 공통 집계를 사용합니다.</span></div></section>';
+  }
+  body.innerHTML=h;
+}
+function q4Record(){Q4.tab='evidence';Q4.filter='pending';renderPerformance();toast('기존 데모 기록에서 [확인·수정]을 누르세요. 새 활동은 [기록]에서 실적까지 한 번에 저장합니다.');}
+function q4NewVisit(){
+  if(EDITKEY){toast('수정 중인 방문기록을 저장하거나 취소한 뒤 새 기록을 작성하세요.',true);show('log');return;}
+  show('log');
+}
+function q4Close(){if(Q4.saving)return;Q4.detailGeneration++;document.getElementById('q4Modal').style.display='none';Q4.current=null;Q4.pending=null;}
+function q4Open(key){
+  var d=Q4.data,r=d&&d.items.filter(function(r){return r.key===key;})[0];if(!r)return;
+  Q4.current=r;Q4.pending=null;var a=r.annotation||{},readonly=!r.editable;
+  var option=function(values,selected){return Object.keys(values).map(function(k){return '<option value="'+k+'"'+(k===selected?' selected':'')+'>'+esc(values[k])+'</option>';}).join('');};
+  var repOptions='<option value="">선택 안 함</option>'+d.reps.map(function(p){return '<option value="'+p.id+'"'+(Number(a.referral_rep_id)===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');
+  var h='<div class="q4-editor-head"><h3>'+esc(r.hospital_name)+'</h3>'+q4Button('닫기','q4Close()')+'</div><p class="q4-caption">'+esc(r.date)+' · '+esc(r.owner_name||'미배정')+' · '+esc(r.account_code||'병원코드 미연결')+'<br>원천 '+esc(r.key)+' · '+esc(r.note||'내용 없음')+'</p>';
+  h+='<form id="q4Form" onsubmit="event.preventDefault();q4Save()"><fieldset style="border:0;padding:0;margin:0"'+(readonly?' disabled':'')+'><div class="q4-form-grid">';
+  h+='<label>제품<select id="q4Product" required><option value="">제품 확인</option>'+option({CUREJET:'큐어젯',NOVOJET:'노보젯'},a.product)+'</select></label>';
+  h+='<label>실적 구분<select id="q4Kind" required><option value="">구분 확인</option>'+option(r.type==='contract'?{contract:'계약'}:{new:'신규 데모',repeat:'재데모',followup:'후속 방문 · 집계 제외'},a.kind)+'</select></label>';
+  h+='<label>유입 채널<select id="q4Channel">'+option(q4Channels,a.channel||'unknown')+'</select></label><label>추천 담당자<select id="q4Referral">'+repOptions+'</select></label>';
+  h+='<div class="q4-wide"><span class="q4-caption">지원 담당자</span><div class="q4-support">'+d.reps.filter(function(p){return p.id!==r.owner_id;}).map(function(p){return '<label><input type="checkbox" name="q4Support" value="'+p.id+'"'+((a.support_rep_ids||[]).map(Number).indexOf(p.id)>=0?' checked':'')+'>'+esc(p.name)+'</label>';}).join('')+'</div></div>';
+  h+='<label class="q4-wide">실적 근거<textarea id="q4Evidence" required maxlength="2000">'+esc(a.evidence||'')+'</textarea></label><label class="q4-wide">재시도 사유 <span class="q4-caption">재데모일 때 필수</span><textarea id="q4Retry" maxlength="1000">'+esc(a.retry_reason||'')+'</textarea></label><label>다음 행동<textarea id="q4Next" maxlength="1000">'+esc(a.next_action||'')+'</textarea></label><label>실행 기한<input type="date" id="q4NextOn" value="'+esc(a.next_on||'')+'"></label></div></fieldset><div id="q4Error" role="alert"></div><div class="q4-actions"><span class="q4-caption">원천 담당자·관리자만 수정</span>'+(!readonly?'<button type="submit" id="q4SaveButton" class="btn pri">저장</button>':'')+'</div></form><details><summary class="q4-caption">변경 이력</summary><div id="q4History" class="q4-caption">불러오는 중…</div></details>';
+  document.getElementById('q4Editor').innerHTML=h;document.getElementById('q4Modal').style.display='flex';
+  var generation=++Q4.detailGeneration,token=TOKEN;
+  q4Call({action:'detail',period:q4Period(),sourceKey:key}).then(function(v){if(generation!==Q4.detailGeneration||token!==TOKEN)return;document.getElementById('q4History').textContent=v.history.map(function(x){return String(x.at).slice(0,19).replace('T',' ')+' · '+((d.reps.filter(function(p){return p.id===Number(x.actor_id);})[0]||{}).name||'담당자')+' · 버전 '+x.after_data.version;}).join('\n')||'변경 이력이 없습니다.';}).catch(function(){if(generation===Q4.detailGeneration)document.getElementById('q4History').textContent='이력을 불러오지 못했습니다.';});
+}
+async function q4Save(){
+  if(Q4.saving||!Q4.current)return;var form=document.getElementById('q4Form');if(!form.reportValidity())return;
+  var r=Q4.current,value=function(id){return document.getElementById(id).value;};
+  var body={action:'save',sourceKey:r.key,sourceSignature:r.sourceSignature,expectedVersion:r.annotation?Number(r.annotation.version):0,product:value('q4Product'),kind:value('q4Kind'),channel:value('q4Channel'),referralRepId:Number(value('q4Referral'))||null,supportRepIds:Array.from(form.querySelectorAll('[name=q4Support]:checked')).map(function(x){return Number(x.value);}),evidence:value('q4Evidence'),retryReason:value('q4Retry'),nextAction:value('q4Next'),nextOn:value('q4NextOn')};
+  var fingerprint=JSON.stringify(body);if(!Q4.pending||Q4.pending.fingerprint!==fingerprint)Q4.pending={fingerprint:fingerprint,id:crypto.randomUUID()};body.requestId=Q4.pending.id;
+  Q4.saving=true;document.getElementById('q4SaveButton').disabled=true;document.getElementById('q4Error').textContent='';var token=TOKEN;
+  try{await q4Call(body);Q4.saving=false;if(token!==TOKEN)return;q4Close();toast('실적 근거와 다음 행동을 저장했습니다.');await loadPerformance();}
+  catch(e){Q4.saving=false;if(token!==TOKEN)return;document.getElementById('q4SaveButton').disabled=false;document.getElementById('q4Error').textContent=e.message||'저장하지 못했습니다. 입력을 보존했습니다. 다시 시도하세요.';}
+}
+
+/* 방문 한 번 저장: 분기 분류 입력도 같은 요청으로 보낸다. */
+var Q4V={no:null,loaded:false,loading:false,error:'',reps:[],snapshot:null,pending:null,generation:0};
+function q4VisitValue(){
+  var v=function(id){return document.getElementById(id).value;};
+  return {product:v('fProduct'),kind:v('fDemoKind'),channel:v('fSourceChannel'),referralRepId:Number(v('fReferral'))||null,retryReason:v('fRetryReason')};
+}
+function q4VisitFill(p){
+  p=p||{};document.getElementById('fProduct').value=p.product||'';
+  document.getElementById('fDemoKind').value=p.kind||'';
+  document.getElementById('fSourceChannel').value=p.channel||'unknown';
+  Q4V.restoreReferral=p.referralRepId||p.referral_rep_id||'';document.getElementById('fReferral').value=Q4V.restoreReferral;
+  document.getElementById('fRetryReason').value=p.retryReason||p.retry_reason||'';
+}
+function q4VisitReset(){
+  Q4V.generation++;Q4V.no=null;Q4V.loaded=false;Q4V.loading=false;Q4V.error='';Q4V.snapshot=null;Q4V.pending=null;
+  q4VisitFill();q4VisitToggle();
+}
+function q4VisitEligible(){
+  var day=document.getElementById('fDate').value;
+  return q4Allowed()&&selFCat==='장비 판매'&&day>='2026-10-01'&&day<'2027-01-01'&&(['데모','방문/데모'].indexOf(selType)>=0||document.getElementById('fStage').value==='계약');
+}
+function q4VisitToggle(){
+  var box=document.getElementById('fPerformance');if(!box)return;
+  box.style.display=q4VisitEligible()?'block':'none';
+  document.getElementById('fDemoKindWrap').style.display=['데모','방문/데모'].indexOf(selType)>=0?'block':'none';
+  document.getElementById('fRetryWrap').style.display=document.getElementById('fDemoKind').value==='repeat'?'block':'none';
+  document.getElementById('fReferralWrap').style.display=document.getElementById('fSourceChannel').value==='referral'?'block':'none';
+  document.getElementById('fPerformanceStatus').textContent=Q4V.loading?'추천 담당자와 기존 분류를 불러오는 중…':Q4V.error;
+}
+function q4VisitChanged(){q4VisitToggle();임시저장_();}
+async function q4VisitLoad(force){
+  q4VisitToggle();if(!q4Allowed())return;
+  var l=EDITKEY?열쇠찾기_((MINE||{}).logs,EDITKEY):null,no=l?Number(l.no):0;
+  if(!force&&Q4V.no===no&&(Q4V.loaded||Q4V.loading))return;
+  var generation=++Q4V.generation,token=TOKEN;Q4V.no=no;Q4V.loading=true;Q4V.loaded=false;Q4V.error='';q4VisitToggle();
+  try{
+    var r=await 관문호출_('/saleson-visit-act',JSON.stringify({토큰:TOKEN,동작:'분류조회',no:no}));
+    if(generation!==Q4V.generation||token!==TOKEN)return;
+    var selected=document.getElementById('fReferral').value||Q4V.restoreReferral||'';
+    Q4V.reps=r.reps;Q4V.snapshot=r.snapshot;
+    document.getElementById('fReferral').innerHTML='<option value="">추천 담당자 선택</option>'+r.reps.map(function(p){return '<option value="'+Number(p.id)+'">'+esc(p.name)+'</option>';}).join('');
+    document.getElementById('fReferral').value=selected;
+    if(no)q4VisitFill(r.annotation);
+    Q4V.loaded=true;
+  }catch(e){if(generation===Q4V.generation)Q4V.error='분류 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 주세요.';}
+  finally{if(generation===Q4V.generation){Q4V.loading=false;q4VisitToggle();}}
+}
+function q4VisitAttach(f){
+  if(!q4VisitEligible()&&!EDITKEY)return true;
+  if(!q4Allowed())return true;
+  if(!q4VisitEligible()&&!Q4V.loaded)return true;
+  if(!Q4V.loaded){검증실패_('분류 정보를 불러온 후 저장해 주세요. 다시 불러오기를 눌러 주세요.','fPerformanceStatus');return false;}
+  var p=q4VisitValue();
+  if(q4VisitEligible()){
+    if(!p.product){검증실패_('제품을 선택해 주세요.','fProduct');return false;}
+    if(['데모','방문/데모'].indexOf(f.type)>=0&&!p.kind){검증실패_('신규 데모 또는 재데모를 선택해 주세요.','fDemoKind');return false;}
+    if(p.kind==='repeat'&&!p.retryReason.trim()){검증실패_('이번 재데모의 재시도 사유를 입력해 주세요.','fRetryReason');return false;}
+    if(p.channel==='referral'&&!p.referralRepId){검증실패_('추천 담당자를 선택해 주세요.','fReferral');return false;}
+    if(!!f.fu.trim()!==!!f.next){검증실패_('후속 조치가 있으면 Follow-up 사항과 다음 방문 예정일을 함께 입력해 주세요.','fFu');return false;}
+  }
+  if(p.channel!=='referral')p.referralRepId=null;
+  p.snapshot=Q4V.snapshot;
+  var fingerprint=JSON.stringify([EDITKEY,f,p]);
+  if(!Q4V.pending||Q4V.pending.fingerprint!==fingerprint)Q4V.pending={fingerprint:fingerprint,id:crypto.randomUUID()};
+  p.requestId=Q4V.pending.id;f.performance=p;임시저장_();return true;
+}
+
+/* Q4-JS-END */
 // 데모 실패관리: 서버가 권한·전이·집계를 판정한다. GAS 쓰기 폴백 없음.
 var DF = { rows:[], cursor:null, satisfaction:'', generation:0, detailGeneration:0, current:null, data:null, pending:null, dirty:false, saving:false };
 function demoFailureFromLead(row) { var l=DATA.leads.filter(function(x){return x.k===row;})[0];if(l){document.getElementById('dfQuery').value=l.hname;show('demofail');} }
