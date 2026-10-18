@@ -1456,7 +1456,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610181400-489f4a1';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610182147-c1601d0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -5557,30 +5557,60 @@ function q4NewVisit(){
   show('log');
 }
 function q4Close(){if(Q4.saving||Q4GE.saving)return;Q4GE.generation++;Q4GE.current=null;Q4GE.pending=null;Q4.detailGeneration++;document.getElementById('q4Modal').style.display='none';Q4.current=null;Q4.pending=null;}
+function q4LinkChoices(){
+  var select=document.getElementById('q4Account'),search=document.getElementById('q4AccountSearch');if(!select||!Q4.linkAccounts)return;
+  var current=select.value||Q4.current.account_code||'',query=search.value.trim().toLowerCase();
+  var filtered=Q4.linkAccounts.filter(function(a){return (a.name+' '+a.code).toLowerCase().indexOf(query)>=0;});
+  var rows=filtered.slice(0,50),selected=Q4.linkAccounts.filter(function(a){return a.code===current;})[0];
+  if(selected&&!rows.some(function(a){return a.code===current;}))rows.unshift(selected);
+  select.innerHTML='<option value="">병원 선택</option>'+rows.map(function(a){return '<option value="'+esc(a.code)+'"'+(a.code===current?' selected':'')+'>'+esc(a.name)+' · '+esc(a.code)+'</option>';}).join('');
+  document.getElementById('q4AccountHint').textContent=filtered.length?'검색 결과 '+filtered.length+'곳'+(filtered.length>50?' · 50곳 표시, 검색어를 좁혀 주세요.':' · 아래에서 병원을 선택하세요.'):'검색 결과가 없습니다. 기존 병원명을 다시 검색하거나 병원 등록 후 다시 열어 주세요.';
+}
+function q4LinkReady(){
+  if(!Q4.current||!Q4.current.editable)return;
+  var account=document.getElementById('q4Account').value,owner=Number(document.getElementById('q4Owner').value),missing=[];
+  if(!account)missing.push('연결할 병원을 선택하세요.');if(!owner)missing.push('실적 담당자를 선택하세요.');
+  document.getElementById('q4LinkStatus').textContent=missing.join(' ')||(Q4.linkLoaded?'저장하면 선택한 병원·담당자를 원천 기록과 실적에 함께 반영합니다.':'연결 정보를 불러오는 중…');
+}
 function q4Open(key){
   document.getElementById('q4Modal').setAttribute('aria-label','실적 근거와 다음 행동');
   var d=Q4.data,r=d&&d.items.filter(function(r){return r.key===key;})[0];if(!r)return;
-  Q4.current=r;Q4.pending=null;var a=r.annotation||{},readonly=!r.editable;
+  Q4.current=r;Q4.pending=null;Q4.linkLoaded=false;Q4.linkAccounts=null;var a=r.annotation||{},readonly=!r.editable;
   var option=function(values,selected){return Object.keys(values).map(function(k){return '<option value="'+k+'"'+(k===selected?' selected':'')+'>'+esc(values[k])+'</option>';}).join('');};
   var repOptions='<option value="">선택 안 함</option>'+d.reps.map(function(p){return '<option value="'+p.id+'"'+(Number(a.referral_rep_id)===p.id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('');
   var h='<div class="q4-editor-head"><h3>'+esc(r.hospital_name)+'</h3>'+q4Button('닫기','q4Close()')+'</div><p class="q4-caption">'+esc(r.date)+' · '+esc(r.owner_name||'미배정')+' · '+esc(r.account_code||'병원코드 미연결')+'<br>원천 '+esc(r.key)+' · '+esc(r.note||'내용 없음')+'</p>';
   h+='<form id="q4Form" onsubmit="event.preventDefault();q4Save()"><fieldset style="border:0;padding:0;margin:0"'+(readonly?' disabled':'')+'><div class="q4-form-grid">';
+  var issues=(r.link&&r.link.issues)||[];
+  h+='<div class="q4-wide" style="padding:14px;border:1px solid var(--line,#dbe2ec);border-radius:12px;background:#f7f9fc"><strong>병원·실적 담당자 연결</strong><div id="q4LinkIssues" role="status" style="margin-top:8px;color:#b45309">'+issues.map(function(x){return '<div>'+esc(x)+'</div>';}).join('')+'</div><p class="q4-caption">현재 병원: '+esc(r.link&&r.link.accountName||r.hospital_name||'미입력')+' · '+esc(r.account_code||'코드 미연결')+'<br>현재 실적 담당자: '+esc(r.owner_name||'미배정')+'</p>';
+  if(!readonly){
+    h+='<label>병원 검색<input id="q4AccountSearch" type="text" inputmode="search" placeholder="병원명 또는 코드 검색" oninput="q4LinkChoices()"></label><div id="q4AccountHint" class="q4-caption">병원 목록을 불러오는 중…</div><label>연결할 병원<select id="q4Account" required onchange="q4LinkReady()"><option value="">병원 선택</option></select></label>';
+    h+='<label>실적 담당자<select id="q4Owner" required onchange="q4LinkReady()"'+(!d.me.admin?' disabled':'')+'><option value="">담당자 선택</option>'+d.reps.filter(function(p){return d.me.admin||p.id===r.owner_id;}).map(function(p){return '<option value="'+p.id+'"'+(p.id===r.owner_id?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select></label><p id="q4LinkStatus" class="q4-caption" aria-live="polite">연결 정보를 불러오는 중…</p>';
+    if(!d.me.admin)h+='<p class="q4-caption">실적 담당자 변경·미배정은 관리자가 설정합니다.</p>';
+    h+='<p class="q4-caption">병원·담당자를 변경하면 이 방문 또는 리드의 원본도 변경됩니다. 같은 원본에 연결된 다른 실적은 재확인이 필요할 수 있습니다.</p>';
+  }
+  h+='</div>';
   h+='<label>제품<select id="q4Product" required><option value="">제품 확인</option>'+option({CUREJET:'큐어젯',NOVOJET:'노보젯'},a.product)+'</select></label>';
   h+='<label>실적 구분<select id="q4Kind" required><option value="">구분 확인</option>'+option(r.type==='contract'?{contract:'계약'}:{new:'신규 데모',repeat:'재데모',followup:'후속 방문 · 집계 제외'},a.kind)+'</select></label>';
   h+='<label>유입 채널<select id="q4Channel">'+option(q4Channels,a.channel||'unknown')+'</select></label><label>추천 담당자<select id="q4Referral">'+repOptions+'</select></label>';
   h+='<div class="q4-wide"><span class="q4-caption">지원 담당자</span><div class="q4-support">'+d.reps.filter(function(p){return p.id!==r.owner_id;}).map(function(p){return '<label><input type="checkbox" name="q4Support" value="'+p.id+'"'+((a.support_rep_ids||[]).map(Number).indexOf(p.id)>=0?' checked':'')+'>'+esc(p.name)+'</label>';}).join('')+'</div></div>';
-  h+='<label class="q4-wide">실적 근거<textarea id="q4Evidence" required maxlength="2000">'+esc(a.evidence||'')+'</textarea></label><label class="q4-wide">재시도 사유 <span class="q4-caption">재데모일 때 필수</span><textarea id="q4Retry" maxlength="1000">'+esc(a.retry_reason||'')+'</textarea></label><label>다음 행동<textarea id="q4Next" maxlength="1000">'+esc(a.next_action||'')+'</textarea></label><label>실행 기한<input type="date" id="q4NextOn" value="'+esc(a.next_on||'')+'"></label></div></fieldset><div id="q4Error" role="alert"></div><div class="q4-actions"><span class="q4-caption">원천 담당자·관리자만 수정</span>'+(!readonly?'<button type="submit" id="q4SaveButton" class="btn pri">저장</button>':'')+'</div></form><details><summary class="q4-caption">변경 이력</summary><div id="q4History" class="q4-caption">불러오는 중…</div></details>';
+  h+='<label class="q4-wide">실적 근거<textarea id="q4Evidence" required maxlength="2000">'+esc(a.evidence||'')+'</textarea></label><label class="q4-wide">재시도 사유 <span class="q4-caption">재데모일 때 필수</span><textarea id="q4Retry" maxlength="1000">'+esc(a.retry_reason||'')+'</textarea></label><label>다음 행동<textarea id="q4Next" maxlength="1000">'+esc(a.next_action||'')+'</textarea></label><label>실행 기한<input type="date" id="q4NextOn" value="'+esc(a.next_on||'')+'"></label></div></fieldset><div id="q4Error" role="alert"></div><div class="q4-actions"><span class="q4-caption">원천 담당자·관리자만 수정</span>'+(!readonly?'<button type="submit" id="q4SaveButton" class="btn pri" disabled>저장</button>':'')+'</div></form><details><summary class="q4-caption">변경 이력</summary><div id="q4History" class="q4-caption">불러오는 중…</div></details>';
   document.getElementById('q4Editor').innerHTML=h;document.getElementById('q4Modal').style.display='flex';
   var generation=++Q4.detailGeneration,token=TOKEN;
-  q4Call({action:'detail',period:q4Period(),sourceKey:key}).then(function(v){if(generation!==Q4.detailGeneration||token!==TOKEN)return;document.getElementById('q4History').textContent=v.history.map(function(x){return String(x.at).slice(0,19).replace('T',' ')+' · '+((d.reps.filter(function(p){return p.id===Number(x.actor_id);})[0]||{}).name||'담당자')+' · 버전 '+x.after_data.version;}).join('\n')||'변경 이력이 없습니다.';}).catch(function(){if(generation===Q4.detailGeneration)document.getElementById('q4History').textContent='이력을 불러오지 못했습니다.';});
+  q4Call({action:'detail',period:q4Period(),sourceKey:key}).then(function(v){
+    if(generation!==Q4.detailGeneration||token!==TOKEN)return;
+    document.getElementById('q4History').textContent=v.history.map(function(x){var link=x.after_data.source_link,before=x.before_data&&x.before_data.source_link;return String(x.at).slice(0,19).replace('T',' ')+' · '+((d.reps.filter(function(p){return p.id===Number(x.actor_id);})[0]||{}).name||'담당자')+' · 버전 '+x.after_data.version+(link?' · 병원 '+(before.account_code||'미연결')+' → '+link.hospital_name+' ('+link.account_code+') · 담당자 '+(before.owner_name||'미배정')+' → '+link.owner_name:'');}).join('\n')||'변경 이력이 없습니다.';
+    if(readonly)return;
+    if(v.item.sourceSignature!==r.sourceSignature||Number(v.item.annotation&&v.item.annotation.version||0)!==Number(r.annotation&&r.annotation.version||0))throw new Error('원천 또는 분류가 변경되었습니다. 닫은 뒤 목록을 새로고침해 주세요.');
+    Q4.linkAccounts=v.accounts||[];Q4.linkLoaded=true;q4LinkChoices();q4LinkReady();document.getElementById('q4SaveButton').disabled=false;
+  }).catch(function(e){if(generation!==Q4.detailGeneration||token!==TOKEN)return;document.getElementById('q4History').textContent='연결 정보·이력을 불러오지 못했습니다.';document.getElementById('q4Error').textContent=(e.message||'연결 정보를 불러오지 못했습니다.')+' 닫은 뒤 다시 열어 주세요.';});
 }
 async function q4Save(){
-  if(Q4.saving||!Q4.current)return;var form=document.getElementById('q4Form');if(!form.reportValidity())return;
+  if(Q4.saving||!Q4.current||!Q4.linkLoaded)return;var form=document.getElementById('q4Form');if(!form.reportValidity())return;
   var r=Q4.current,value=function(id){return document.getElementById(id).value;};
-  var body={action:'save',sourceKey:r.key,sourceSignature:r.sourceSignature,expectedVersion:r.annotation?Number(r.annotation.version):0,product:value('q4Product'),kind:value('q4Kind'),channel:value('q4Channel'),referralRepId:Number(value('q4Referral'))||null,supportRepIds:Array.from(form.querySelectorAll('[name=q4Support]:checked')).map(function(x){return Number(x.value);}),evidence:value('q4Evidence'),retryReason:value('q4Retry'),nextAction:value('q4Next'),nextOn:value('q4NextOn')};
+  var body={action:'save',sourceKey:r.key,sourceLink:{accountCode:value('q4Account'),ownerRepId:Number(value('q4Owner'))},sourceSignature:r.sourceSignature,expectedVersion:r.annotation?Number(r.annotation.version):0,product:value('q4Product'),kind:value('q4Kind'),channel:value('q4Channel'),referralRepId:Number(value('q4Referral'))||null,supportRepIds:Array.from(form.querySelectorAll('[name=q4Support]:checked')).map(function(x){return Number(x.value);}),evidence:value('q4Evidence'),retryReason:value('q4Retry'),nextAction:value('q4Next'),nextOn:value('q4NextOn')};
   var fingerprint=JSON.stringify(body);if(!Q4.pending||Q4.pending.fingerprint!==fingerprint)Q4.pending={fingerprint:fingerprint,id:crypto.randomUUID()};body.requestId=Q4.pending.id;
   Q4.saving=true;document.getElementById('q4SaveButton').disabled=true;document.getElementById('q4Error').textContent='';var token=TOKEN;
-  try{await q4Call(body);Q4.saving=false;if(token!==TOKEN)return;q4Close();toast('실적 근거와 다음 행동을 저장했습니다.');await loadPerformance();}
+  try{await q4Call(body);Q4.saving=false;if(token!==TOKEN)return;var relinked=body.sourceLink.accountCode!==r.account_code||body.sourceLink.ownerRepId!==r.owner_id;if(relinked){DASH=null;FLOW=null;KPIT=null;NCARE=null;MINE=null;쓴적_=true;if(DATA.dbSrc)홈받기_();}q4Close();toast(relinked?'병원·담당자 연결과 실적을 함께 저장했습니다.':'실적 근거와 다음 행동을 저장했습니다.');await loadPerformance();}
   catch(e){Q4.saving=false;if(token!==TOKEN)return;document.getElementById('q4SaveButton').disabled=false;document.getElementById('q4Error').textContent=e.message||'저장하지 못했습니다. 입력을 보존했습니다. 다시 시도하세요.';}
 }
 
