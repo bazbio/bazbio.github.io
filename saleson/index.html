@@ -1138,7 +1138,7 @@ var MINEQ = '';         // 내 입력 검색어 (8/13)
 var EDITKEY = '';       // 빈 값이면 새 기록, 아니면 그 열쇠(열쇠_)의 기록을 수정 중
 var METAQ = null;       // Meta DB 탭 데이터
 var METASEG = '전체';
-var METACAT = 0;        // Meta DB 업종 필터 (0 = 전체, 1~5 = 업종, -1 = 분류 전) — 0036
+var METACAT = 0;        // Meta DB 업종 필터 (0 = 전체, 1~6 = 업종, -1 = 분류 전) — 0036 · 6 한의원은 0040
 var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out') — ADR 0022
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
@@ -1357,7 +1357,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610152333-76b5fea';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610180003-d931c03';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4237,8 +4237,8 @@ function 경과문구_(ms) {
 function metaSeg(s) { METASEG = s; renderMeta(); }
 function metaCat(c) { METACAT = c; renderMeta(); }
 /* 업종 분류(0036) — 서버 `_공유/문의분류.mjs` 업종과 같은 번호다 */
-var 업종이름_ = { 1: '병의원', 2: '치과', 3: '미용', 4: '딜러·대리점', 5: '기타' };
-var 업종색_ = { 1: 'tag-blue', 2: 'tag-green', 3: 'tag-orange', 4: 'tag-orange', 5: 'tag-grey' };
+var 업종이름_ = { 1: '병의원', 2: '치과', 3: '미용', 4: '딜러·대리점', 5: '기타', 6: '한의원' };
+var 업종색_ = { 1: 'tag-blue', 2: 'tag-green', 3: 'tag-orange', 4: 'tag-orange', 5: 'tag-grey', 6: 'tag-green' };
 function 업종태그_(q) {
   if (!q.bizCat) {
     var 포기 = q.bizTries >= ((METAQ && METAQ.bizTryLimit) || 2);
@@ -4300,7 +4300,7 @@ function renderMeta() {
   /* 업종 칩 — 위에서 고른 상태 안에서 센다. 「신규 중 병의원만」이 가장 흔한 쓰임이다 */
   var 업종수 = function(c) { return rows.filter(function(q) { return c === -1 ? !q.bizCat : q.bizCat === c; }).length; };
   var 업종칩 = [[0, '업종 전체', rows.length]];
-  [1, 2, 3, 4, 5].forEach(function(c) { 업종칩.push([c, 업종이름_[c], 업종수(c)]); });
+  [1, 6, 2, 3, 4, 5].forEach(function(c) { 업종칩.push([c, 업종이름_[c], 업종수(c)]); });
   if (업종수(-1)) 업종칩.push([-1, '확인 중', 업종수(-1)]);
   document.getElementById('metaCatSeg').innerHTML = 업종칩.map(function(t) {
     return '<div class="chip' + (METACAT === t[0] ? ' on' : '') + '" onclick="metaCat(' + t[0] + ')">' + t[1] + ' ' + t[2] + '</div>';
