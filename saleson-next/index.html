@@ -535,6 +535,22 @@
 @media(max-width:600px){#view-performance .q4-grid{gap:8px}#view-performance .q4-stat{padding:13px 10px}#view-performance .q4-stat .q4-value{font-size:23px}#view-performance .q4-value small{display:block}#view-performance .q4-persons{grid-template-columns:1fr}#view-performance .q4-tabs{gap:3px}#view-performance .q4-tabs button{padding:10px;font-size:12px}#view-performance .q4-row{flex-wrap:wrap;gap:8px}#view-performance .q4-roles{grid-template-columns:1fr}#view-performance .q4-rule{grid-template-columns:85px 1fr;gap:8px}#q4Modal{padding:10px}#q4Modal .q4-form-grid{grid-template-columns:1fr}#q4Modal .q4-wide{grid-column:auto}}
 
 /* Q4-CSS-END */
+/* 월별 목표 대시보드와 업무별 탐색 */
+#homePerformance .q4-caption{font-size:12px;color:#62738a;line-height:1.7}#homePerformance .q4-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid #dfe7f2}#homePerformance .q4-row:last-child{border:0}#homePerformance .q4-row-main{flex:1;min-width:0;overflow-wrap:anywhere}#homePerformance .q4-row-main strong{display:block;font-size:14px;margin-bottom:4px}@media(max-width:600px){#homePerformance .q4-row{flex-wrap:wrap}#homePerformance .q4-row-main{flex-basis:65%}}
+#homeActivity{border-top:1px solid #e1e7ee;padding-top:20px}#homeActivity>summary{cursor:pointer;font-size:15px;font-weight:650;margin-bottom:20px;color:#52647a}#homeActivity>summary span{font-size:12px;font-weight:400;color:#8492a5;margin-left:8px}#monthlyWrap .card{overflow-x:auto}
+.nav-group-label{display:none}
+#view-more .menu-group{margin-bottom:22px}#view-more .menu-group h3{font-size:13px;color:#667588;margin:0 0 9px 6px;letter-spacing:.04em}
+#view-more .mrow{width:100%;text-align:left;border:0;background:transparent;font-family:inherit}#view-more .mrow:hover{background:#f3f6fa}
+@media(min-width:900px){.nav{padding:24px 12px;gap:2px}.nav-group-label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;color:#8592a2;padding:20px 16px 6px}.nav button{font-size:14px;padding:10px 16px;min-height:42px}.nav #nav-home{margin-bottom:2px}.nav #nav-more{display:none}}
+@media(max-width:899px){.nav button{display:none}.nav #nav-home,.nav #nav-performance,.nav #nav-log,.nav #nav-more{display:block}.nav[data-viewer="true"] #nav-dash,.nav[data-viewer="true"] #nav-ncare{display:block}.nav-group-label{display:none!important}}
+#homePerformance{margin:0 0 32px;--qh-blue:#1262d6;--qh-muted:#66758b;font-variant-numeric:tabular-nums}
+.qh-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}.qh-eyebrow{font-size:11px;letter-spacing:.12em;font-weight:750;color:#1262d6;margin-bottom:10px}.qh-heading h2{font-size:clamp(23px,3vw,34px);letter-spacing:-1.1px;margin:0 0 8px;color:#172434}.qh-sub{font-size:13px;color:var(--qh-muted);line-height:1.65}.qh-months{display:flex;gap:4px;padding:5px;border:1px solid #e1e7ee;border-radius:14px;background:#fff}.qh-months button{border:0;background:transparent;color:#677487;border-radius:10px;padding:11px 16px;min-height:42px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}.qh-months button[aria-pressed="true"]{background:#192635;color:white;box-shadow:0 3px 8px #182b4420}
+.qh-heroes{display:grid;grid-template-columns:1fr 1fr;gap:18px}.qh-hero{border:1px solid transparent;border-radius:24px;text-align:left;padding:30px 34px;min-width:0;cursor:pointer;font-family:inherit;transition:transform .18s,box-shadow .18s}.qh-hero:hover{transform:translateY(-3px);box-shadow:0 12px 30px #10264018}.qh-hero:focus-visible,.qh-group:focus-visible,.qh-person:focus-visible{outline:3px solid #4088ee;outline-offset:4px}.qh-hero.demo{background:#202729;color:#fff}.qh-hero.contract{background:#edf3fb;color:#145bc1;border-color:#e4ebf5}.qh-hero[aria-expanded="true"]{box-shadow:0 0 0 3px #6a9ad9}.qh-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:15px;font-weight:650}.qh-arrow{font-size:22px;opacity:.6}.qh-target{display:flex;align-items:baseline;gap:10px;margin:26px 0 22px;font-size:clamp(62px,7vw,112px);font-weight:750;line-height:1.03;letter-spacing:-5px}.qh-target small{font-size:23px;letter-spacing:0;font-weight:600}.qh-target.empty{font-size:38px;letter-spacing:-1px}.qh-rule{border-top:1px solid #ffffff25;padding-top:19px}.contract .qh-rule{border-color:#145bc11c}.qh-actual{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}.qh-actual strong{font-size:30px;letter-spacing:-1px}.qh-actual strong small{font-size:15px;letter-spacing:0;font-weight:500}.qh-rate{font-size:25px;font-weight:700;letter-spacing:-.7px}.qh-track{height:6px;background:#ffffff20;border-radius:8px;overflow:hidden;margin:15px 0 12px}.qh-track span{display:block;height:100%;background:#a7dfc8;border-radius:8px}.contract .qh-track{background:#d5e1f2}.contract .qh-track span{background:#196bdc}.qh-card-foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;opacity:.76;line-height:1.5}
+.qh-notice{margin-top:16px;padding:13px 16px;background:#fff7e9;color:#95601a;border:1px solid #f3e4c7;border-radius:13px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}.qh-notice button{font:inherit;font-weight:700;background:none;border:0;color:inherit;text-decoration:underline;cursor:pointer}.qh-meta{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:13px}.qh-meta button,.qh-crumb button{font:inherit;color:#1762ce;background:none;border:0;padding:0;cursor:pointer}.qh-detail{margin-top:26px;padding:25px;background:#fff;border:1px solid #e1e7ee;border-radius:22px;scroll-margin-top:24px}.qh-detail h3{font-size:20px;margin:0;letter-spacing:-.4px}.qh-detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.qh-crumb{font-size:12px;color:#788699;margin-bottom:15px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.qh-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}.qh-group{border:1px solid #e4eaf2;background:#fafbfd;border-radius:15px;padding:18px;text-align:left;cursor:pointer;font-family:inherit;color:#25354a;min-width:0}.qh-group:hover,.qh-group[aria-pressed="true"]{background:#edf4ff;border-color:#98bbee}.qh-group-title{display:flex;justify-content:space-between;gap:5px;font-size:13px;font-weight:650}.qh-group-count{font-size:27px;font-weight:700;margin:12px 0 7px}.qh-group-count small{font-size:12px;color:#6e7d91;font-weight:500}.qh-mini-track{height:5px;border-radius:6px;background:#e4eaf3;overflow:hidden;margin:10px 0}.qh-mini-track span{display:block;height:100%;background:#2776db;border-radius:6px}.qh-group-foot{font-size:11px;color:#6c7a8f;line-height:1.5}.qh-people{margin-top:24px}.qh-people h4{font-size:16px;margin:0 0 6px}.qh-person{width:100%;display:grid;grid-template-columns:minmax(130px,1.3fr) minmax(100px,1fr) minmax(120px,1fr) 24px;gap:14px;align-items:center;border:0;border-bottom:1px solid #edf0f5;background:transparent;padding:17px 4px;text-align:left;font-family:inherit;cursor:pointer;color:#243449}.qh-person:hover{background:#f6f9fe}.qh-person-name{font-size:14px;font-weight:700}.qh-person-name small{display:block;font-size:11px;font-weight:400;color:#8390a0;margin-top:4px}.qh-person-value{font-size:20px;font-weight:700}.qh-person-value small{font-size:12px;font-weight:400;color:#75849a}.qh-person-rate{font-size:15px;font-weight:700;color:#2269c8}.qh-person-rate small{font-size:11px;color:#77869a;font-weight:400}.qh-person-focus{margin-top:16px;padding:20px;background:#f7faff;border:1px solid #dfe9f7;border-radius:15px}.qh-empty{padding:36px 20px;border:1px dashed #cbd6e4;background:#fff;border-radius:20px;color:#64758a;line-height:1.8}.qh-channel-mix{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.qh-channel-mix span{font-size:12px;background:#f2f5fa;color:#62738b;padding:8px 11px;border-radius:8px}
+@media(max-width:700px){.qh-heroes{gap:12px}.qh-hero{padding:22px 20px;border-radius:19px}.qh-target{font-size:68px;letter-spacing:-3px}.qh-card-top{font-size:13px}.qh-actual strong{font-size:23px}.qh-rate{font-size:20px}.qh-groups{grid-template-columns:1fr 1fr}.qh-person{grid-template-columns:minmax(90px,1fr) minmax(85px,1fr) 75px;gap:9px}.qh-person>span:last-child{display:none}.qh-detail{padding:19px}.qh-heading{gap:14px}.qh-months{width:100%}.qh-months button{flex:1;padding:10px}.qh-heading h2{font-size:25px}}
+@media(max-width:480px){.qh-heroes{grid-template-columns:1fr}.qh-hero{padding:24px}.qh-target{font-size:82px;margin:22px 0}.qh-actual strong{font-size:29px}.qh-groups{gap:8px}.qh-group{padding:14px 12px}.qh-person-value{font-size:18px}.qh-person-rate{font-size:13px}.qh-person-focus{padding:14px}.qh-detail{border-radius:17px;padding:16px}.qh-target.empty{font-size:32px}.qh-person{grid-template-columns:1fr 1fr}.qh-person-rate{grid-column:2}.qh-person-name{grid-row:1/3}}
+@media(prefers-reduced-motion:reduce){.qh-hero{transition:none}.qh-hero:hover{transform:none}}
+
 </style>
 </head>
 <body>
@@ -559,6 +575,8 @@
      '그려졌다 사라지는' 레이아웃 시프트가 기록된다(실측 CLS 0.79). 부팅 전 첫 화면은
      #loading이고, 홈은 boot()가 show('home')으로 켠다. -->
 <div class="view" id="view-home"><div class="wrap">
+  <section id="homePerformance" aria-label="4분기 월별 성과 대시보드" style="display:none"></section>
+  <details id="homeActivity" open><summary>방문 계획·활동 현황 <span>기존 영업 기록 기준</span></summary>
   <div class="home2" id="home2">
     <div class="hcol" id="homeMain">
       <!-- 저장하지 않은 것 알림 (2026-08-16, 감사 화12) — 여태 그 탭에 들어가야만 보였다 -->
@@ -594,6 +612,7 @@
     </div>
     <div class="hcol" id="homeKpi"></div>
   </div>
+  </details>
 </div></div>
 
 <!-- 계획 입력 -->
@@ -1077,70 +1096,32 @@
 
 <!-- 더보기 — 모바일에서 하단 탭 5개에 안 들어간 화면들 (PC는 사이드바에 다 있어 안 쓴다) -->
 <div class="view" id="view-more"><div class="wrap">
-  <div class="kicker"><div class="bar"></div><div class="lbl">전체 메뉴</div></div>
-  <div class="mlist">
-    <div class="mrow" id="more-plan" onclick="show('plan')">
-      <div class="mi" style="background:#1b64da;">계</div>
-      <div class="mb2"><div class="mn">계획</div><div class="ms2">다음 주 방문 계획 등록</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-log" onclick="show('log')">
-      <div class="mi" style="background:#18a5a5;">기</div>
-      <div class="mb2"><div class="mn">기록</div><div class="ms2">방문 결과 입력</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-meta" onclick="show('meta')">
-      <div class="mi" style="background:#1877f2;">M</div>
-      <div class="mb2"><div class="mn">Meta DB</div><div class="ms2">광고 문의 — 빠른 통화 · 승격</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-mine" onclick="show('mine')">
-      <div class="mi" style="background:#058652;">내</div>
-      <div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 고치기</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-performance" style="display:none" onclick="q4OpenGoals()"><div class="mi" style="background:#1b64da;">4Q</div><div class="mb2"><div class="mn">성과관리</div><div class="ms2">직원별 목표 달성 · 4분기 실적 · 다음 행동</div></div><div class="mc">›</div></div>
-    <div class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')">
-      <div class="mi" style="background:#a35f00;">재</div>
-      <div class="mb2"><div class="mn">데모 실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-mat" onclick="show('mat')">
-      <div class="mi" style="background:#a234c7;">자</div>
-      <div class="mb2"><div class="mn">자료</div><div class="ms2">공식 영업 자료실</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-evt" onclick="show('evt')">
-      <div class="mi" style="background:#a35f00;">학</div>
-      <div class="mb2"><div class="mn">학회 / 세미나</div><div class="ms2">행사별 참석자 · 달성</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-flow" onclick="show('flow')">
-      <div class="mi" style="background:#8E7CF8;">흐</div>
-      <div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div>
-      <div class="mc">›</div>
-    </div>
-    <div class="mrow" id="more-guide" onclick="show('guide')">
-      <div class="mi" style="background:#4e5968;">?</div>
-      <div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesON 사용법 · 처음이라면 여기부터</div></div>
-      <div class="mc">›</div>
-    </div>
-  </div>
+<div class="kicker"><div class="bar"></div><div class="lbl">전체 메뉴</div></div>
+<section class="menu-group"><h3>성과·분석</h3><div class="mlist"><button type="button" class="mrow" id="more-performance" style="display:none" onclick="q4OpenGoals()"><div class="mi" style="background:#1b64da">성</div><div class="mb2"><div class="mn">성과관리</div><div class="ms2">직원 목표 · 4분기 달성 현황</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-dash" onclick="show('dash')"><div class="mi" style="background:#1b64da">현</div><div class="mb2"><div class="mn">현황</div><div class="ms2">방문 활동 · 영업 실적</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-flow" onclick="show('flow')"><div class="mi" style="background:#1b64da">흐</div><div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div><div class="mc">›</div></button></div></section>
+<section class="menu-group"><h3>영업활동</h3><div class="mlist"><button type="button" class="mrow" id="more-plan" onclick="show('plan')"><div class="mi" style="background:#188d83">계</div><div class="mb2"><div class="mn">계획</div><div class="ms2">방문 계획 등록</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-log" onclick="show('log')"><div class="mi" style="background:#188d83">기</div><div class="mb2"><div class="mn">기록</div><div class="ms2">방문 결과 · 제품 · 실적 입력</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-mine" onclick="show('mine')"><div class="mi" style="background:#188d83">내</div><div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 수정</div></div><div class="mc">›</div></button></div></section>
+<section class="menu-group"><h3>고객관리</h3><div class="mlist"><button type="button" class="mrow" id="more-meta" onclick="show('meta')"><div class="mi" style="background:#92703d">M</div><div class="mb2"><div class="mn">Meta DB</div><div class="ms2">광고 문의 · 통화 · 리드 전환</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-ncare" onclick="show('ncare')"><div class="mi" style="background:#92703d">N</div><div class="mb2"><div class="mn">N-Care</div><div class="ms2">고객 케어 · 온보딩 · 노즐</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')"><div class="mi" style="background:#92703d">실</div><div class="mb2"><div class="mn">실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div></button></div></section>
+<section class="menu-group"><h3>영업지원</h3><div class="mlist"><button type="button" class="mrow" id="more-mat" onclick="show('mat')"><div class="mi" style="background:#7b61a8">자</div><div class="mb2"><div class="mn">자료</div><div class="ms2">공식 영업 자료실</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-evt" onclick="show('evt')"><div class="mi" style="background:#7b61a8">학</div><div class="mb2"><div class="mn">학회/세미나</div><div class="ms2">행사별 참석자 · 성과</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-guide" onclick="show('guide')"><div class="mi" style="background:#7b61a8">사</div><div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesOn 사용 안내</div></div><div class="mc">›</div></button></div></section>
 </div></div>
 
-<div class="nav">
+<div class="nav" aria-label="주 메뉴">
   <button id="nav-home" class="on" onclick="show('home')">홈</button>
-  <button id="nav-dash" onclick="show('dash')">현황</button>
-  <button id="nav-ncare" onclick="show('ncare')">N-Care</button>
-  <button id="nav-flow" onclick="show('flow')">흐름</button>
-  <button id="nav-plan" onclick="show('plan')">계획</button>
-  <button id="nav-log" onclick="show('log')">기록</button>
-  <button id="nav-performance" style="display:none" onclick="q4OpenGoals()">성과관리</button>
-  <button id="nav-demofail" style="display:none" onclick="show('demofail')">실패관리</button>
-  <button id="nav-meta" onclick="show('meta')">Meta DB</button>
-  <button id="nav-mine" onclick="show('mine')">내 입력</button>
-  <button id="nav-mat" onclick="show('mat')">자료</button>
-  <button id="nav-evt" onclick="show('evt')">학회<span class="pconly">/세미나</span></button>
-  <button id="nav-more" onclick="show('more')">더보기</button>
+<div class="nav-group-label" data-nav-group="0">성과·분석</div>
+<button id="nav-performance" data-nav-category="0" style="display:none" onclick="q4OpenGoals()">성과관리</button>
+<button id="nav-dash" data-nav-category="0" onclick="show('dash')">현황</button>
+<button id="nav-flow" data-nav-category="0" onclick="show('flow')">흐름</button>
+<div class="nav-group-label" data-nav-group="1">영업활동</div>
+<button id="nav-plan" data-nav-category="1" onclick="show('plan')">계획</button>
+<button id="nav-log" data-nav-category="1" onclick="show('log')">기록</button>
+<button id="nav-mine" data-nav-category="1" onclick="show('mine')">내 입력</button>
+<div class="nav-group-label" data-nav-group="2">고객관리</div>
+<button id="nav-meta" data-nav-category="2" onclick="show('meta')">Meta DB</button>
+<button id="nav-ncare" data-nav-category="2" onclick="show('ncare')">N-Care</button>
+<button id="nav-demofail" data-nav-category="2" style="display:none" onclick="show('demofail')">실패관리</button>
+<div class="nav-group-label" data-nav-group="3">영업지원</div>
+<button id="nav-mat" data-nav-category="3" onclick="show('mat')">자료</button>
+<button id="nav-evt" data-nav-category="3" onclick="show('evt')">학회/세미나</button>
+<button id="nav-guide" data-nav-category="3" onclick="show('guide')">사용 가이드</button>
+<button id="nav-more" onclick="show('more')">전체 메뉴</button>
 </div>
 
 <!-- 병원 상세 모달 — 흐름·케어 보드에서 병원 클릭 시 -->
@@ -1456,7 +1437,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610182147-c1601d0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610182216-9f272f8';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1712,6 +1693,13 @@ function 홈받기_() {
   });
 }
 
+function q4Navigation(){
+ var viewer=!!DATA.me.viewer,cl=viewer&&String(DATA.me.team||'').trim()==='C-Labs';document.querySelector('.nav').dataset.viewer=String(viewer);
+ ['nav-dash','nav-flow','nav-ncare','more-flow','more-dash','more-ncare'].forEach(function(id){document.getElementById(id).style.display=cl?'none':'';});
+ document.querySelectorAll('.nav-group-label').forEach(function(label){var entries=Array.from(document.querySelectorAll('[data-nav-category="'+label.dataset.navGroup+'"]'));label.style.display=entries.some(function(el){return el.style.display!=='none';})?'':'none';});
+ document.querySelectorAll('#view-more .menu-group').forEach(function(group){group.style.display=Array.from(group.querySelectorAll('.mrow')).some(function(el){return el.style.display!=='none';})?'':'none';});
+}
+
 function onData(d) {
   DATA = d;
   // 열쇠 통일 — GAS 목록은 row가 있다
@@ -1747,6 +1735,7 @@ function onData(d) {
     var el = document.getElementById(id);
     if (el && cl) el.style.display = 'none';
   });
+  q4Navigation();
   renderHome(); renderForm(); renderLeads(); 임시저장복구_();
   계획폼바인딩_(); 계획임시저장복구_();
   if (DATA.dbSrc) 홈받기_();   // 관문 읽기가 도착하면 홈·리드가 그걸로 다시 그려진다
@@ -1762,6 +1751,7 @@ function doLogout() {
   if (!confirm('로그아웃할까요?')) return;
   closeMA();
   if (typeof wkReset === 'function') wkReset();
+  q4HomeReset();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
@@ -1834,7 +1824,7 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow', 'performance'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow', 'performance', 'dash', 'ncare', 'demofail'];
 var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail', 'performance'];
 var 현재뷰_ = 'home';
 function show(v) {
@@ -1858,7 +1848,7 @@ function show(v) {
     if (nb) nb.classList.toggle('on', k === v);
   });
   var nm = document.getElementById('nav-more');
-  if (nm) nm.classList.toggle('on', v === 'more' || UNDER_MORE.indexOf(v) >= 0);
+  if (nm) nm.classList.toggle('on', v === 'more' || (UNDER_MORE.indexOf(v) >= 0 && (!document.getElementById('nav-'+v) || getComputedStyle(document.getElementById('nav-'+v)).display==='none')));
   window.scrollTo(0, 0);
   /* 홈만 **다시 안 그리고** 있었다 (2026-08-11). 다른 탭은 전부 여기서 그리거나 받는다.
      홈 카드의 [기록 쓰기]에는 그릴 때의 열쇠가 박혀 있는데(`prefill(-123)`), 그 사이
@@ -1866,7 +1856,7 @@ function show(v) {
      옛 열쇠를 쥔 채 남는다 → 누를 때마다 「그 계획을 찾지 못했습니다」.
      기록 저장 → 내 입력 → 홈 → 다른 계획 [기록 쓰기]에서 매번 났다.
      그리기는 메모리에 있는 것을 다시 칠할 뿐이라 서버 왕복이 없다. */
-  if (v === 'home' && DATA && DATA.plans) renderHome();
+  if (v === 'home' && DATA && DATA.plans) { renderHome();q4HomeLoad(); }
   /* 그려 둔 것을 먼저 보이고 뒤에서 다시 받는다 (8/15, 설계 D2) — 여태 행사 탭만 이랬다.
      나머지는 캐시가 있으면 **아예 다시 안 받아** 남이 넣은 것이 탭을 떠났다 올 때까지 안 보였고,
      캐시가 없으면 앱 전체가 오버레이로 덮였다. 이제 지난 화면 + [갱신 중] 알약이다.
@@ -2335,6 +2325,7 @@ function 홈임시저장알림_() {
   });
 }
 function renderHome() {
+  q4HomeRender();
   var stale = DATA.plans.filter(function(p) { return p.dday < 0; });
   var week = DATA.plans.filter(function(p) { return p.dday >= 0; });
   var team = DATA.kpi && DATA.kpi.scope === 'team' && DATA.team;
@@ -5369,7 +5360,7 @@ function failCard(l) {
 /* Q4-JS-START */
 // 기존 API의 개인별 확정 집계를 그대로 표시한다. 단위가 다른 목표를 평균 점수로 합치지 않는다.
 var Q4G={person:'',status:'all',detail:null};
-var q4GoalLabels={contract:'큐어젯 계약',demo:'큐어젯 데모 전체',new:'큐어젯 신규 데모',repeat:'큐어젯 재데모',referral:'N-Care 추천 데모'};
+var q4GoalLabels={contract:'큐어젯 계약',demo:'큐어젯 데모 전체',new:'큐어젯 신규 데모',repeat:'큐어젯 재데모',referral:'N-Care 추천 데모',demo_dealer:'딜러 신규 데모',demo_conference:'학회 신규 데모',demo_referral:'N-Care 소개 데모 수행',demo_network:'네트워크 신규 데모',demo_marketing:'마케팅 신규 데모',demo_outbound:'콜드콜·콜드비짓 신규 데모',demo_unknown:'채널 미확인 신규 데모'};
 function q4OpenGoals(){Q4.tab='goals';Q4G.detail=null;show('performance');}
 
 var Q4GE={current:null,saving:false,pending:null,generation:0};
@@ -5409,7 +5400,7 @@ async function q4GoalSave(status){
   var targetName=(Q4.data.reps.filter(function(r){return r.id===body.ownerId;})[0]||{}).name||'';
   var fingerprint=JSON.stringify(body);if(!Q4GE.pending||Q4GE.pending.fingerprint!==fingerprint)Q4GE.pending={fingerprint:fingerprint,id:crypto.randomUUID()};body.requestId=Q4GE.pending.id;
   Q4GE.saving=true;document.getElementById('q4GoalError').textContent='';document.getElementById('q4GoalFields').disabled=true;form.querySelectorAll('button').forEach(function(b){b.disabled=true;});var token=TOKEN;
-  try{await q4Call(body);Q4GE.saving=false;if(token!==TOKEN)return;Q4G.person=targetName;Q4G.status='all';Q4G.detail=null;Q4.tab='goals';q4Close();toast(status==='confirmed'?'직원 목표를 저장하고 확정했습니다.':'직원 목표를 배분안으로 저장했습니다.');await loadPerformance();}
+  try{await q4Call(body);Q4GE.saving=false;if(token!==TOKEN)return;q4HomeAfterWrite();Q4G.person=targetName;Q4G.status='all';Q4G.detail=null;Q4.tab='goals';q4Close();toast(status==='confirmed'?'직원 목표를 저장하고 확정했습니다.':'직원 목표를 배분안으로 저장했습니다.');await loadPerformance();}
   catch(e){Q4GE.saving=false;if(token!==TOKEN)return;document.getElementById('q4GoalFields').disabled=false;form.querySelectorAll('button').forEach(function(b){b.disabled=false;});document.getElementById('q4GoalError').textContent=e.message||'저장하지 못했습니다. 입력을 유지했습니다.';}
 }
 function q4GoalChecksHTML(){
@@ -5439,6 +5430,7 @@ function q4GoalRows(person,metric){
     var a=r.annotation;if(!r.classified||!a||a.product!=='CUREJET')return false;
     if(metric==='referral')return a.kind==='new'&&a.channel==='referral'&&Number(a.referral_rep_id)===person.id;
     if(r.owner_id!==person.id)return false;
+    if(metric.indexOf('demo_')===0)return a.kind==='new'&&a.channel===metric.slice(5);
     return metric==='demo'?['new','repeat'].indexOf(a.kind)>=0:a.kind===metric;
   });
 }
@@ -5610,7 +5602,7 @@ async function q4Save(){
   var body={action:'save',sourceKey:r.key,sourceLink:{accountCode:value('q4Account'),ownerRepId:Number(value('q4Owner'))},sourceSignature:r.sourceSignature,expectedVersion:r.annotation?Number(r.annotation.version):0,product:value('q4Product'),kind:value('q4Kind'),channel:value('q4Channel'),referralRepId:Number(value('q4Referral'))||null,supportRepIds:Array.from(form.querySelectorAll('[name=q4Support]:checked')).map(function(x){return Number(x.value);}),evidence:value('q4Evidence'),retryReason:value('q4Retry'),nextAction:value('q4Next'),nextOn:value('q4NextOn')};
   var fingerprint=JSON.stringify(body);if(!Q4.pending||Q4.pending.fingerprint!==fingerprint)Q4.pending={fingerprint:fingerprint,id:crypto.randomUUID()};body.requestId=Q4.pending.id;
   Q4.saving=true;document.getElementById('q4SaveButton').disabled=true;document.getElementById('q4Error').textContent='';var token=TOKEN;
-  try{await q4Call(body);Q4.saving=false;if(token!==TOKEN)return;var relinked=body.sourceLink.accountCode!==r.account_code||body.sourceLink.ownerRepId!==r.owner_id;if(relinked){DASH=null;FLOW=null;KPIT=null;NCARE=null;MINE=null;쓴적_=true;if(DATA.dbSrc)홈받기_();}q4Close();toast(relinked?'병원·담당자 연결과 실적을 함께 저장했습니다.':'실적 근거와 다음 행동을 저장했습니다.');await loadPerformance();}
+  try{await q4Call(body);Q4.saving=false;if(token!==TOKEN)return;q4HomeAfterWrite();var relinked=body.sourceLink.accountCode!==r.account_code||body.sourceLink.ownerRepId!==r.owner_id;if(relinked){DASH=null;FLOW=null;KPIT=null;NCARE=null;MINE=null;쓴적_=true;if(DATA.dbSrc)홈받기_();}q4Close();toast(relinked?'병원·담당자 연결과 실적을 함께 저장했습니다.':'실적 근거와 다음 행동을 저장했습니다.');await loadPerformance();}
   catch(e){Q4.saving=false;if(token!==TOKEN)return;document.getElementById('q4SaveButton').disabled=false;document.getElementById('q4Error').textContent=e.message||'저장하지 못했습니다. 입력을 보존했습니다. 다시 시도하세요.';}
 }
 
@@ -5682,6 +5674,56 @@ function q4VisitAttach(f){
 }
 
 /* Q4-JS-END */
+/* Q4-HOME-START */
+var Q4H={data:null,period:'',metric:'',group:'',person:'',contribution:false,loading:false,error:'',generation:0,token:''};
+function q4HomeReset(){Q4H.generation++;Q4H.data=null;Q4H.loading=false;Q4H.error='';Q4H.token='';Q4H.metric='';Q4H.group='';Q4H.person='';var el=document.getElementById('homePerformance');if(el){el.innerHTML='';el.style.display='none';}}
+function q4HomePeriodLabel(){return Q4H.period==='2026-Q4'?'4분기':Number(Q4H.period.slice(5))+'월';}
+function q4HomeChange(period){Q4H.period=period;Q4H.metric='';Q4H.group='';Q4H.person='';Q4H.contribution=false;return q4HomeLoad();}
+function q4HomeLoad(){
+ if(!q4Allowed()){q4HomeReset();return Promise.resolve();}
+ if(!Q4H.period){var month=(DATA.today||'2026-10-01').slice(0,7);Q4H.period=['2026-10','2026-11','2026-12'].indexOf(month)>=0?month:month<'2026-10'?'2026-10':'2026-12';}
+ var generation=++Q4H.generation,token=TOKEN,period=Q4H.period;Q4H.token=token;Q4H.loading=true;Q4H.error='';Q4H.data=null;q4HomeRender();
+ return q4Call({action:'list',period:period}).then(function(d){if(generation!==Q4H.generation||token!==TOKEN||!q4Allowed())return;if(!d.dashboard)throw new Error('대시보드 정보를 받지 못했습니다. 새로고침해 주세요.');Q4H.data=d;Q4H.loading=false;q4HomeRender();}).catch(function(e){if(generation!==Q4H.generation||token!==TOKEN)return;Q4H.loading=false;Q4H.data=null;Q4H.error=e.message||'실적을 불러오지 못했습니다.';q4HomeRender();});
+}
+function q4HomeAfterWrite(){Q4H.data=null;if(현재뷰_==='home')q4HomeLoad();}
+function q4HomeOpen(metric){Q4H.metric=Q4H.metric===metric?'':metric;Q4H.group='';Q4H.person='';Q4H.contribution=false;q4HomeRender();var el=document.getElementById('qhDetail');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+function q4HomeGroup(metric){Q4H.group=metric;Q4H.person='';Q4H.contribution=false;q4HomeRender();document.getElementById('qhPeople').scrollIntoView({behavior:'smooth',block:'start'});}
+function q4HomePerson(name,contribution){Q4H.person=Q4H.person===name&&Q4H.contribution===!!contribution?'':name;Q4H.contribution=!!contribution;q4HomeRender();var el=document.getElementById('qhPersonFocus');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function q4HomeEvidence(key){if(!Q4H.data)return;Q4.data=Q4H.data;document.getElementById('q4Period').value=Q4H.period;q4Open(key);}
+function q4HomeGoal(name,metric){if(!Q4H.data)return;Q4.data=Q4H.data;document.getElementById('q4Period').value=Q4H.period;q4GoalOpen(name,metric);}
+function q4HomePending(){document.getElementById('q4Period').value=Q4H.period;Q4.tab='evidence';Q4.filter='pending';Q4.week='';show('performance');}
+function q4HomeGoals(){document.getElementById('q4Period').value=Q4H.period;q4OpenGoals();}
+function q4HomeRate(g){return g.rate===null?'달성률 —':g.rate+'%';}
+function q4HomeTrack(g){return '<div class="qh-mini-track" aria-label="'+q4HomeRate(g)+'"><span style="width:'+Math.min(100,Math.max(0,g.rate||0))+'%"></span></div>';}
+function q4HomePeople(group,contribution){
+ var h='<div class="qh-people"'+(!contribution?' id="qhPeople"':'')+'><h4>'+esc(contribution?'추천 담당자별 기여':group.label+' · 직원별 달성 현황')+'</h4><p class="qh-sub">'+(contribution?'데모 수행자의 실적과 구분한 추천 기여입니다. 팀 데모에 중복 가산하지 않습니다.':'직원을 누르면 실적 근거와 다음 행동이 나옵니다. 직원 목표는 배분안과 확정 상태를 구분합니다.')+'</p>';
+ group.people.forEach(function(p){h+='<button type="button" class="qh-person" data-person="'+esc(p.name)+'" data-contribution="'+(contribution?'1':'0')+'" onclick="q4HomePerson(this.dataset.person,this.dataset.contribution===&#39;1&#39;)"><span class="qh-person-name">'+esc(p.name)+'<small>'+esc(p.team||'소속 미지정')+'</small></span><span class="qh-person-value">'+(p.actual===null?'계정 확인':p.actual+group.unit)+' <small>/ '+(p.target===null?'목표 미설정':p.target+group.unit)+'</small></span><span class="qh-person-rate">'+q4HomeRate(p)+q4HomeTrack(p)+'<small>'+(p.target===null?'목표 설정 필요':p.status==='confirmed'?'확정 목표':'배분안 · 확정 전')+'</small></span><span aria-hidden="true">↗</span></button>';});
+ var p=group.people.filter(function(p){return p.name===Q4H.person&&Q4H.contribution===!!contribution;})[0];
+ if(p){var rows=Q4H.data.items.filter(function(r){return p.keys.indexOf(r.key)>=0;});h+='<div id="qhPersonFocus" class="qh-person-focus"><div class="qh-detail-head"><h4>'+esc(p.name)+' · '+esc(group.label)+'</h4>'+(Q4H.data.me.admin&&p.editable?'<button class="btn ghost" data-name="'+esc(p.name)+'" data-metric="'+esc(group.metric)+'" onclick="q4HomeGoal(this.dataset.name,this.dataset.metric)">'+(p.target===null?'목표 설정':'목표 수정·확정')+'</button>':'')+'</div><p class="qh-sub">'+(p.target===null?'이 기간의 세부 목표가 없습니다. 월·분기 목표를 임의로 나누지 않습니다.':(p.actual===null?'담당 계정을 확인해 주세요.':'실적 '+p.actual+group.unit+' / 목표 '+p.target+group.unit+' · '+q4HomeRate(p)))+'</p>'+q4Rows(rows).replaceAll('q4Open(this.dataset.key)','q4HomeEvidence(this.dataset.key)')+'</div>';}
+ return h+'</div>';
+}
+function q4HomeRender(){
+ var el=document.getElementById('homePerformance'),activity=document.getElementById('homeActivity');if(!el)return;if(!q4Allowed()){el.style.display='none';if(activity)activity.open=true;return;}el.style.display='block';if(activity&&!activity.dataset.q4Folded){activity.open=false;activity.dataset.q4Folded='1';}
+ var d=Q4H.token===TOKEN?Q4H.data:null,label=Q4HomeSafeLabel(),h='<div class="qh-heading"><div><div class="qh-eyebrow">2026 Q4 · CUREJET</div><h2>'+label+' 목표 달성 현황</h2><div class="qh-sub">'+(d?(d.scope==='team'?'팀 전체':'나의 수행 실적')+' · '+esc(d.asOf)+' 기준':'성과관리의 목표와 실적을 불러옵니다.')+'</div></div><div class="qh-months" aria-label="성과 조회 기간">';
+ [['2026-10','10월'],['2026-11','11월'],['2026-12','12월'],['2026-Q4','4분기']].forEach(function(p){h+='<button type="button" data-period="'+p[0]+'" aria-pressed="'+(Q4H.period===p[0])+'" onclick="q4HomeChange(this.dataset.period)">'+p[1]+'</button>';});h+='</div></div>';
+ if(!d){h+='<div class="qh-empty" role="status">'+esc(Q4H.error||'목표와 달성 현황을 불러오는 중…')+(Q4H.error?'<br><button class="btn ghost" onclick="q4HomeLoad()">다시 불러오기</button>':'')+'</div>';el.innerHTML=h;return;}
+ var dashboard=d.dashboard;h+='<div class="qh-heroes">';
+ ['demo','contract'].forEach(function(metric){var g=dashboard[metric],pending=metric==='demo'?dashboard.pendingDemo:dashboard.pendingContract;h+='<button type="button" class="qh-hero '+metric+'" data-home-metric="'+metric+'" aria-expanded="'+(Q4H.metric===metric)+'" onclick="q4HomeOpen(this.dataset.homeMetric)"><div class="qh-card-top"><span>'+label+' 목표 '+(metric==='demo'?'데모수':'장비 판매수')+'</span><span class="qh-arrow" aria-hidden="true">↗</span></div><div class="qh-target'+(g.target===null?' empty':'')+'">'+(g.target===null?'목표 미설정':g.target)+'<small>'+(g.target===null?'':g.unit)+'</small></div><div class="qh-rule"><div class="qh-actual"><strong>'+g.actual+g.unit+' <small>달성</small></strong><span class="qh-rate">'+q4HomeRate(g)+'</span></div><div class="qh-track"><span style="width:'+Math.min(100,Math.max(0,g.rate||0))+'%"></span></div><div class="qh-card-foot"><span>'+(g.target===null?'직원 목표를 설정해 주세요':(g.actual>=g.target&&g.target>0?'목표 달성':'남은 목표 '+Math.max(0,g.target-g.actual)+g.unit))+(g.status==='proposed'?' · 배분안':'')+'</span><span>'+(pending?'분류 대기 '+pending+'건':'세부 지표 보기')+' →</span></div></div></button>';});h+='</div>';
+ if(dashboard.pendingDemo||dashboard.pendingContract)h+='<div class="qh-notice"><span>아직 집계하지 않은 근거 · 데모 '+dashboard.pendingDemo+'건 / 계약 '+dashboard.pendingContract+'건</span><button onclick="q4HomePending()">분류 확인하기 →</button></div>';
+ h+='<div class="qh-meta qh-sub"><span>큐어젯 · 제품·실적 구분 확인 완료 기준 · 데모는 신규+재데모 실시 건수</span><span><button onclick="q4HomeLoad()">새로고침</button> · <button onclick="q4HomeGoals()">직원 목표 관리 ↗</button></span></div>';
+ if(Q4H.period!=='2026-Q4'&&d.asOf<Q4H.period+'-01')h+='<p class="qh-sub">아직 시작하지 않은 달입니다. 목표를 미리 확인할 수 있습니다.</p>';
+ if(d.scope==='self'&&dashboard.referral.actual)h+='<div class="qh-notice"><span>별도 추천 기여 · N-Care 추천 데모 '+dashboard.referral.actual+'건 (수행 실적과 구분)</span><button onclick="q4HomeGoals()">내 목표·기여 확인 →</button></div>';
+ if(Q4H.metric){var main=dashboard[Q4H.metric];h+='<section class="qh-detail" id="qhDetail"><div class="qh-crumb"><button onclick="Q4H.metric=&#39;&#39;;q4HomeRender()">'+label+' 목표</button><span>›</span><span>'+main.label+'</span>'+(Q4H.group?'<span>›</span><span>'+esc((Q4H.group===main.metric?main:main.groups.filter(function(g){return g.metric===Q4H.group;})[0]||{}).label||'')+'</span>':'')+'</div><div class="qh-detail-head"><h3>'+main.label+' 세부 지표</h3><span class="qh-sub">'+main.actual+main.unit+' / '+(main.target===null?'목표 미설정':main.target+main.unit)+' · '+q4HomeRate(main)+'</span></div>';
+ if(Q4H.metric==='demo')h+='<p class="qh-sub">신규 데모는 유입 채널별로, 재데모는 별도 항목으로 분류합니다. 카드의 실적을 더하면 데모 전체와 같습니다. 항목을 누르면 직원별 달성률이 나옵니다.</p>'+(main.target!==null&&main.targetSum!==main.target?'<p class="qh-sub">세부 목표 합 '+main.targetSum+'건 / 전체 목표 '+main.target+'건 · 목표 배분 확인 필요</p>':'');
+ else h+='<p class="qh-sub">계약일이 기록되고 제품이 확인된 장비 판매 대수입니다. 딜러 미배정 선매입은 제외합니다. 아래 계약 지표를 누르면 직원별 목표와 달성률이 나옵니다.</p><div class="qh-channel-mix">'+main.channels.map(function(c){return '<span>'+esc(q4Channels[c.channel])+' '+c.actual+'대</span>';}).join('')+'</div>';
+ if(Q4H.metric==='demo')h+='<button type="button" class="btn ghost" data-home-total="demo" onclick="q4HomeGroup(&#39;demo&#39;)">직원별 데모 전체 달성률 보기 →</button>';
+ h+='<div class="qh-groups">';main.groups.forEach(function(g){h+='<button class="qh-group" type="button" data-home-group="'+g.metric+'" aria-pressed="'+(Q4H.group===g.metric)+'" onclick="q4HomeGroup(this.dataset.homeGroup)"><div class="qh-group-title"><span>'+esc(g.label)+'</span><span aria-hidden="true">↗</span></div><div class="qh-group-count">'+g.actual+'<small> / '+(g.target===null?'목표 미설정':g.target+g.unit)+'</small></div>'+q4HomeTrack(g)+'<div class="qh-group-foot">'+q4HomeRate(g)+(g.status==='proposed'?' · 배분안':'')+' · 직원별 보기</div></button>';});h+='</div>';
+ var group=Q4H.group===main.metric?main:main.groups.filter(function(g){return g.metric===Q4H.group;})[0];if(group){h+=q4HomePeople(group,false);if(group.metric==='demo_referral')h+=q4HomePeople(dashboard.referral,true);}h+='</section>';}
+ el.innerHTML=h;
+}
+function Q4HomeSafeLabel(){return Q4H.period?q4HomePeriodLabel():'4분기';}
+/* Q4-HOME-END */
+
 // 데모 실패관리: 서버가 권한·전이·집계를 판정한다. GAS 쓰기 폴백 없음.
 var DF = { rows:[], cursor:null, satisfaction:'', generation:0, detailGeneration:0, current:null, data:null, pending:null, dirty:false, saving:false };
 function demoFailureFromLead(row) { var l=DATA.leads.filter(function(x){return x.k===row;})[0];if(l){document.getElementById('dfQuery').value=l.hname;show('demofail');} }
