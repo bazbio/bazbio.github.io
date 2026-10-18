@@ -1,3 +1,4 @@
+import {workLink,maruReturn} from './work-link.mjs';
 import {createAssignees} from './assignees.mjs';
 import {createWorkChanges} from './work-changes.mjs';
 import {createDeadlineExtensions} from './deadline-extensions.mjs';
@@ -21,6 +22,7 @@ import { captureWorkDrafts, restoreWorkDrafts } from './work-context.mjs';
 import { errorMessage, displayLabel } from './messages.mjs';
 const $ = selector => document.querySelector(selector);
 const el = (tag, text, className) => { const node=document.createElement(tag); if(text!=null) node.textContent=text; if(className)node.className=className; return node; };
+let workDestination=workLink(location.hash),maruBase=null;
 let apiBase=''; let token=sessionStorage.getItem('ieum.token'); let info; let view='내업무'; let selected=null; let cursor=null; let busy=false; let loadVersion=0;
 const comments=createComments({el,button,api,send,getInfo:()=>info,isBusy:()=>busy});
 const workChanges=createWorkChanges({el,button,api,send,refresh:showDetail,open:showDetail,isBusy:()=>busy,message});
@@ -95,7 +97,7 @@ async function bootstrap(){
   $('#directives-nav').hidden=!info.대표현황권한;
   $('#inbox-department').replaceChildren(...info.부서.filter(d=>info.승인부서.includes(d.ID)).map(d=>new Option(d.이름,d.ID)));
   requests.configure();
-  $('#login-view').hidden=true;$('#app-view').hidden=false;showPending();await showList('내업무');void refreshNotices();
+  $('#login-view').hidden=true;$('#app-view').hidden=false;showPending();$('#maru-return')?.remove();if(workDestination){const dest=workDestination;await showDetail(dest.id);const href=maruReturn(maruBase,dest.postId);if(href){const a=el('a','마루 대화로 돌아가기');a.id='maru-return';a.href=href;a.className='secondary';$('#toolbar').prepend(a);}}else await showList('내업무');void refreshNotices();
 }
 function newRequest(){if(view==='대표현황'&&info?.대표현황권한)void directives.openCreate();else void requests.open();}
 function emptyState(){
@@ -126,6 +128,7 @@ function card(item){
   node.append(body,end);return node;
 }
 async function showList(next=view,more=false){
+ $('#maru-return')?.remove();workDestination=null;if(workLink(location.hash))history.replaceState(null,'',location.pathname+location.search);
   selectedProject=null;
   const version=++loadVersion;view=next;selected=null;
   $('.request-back')?.remove();$('.workspace').classList.toggle('request-workspace',view==='내요청');
@@ -168,6 +171,7 @@ function noticeCard(n){const node=button('','work-card notice-card',async()=>{tr
 function infoCell(label,value){const cell=el('div');cell.append(el('p',label,'info-label'),el('p',value||'미지정','info-value'));return cell;}
 function textBlock(label,value){const node=el('div',null,'text-block');node.append(el('h3',label),el('p',value));return node;}
 async function showDetail(id){
+ if(workDestination?.id!==id)$('#maru-return')?.remove();
   selectedProject=null;
   const opening=selected!==id;
   const openFolds=opening?[]:[...document.querySelectorAll('.detail-fold[open]')].map(n=>n.dataset.fold);
@@ -241,10 +245,10 @@ async function enterInvitation(secret){
  history.replaceState(null,'',location.pathname+location.search);logout();$('#login-view').hidden=true;
  await showEnrollment({el,button,api,token:secret,back:()=>{$('#enroll-view').hidden=true;$('#enroll-view').replaceChildren();$('#login-view').hidden=false;}});
 }
-window.addEventListener('hashchange',()=>{const secret=new URLSearchParams(location.hash.slice(1)).get('invite');if(secret)void enterInvitation(secret);});
+window.addEventListener('hashchange',()=>{const secret=new URLSearchParams(location.hash.slice(1)).get('invite');if(secret){workDestination=null;void enterInvitation(secret);}else{workDestination=workLink(location.hash);if(workDestination&&token)void bootstrap().catch(handleError);}});
 let inviteFragment=new URLSearchParams(location.hash.slice(1)).get('invite');
 if(inviteFragment)history.replaceState(null,'',location.pathname+location.search);
-try{const config=await fetch('./config.json').then(r=>r.json());if(config.apiBase){const url=new URL(config.apiBase);if(url.protocol!=='https:'||url.username||url.password)throw new Error('API 주소 설정을 확인해 주세요.');apiBase=url.href.replace(/\/$/,'');}
+try{const config=await fetch('./config.json').then(r=>r.json());maruBase=config.maruOrigin||null;if(config.apiBase){const url=new URL(config.apiBase);if(url.protocol!=='https:'||url.username||url.password)throw new Error('API 주소 설정을 확인해 주세요.');apiBase=url.href.replace(/\/$/,'');}
  if(inviteFragment){await enterInvitation(inviteFragment);inviteFragment=null;}
  else if(token)await bootstrap();
 }catch(error){logout();$('#login-error').textContent=errorMessage(error);}

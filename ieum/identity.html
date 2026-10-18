@@ -1,0 +1,6 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>이음 · 바즈 마루 연결</title><link rel="stylesheet" href="identity.css"><script type="module" src="identity.mjs"></script></head>
+<body><main><p>이음 × 바즈 마루</p><h1>연결해서 함께 일하기</h1><p id="scope">바즈 마루에 이음의 계정 식별자와 표시명을 전달합니다. 업무 조회·생성·승인 권한은 전달하지 않습니다.</p>
+<noscript><p>안전한 로그인을 위해 자바스크립트를 켠 뒤 이 페이지를 다시 열어 주세요.</p></noscript>
+<form id="login" method="post" hidden><h2>이음 로그인</h2><label>이메일<input name="email" type="email" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><button>로그인</button></form>
+<section id="consent" hidden><h2 id="account"></h2><button id="approve">이 계정으로 마루에 연결</button><button id="switch" type="button">다른 계정 사용</button></section>
+<p><a href="./">연결 취소하고 이음으로 돌아가기</a></p><p id="status" role="status" aria-live="polite"></p></main></body></html>
