@@ -1823,6 +1823,11 @@ function 모달열기(h, 마감일에집중) {
   document.getElementById('f사유').value = h ? h.사유 : '';
   document.getElementById('모달삭제').classList.toggle('hidden', !h);
   연동줄그리기(h);
+  var oldBack = document.getElementById('마루원문'); if (oldBack) oldBack.remove();
+  if (h && h.원문URL && /^https:\/\//.test(h.원문URL)) {
+    var back = 요소('a', '', '마루 원문으로 돌아가기 ↗'); back.id = '마루원문'; back.href = h.원문URL; back.target = '_blank'; back.rel = 'noopener noreferrer';
+    document.getElementById('연동줄').appendChild(back); document.getElementById('연동줄').classList.remove('hidden');
+  }
 
   document.getElementById('모달틀').classList.remove('hidden');
   document.getElementById('스크림').classList.add('on');
@@ -1879,6 +1884,11 @@ function 브리지로올리기() {
     h.연동주인 = '원본';
     토스트('브리지로 올렸습니다');
     연동줄그리기(h);
+  var oldBack = document.getElementById('마루원문'); if (oldBack) oldBack.remove();
+  if (h && h.원문URL && /^https:\/\//.test(h.원문URL)) {
+    var back = 요소('a', '', '마루 원문으로 돌아가기 ↗'); back.id = '마루원문'; back.href = h.원문URL; back.target = '_blank'; back.rel = 'noopener noreferrer';
+    document.getElementById('연동줄').appendChild(back); document.getElementById('연동줄').classList.remove('hidden');
+  }
     그리기();
   }).catch(function (e) { 토스트(e.message); });
 }
@@ -1891,6 +1901,11 @@ function 연동끊기() {
     h.연동주인 = '';
     토스트('연동을 끊었습니다');
     연동줄그리기(h);
+  var oldBack = document.getElementById('마루원문'); if (oldBack) oldBack.remove();
+  if (h && h.원문URL && /^https:\/\//.test(h.원문URL)) {
+    var back = 요소('a', '', '마루 원문으로 돌아가기 ↗'); back.id = '마루원문'; back.href = h.원문URL; back.target = '_blank'; back.rel = 'noopener noreferrer';
+    document.getElementById('연동줄').appendChild(back); document.getElementById('연동줄').classList.remove('hidden');
+  }
     그리기();
   }).catch(function (e) { 토스트(e.message); });
 }
@@ -2120,6 +2135,31 @@ document.getElementById('일정날짜모달추가').addEventListener('click', fu
 document.getElementById('스크림').addEventListener('click', function () { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 일정날짜모달닫기(); 받은함닫기(); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { 모달닫기(); 세부모달닫기(); 일정모달닫기(); 일정날짜모달닫기(); 받은함닫기(); } });
 
+// URL hash survives PIN login; only own-board permanent UUID is resolved.
+var 연결처리해시_ = null;
+function 연결진입_() {
+  var hash = location.hash; if (!hash || hash === 연결처리해시_) return;
+  var args = new URLSearchParams(hash.slice(1)), id = args.get('taskUuid'), consent = args.get('connect');
+  if (id && /^[0-9a-f-]{36}$/.test(id)) {
+    연결처리해시_ = hash;
+    var rows = 상태.할일.filter(function(h) { return h.외부항목UUID === id; });
+    if (rows.length === 1) 모달열기(rows[0]); else { 모달닫기(); 토스트('삭제되었거나 접근할 수 없는 업무입니다.'); }
+  }
+  if (consent && /^[0-9a-f-]{36}$/.test(consent)) {
+    연결처리해시_ = hash;
+    서버('웹_연결확인', consent).then(function(d) {
+      var box = document.createElement('dialog'); box.style.cssText = 'max-width:420px;width:calc(100% - 32px);padding:24px;border:1px solid #ddd;border-radius:16px';
+      box.appendChild(요소('h2', '', '내 책상을 바즈 마루에 연결'));
+      box.appendChild(요소('p', '', '마루 ' + d.requesterName + '님이 시작한 요청입니다. ' + d.name + '님의 개인 보드에 연결합니다. 7일 동안 마루에서 내 후속 업무를 만들고 조회할 수 있습니다. 다른 사람에게는 보이지 않습니다.'));
+      var yes = 요소('button', '', '동의하고 마루로 돌아가기'), no = 요소('button', '', '취소'), msg = 요소('p', '');
+      yes.onclick = function() { yes.disabled = true; 서버('웹_연결동의', consent, true).then(function(r) { location.assign(r.url); }).catch(function(e) { msg.textContent = e.message; yes.disabled = false; }); };
+      no.onclick = function() { box.close(); box.remove(); };
+      box.appendChild(yes); box.appendChild(no); box.appendChild(msg); document.body.appendChild(box); box.showModal();
+    }).catch(function(e) { 토스트(e.message); });
+  }
+}
+window.addEventListener('hashchange', function() { if (상태 && 상태.할일) 연결진입_(); });
+
 function 초기불러오기() {
   document.getElementById('오류').classList.add('hidden');
   document.getElementById('로딩').classList.remove('hidden');
@@ -2133,6 +2173,7 @@ function 초기불러오기() {
     document.getElementById('로딩').classList.add('hidden');
     document.getElementById('본문').classList.remove('hidden');
     계정반영_();
+    연결진입_();
     보임_('상단바', true);
     그리기();
   }).catch(function (e) {
