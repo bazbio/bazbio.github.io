@@ -1,5 +1,5 @@
 import {accepted,fileData} from './attachments.mjs';
-import {errorMessage} from './messages.mjs';
+import {errorMessage,personName} from './messages.mjs';
 const roles=['연구소','C-Labs','제품기획','생산본부','품질인허가','대표님'];
 const labels={제목:'프로젝트명',목적:'추진 배경과 목적',사업성:'사업성 · 시장 조사',범위:'검토할 사업 범위',일정예산:'예상 일정과 예산',완료기준:'기대 결과와 완료 기준'};
 const ready=(d,r)=>r.결정==='대기'&&((d.단계==='부서검토'&&!['품질인허가','대표님'].includes(r.역할))||(d.단계==='품질검토'&&r.역할==='품질인허가')||(d.단계==='대표검토'&&r.역할==='대표님'));
@@ -36,9 +36,9 @@ export function createProjects({el,button,api,send,getInfo,isBusy,open,openWork,
  function routeView(settings){
   const b=box('승인 담당자');b.append(el('p','업무 접수 담당과 별도로 지정합니다. 변경한 경로는 다음 검토 회차부터 적용됩니다.','hint'));
   const grid=el('div',null,'proposal-reviewers');
-  for(const role of roles){const p=settings.경로.find(r=>r.역할===role),r=el('div',null,'proposal-person');r.append(el('strong',role),el('p',p?.이름||'미지정'),el('small',p?.준비?'접속 준비 완료':'가입 또는 담당자 지정 필요',p?.준비?'hint':'error'));grid.append(r);}b.append(grid);
+  for(const role of roles){const p=settings.경로.find(r=>r.역할===role),r=el('div',null,'proposal-person');r.append(el('strong',role),el('p',personName(p?.이름,p?.ID)||'미지정'),el('small',p?.준비?'접속 준비 완료':'가입 또는 담당자 지정 필요',p?.준비?'hint':'error'));grid.append(r);}b.append(grid);
   if(getInfo().관리권한){const f=el('form',null,'proposal-form'),values={};
-   for(const role of roles){const l=el('label',role),select=el('select');select.setAttribute('aria-label',role+' 승인자');select.required=true;select.append(new Option('승인자를 선택하세요',''),...settings.후보.map(m=>new Option(m.이름,m.ID)));select.value=settings.경로.find(r=>r.역할===role)?.ID||'';l.append(select);f.append(l);values[role]=select;}
+   for(const role of roles){const l=el('label',role),select=el('select');select.setAttribute('aria-label',role+' 승인자');select.required=true;select.append(new Option('승인자를 선택하세요',''),...settings.후보.map(m=>new Option(personName(m.이름,m.ID),m.ID)));select.value=settings.경로.find(r=>r.역할===role)?.ID||'';l.append(select);f.append(l);values[role]=select;}
    submit(f,'승인 경로 저장',async()=>{const r=await send({종류:'프로젝트경로설정',인자:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,v.value]))});if(r)await open(null);});const change=fold('승인 담당자 변경');change.append(f);b.append(change);
   }return b;
  }
@@ -58,7 +58,7 @@ export function createProjects({el,button,api,send,getInfo,isBusy,open,openWork,
   const group=el('div',null,'proposal-parallel');group.append(el('h3','1. 부서 검토 · 동시 진행'));
   function person(role){const r=d.검토.find(r=>r.역할===role),configured=settings.경로.find(r=>r.역할===role),node=el('article',null,'proposal-person');
    const current=r&&ready(d,r);if(current)node.classList.add('is-current');if(r?.결정==='승인')node.classList.add('is-approved');
-   node.append(el('strong',role),el('p',r?.이름||configured?.이름||'미지정'),el('span',current?'지금 승인할 차례':r?.결정==='승인'?'승인 완료':r?.결정&&r.결정!=='대기'?r.결정:'대기','badge'));
+   node.append(el('strong',role),el('p',personName(r?.이름||configured?.이름)||'미지정'),el('span',current?'지금 승인할 차례':r?.결정==='승인'?'승인 완료':r?.결정&&r.결정!=='대기'?r.결정:'대기','badge'));
    if(r?.의견){const note=fold('검토 의견');note.append(el('p',r.의견,'proposal-pre'));node.append(note);}return node;
   }
   roles.slice(0,4).forEach(r=>group.append(person(r)));steps.append(group);
@@ -72,15 +72,15 @@ export function createProjects({el,button,api,send,getInfo,isBusy,open,openWork,
   if(d.단계==='초안'&&d.작성자ID===getInfo().본인.ID){const f=el('form'),upload=field(f,'프로젝트 첨부파일','','','input');upload.type='file';upload.accept=accepted;const desc=field(f,'자료 설명','',2000);submit(f,'자료 업로드',async()=>{const {데이터,...meta}=await fileData(upload.files[0]);const r=await send(request(d,'프로젝트자료업로드',{...meta,설명:desc.value}),'file',데이터);if(r)await open(d.ID);});b.append(f);}return b;
  }
  function conversation(d){const b=box('프로젝트 대화'),f=el('form'),key=d.ID+':comment',input=field(f,'프로젝트 코멘트',drafts.get(key)||'',3000);input.placeholder='검토 요청이나 진행 상황을 함께 남겨 주세요.';input.addEventListener('input',()=>drafts.set(key,input.value));submit(f,'코멘트 남기기',async()=>{const r=await send(request(d,'프로젝트대화',{본문:input.value}));if(r){drafts.delete(key);await open(d.ID);}});b.append(f);
-  for(const h of d.이력.filter(h=>h.종류==='프로젝트대화')){const c=el('article',null,'proposal-comment');c.append(el('strong',h.이름),el('p',h.내용.본문,'proposal-pre'),el('small',new Date(h.생성시각).toLocaleString('ko-KR'),'hint'));b.append(c);}return b;}
+  for(const h of d.이력.filter(h=>h.종류==='프로젝트대화')){const c=el('article',null,'proposal-comment');c.append(el('strong',personName(h.이름,h.ID)),el('p',h.내용.본문,'proposal-pre'),el('small',new Date(h.생성시각).toLocaleString('ko-KR'),'hint'));b.append(c);}return b;}
  async function detail(id){
   const [d,settings]=await Promise.all([api('read',{종류:'프로젝트상세',프로젝트ID:id}),api('read',{종류:'프로젝트설정'})]);
   const root=el('div',null,'project-workspace proposal-workspace'),main=el('div',null,'detail');root.append(main,conversation(d));
   main.append(button('← 프로젝트 목록','text-button',()=>open(null)),progress(d,settings));
   const current=box('지금 할 일'),mine=d.작성자ID===getInfo().본인.ID,reviewers=d.검토.filter(r=>ready(d,r));
-  if(reviewers.length)current.append(el('p',reviewers.map(r=>`${r.이름} · ${r.역할} 승인`).join(' / '),'proposal-current'));
+  if(reviewers.length)current.append(el('p',reviewers.map(r=>`${personName(r.이름,r.ID)} · ${r.역할} 승인`).join(' / '),'proposal-current'));
   else current.append(el('p',({초안:'작성자 · 제안서와 자료 등록 후 검토 요청',보완:'작성자 · 요청받은 내용을 보완하고 재검토 요청',반려:'작성자 · 반려 의견 확인',보고서준비:d.AI연결?'AI 보고서 생성 결과를 확인하세요.':'AI 서비스 연결 설정이 필요합니다.',보고서검토:'작성자 · AI 보고서 확인·수정 후 대표님께 제출',승인:'작성자 · 승인된 프로젝트를 업무로 연결',업무연결:'승인된 프로젝트의 업무를 진행하고 있습니다.'})[d.단계]||d.단계,'proposal-current'));
-  for(const r of reviewers.filter(r=>r.담당자ID===getInfo().본인.ID)){const f=el('form'),note=field(f,'검토 의견 · 승인 조건','',5000),l=el('label','검토 결과'),select=el('select');select.setAttribute('aria-label','검토 결과');['승인','보완','반려'].forEach(x=>select.append(new Option(x,x)));l.append(select);f.append(l);submit(f,`${r.역할} 검토 결과 제출`,()=>act(d,'프로젝트판단',{역할:r.역할,결정:select.value,의견:note.value}));current.append(f);}
+  for(const r of reviewers.filter(r=>r.담당자ID===getInfo().본인.ID||(r.역할==='대표님'&&getInfo().대표대리))){const f=el('form'),note=field(f,'검토 의견 · 승인 조건','',5000),l=el('label','검토 결과'),select=el('select');select.setAttribute('aria-label','검토 결과');['승인','보완','반려'].forEach(x=>select.append(new Option(x,x)));l.append(select);f.append(l);submit(f,`${r.역할} 검토 결과 제출`,()=>act(d,'프로젝트판단',{역할:r.역할,결정:select.value,의견:note.value}));current.append(f);}
   if(mine&&d.단계==='초안'){const unready=roles.filter(role=>!settings.경로.find(r=>r.역할===role)?.준비);if(unready.length)current.append(el('p',`접속 준비 필요: ${unready.join(', ')}. 초안과 자료는 저장할 수 있습니다.`,'error'));else current.append(action(d,'5개 부서 검토 요청','프로젝트제출'));}
   if(mine&&d.단계==='보고서준비'){current.append(el('p',`생성 상태: ${d.AI상태||'대기'} · 완료 후 새로고침으로 확인하세요.`,'hint'));if(d.AI연결)current.append(action(d,'AI 보고서 생성 / 실패 시 재시도','프로젝트AI요청'));}
   if(mine&&d.단계==='승인')current.append(d.원업무ID?action(d,'승인 완료 · 기존 업무 재개','프로젝트업무재개'):button('승인 완료 · 업무요청 만들기','primary',()=>connectWork(d)));
@@ -93,7 +93,7 @@ export function createProjects({el,button,api,send,getInfo,isBusy,open,openWork,
    main.append(b);
   }
   if(mine&&!['초안','업무연결'].includes(d.단계)){const f=fold('자료 수정 · 부서 재검토');f.append(el('p','새 검토 회차를 시작합니다. 이전 의견과 보고서는 이력으로 보존하고 5개 부서 승인을 다시 받습니다.','hint'),action(d,'새 회차로 자료 수정 시작','프로젝트재검토'));main.append(f);}
-  const history=fold('승인·변경 이력');for(const h of d.이력.filter(h=>h.종류!=='프로젝트대화')){const item=el('article',null,'proposal-comment');item.append(el('strong',`${h.이름} · ${h.종류.replace(/^프로젝트/,'')} · ${h.회차}차`),el('p',h.내용.의견||h.내용.사유||'', 'proposal-pre'),el('small',new Date(h.생성시각).toLocaleString('ko-KR'),'hint'));history.append(item);}main.append(history);
+  const history=fold('승인·변경 이력');for(const h of d.이력.filter(h=>h.종류!=='프로젝트대화')){const item=el('article',null,'proposal-comment');item.append(el('strong',`${personName(h.이름,h.ID)} · ${h.종류.replace(/^프로젝트/,'')} · ${h.회차}차`),el('p',h.내용.의견||h.내용.사유||'', 'proposal-pre'),el('small',new Date(h.생성시각).toLocaleString('ko-KR'),'hint'));history.append(item);}main.append(history);
   if(d.과거회차?.length){const archive=fold('이전 검토 자료 · 최근 10회차');for(const past of d.과거회차){const item=fold(`${past.회차}차 · ${past.내용.제목}`);for(const [k,label]of Object.entries(labels))item.append(el('h3',label),el('p',past.내용[k],'proposal-pre'));for(const f of past.자료)item.append(button(f.파일명+' 다운로드','secondary',async()=>{try{const blob=await api('file',{종류:'프로젝트자료다운로드',프로젝트ID:d.ID,자료ID:f.ID},true),url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=f.파일명;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){handleError(e);}}));if(past.보고서)item.append(el('h3','당시 종합보고서'),el('p',past.보고서.본문,'proposal-pre'));archive.append(item);}main.append(archive);}
   return {node:root,title:d.내용.제목,subtitle:`${d.번호} · ${d.단계}`};
  }

@@ -1,4 +1,4 @@
-import {errorMessage,displayLabel} from './messages.mjs';
+import {errorMessage,displayLabel,personName,personLabel} from './messages.mjs';
 
 // 대화만 갱신하여 승인/계획 작성 폼을 건드리지 않는다. 초안은 로그인 세션 메모리에만 둔다.
 export function createComments({el,button,api,send,getInfo,isBusy}){
@@ -29,15 +29,15 @@ export function createComments({el,button,api,send,getInfo,isBusy}){
    const available=new Set(people.map(p=>p.ID));for(const id of draft.people)if(!available.has(id))draft.people.delete(id);
    choices.replaceChildren();for(const p of people){
     const row=el('label'),box=el('input');box.type='checkbox';box.value=p.ID;box.checked=draft.people.has(p.ID);box.disabled=submitting;
-    const text=el('span',`${p.이름} · ${p.부서||''}`);if(p.현재차례)text.append(el('small',displayLabel(p.현재차례)));
+    const text=el('span',personLabel(p.이름,p.부서,p.ID));if(p.현재차례)text.append(el('small',displayLabel(p.현재차례)));
     box.addEventListener('change',()=>{box.checked?draft.people.add(p.ID):draft.people.delete(p.ID);updateSelection();});row.append(box,text);choices.append(row);
    }if(!people.length)choices.append(el('p','알림을 보낼 다른 참여자가 없습니다.','hint'));updateSelection();
   }
   function card(c){
    const node=el('article',null,'comment-entry');node.id=`comment-${c.ID}`;node.tabIndex=-1;
    const head=el('div',null,'comment-meta'),time=el('time',new Intl.DateTimeFormat('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(c.생성시각)));time.dateTime=c.생성시각;time.title=new Date(c.생성시각).toLocaleString('ko-KR');
-   head.append(el('strong',c.작성자.이름),time);node.append(head);
-   if(c.수신자.length)node.append(el('p',`알림 · ${c.수신자.map(p=>p.이름).join(', ')}`,'comment-addressed'));
+   head.append(el('strong',personName(c.작성자.이름,c.작성자.ID)),time);node.append(head);
+   if(c.수신자.length)node.append(el('p',`알림 · ${c.수신자.map(p=>personName(p.이름,p.ID)).join(', ')}`,'comment-addressed'));
    node.append(el('p',c.본문,'comment-body'));
    if(c.작성자.ID!==getInfo().본인.ID){node.append(button('답장','quiet',()=>{draft.people.add(c.작성자.ID);choices.querySelectorAll('input').forEach(b=>{b.checked=draft.people.has(b.value);});updateSelection();recipients.open=true;input.focus();}));}
    return node;

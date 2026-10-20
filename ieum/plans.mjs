@@ -1,5 +1,5 @@
 import {createMilestoneGantt} from './milestone-gantt.mjs';
-import { errorMessage } from './messages.mjs';
+import { errorMessage, personName } from './messages.mjs';
 // 계획 화면은 공통 명령 전송기를 사용하여 응답 유실·개정 충돌 처리를 공유한다.
 export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy,message,handleError}) {
   function field(form,label,type='text',value='',required=true){
@@ -25,7 +25,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
   function departments(select,data){select.append(new Option('부서를 선택하세요',''),...getInfo().부서.filter(d=>!data.부서업무.some(b=>b.부서ID===d.ID)).map(d=>new Option(d.이름,d.ID)));}
   function milestoneView(plan){
     const list=el('ol',null,'milestone-list');
-    for(const m of plan.마일스톤){const row=el('li',null,'milestone-view');row.append(el('strong',m.제목),el('span',m.필수?'종결 필수':'선택','badge neutral'),el('p',`${m.시작일} → ${m.완료일} · ${m.담당자명}`),el('p',m.완료기준,'muted'),el('small',m.검증필요?`완료 검증: ${m.검증자명}`:'완료 검증 생략'));list.append(row);}
+    for(const m of plan.마일스톤){const row=el('li',null,'milestone-view');row.append(el('strong',m.제목),el('span',m.필수?'종결 필수':'선택','badge neutral'),el('p',`${m.시작일} → ${m.완료일} · ${personName(m.담당자명)}`),el('p',m.완료기준,'muted'),el('small',m.검증필요?`완료 검증: ${personName(m.검증자명)}`:'완료 검증 생략'));list.append(row);}
     if(!list.children.length)list.append(el('p','저장한 마일스톤이 없습니다.','muted'));return list;
   }
   function versionView(plan){
@@ -42,7 +42,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
       heading.append(el('h4',b.부서명));badges.append(el('span',b.삭제시각?'삭제 승인 완료':b.상태,'badge neutral'));
       if(b.부서ID===data.주관부서?.ID)badges.append(el('span','주관 부서','badge'));
       heading.append(badges);box.append(heading);
-      if(b.책임자ID&&b.책임자변경){const owner=el('div',null,'department-owner');owner.append(el('span',`업무 담당자 · ${b.책임자변경.담당자명}`),assignees.control(data,b));box.append(owner);}
+      if(b.책임자ID&&b.책임자변경){const owner=el('div',null,'department-owner');owner.append(el('span',`업무 담당자 · ${personName(b.책임자변경.담당자명)}`),assignees.control(data,b));box.append(owner);}
       if(b.요청제목&&b.요청제목!==data.제목)box.append(el('p',b.요청제목,'department-request-title'));
       const request=el('div',null,'department-request-body');
       if(b.요청내용){const note=el('div',null,'department-request-note');note.append(el('strong','요청 내용','department-section-label'),el('p',b.요청내용,'collaboration-note'));request.append(note);}
@@ -112,7 +112,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
       const rows=el('div',null,'milestone-editor');form.append(rows);
       let dirty=false;let submitButton;
       const changed=()=>{dirty=true;if(submitButton)submitButton.disabled=true;};
-      function person(select,value){select.append(new Option('담당자를 선택하세요',''),...candidates.map(m=>new Option(m.표시명,m.ID)));if(value&&!candidates.some(m=>m.ID===value))select.append(new Option('현재 배정 불가 · 다시 선택하세요',value));select.value=value||'';}
+      function person(select,value){select.append(new Option('담당자를 선택하세요',''),...candidates.map(m=>new Option(personName(m.표시명,m.ID),m.ID)));if(value&&!candidates.some(m=>m.ID===value))select.append(new Option('현재 배정 불가 · 다시 선택하세요',value));select.value=value||'';}
       function add(m={ID:crypto.randomUUID(),필수:true,검증필요:false}){
         if(rows.children.length>=40)return;
         const row=el('fieldset');row.dataset.id=m.ID;row.append(el('legend',`마일스톤 ${rows.children.length+1}`));
@@ -122,7 +122,7 @@ export function createPlans({el,button,assignees,api,send,refresh,getInfo,isBusy
         const owners=(m.담당자목록?.map(p=>p.ID)||[m.담당자ID]).filter(Boolean);
         row.dataset.owners=JSON.stringify(owners);ownerWrap.append(selected,el('small','여러 명을 선택할 수 있습니다. 담당자 중 한 명이 완료 보고하면 공동으로 반영됩니다.','hint'));
         function paintOwners(){selected.replaceChildren();for(const id of JSON.parse(row.dataset.owners)){
-          const name=candidates.find(p=>p.ID===id)?.표시명||m.담당자목록?.find(p=>p.ID===id)?.표시명||'현재 배정 불가';
+          const name=personName(candidates.find(p=>p.ID===id)?.표시명||m.담당자목록?.find(p=>p.ID===id)?.표시명,id)||'현재 배정 불가';
           const chip=button(name+' ×','assignee-chip',()=>{row.dataset.owners=JSON.stringify(JSON.parse(row.dataset.owners).filter(p=>p!==id));paintOwners();changed();});chip.setAttribute('aria-label',name+' 담당자 제외');selected.append(chip);
         }owner.setCustomValidity(JSON.parse(row.dataset.owners).length?'':'마일스톤 담당자를 한 명 이상 선택해 주세요.');}
         owner.addEventListener('change',()=>{if(owner.value){const ids=JSON.parse(row.dataset.owners);if(!ids.includes(owner.value))ids.push(owner.value);row.dataset.owners=JSON.stringify(ids);owner.value='';paintOwners();}});paintOwners();

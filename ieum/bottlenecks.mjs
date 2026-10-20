@@ -1,11 +1,11 @@
-import {displayLabel} from './messages.mjs';
+import {displayLabel,personName,departmentPerson} from './messages.mjs';
 export function createBottlenecks({el,button,api,refresh,open}) {
   let filter={부서ID:null,담당자ID:null,지연만:false,검색:null};
   const duration=seconds=>seconds<60?'1분 미만':seconds<3600?`${Math.floor(seconds/60)}분`:seconds<86400?`${Math.floor(seconds/3600)}시간`:`${Math.floor(seconds/86400)}일 ${Math.floor(seconds%86400/3600)}시간`;
-  function select(form,label,items,value){const wrap=el('label',label),input=el('select');input.setAttribute('aria-label',label);input.append(new Option('전체',''),...items.map(x=>new Option(x.이름,x.ID)));input.value=value||'';wrap.append(input);form.append(wrap);return input;}
+  function select(form,label,items,value){const wrap=el('label',label),input=el('select');input.setAttribute('aria-label',label);input.append(new Option('전체',''),...items.map(x=>new Option(personName(x.이름,x.ID),x.ID)));input.value=value||'';wrap.append(input);form.append(wrap);return input;}
   function group(title,rows,key){const box=el('section',null,'detail-card');box.append(el('h2',title));if(!rows.length){box.append(el('p','해당하는 대기 업무가 없습니다.','hint'));return box;}
     const table=el('table',null,'bottleneck-table'),head=el('thead'),tr=el('tr');for(const name of ['대상','대기','지연','최장 체류'])tr.append(el('th',name));head.append(tr);const body=el('tbody');
-    for(const r of rows){const row=el('tr'),name=el('td');name.append(button(r.이름,'text-button',()=>{filter={...filter,[key]:r.ID};refresh();}));row.append(name,el('td',r.미처리),el('td',r.지연),el('td',duration(r.최장담당초)));body.append(row);}table.append(head,body);box.append(table);return box;
+    for(const r of rows){const row=el('tr'),name=el('td');name.append(button(personName(r.이름,r.ID),'text-button',()=>{filter={...filter,[key]:r.ID};refresh();}));row.append(name,el('td',r.미처리),el('td',r.지연),el('td',duration(r.최장담당초)));body.append(row);}table.append(head,body);box.append(table);return box;
   }
   async function render(){
     const data=await api('read',{종류:'병목현황',...filter,한도:50}),box=el('div',null,'bottleneck-dashboard');
@@ -24,8 +24,8 @@ export function createBottlenecks({el,button,api,refresh,open}) {
       card.append(head,button(a.제목,'bottleneck-title',()=>open(a.업무ID)));if(a.마일스톤제목)card.append(el('p',a.마일스톤제목,'plan-state'));
       if(a.미팅대기)card.append(el('p','미팅 결론·후속 업무 대기','notice'));
       if(a.미팅안건)card.append(el('p',a.미팅후속내용||a.미팅안건,'plan-state'));
-      card.append(el('p',`${a.담당부서.이름} · ${a.담당자.표시명}`),el('p',`현재 담당 체류 ${duration(a.현담당체류초)} · 행동 발생 후 ${duration(a.행동대기초)}`,'hint'),el('p',`처리기한 ${new Date(a.처리기한).toLocaleString('ko-KR')}`,'hint'));
-      if(a.후속작업.length){const follow=el('ul');for(const m of a.후속작업)follow.append(el('li',`${m.부서명} · ${m.제목} · ${m.담당자명}`));card.append(el('p',`영향받는 미완료 후속 작업 ${a.후속작업.length}건`,'plan-state'),follow);}list.append(card);
+      card.append(el('p',departmentPerson(a.담당부서.이름,a.담당자.표시명,a.담당자.ID)),el('p',`현재 담당 체류 ${duration(a.현담당체류초)} · 행동 발생 후 ${duration(a.행동대기초)}`,'hint'),el('p',`처리기한 ${new Date(a.처리기한).toLocaleString('ko-KR')}`,'hint'));
+      if(a.후속작업.length){const follow=el('ul');for(const m of a.후속작업)follow.append(el('li',`${m.부서명} · ${m.제목} · ${personName(m.담당자명)}`));card.append(el('p',`영향받는 미완료 후속 작업 ${a.후속작업.length}건`,'plan-state'),follow);}list.append(card);
     }box.append(list);return box;
   }
   return {render,reset(){filter={부서ID:null,담당자ID:null,지연만:false,검색:null};}};

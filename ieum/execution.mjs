@@ -1,4 +1,4 @@
-import { errorMessage } from './messages.mjs';
+import { errorMessage, personName } from './messages.mjs';
 import { getLeadDepartmentWork } from './work-context.mjs';
 import {changeHistory} from './work-changes.mjs';
 // 통합 승인과 실행 UI. 기존 인증·멱등·충돌 처리기를 공유한다.
@@ -23,9 +23,9 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
       if(snapshot){const fold=el('details');fold.append(el('summary',`승인 대상 요청 · 개정 ${b.부서요청개정}`),el('p',snapshot.요청제목),el('p',snapshot.요청내용),el('p',`완료 기준: ${snapshot.완료기준}`),el('p',`희망 기한: ${snapshot.희망기한||'미지정'}`,'hint'));row.append(fold);}
       list.append(row);
     }box.append(list);
-    const milestones=el('ol',null,'milestone-list');for(const m of v.마일스톤){const row=el('li',null,'milestone-view');row.append(el('strong',m.제목),el('p',`${m.시작일} → ${m.완료일} · ${m.담당자명} · ${m.필수?'종결 필수':'선택'}`),el('p',m.완료기준,'muted'),el('small',m.검증필요?`완료 검증: ${m.검증자명}`:'완료 검증 생략'));milestones.append(row);}box.append(milestones);
+    const milestones=el('ol',null,'milestone-list');for(const m of v.마일스톤){const row=el('li',null,'milestone-view');row.append(el('strong',m.제목),el('p',`${m.시작일} → ${m.완료일} · ${personName(m.담당자명)} · ${m.필수?'종결 필수':'선택'}`),el('p',m.완료기준,'muted'),el('small',m.검증필요?`완료 검증: ${personName(m.검증자명)}`:'완료 검증 생략'));milestones.append(row);}box.append(milestones);
     const names=new Map(v.마일스톤.map(m=>[m.ID,m.제목]));if(v.선행관계.length){const deps=el('ul',null,'dependency-list');for(const edge of v.선행관계)deps.append(el('li',`${names.get(edge.선행ID)} 완료 → ${names.get(edge.후행ID)} 착수`));box.append(el('p','선행 작업 관계','plan-state'),deps);}else box.append(el('p','선행 제약 없이 각각 착수할 수 있습니다.','hint'));
-    if(v.결정)box.append(el('p',`${v.결정.결정자명} · ${v.결정.결과}${v.결정.사유?' — '+v.결정.사유:''}`,'decision-note'));return box;
+    if(v.결정)box.append(el('p',`${personName(v.결정.결정자명)} · ${v.결정.결과}${v.결정.사유?' — '+v.결정.사유:''}`,'decision-note'));return box;
   }
   function reasonForm(data,title,label,kind,args={},sub){
     const fold=el('details');fold.append(el('summary',title));const form=el('form');form.className='execution-form';const reason=note(form,label);error(form);submit(form,title,kind,true);
@@ -39,7 +39,7 @@ export function createExecution({el,button,send,refresh,getInfo,isBusy,message,h
       const progress=el('progress');progress.max=required.length||1;progress.value=done.length;progress.setAttribute('aria-label','필수 마일스톤 완료율');box.append(progress);
       const list=el('div',null,'execution-list');
       for(const m of data.실행){
-        const row=el('article',null,'execution-item');row.dataset.milestoneId=m.ID;row.append(el('h4',`${m.부서명} · ${m.제목}`),el('span',`${m.상태} · ${m.실행회차}회차`,`badge ${m.현재기한초과?'late':'neutral'}`),el('p',`${m.담당자명} · ${m.시작일} → ${m.완료일}`));
+        const row=el('article',null,'execution-item');row.dataset.milestoneId=m.ID;row.append(el('h4',`${m.부서명} · ${m.제목}`),el('span',`${m.상태} · ${m.실행회차}회차`,`badge ${m.현재기한초과?'late':'neutral'}`),el('p',`${personName(m.담당자명)} · ${m.시작일} → ${m.완료일}`));
         row.append(el('p',m.최초완료일?`최초 승인 완료일 ${m.최초완료일}${m.최초기한초과?' · 최초 기준 지연':''}`:'최초 승인 이후 추가된 작업','hint'));
         if(m.현재기한초과)row.append(el('p',m.상태==='완료'?'현재 승인 일정 이후 완료되었습니다.':'현재 승인 완료일을 지났습니다.','error'));
         if(m.정리사유)row.append(el('p',`선택 작업 종료 사유: ${m.정리사유}`,'decision-note'));

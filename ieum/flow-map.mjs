@@ -1,4 +1,4 @@
-import {displayLabel} from './messages.mjs';
+import {displayLabel,personName,departmentPerson} from './messages.mjs';
 // 업무상세의 열람 범위 안에서만 맵을 만든다. 상태와 기한 판정은 서버 값을 사용한다.
 const globalKinds=new Set(['통합제출','통합보완','대표승인','결과확인','결과보완','종결승인']);
 const statusOf=(actions,fallback='waiting')=>actions.some(a=>a.기한초과)?'late':actions.length?'current':fallback;
@@ -10,7 +10,7 @@ export function buildFlowMap(data,{expanded=false}={}){
   const rejected=data.단계==='비승인';
   const add=(id,title,subtitle,own=[],fallback='waiting',extra={})=>{const n={id,title,subtitle,actions:own,status:statusOf(own,fallback),...extra};nodes.push(n);return n;};
   const link=(from,to,label='')=>edges.push({from,to,label});
-  add('request','업무 요청',data.요청자?.표시명||'요청자',[],'done',{detail:data.목적});
+  add('request','업무 요청',personName(data.요청자?.표시명,data.요청자?.ID)||'요청자',[],'done',{detail:data.목적});
   for(const b of departments){
     const own=actions.filter(a=>a.부서업무ID===b.ID&&!a.마일스톤ID&&!globalKinds.has(a.종류));
     const p=b.계획?.[0],scope=effective?.범위?.find(s=>s.부서업무ID===b.ID);
@@ -48,7 +48,7 @@ export function buildFlowMap(data,{expanded=false}={}){
   }
   const resultActions=actions.filter(a=>['결과확인','결과보완'].includes(a.종류));
   const closeActions=actions.filter(a=>a.종류==='종결승인');
-  add('result','요청자 결과 확인',data.요청자?.표시명||'요청자',resultActions,closed||closeActions.length?'done':'waiting',{detail:data.종결?.준비미완료?.join(' · ')});
+  add('result','요청자 결과 확인',personName(data.요청자?.표시명,data.요청자?.ID)||'요청자',resultActions,closed||closeActions.length?'done':'waiting',{detail:data.종결?.준비미완료?.join(' · ')});
   add('close','대표님 종결 승인',closed?'업무 종결 완료':'최종 결과 승인 후 종결',closeActions,closed?'done':'waiting');
   link('result','close');
   // 참조가 없는 연결은 그리지 않는다. 실제 원본 관계만 유지한다.
@@ -104,11 +104,11 @@ export function createFlowMap({el,button}){
       inspector.replaceChildren(el('h4',n.title),el('p',`${labels[n.status]} · ${n.subtitle}`));
       if(n.detail)inspector.append(el('p',n.detail,'hint'));
       if(n.department?.기원부서업무ID){const parent=data.부서업무.find(b=>b.ID===n.department.기원부서업무ID);inspector.append(el('p',`협업 요청 부서: ${parent?.부서명||'이전 부서'}`,'hint'));}
-      if(n.milestone){const m=n.milestone;inspector.append(el('p',`작업 담당: ${m.담당자명} · ${m.시작일} → ${m.완료일} · ${m.실행회차}회차`));if(m.검증필요)inspector.append(el('p',`완료 검증: ${m.검증자명||'담당자 확인 필요'}`));if(m.선행ID?.length)inspector.append(el('p',`선행 작업: ${m.선행ID.map(id=>data.실행.find(x=>x.ID===id)?.제목||'이전 작업').join(', ')}`));if(m.현재기한초과)inspector.append(el('p',m.상태==='완료'?'승인 일정 이후 완료':'승인 완료일 초과','error'));}
+      if(n.milestone){const m=n.milestone;inspector.append(el('p',`작업 담당: ${personName(m.담당자명)} · ${m.시작일} → ${m.완료일} · ${m.실행회차}회차`));if(m.검증필요)inspector.append(el('p',`완료 검증: ${personName(m.검증자명)||'담당자 확인 필요'}`));if(m.선행ID?.length)inspector.append(el('p',`선행 작업: ${m.선행ID.map(id=>data.실행.find(x=>x.ID===id)?.제목||'이전 작업').join(', ')}`));if(m.현재기한초과)inspector.append(el('p',m.상태==='완료'?'승인 일정 이후 완료':'승인 완료일 초과','error'));}
       const planned=n.plan?.마일스톤;
-      if(planned?.length){const list=el('ul');for(const m of planned)list.append(el('li',`${m.제목} · ${m.담당자명} · ${m.시작일} → ${m.완료일}`));inspector.append(el('p','최근 부서 계획 · 실행 기준은 대표님이 승인한 유효 계획입니다.','hint'),list);}
+      if(planned?.length){const list=el('ul');for(const m of planned)list.append(el('li',`${m.제목} · ${personName(m.담당자명)} · ${m.시작일} → ${m.완료일}`));inspector.append(el('p','최근 부서 계획 · 실행 기준은 대표님이 승인한 유효 계획입니다.','hint'),list);}
       if(n.runs?.length)inspector.append(el('p','마일스톤 펼치기에서 개별 작업과 선후 관계를 확인하세요.','hint'));
-      for(const a of n.actions){const row=el('div',null,'flow-action');row.append(el('strong',`${a.담당부서.이름} · ${a.담당자.표시명} · ${displayLabel(a.종류)}`),el('p',`${new Date(a.처리기한).toLocaleString('ko-KR')}까지${a.기한초과?' · 기한 초과':''}`));if(a.미팅대기)row.append(el('p','미팅 결론·후속 업무 대기','notice'));if(a.마일스톤제목)row.append(el('p',a.마일스톤제목));row.append(button('해당 차례 보기','text-button',()=>jump(a)));inspector.append(row);}
+      for(const a of n.actions){const row=el('div',null,'flow-action');row.append(el('strong',`${departmentPerson(a.담당부서.이름,a.담당자.표시명,a.담당자.ID)} · ${displayLabel(a.종류)}`),el('p',`${new Date(a.처리기한).toLocaleString('ko-KR')}까지${a.기한초과?' · 기한 초과':''}`));if(a.미팅대기)row.append(el('p','미팅 결론·후속 업무 대기','notice'));if(a.마일스톤제목)row.append(el('p',a.마일스톤제목));row.append(button('해당 차례 보기','text-button',()=>jump(a)));inspector.append(row);}
     }
     function render(){
       model=buildFlowMap(data,{expanded});layout=layoutFlowMap(model);canvas.replaceChildren();canvas.style.width=`${layout.width}px`;canvas.style.height=`${layout.height}px`;
@@ -117,7 +117,7 @@ export function createFlowMap({el,button}){
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width',layout.width);svg.setAttribute('height',layout.height);svg.setAttribute('aria-hidden','true');svg.classList.add('flow-edges');
       for(const edge of model.edges){const a=layout.positions.get(edge.from),b=layout.positions.get(edge.to);const path=document.createElementNS(svg.namespaceURI,'path');const x=a.x+a.width,y=a.y+a.height/2,end=b.x-7,endY=b.y+b.height/2,mid=(x+end)/2;path.setAttribute('d',`M ${x} ${y} C ${mid} ${y}, ${mid} ${endY}, ${end} ${endY}`);const title=document.createElementNS(svg.namespaceURI,'title');title.textContent=edge.label;path.append(title);svg.append(path);const arrow=document.createElementNS(svg.namespaceURI,'path');arrow.setAttribute('d',`M ${end-5} ${endY-4} L ${end} ${endY} L ${end-5} ${endY+4}`);svg.append(arrow);}
       canvas.append(svg);
-      for(const n of model.nodes){const p=layout.positions.get(n.id),b=button('',`flow-node ${n.status}`,()=>select(n.id));b.dataset.nodeId=n.id;b.style.left=`${p.x}px`;b.style.top=`${p.y}px`;b.setAttribute('aria-label',`${n.title} · ${labels[n.status]} · ${n.subtitle}`);b.append(el('span',labels[n.status],'flow-state'),el('strong',n.title),el('span',n.subtitle,'flow-subtitle'));const owners=[...new Set(n.actions.map(a=>a.담당자.표시명))];if(owners.length)b.append(el('small',owners.join(' · ')));else if(n.milestone)b.append(el('small',n.milestone.담당자명));canvas.append(b);}
+      for(const n of model.nodes){const p=layout.positions.get(n.id),b=button('',`flow-node ${n.status}`,()=>select(n.id));b.dataset.nodeId=n.id;b.style.left=`${p.x}px`;b.style.top=`${p.y}px`;b.setAttribute('aria-label',`${n.title} · ${labels[n.status]} · ${n.subtitle}`);b.append(el('span',labels[n.status],'flow-state'),el('strong',n.title),el('span',n.subtitle,'flow-subtitle'));const owners=[...new Set(n.actions.map(a=>personName(a.담당자.표시명,a.담당자.ID)))];if(owners.length)b.append(el('small',owners.join(' · ')));else if(n.milestone)b.append(el('small',personName(n.milestone.담당자명)));canvas.append(b);}
       current.disabled=!model.nodes.some(n=>['late','current'].includes(n.status));expand.disabled=!data.실행?.length;
       scale(zoom);select(model.nodes.some(n=>n.id===selected)?selected:model.nodes.find(n=>n.status==='late')?.id||model.nodes.find(n=>n.status==='current')?.id||(model.closed?'close':'request'));
     }

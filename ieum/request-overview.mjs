@@ -1,4 +1,4 @@
-import {displayLabel} from './messages.mjs';
+import {displayLabel,personName} from './messages.mjs';
 import {buildFlowMap} from './flow-map.mjs';
 
 const phaseNames={접수판단:'요청 검토',책임자배정:'담당자 배정',계획작성:'계획 작성',부서승인:'계획 승인',자료보완:'자료 보완',부서요청조정:'요청 조정',주관조정:'주관 부서 조정'};
@@ -60,13 +60,13 @@ export function createRequestOverview({el,button,assignees}){
   for(const r of model.ready){
    const a=r.action,card=button('',`next-turn-card${r.mine?' mine':''}${a.기한초과?' response-delayed':''}`,()=>revealWorkElement(document.getElementById(`action-${a.행동ID}`)));card.dataset.actionId=a.행동ID;
    const meta=el('div',null,'next-turn-meta');meta.append(el('span',a.담당부서?.이름||'프로젝트'));if(r.mine)meta.append(el('span','내 차례','next-turn-me'));card.append(meta);
-   card.append(el('strong',r.people.map(p=>p.표시명).join(' · ')||'담당자 확인 필요','next-turn-person'),el('span',r.title,'next-turn-task'),el('span',r.scope,'next-turn-scope'));
+   card.append(el('strong',r.people.map(p=>personName(p.표시명,p.ID)).join(' · ')||'담당자 확인 필요','next-turn-person'),el('span',r.title,'next-turn-task'),el('span',r.scope,'next-turn-scope'));
    const foot=el('div',null,'next-turn-foot'),date=a.처리기한?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(a.처리기한)):'기한 미지정';
    foot.append(el('span',`${a.기한초과?'기한 초과 · ':''}${date}${a.처리기한?'까지':''}`,a.기한초과?'next-turn-late':'next-turn-due'),el('span',r.mine?'바로 처리 ›':'상세 보기 ›','next-turn-link'));card.append(foot);grid.append(card);
   }if(model.ready.length)box.append(grid);
   if(model.waiting.length||model.preparing.length){const wait=el('div',null,'next-turn-waiting');wait.append(el('h3','지금은 대기 중'));
-   for(const r of model.waiting)wait.append(button(`${r.people.map(p=>p.표시명).join(' · ')} · ${r.title} — ${r.action.미팅대기?'미팅 결론·후속 업무 대기':'선행 처리 대기'} →`,'next-turn-wait-link',()=>revealWorkElement(document.getElementById(`action-${r.action.행동ID}`))));
-   for(const b of model.preparing){const intake=data.접수현황?.find(i=>i.부서업무ID===b.ID);wait.append(el('p',`${b.부서명} · ${intake?.접수준비?.담당자?.표시명||'담당자 설정 필요'} — ${intake?.접수준비?.상태||'접수 준비 대기'}`));}box.append(wait);
+   for(const r of model.waiting)wait.append(button(`${r.people.map(p=>personName(p.표시명,p.ID)).join(' · ')} · ${r.title} — ${r.action.미팅대기?'미팅 결론·후속 업무 대기':'선행 처리 대기'} →`,'next-turn-wait-link',()=>revealWorkElement(document.getElementById(`action-${r.action.행동ID}`))));
+   for(const b of model.preparing){const intake=data.접수현황?.find(i=>i.부서업무ID===b.ID);wait.append(el('p',`${b.부서명} · ${personName(intake?.접수준비?.담당자?.표시명,intake?.접수준비?.담당자?.ID)||'담당자 설정 필요'} — ${intake?.접수준비?.상태||'접수 준비 대기'}`));}box.append(wait);
   }
   return box;
  }
@@ -103,8 +103,8 @@ export function createRequestOverview({el,button,assignees}){
    const steps=el('ol',null,'request-lane-steps');
    for(const step of lane.steps){const li=el('li',null,`request-lane-step ${step.status}`);li.title=`${step.title} · ${toneNames[step.status]}`;li.append(el('span',step.status==='done'?'✓':step.status==='late'?'!':'','request-lane-dot'),el('span',step.title,'request-lane-label'));steps.append(li);}
    steps.setAttribute('aria-label',lane.steps.map(s=>`${s.title} ${toneNames[s.status]}`).join(', '));
-   const who=el('div',null,'request-branch-who'),people=[...new Set(own.flatMap(a=>(a.담당자목록?.length?a.담당자목록:[a.담당자]).map(p=>p.표시명)))];
-   who.append(el('span',state,'request-branch-state'),el('p',people.length?people.join(' · '):intake?.접수준비?.담당자?.표시명||intake?.책임자?.표시명||intake?.접수담당자?.표시명||'담당자 설정 대기','request-branch-person'));
+   const who=el('div',null,'request-branch-who'),people=[...new Set(own.flatMap(a=>(a.담당자목록?.length?a.담당자목록:[a.담당자]).map(p=>personName(p.표시명,p.ID))))];
+   who.append(el('span',state,'request-branch-state'),el('p',people.length?people.join(' · '):personName(intake?.접수준비?.담당자?.표시명,intake?.접수준비?.담당자?.ID)||personName(intake?.책임자?.표시명,intake?.책임자?.ID)||personName(intake?.접수담당자?.표시명,intake?.접수담당자?.ID)||'담당자 설정 대기','request-branch-person'));
    if(lane.waitingApproval&&!own.length)who.append(el('small','통합 승인 후 실행','request-branch-hint'));else if(lane.runs&&lane.at===4)who.append(el('small',`마일스톤 ${lane.runsDone}/${lane.runs} 완료`,'request-branch-hint'));
    if(lateActions.length)who.append(el('p',`⚠ 기한 초과 ${lateActions.length}건`,'request-branch-late'));
    if(delayed){const warning=el('div',null,'response-delay-note');warning.append(el('strong','5일 미응답 지연'),el('small','수락 · 미팅 요청 · 마일스톤 배정 필요'));who.append(warning);}
@@ -116,7 +116,7 @@ export function createRequestOverview({el,button,assignees}){
   if(!branches.querySelector('.assignee-control:not(:empty)'))branches.classList.add('no-controls');
   box.append(branches);
   const current=acts.filter(a=>globalKinds.includes(a.종류));
-  if(current.length){const turns=el('div',null,'request-stage-actions');for(const a of current)turns.append(button(`${displayLabel(a.종류)} · ${a.담당자.표시명} ›`,'text-button',()=>revealWorkElement(document.getElementById(`action-${a.행동ID}`))));box.append(turns);}
+  if(current.length){const turns=el('div',null,'request-stage-actions');for(const a of current)turns.append(button(`${displayLabel(a.종류)} · ${personName(a.담당자.표시명,a.담당자.ID)} ›`,'text-button',()=>revealWorkElement(document.getElementById(`action-${a.행동ID}`))));box.append(turns);}
   if(data.변경상태)box.append(el('p',`계획 변경: ${data.변경상태} · 실행은 현재 승인된 계획을 따릅니다.`,'hint'));
   box.append(button('상세 흐름 맵 보기 ›','text-button request-map-link',()=>{const fold=document.querySelector('[data-fold=map]');if(fold){fold.open=true;fold.scrollIntoView({block:'start',behavior:'smooth'});}else document.querySelector('.flow-map')?.scrollIntoView({block:'start',behavior:'smooth'});}));
   return box;

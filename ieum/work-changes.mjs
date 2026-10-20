@@ -1,11 +1,11 @@
-import {errorMessage} from './messages.mjs';
+import {errorMessage,personName} from './messages.mjs';
 
 function valueView(el,value){
  const box=el('div');
  for(const [key,label]of [['제목','제목'],['내용','내용'],['완료기준','완료 기준'],['희망기한','희망 기한']])if(key in value)box.append(el('p',`${label}: ${value[key]||'미지정'}`));
  if(value.계획)for(const plan of value.계획.slice(0,1)){
   box.append(el('p',`계획 v${plan.버전} · ${plan.상태}`));
-  for(const m of plan.마일스톤)box.append(el('p',`${m.제목} · ${m.담당자목록?.map(p=>p.표시명).join(', ')||m.담당자명} · ${m.시작일} → ${m.완료일}`),el('p',`완료 기준: ${m.완료기준}`),el('p',`${m.필수?'필수':'선택'} 작업 · ${m.검증필요?`검증 담당: ${m.검증자명}`:'검증 불필요'}`));
+  for(const m of plan.마일스톤)box.append(el('p',`${m.제목} · ${m.담당자목록?.map(p=>personName(p.표시명,p.ID)).join(', ')||personName(m.담당자명)} · ${m.시작일} → ${m.완료일}`),el('p',`완료 기준: ${m.완료기준}`),el('p',`${m.필수?'필수':'선택'} 작업 · ${m.검증필요?`검증 담당: ${personName(m.검증자명)}`:'검증 불필요'}`));
  }
  if(value.계획?.length===0)box.append(el('p','작성된 계획 없음'));
  return box;
