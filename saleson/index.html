@@ -1530,7 +1530,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610251021-marketing';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610251041-marketing-nozzle';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -8425,7 +8425,7 @@ function renderMkt() {
     + '<button type="button" class="chip' + (MKTF.hideCaution ? ' on' : '') + '" onclick="MKTF.hideCaution=!MKTF.hideCaution;renderMkt()">주의 병원 빼기</button>'
     + '</div></div>'
     + '<div id="mktList"></div>'
-    + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">시술 숙련도 = 최근 12개월 노즐 유상 출고(단품+구독, 증정 제외) 월평균 · Lv.1 10개 이하 · Lv.2 30개 이하 · Lv.3 50개 이하 · Lv.4 100개 이하 · Lv.5 100개 초과. 신규 병원은 첫 출고부터 나눕니다.'
+    + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">시술 숙련도 = 2026년 1월부터 노즐 유상 출고(단품+구독, 증정 제외) 월평균 · Lv.1 10개 이하 · Lv.2 30개 이하 · Lv.3 50개 이하 · Lv.4 100개 이하 · Lv.5 100개 초과. 신규 병원은 첫 출고부터 나눕니다.'
     + (MKT.nozzleSyncedAt ? ' 관리 시트 동기화 ' + esc(mktWhen(MKT.nozzleSyncedAt)) + '.' : ' 노즐 원천 자료가 아직 없습니다.') + '</div>';
   document.getElementById('mktBody').innerHTML = h;
   mktRenderList();
@@ -8582,13 +8582,13 @@ function mktRenderDetail() {
   var 최대 = Math.max.apply(null, N.monthly.map(function(m) { return m.qty; }).concat([1]));
   h += mktSec_('시술 숙련도 (노즐 사용량)')
     + '<div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' + mktLevelBadge(N.level, true)
-    + '<span style="font-size:14px;color:#191f28;">' + (N.noData ? '노즐 거래 기록이 없습니다' : '월평균 <b>' + N.monthlyAvg + '개</b> <span style="color:#5f6b7a;font-size:12.5px;">(최근 ' + N.months + '개월 ' + mktNum(N.qty12) + '개 · 마지막 출고 ' + esc(N.lastShip || '—') + ')</span>') + '</span></div>'
+    + '<span style="font-size:14px;color:#191f28;">' + (N.noData ? '노즐 거래 기록이 없습니다' : '월평균 <b>' + N.monthlyAvg + '개</b> <span style="color:#5f6b7a;font-size:12.5px;">(' + (N.firstShip && N.from && N.firstShip > N.from ? '첫 출고 ' + esc(N.firstShip) : esc(String(N.from || '').slice(0, 7))) + '부터 ' + N.months + '개월 ' + mktNum(N.qty12) + '개 · 마지막 출고 ' + esc(N.lastShip || '—') + ')</span>') + '</span></div>'
     + '<div style="margin-top:10px;display:flex;align-items:flex-end;gap:3px;height:64px;">' + N.monthly.map(function(m) {
         var 높이 = m.qty ? Math.max(3, Math.round(m.qty / 최대 * 56)) : 1;
         return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;" title="' + esc(m.ym) + ' ' + m.qty + '개">'
           + '<div style="width:100%;height:' + 높이 + 'px;background:' + (m.qty ? '#3182f6' : '#e5e8eb') + ';border-radius:3px 3px 0 0;"></div></div>';
       }).join('') + '</div>'
-    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8b95a1;margin-top:3px;"><span>' + esc(N.monthly[0].ym) + '</span><span>' + esc(N.monthly[11].ym) + '</span></div>';
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8b95a1;margin-top:3px;"><span>' + esc(N.monthly[0].ym) + '</span><span>' + esc(N.monthly[N.monthly.length - 1].ym) + '</span></div>';
 
   // 원장 시술 능력 평가
   h += mktSec_('원장 시술 능력 (영업 담당 평가)', me.canRate && MKT_EDIT !== 'rate' ? mktLink_(E.skillScore ? '고치기' : '평가하기', "MKT_EDIT='rate';mktRenderDetail()") : '');
