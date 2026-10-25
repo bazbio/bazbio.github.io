@@ -604,7 +604,7 @@
 #view-more .menu-group{margin-bottom:22px}#view-more .menu-group h3{font-size:13px;color:#667588;margin:0 0 9px 6px;letter-spacing:.04em}
 #view-more .mrow{width:100%;text-align:left;border:0;background:transparent;font-family:inherit}#view-more .mrow:hover{background:#f3f6fa}
 @media(min-width:900px){.nav{padding:24px 12px;gap:2px}.nav button{font-size:14px;padding:10px 16px;min-height:42px}.nav #nav-home{margin-bottom:2px}.nav #nav-more{display:none}}
-@media(max-width:899px){.nav button{display:none}.nav #nav-home,.nav #nav-performance,.nav #nav-log,.nav #nav-more{display:block}.nav[data-viewer="true"] #nav-dash,.nav[data-viewer="true"] #nav-ncare{display:block}.nav-group-label{display:none!important}}
+@media(max-width:899px){.nav button{display:none}.nav #nav-home,.nav #nav-performance,.nav #nav-log,.nav #nav-more{display:block}.nav[data-viewer="true"] #nav-dash,.nav[data-viewer="true"] #nav-ncare,.nav[data-viewer="true"] #nav-mkt{display:block}.nav-group-label{display:none!important}}
 #homePerformance{margin:0 0 24px;--qh-blue:#1b64da;--qh-muted:#6b7684;font-variant-numeric:tabular-nums}
 .qh-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}.qh-eyebrow{font-size:12px;font-weight:600;color:#6b7684;margin-bottom:6px}.qh-heading h2{font-size:22px;font-weight:700;letter-spacing:-.03em;margin:0 0 6px;color:#191f28}.qh-sub{font-size:13px;color:var(--qh-muted);line-height:1.65}.qh-months{display:flex;gap:4px;padding:4px;border:1px solid #e5e8eb;border-radius:12px;background:#f2f4f6}.qh-months button{border:0;background:transparent;color:#4e5968;border-radius:8px;padding:9px 14px;min-height:40px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}.qh-months button[aria-pressed="true"]{background:#fff;color:#1b64da;box-shadow:0 1px 3px #191f2810}
 .qh-heroes{display:grid;grid-template-columns:1fr 1fr;gap:12px}.qh-hero{border:1px solid #e5e8eb;border-radius:16px;background:#fff;color:#191f28;text-align:left;padding:22px 24px;min-width:0;cursor:pointer;font-family:inherit;transition:border-color .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s cubic-bezier(0.16,1,0.3,1)}.qh-hero:hover{border-color:#b8d3f6;box-shadow:0 3px 12px #191f2808}.qh-hero:focus-visible,.qh-group:focus-visible,.qh-person:focus-visible,.qh-months button:focus-visible{outline:3px solid #3182f6;outline-offset:3px}.qh-hero[aria-expanded="true"]{border-color:#3182f6;box-shadow:0 0 0 1px #3182f6}.qh-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;color:#4e5968}.qh-arrow{font-size:18px;color:#8b95a1}.qh-target{display:flex;align-items:baseline;gap:7px;margin:16px 0 18px;font-size:56px;font-weight:700;line-height:1.1;letter-spacing:-.04em}.qh-target small{font-size:18px;color:#6b7684;letter-spacing:0;font-weight:500}.qh-target.empty{font-size:28px;letter-spacing:-.02em}.qh-rule{border-top:1px solid #f2f4f6;padding-top:16px}.qh-actual{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#1b64da}.qh-actual strong{font-size:24px;letter-spacing:-.03em}.qh-actual strong small{font-size:13px;color:#4e5968;letter-spacing:0;font-weight:500}.qh-rate{font-size:22px;font-weight:700;letter-spacing:-.02em}.qh-track{height:6px;background:#f2f4f6;border-radius:8px;overflow:hidden;margin:12px 0 10px}.qh-track span{display:block;height:100%;background:#3182f6;border-radius:8px}.qh-card-foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#6b7684;line-height:1.5}
@@ -1103,6 +1103,16 @@
   <div id="ncBody"><div class="card empty">불러오는 중…</div></div>
 </div></div>
 
+<!-- 마케팅 — 협업 병원 숙련도·마케팅 이력·인스타 게시물 순위 (2026-10-25). 원천은 관문 saleson-marketing -->
+<div class="view" id="view-mkt"><div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;color:#4e5968;">협업 병원 — 시술 숙련도 · 마케팅 이력 · 인스타 게시물</span>
+    <button class="refresh" onclick="if(MKTMODE==='post'){MKTP=null;loadMktPosts()}else{MKT=null;loadMkt()}">새로고침</button>
+  </div>
+  <div class="seg" id="mktModeSeg"></div>
+  <div id="mktBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
+
 <div class="view" id="view-inbound"><div class="wrap"><div id="ibBody"></div></div></div>
 <div class="view" id="view-qudoli"><div class="wrap"><div id="qdBody"></div></div></div>
 <!-- 주간 — 주간 계획서·실행 리포트·2단 승인 (팀운영 D-24~D-34, 지시서 ⑦).
@@ -1179,7 +1189,7 @@
 <div class="kicker"><div class="bar"></div><div class="lbl">전체 메뉴</div></div>
 <section class="menu-group" data-menu-group="0"><button type="button" class="menu-category" aria-expanded="false" aria-controls="menu-items-0" onclick="salesNavToggle('0')">성과·분석</button><div class="mlist" id="menu-items-0" hidden><button type="button" class="mrow" id="more-inbound" style="display:none" onclick="show('inbound')"><div class="mi" style="background:#2468cf">입</div><div class="mb2"><div class="mn">유입·데모 배정</div><div class="ms2">문의 연락 · 담당자 접수 · 예약</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-qudoli" style="display:none" onclick="show('qudoli')"><div class="mi" style="background:#2468cf">주</div><div class="mb2"><div class="mn">내 주간 목표</div><div class="ms2">큐돌이 배정 · 활동 입력 · 주간 제출</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-performance" style="display:none" onclick="q4OpenGoals()"><div class="mi" style="background:#1b64da">성</div><div class="mb2"><div class="mn">성과관리</div><div class="ms2">직원 목표 · 4분기 달성 현황</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-dash" onclick="show('dash')"><div class="mi" style="background:#1b64da">현</div><div class="mb2"><div class="mn">현황</div><div class="ms2">방문 활동 · 영업 실적</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-flow" onclick="show('flow')"><div class="mi" style="background:#1b64da">흐</div><div class="mb2"><div class="mn">흐름</div><div class="ms2">월별 영업 퍼널 · 리드 유입</div></div><div class="mc">›</div></button></div></section>
 <section class="menu-group" data-menu-group="1"><button type="button" class="menu-category" aria-expanded="false" aria-controls="menu-items-1" onclick="salesNavToggle('1')">영업활동</button><div class="mlist" id="menu-items-1" hidden><button type="button" class="mrow" id="more-plan" onclick="show('plan')"><div class="mi" style="background:#188d83">계</div><div class="mb2"><div class="mn">계획</div><div class="ms2">방문 계획 등록</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-log" onclick="show('log')"><div class="mi" style="background:#188d83">기</div><div class="mb2"><div class="mn">기록</div><div class="ms2">방문 결과 · 제품 · 실적 입력</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-mine" onclick="show('mine')"><div class="mi" style="background:#188d83">내</div><div class="mb2"><div class="mn">내 입력</div><div class="ms2">내가 쓴 기록 보기 · 수정</div></div><div class="mc">›</div></button></div></section>
-<section class="menu-group" data-menu-group="2"><button type="button" class="menu-category" aria-expanded="false" aria-controls="menu-items-2" onclick="salesNavToggle('2')">고객관리</button><div class="mlist" id="menu-items-2" hidden><button type="button" class="mrow" id="more-meta" onclick="show('meta')"><div class="mi" style="background:#92703d">M</div><div class="mb2"><div class="mn">Meta DB</div><div class="ms2">광고 문의 · 통화 · 리드 전환</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-ncare" onclick="show('ncare')"><div class="mi" style="background:#92703d">N</div><div class="mb2"><div class="mn">N-Care</div><div class="ms2">고객 케어 · 온보딩 · 노즐</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')"><div class="mi" style="background:#92703d">실</div><div class="mb2"><div class="mn">실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div></button></div></section>
+<section class="menu-group" data-menu-group="2"><button type="button" class="menu-category" aria-expanded="false" aria-controls="menu-items-2" onclick="salesNavToggle('2')">고객관리</button><div class="mlist" id="menu-items-2" hidden><button type="button" class="mrow" id="more-meta" onclick="show('meta')"><div class="mi" style="background:#92703d">M</div><div class="mb2"><div class="mn">Meta DB</div><div class="ms2">광고 문의 · 통화 · 리드 전환</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-ncare" onclick="show('ncare')"><div class="mi" style="background:#92703d">N</div><div class="mb2"><div class="mn">N-Care</div><div class="ms2">고객 케어 · 온보딩 · 노즐</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-demofail" style="display:none" onclick="show('demofail')"><div class="mi" style="background:#92703d">실</div><div class="mb2"><div class="mn">실패관리</div><div class="ms2">실패 이력 · 재접촉 · 재데모</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-mkt" onclick="show('mkt')"><div class="mi" style="background:#92703d">마</div><div class="mb2"><div class="mn">마케팅</div><div class="ms2">숙련도 · 마케팅 이력 · 인스타 순위</div></div><div class="mc">›</div></button></div></section>
 <section class="menu-group" data-menu-group="3"><button type="button" class="menu-category" aria-expanded="false" aria-controls="menu-items-3" onclick="salesNavToggle('3')">영업지원</button><div class="mlist" id="menu-items-3" hidden><button type="button" class="mrow" id="more-mat" onclick="show('mat')"><div class="mi" style="background:#7b61a8">자</div><div class="mb2"><div class="mn">자료</div><div class="ms2">공식 영업 자료실</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-evt" onclick="show('evt')"><div class="mi" style="background:#7b61a8">학</div><div class="mb2"><div class="mn">학회/세미나</div><div class="ms2">행사별 참석자 · 성과</div></div><div class="mc">›</div></button><button type="button" class="mrow" id="more-guide" onclick="show('guide')"><div class="mi" style="background:#7b61a8">사</div><div class="mb2"><div class="mn">사용 가이드</div><div class="ms2">SalesOn 사용 안내</div></div><div class="mc">›</div></button></div></section>
 </div></div>
 
@@ -1195,10 +1205,11 @@
 <button id="nav-plan" data-nav-category="1" onclick="show('plan')">계획</button>
 <button id="nav-log" data-nav-category="1" onclick="show('log')">기록</button>
 <button id="nav-mine" data-nav-category="1" onclick="show('mine')">내 입력</button>
-<button type="button" class="nav-group-label" data-nav-group="2" aria-expanded="false" aria-controls="nav-meta nav-ncare nav-demofail" onclick="salesNavToggle(this.dataset.navGroup)">고객관리</button>
+<button type="button" class="nav-group-label" data-nav-group="2" aria-expanded="false" aria-controls="nav-meta nav-ncare nav-demofail nav-mkt" onclick="salesNavToggle(this.dataset.navGroup)">고객관리</button>
 <button id="nav-meta" data-nav-category="2" onclick="show('meta')">Meta DB</button>
 <button id="nav-ncare" data-nav-category="2" onclick="show('ncare')">N-Care</button>
 <button id="nav-demofail" data-nav-category="2" style="display:none" onclick="show('demofail')">실패관리</button>
+<button id="nav-mkt" data-nav-category="2" onclick="show('mkt')">마케팅</button>
 <button type="button" class="nav-group-label" data-nav-group="3" aria-expanded="false" aria-controls="nav-mat nav-evt nav-guide" onclick="salesNavToggle(this.dataset.navGroup)">영업지원</button>
 <button id="nav-mat" data-nav-category="3" onclick="show('mat')">자료</button>
 <button id="nav-evt" data-nav-category="3" onclick="show('evt')">학회/세미나</button>
@@ -1519,7 +1530,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610251015-qudoli-home';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610251021-marketing';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1792,6 +1803,7 @@ function q4Navigation(){
  var actor=DATA.me.name+'|'+DATA.me.team+'|'+!!DATA.me.viewer;if(SALES_NAV.actor!==actor){SALES_NAV={open:'',current:'',actor:actor};}
  var viewer=!!DATA.me.viewer,cl=viewer&&String(DATA.me.team||'').trim()==='C-Labs';document.querySelector('.nav').dataset.viewer=String(viewer);
  ['nav-dash','nav-flow','nav-ncare','more-flow','more-dash','more-ncare'].forEach(function(id){document.getElementById(id).style.display=cl?'none':'';});
+ var mk=!viewer||String(DATA.me.team||'').trim()==='MA';['nav-mkt','more-mkt'].forEach(function(id){document.getElementById(id).style.display=mk?'':'none';});
  document.querySelectorAll('.nav-group-label').forEach(function(label){var entries=Array.from(document.querySelectorAll('[data-nav-category="'+label.dataset.navGroup+'"]'));label.style.display=entries.some(function(el){return el.style.display!=='none';})?'':'none';});
  document.querySelectorAll('#view-more .menu-group').forEach(function(group){group.style.display=Array.from(group.querySelectorAll('.mrow')).some(function(el){return el.style.display!=='none';})?'':'none';});
  salesNavRender();
@@ -1927,8 +1939,8 @@ function doOtp() {
 }
 /* 모바일 하단 탭에 자리가 없어 '더보기' 안으로 들어간 화면들.
    이 화면에 있을 때 활성 탭이 하나도 없으면 지금 어디인지 알 수 없다 — 더보기를 켠 채로 둔다. */
-var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow', 'performance', 'dash', 'ncare', 'demofail', 'qudoli', 'inbound'];
-var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail', 'performance', 'qudoli', 'inbound'];
+var UNDER_MORE = ['plan', 'log', 'mat', 'evt', 'guide', 'mine', 'meta', 'flow', 'performance', 'dash', 'ncare', 'demofail', 'qudoli', 'inbound', 'mkt'];
+var 화면목록_ = ['home', 'plan', 'log', 'lead', 'mat', 'evt', 'flow', 'kpi', 'dash', 'guide', 'more', 'mine', 'meta', 'ncare', 'week', 'demofail', 'performance', 'qudoli', 'inbound', 'mkt'];
 var 현재뷰_ = 'home';
 function show(v) {
   if (v === 'inbound' && !ibAllowed()) { toast('장비영업 또는 관리자 계정으로 로그인해 주세요.'); return; }
@@ -1976,6 +1988,7 @@ function show(v) {
   if (v === 'mine') { if (MINE) { renderMine(); loadMine(true); } else loadMine(); }
   if (v === 'meta') { if (METAQ) { renderMeta(); loadMeta(true); } else loadMeta(); }
   if (v === 'ncare') { if (NCARE) { renderNcare(); loadNcare(true); } else loadNcare(); }
+  if (v === 'mkt') { if (MKT) { renderMkt(); MKTMODE === 'post' ? loadMktPosts(true) : loadMkt(true); } else loadMkt(); }
   if (v === 'week') { if (WEEK) { renderWeek(); loadWeek(true); } else loadWeek(); }
   if (v === 'demofail') loadDemoFailures();
   if (v === 'performance') loadPerformance();
@@ -2033,6 +2046,7 @@ function 갈수있나_(v) {
   if (v === 'performance') return q4Allowed();
   if (!DATA || !DATA.me || !DATA.me.viewer) return !!DATA;
   var cl = String(DATA.me.team || '').trim() === 'C-Labs';
+  if (v === 'mkt') return String(DATA.me.team || '').trim() === 'MA';
   var 막힘 = ['home', 'plan', 'log', 'lead', 'mine'].concat(
     cl ? ['dash', 'flow', 'kpi', 'ncare'] : ['meta']);
   return 막힘.indexOf(v) < 0;
@@ -8318,6 +8332,448 @@ function qdTimeOpen(key){
 async function qdTimeSave(){var b=document.getElementById('qdTimeSaveButton');b.disabled=true;try{await qdCall({action:'demoTime',source_key:QD.timeEditing.key,version:QD.timeEditing.timeVersion,time:document.getElementById('qdDemoTime').value});document.getElementById('qdDialog').close();await loadQudoli();}catch(e){document.getElementById('qdTimeError').textContent=e.message;b.disabled=false;}}
 function qdInboundHtml(){var s=QD.data.analysis.inbound;if(!s||s.assigned===undefined)return '';return '<h3>인바운드 배정 → 예약 → 실제 시연</h3><div class="qd-summary">당주 배정 '+s.assigned+'건 · 직원 접수 '+s.accepted+'건 · 고객 확정 예약 '+s.booked+'건 · 실제 시연 '+s.demo+'건</div><p class="qd-help">배정→예약 '+(s.bookingRate===null?'분모 없음':s.bookingRate+'%')+' · 예약→시연 '+(s.demoRate===null?'분모 없음':s.demoRate+'%')+' · 미접수 '+s.unaccepted+'건 · 연락 기한 초과 '+s.overdue+'건. 배정 수는 데모 실적과 아웃바운드 예약 목표에 더하지 않습니다.</p>'; }
 /* QUDOLI_UI_END */
+/* MKT_UI_START — 마케팅 탭 (2026-10-25, 이음 마케팅 요청)
+ * 협업 병원 숙련도(노즐 월평균 레벨)·지역(시/구)·영업 담당·마케팅 이력·원장 평가·인스타 게시물 순위.
+ * 원천은 관문 `saleson-marketing`. 레벨·지역은 관문이 노즐 원천(매일 06시 동기화)에서 그때그때 계산한다. */
+var MKT = null;        // 목록 응답
+var MKTP = null;       // 게시물 순위 응답
+var MKTD = null;       // 열려 있는 병원 상세 응답
+var MKTMODE = 'hosp';
+var MKTF = { q: '', level: 0, sido: '', sigungu: '', rep: '', only: false, hideCaution: false, limit: 150 };
+var MKTPF = 30;        // 게시물 기간(일). 0 = 전체
+var MKT_EDIT = null;   // 상세에서 열린 인라인 폼: 'camp:new' | 'camp:<id>' | 'post' | 'rate' | 'caution' | 'addr' | 'manual:<id>'
+var MKT_LV = { 1: ['#4e5968', '#f2f4f6'], 2: ['#1b64da', '#e8f3ff'], 3: ['#05754a', '#e5f7ef'], 4: ['#a35c11', '#fff4e0'], 5: ['#d0223a', '#ffeaed'] };
+var MKT_ST = { 예정: 'tag-blue', 진행: 'tag-orange', 완료: 'tag-green', 취소: 'tag-grey' };
+
+function mktLevelBadge(l, big) {
+  var c = MKT_LV[l] || MKT_LV[1];
+  return '<span style="display:inline-block;padding:' + (big ? '4px 12px' : '1px 8px') + ';border-radius:999px;font-weight:700;font-size:' + (big ? '14px' : '12px') + ';color:' + c[0] + ';background:' + c[1] + ';white-space:nowrap;">Lv.' + l + '</span>';
+}
+function mktNum(n) { return n == null ? '—' : Number(n).toLocaleString('ko-KR'); }
+function mktDate(s) { return s ? String(s).slice(0, 10) : ''; }
+function mktWhen(s) {
+  if (!s) return '';
+  var d = new Date(s); if (isNaN(d)) return '';
+  var k = new Date(d.getTime() + 9 * 3600000).toISOString();
+  return k.slice(5, 10).replace('-', '/') + ' ' + k.slice(11, 16);
+}
+function mktCall_(몸통) {
+  몸통.토큰 = TOKEN;
+  return 관문호출_('/saleson-marketing', JSON.stringify(몸통));
+}
+function mktEditAll_() { return !!(MKT && MKT.me && (MKT.me.admin || MKT.me.ma)); }
+
+function loadMkt(조용히) {
+  읽기시작_(조용히, 'mktBody');
+  mktCall_({ 동작: '목록' }).then(화면갱신감싸기_(function(d) {
+    MKT = d; 읽기끝_(조용히); renderMkt();
+  }, '목록은 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[마케팅 뒤따라 받기]', (e && e.message) || e); return; }
+    실패카드_('mktBody', e, function() { loadMkt(); });
+  });
+}
+function loadMktPosts(조용히) {
+  읽기시작_(조용히, 'mktBody');
+  mktCall_({ 동작: '게시물순위' }).then(화면갱신감싸기_(function(d) {
+    MKTP = d; 읽기끝_(조용히); if (MKTMODE === 'post') renderMkt();
+  }, '순위는 받았지만 화면을 그리지 못했습니다. 새로고침해 주세요'), function(e) {
+    읽기끝_(조용히);
+    if (조용히) { console.warn('[게시물 순위 뒤따라 받기]', (e && e.message) || e); return; }
+    실패카드_('mktBody', e, function() { loadMktPosts(); });
+  });
+}
+function mktMode(m) {
+  MKTMODE = m;
+  if (m === 'post') { if (MKTP) { renderMkt(); loadMktPosts(true); } else { renderMktSeg_(); loadMktPosts(); } }
+  else renderMkt();
+}
+function renderMktSeg_() {
+  document.getElementById('mktModeSeg').innerHTML = [['hosp', '협업 병원'], ['post', '인스타 게시물 순위']].map(function(m) {
+    return '<div class="chip' + (MKTMODE === m[0] ? ' on' : '') + '" onclick="mktMode(\'' + m[0] + '\')">' + m[1] + '</div>';
+  }).join('');
+}
+function renderMkt() {
+  renderMktSeg_();
+  if (MKTMODE === 'post') return renderMktPosts();
+  if (!MKT) return;
+  var items = MKT.items || [];
+  var 시도들 = [], 담당들 = [];
+  items.forEach(function(x) {
+    if (x.sido && 시도들.indexOf(x.sido) < 0) 시도들.push(x.sido);
+    if (x.rep && 담당들.indexOf(x.rep) < 0) 담당들.push(x.rep);
+  });
+  var 시도순 = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+  시도들.sort(function(a, b) { return 시도순.indexOf(a) - 시도순.indexOf(b); });
+  담당들.sort();
+  var opt = function(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; };
+  var h = '<div class="card" style="padding:14px 16px;">'
+    + '<input type="text" id="mktQ" placeholder="병원명·인플루언서·담당자로 검색" autocomplete="off" value="' + esc(MKTF.q) + '" oninput="MKTF.q=this.value;MKTF.limit=150;mktRenderList()" style="margin:0 0 10px;">'
+    + '<div class="seg scrollx" id="mktLvSeg" style="margin-bottom:10px;"></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    + '<select id="mktSido" style="flex:1;min-width:110px;margin:0;" onchange="MKTF.sido=this.value;MKTF.sigungu=\'\';MKTF.limit=150;renderMkt()">' + opt('', '시/도 전체', MKTF.sido) + 시도들.map(function(s) { return opt(s, s, MKTF.sido); }).join('') + opt('-', '지역 미상', MKTF.sido) + '</select>'
+    + '<select id="mktSigungu" style="flex:1;min-width:130px;margin:0;" onchange="MKTF.sigungu=this.value;MKTF.limit=150;mktRenderList()"' + (MKTF.sido && MKTF.sido !== '-' ? '' : ' disabled') + '>' + opt('', '시/구 전체', MKTF.sigungu)
+    + (function() {
+        var 목록 = [];
+        items.forEach(function(x) { if (x.sido === MKTF.sido && x.sigungu && 목록.indexOf(x.sigungu) < 0) 목록.push(x.sigungu); });
+        return 목록.sort().map(function(s) { return opt(s, s, MKTF.sigungu); }).join('');
+      })() + '</select>'
+    + '<select id="mktRep" style="flex:1;min-width:110px;margin:0;" onchange="MKTF.rep=this.value;MKTF.limit=150;mktRenderList()">' + opt('', '영업 담당 전체', MKTF.rep) + 담당들.map(function(s) { return opt(s, s, MKTF.rep); }).join('') + opt('-', '담당 미지정', MKTF.rep) + '</select>'
+    + '</div>'
+    + '<div class="chips" style="margin-top:10px;">'
+    + '<button type="button" class="chip' + (MKTF.only ? ' on' : '') + '" onclick="MKTF.only=!MKTF.only;renderMkt()">마케팅 진행 병원만</button>'
+    + '<button type="button" class="chip' + (MKTF.hideCaution ? ' on' : '') + '" onclick="MKTF.hideCaution=!MKTF.hideCaution;renderMkt()">주의 병원 빼기</button>'
+    + '</div></div>'
+    + '<div id="mktList"></div>'
+    + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">시술 숙련도 = 최근 12개월 노즐 유상 출고(단품+구독, 증정 제외) 월평균 · Lv.1 10개 이하 · Lv.2 30개 이하 · Lv.3 50개 이하 · Lv.4 100개 이하 · Lv.5 100개 초과. 신규 병원은 첫 출고부터 나눕니다.'
+    + (MKT.nozzleSyncedAt ? ' 관리 시트 동기화 ' + esc(mktWhen(MKT.nozzleSyncedAt)) + '.' : ' 노즐 원천 자료가 아직 없습니다.') + '</div>';
+  document.getElementById('mktBody').innerHTML = h;
+  mktRenderList();
+}
+function mktFiltered_(levelOff) {
+  var q = String(MKTF.q || '').replace(/\s+/g, '').toLowerCase();
+  return (MKT.items || []).filter(function(x) {
+    if (!levelOff && MKTF.level && x.level !== MKTF.level) return false;
+    if (MKTF.sido === '-' ? !!x.sido : (MKTF.sido && x.sido !== MKTF.sido)) return false;
+    if (MKTF.sigungu && x.sigungu !== MKTF.sigungu) return false;
+    if (MKTF.rep === '-' ? !!x.rep : (MKTF.rep && x.rep !== MKTF.rep)) return false;
+    if (MKTF.only && !x.campaigns && !x.posts) return false;
+    if (MKTF.hideCaution && x.caution) return false;
+    if (q) {
+      var 글 = (x.name + '|' + (x.rep || '') + '|' + (x.careRep || '') + '|' + (x.area || '')).replace(/\s+/g, '').toLowerCase();
+      if (글.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+function mktRenderList() {
+  var 전체 = mktFiltered_(true);
+  var 수 = { 0: 전체.length, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  전체.forEach(function(x) { 수[x.level]++; });
+  var seg = document.getElementById('mktLvSeg');
+  if (seg) seg.innerHTML = [0, 1, 2, 3, 4, 5].map(function(l) {
+    return '<div class="chip' + (MKTF.level === l ? ' on' : '') + '" onclick="MKTF.level=' + l + ';MKTF.limit=150;mktRenderList()">' + (l ? 'Lv.' + l : '전체') + ' ' + 수[l] + '</div>';
+  }).join('');
+  var rows = MKTF.level ? 전체.filter(function(x) { return x.level === MKTF.level; }) : 전체;
+  var el = document.getElementById('mktList');
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = '<div class="card empty">조건에 맞는 병원이 없습니다</div>'; return; }
+  var 보일 = rows.slice(0, MKTF.limit);
+  el.innerHTML = '<div style="margin:2px 4px 8px;font-size:12.5px;color:#4e5968;">' + rows.length + '곳 · 월평균 노즐 많은 순</div>'
+    + '<div class="card" style="padding:4px 0;">' + 보일.map(function(x) {
+      var 부가 = [];
+      부가.push(x.rep ? '영업 ' + esc(x.rep) : '<span style="color:#a35c11;">담당 미지정</span>');
+      부가.push(x.noData ? '노즐 거래 없음' : '월평균 ' + x.monthlyAvg + '개');
+      if (x.campaigns) 부가.push('마케팅 ' + x.campaigns + '회 · 최근 ' + esc(x.lastCampaign));
+      if (x.posts) 부가.push('게시물 ' + x.posts + (x.topViews != null ? ' · 최고 ' + mktNum(x.topViews) + '회' : ''));
+      if (x.skillScore) 부가.push('시술 ' + '★'.repeat(x.skillScore));
+      return '<div onclick="mktOpen(\'' + esc(x.code) + '\')" style="cursor:pointer;padding:11px 16px;border-bottom:1px solid #f2f4f6;">'
+        + '<div style="display:flex;align-items:center;gap:8px;">' + mktLevelBadge(x.level)
+        + '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#191f28;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.name) + '</span>'
+        + (x.caution ? '<span class="tag-red">주의</span>' : '')
+        + '<span style="font-size:12.5px;color:#4e5968;white-space:nowrap;">' + esc(x.area || '지역 미상') + '</span></div>'
+        + '<div style="margin-top:4px;font-size:12.5px;color:#5f6b7a;line-height:1.5;">' + 부가.join(' · ')
+        + (x.issueTags && x.issueTags.length ? ' · ' + x.issueTags.map(function(t) { return '<span style="color:#d0223a;">#' + esc(t) + '</span>'; }).join(' ') : '')
+        + '</div></div>';
+    }).join('') + '</div>'
+    + (rows.length > 보일.length ? '<button class="btn" style="width:100%;margin-bottom:12px;" onclick="MKTF.limit+=150;mktRenderList()">더 보기 (' + (rows.length - 보일.length) + '곳 남음)</button>' : '');
+}
+
+/* ── 게시물 순위 ── */
+function renderMktPosts() {
+  var el = document.getElementById('mktBody');
+  if (!MKTP) return;
+  var 기준 = MKTPF ? Date.now() - MKTPF * 86400000 : 0;
+  var rows = (MKTP.items || []).filter(function(p) { return !기준 || (p.postedAt && Date.parse(p.postedAt) >= 기준); });
+  var h = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+    + '<div class="chips">' + [[30, '최근 30일'], [90, '최근 90일'], [0, '전체']].map(function(f) {
+        return '<button type="button" class="chip' + (MKTPF === f[0] ? ' on' : '') + '" onclick="MKTPF=' + f[0] + ';renderMkt()">' + f[1] + '</button>';
+      }).join('') + '</div>'
+    + (mktEditAll_() && MKTP.igReady ? '<button class="refresh" onclick="mktIgRefresh(this)">지금 갱신</button>' : '')
+    + '</div>';
+  h += '<div style="margin:0 4px 10px;font-size:12.5px;color:#4e5968;line-height:1.6;">'
+    + (MKTP.igReady
+      ? '조회수 많은 순 · 1시간마다 자동 갱신' + (MKTP.refreshedAt ? ' · 마지막 ' + esc(mktWhen(MKTP.refreshedAt)) : '') + ' · 사진 게시물은 조회수가 없어 좋아요 순으로 뒤에 놓입니다'
+      : '<b style="color:#a35c11;">인스타 자동 연동 준비 중</b> — 연동 전에는 게시물별 [수기 입력]으로 숫자를 넣어 주세요. 순위는 넣은 숫자로 매깁니다')
+    + '</div>';
+  if (!rows.length) {
+    el.innerHTML = h + '<div class="card empty">' + (MKTPF ? '이 기간에 올라간 게시물이 없습니다' : '등록된 게시물이 없습니다 — 병원 상세에서 [+ 게시물 등록]') + '</div>';
+    return;
+  }
+  h += '<div class="card" style="padding:4px 0;">' + rows.map(function(p, i) {
+    return '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f2f4f6;">'
+      + '<div style="flex:0 0 28px;text-align:center;font-size:17px;font-weight:800;color:' + (i < 3 ? '#1b64da' : '#8b95a1') + ';">' + (i + 1) + '</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><a href="javascript:void(0)" onclick="mktOpen(\'' + esc(p.code) + '\')" style="font-size:14.5px;font-weight:700;color:#191f28;text-decoration:none;">' + esc(p.hospital) + '</a>'
+      + '<span style="font-size:12.5px;color:#4e5968;">@' + esc(p.username) + '</span>'
+      + (p.mediaType === 'REELS' ? '<span class="tag-blue">릴스</span>' : '')
+      + mktPostStatus_(p) + '</div>'
+      + '<div style="margin-top:5px;font-size:13px;color:#191f28;"><b style="font-size:16px;">' + mktNum(p.views) + '</b><span style="color:#5f6b7a;"> 조회</span>'
+      + (p.views24h ? ' <span style="color:#05754a;font-weight:700;">+' + mktNum(p.views24h) + ' (24h)</span>' : '')
+      + ' · 좋아요 ' + mktNum(p.likes) + ' · 댓글 ' + mktNum(p.comments) + '</div>'
+      + '<div style="margin-top:3px;font-size:12px;color:#5f6b7a;">' + (p.postedAt ? '게시 ' + esc(mktDate(new Date(Date.parse(p.postedAt) + 9 * 3600000).toISOString())) + ' · ' : '')
+      + (p.rep ? '영업 ' + esc(p.rep) + ' · ' : '') + '<a href="' + esc(p.permalink) + '" target="_blank" rel="noopener" style="color:#1b64da;">게시물 열기</a></div>'
+      + '</div></div>';
+  }).join('') + '</div>';
+  el.innerHTML = h;
+}
+function mktPostStatus_(p) {
+  if (p.status === '성공') return '';
+  if (p.status === '수기') return '<span class="tag-grey" title="' + esc(p.error || '') + '">수기</span>';
+  if (p.status === '대기') return '<span class="tag-grey">갱신 대기</span>';
+  return '<span class="tag-orange" title="' + esc(p.error || '') + '">' + (p.status === '못찾음' ? '못 찾음' : '조회 실패') + '</span>';
+}
+function mktIgRefresh(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '갱신 중…'; }
+  mktCall_({ 동작: '지표갱신' }).then(function(r) {
+    toast('갱신 ' + r.갱신 + '건' + (r.못찾음 ? ' · 못 찾음 ' + r.못찾음 : '') + (r.실패 ? ' · 실패 ' + r.실패 : ''));
+    MKTP = null; loadMktPosts();
+  }, function(e) { toast(e.message, true); if (btn) { btn.disabled = false; btn.textContent = '지금 갱신'; } });
+}
+
+/* ── 병원 상세 ── */
+function mktOpen(code, 다시) {
+  if (!다시) { MKT_EDIT = null; MKTD = null; }
+  var body = document.getElementById('hospModalBody');
+  if (!다시) {
+    body.innerHTML = '<div class="card empty" style="border:none;">불러오는 중…</div>';
+    document.getElementById('hospModal').style.display = 'flex';
+  }
+  mktCall_({ 동작: '병원상세', code: code }).then(화면갱신감싸기_(function(d) {
+    MKTD = d; mktRenderDetail();
+  }, '상세는 받았지만 화면을 그리지 못했습니다'), function(e) {
+    body.innerHTML = '<div class="card empty" style="border:none;">' + esc(e.message) + '</div>';
+  });
+}
+function mktSec_(제목, 오른쪽) {
+  return '<div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;gap:8px;">'
+    + '<div style="font-size:13.5px;font-weight:700;color:#191f28;">' + 제목 + '</div>' + (오른쪽 || '') + '</div>';
+}
+function mktLink_(글, 동작) {
+  return '<button type="button" class="btn ghost" style="padding:5px 10px;font-size:12.5px;" onclick="' + 동작 + '">' + 글 + '</button>';
+}
+function mktRenderDetail() {
+  var d = MKTD; if (!d) return;
+  var H = d.hospital, N = d.nozzle, E = d.evaluation, me = (MKT && MKT.me) || {};
+  var 전권 = mktEditAll_();
+  var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#191f28;">' + esc(H.name) + (E.caution ? ' <span class="tag-red">마케팅 주의</span>' : '') + '</div>'
+    + '<div style="margin-top:4px;font-size:13px;color:#4e5968;">' + [H.kind, H.department, H.code].filter(function(v, i, a) { return v && a.indexOf(v) === i; }).map(esc).join(' · ') + '</div></div>'
+    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+
+  // 기본 정보
+  var 정보 = [
+    ['지역', '<b>' + esc(H.area || '미상') + '</b>' + (H.address ? '<div style="font-size:12px;color:#5f6b7a;margin-top:2px;">' + esc(H.address) + (H.addressSource === '보정' ? ' (보정)' : '') + '</div>' : '')],
+    ['영업 담당', esc(H.rep || '미지정')],
+    ['케어 담당', esc(H.careRep || '—')],
+    ['장비 · N-Care', (H.hasEquipment ? '장비 보유' : '장비 없음') + ' · ' + (H.ncareJoined ? 'N-Care 가입' : '미가입')],
+  ];
+  h += '<div style="margin-top:12px;display:grid;grid-template-columns:88px 1fr;gap:7px 10px;font-size:13.5px;color:#191f28;">'
+    + 정보.map(function(r) { return '<div style="color:#5f6b7a;">' + r[0] + '</div><div>' + r[1] + '</div>'; }).join('') + '</div>';
+  if (MKT_EDIT === 'addr') {
+    h += '<div style="margin-top:8px;display:flex;gap:6px;"><input type="text" id="mktAddr" placeholder="예: 서울특별시 강남구 도산대로 1" value="' + esc(E.addressOverride || '') + '" style="margin:0;flex:1;">'
+      + '<button class="btn pri" onclick="mktEvalSave(\'주소\',this)">저장</button><button class="btn" onclick="MKT_EDIT=null;mktRenderDetail()">취소</button></div>'
+      + '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">비우고 저장하면 관리 시트 주소로 돌아갑니다</div>';
+  } else {
+    h += '<div style="margin-top:6px;">' + mktLink_(E.addressOverride ? '주소 보정 고치기' : (H.sigungu ? '주소 보정' : '시/구가 비어 있어요 — 주소 넣기'), "MKT_EDIT='addr';mktRenderDetail()") + '</div>';
+  }
+
+  // 숙련도
+  var 최대 = Math.max.apply(null, N.monthly.map(function(m) { return m.qty; }).concat([1]));
+  h += mktSec_('시술 숙련도 (노즐 사용량)')
+    + '<div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' + mktLevelBadge(N.level, true)
+    + '<span style="font-size:14px;color:#191f28;">' + (N.noData ? '노즐 거래 기록이 없습니다' : '월평균 <b>' + N.monthlyAvg + '개</b> <span style="color:#5f6b7a;font-size:12.5px;">(최근 ' + N.months + '개월 ' + mktNum(N.qty12) + '개 · 마지막 출고 ' + esc(N.lastShip || '—') + ')</span>') + '</span></div>'
+    + '<div style="margin-top:10px;display:flex;align-items:flex-end;gap:3px;height:64px;">' + N.monthly.map(function(m) {
+        var 높이 = m.qty ? Math.max(3, Math.round(m.qty / 최대 * 56)) : 1;
+        return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;" title="' + esc(m.ym) + ' ' + m.qty + '개">'
+          + '<div style="width:100%;height:' + 높이 + 'px;background:' + (m.qty ? '#3182f6' : '#e5e8eb') + ';border-radius:3px 3px 0 0;"></div></div>';
+      }).join('') + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;color:#8b95a1;margin-top:3px;"><span>' + esc(N.monthly[0].ym) + '</span><span>' + esc(N.monthly[11].ym) + '</span></div>';
+
+  // 원장 시술 능력 평가
+  h += mktSec_('원장 시술 능력 (영업 담당 평가)', me.canRate && MKT_EDIT !== 'rate' ? mktLink_(E.skillScore ? '고치기' : '평가하기', "MKT_EDIT='rate';mktRenderDetail()") : '');
+  if (MKT_EDIT === 'rate') {
+    h += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' + [1, 2, 3, 4, 5].map(function(s) {
+        return '<button type="button" class="chip' + (Number(E.skillScore) === s ? ' on' : '') + '" onclick="mktPickEval(\'skillScore\',' + s + ')">' + '★'.repeat(s) + '</button>';
+      }).join('') + '</div>'
+      + '<textarea id="mktSkillNote" placeholder="예: 시술 속도 빠르고 결과 설명이 꼼꼼함. 환자 응대 좋음" style="margin-top:8px;min-height:70px;">' + esc(E.skillNote || '') + '</textarea>'
+      + '<div style="margin-top:8px;display:flex;gap:6px;"><button class="btn pri" onclick="mktEvalSave(\'시술평가\',this)">저장</button><button class="btn" onclick="MKT_EDIT=null;mktOpen(\'' + esc(H.code) + '\',true)">취소</button></div>';
+  } else if (E.skillScore) {
+    h += '<div style="margin-top:6px;font-size:14px;color:#191f28;"><span style="color:#f5a623;letter-spacing:1px;">' + '★'.repeat(E.skillScore) + '<span style="color:#e5e8eb;">' + '★'.repeat(5 - E.skillScore) + '</span></span> ' + E.skillScore + '점</div>'
+      + (E.skillNote ? '<div style="margin-top:4px;font-size:13px;color:#4e5968;line-height:1.6;white-space:pre-wrap;">' + esc(E.skillNote) + '</div>' : '')
+      + '<div style="margin-top:3px;font-size:12px;color:#8b95a1;">' + esc(E.skillBy || '') + ' · ' + esc(mktWhen(E.skillAt)) + '</div>';
+  } else {
+    h += '<div style="margin-top:6px;font-size:13px;color:#8b95a1;">아직 평가가 없습니다' + (me.canRate ? '' : ' — 영업 담당자가 입력합니다') + '</div>';
+  }
+
+  // 마케팅 주의
+  h += mktSec_('마케팅 주의 표시', MKT_EDIT !== 'caution' ? mktLink_(E.caution ? '고치기' : '주의 표시', "MKT_EDIT='caution';mktRenderDetail()") : '');
+  if (MKT_EDIT === 'caution') {
+    h += '<div style="margin-top:8px;" class="chips"><button type="button" class="chip' + (E.caution ? ' on' : '') + '" onclick="mktPickEval(\'caution\',true)">주의 병원</button>'
+      + '<button type="button" class="chip' + (!E.caution ? ' on' : '') + '" onclick="mktPickEval(\'caution\',false)">해제</button></div>'
+      + (E.caution ? '<textarea id="mktCautionNote" placeholder="예: 인플루언서 응대 클레임 2회, 시술 결과 불만 후기" style="margin-top:8px;min-height:64px;">' + esc(E.cautionNote || '') + '</textarea>' : '')
+      + '<div style="margin-top:8px;display:flex;gap:6px;"><button class="btn pri" onclick="mktEvalSave(\'주의\',this)">저장</button><button class="btn" onclick="MKT_EDIT=null;mktOpen(\'' + esc(H.code) + '\',true)">취소</button></div>';
+  } else if (E.caution) {
+    h += '<div style="margin-top:6px;font-size:13px;color:#d0223a;line-height:1.6;white-space:pre-wrap;background:#fff5f6;border-radius:10px;padding:9px 12px;">' + esc(E.cautionNote || '') + '</div>'
+      + '<div style="margin-top:3px;font-size:12px;color:#8b95a1;">' + esc(E.cautionBy || '') + ' · ' + esc(mktWhen(E.cautionAt)) + '</div>';
+  } else {
+    h += '<div style="margin-top:6px;font-size:13px;color:#8b95a1;">없음 — 리스크가 있는 병원은 표시해 두면 배정 때 걸러집니다</div>';
+  }
+
+  // 마케팅 이력
+  var 진행 = d.campaigns.filter(function(c) { return c.status !== '취소'; }).length;
+  h += mktSec_('마케팅 지원 이력 ' + 진행 + '회', MKT_EDIT !== 'camp:new' ? mktLink_('+ 이력 추가', "MKT_EDIT='camp:new';mktRenderDetail()") : '');
+  if (MKT_EDIT === 'camp:new') h += mktCampForm_(null);
+  if (!d.campaigns.length && MKT_EDIT !== 'camp:new') h += '<div style="margin-top:6px;font-size:13px;color:#8b95a1;">아직 기록이 없습니다</div>';
+  d.campaigns.forEach(function(c) {
+    if (MKT_EDIT === 'camp:' + c.id) { h += mktCampForm_(c); return; }
+    var 내것 = 전권 || c.createdBy === me.name;
+    h += '<div style="margin-top:8px;border:1px solid #f2f4f6;border-radius:12px;padding:10px 12px;' + (c.status === '취소' ? 'opacity:.6;' : '') + '">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><b style="font-size:13.5px;">' + esc(c.runOn) + '</b>'
+      + '<span style="font-size:13px;color:#191f28;">' + esc(c.kind) + '</span><span class="' + (MKT_ST[c.status] || 'tag-grey') + '">' + esc(c.status) + '</span>'
+      + (c.influencer ? '<span style="font-size:13px;color:#4e5968;">' + esc(c.influencer) + (c.influencerRegion ? ' (' + esc(c.influencerRegion) + ')' : '') + '</span>' : '')
+      + '<span style="flex:1;"></span>' + (내것 ? mktLink_('수정', "MKT_EDIT='camp:" + c.id + "';mktRenderDetail()") : '') + '</div>'
+      + (c.issues.length ? '<div style="margin-top:5px;">' + c.issues.map(function(t) { return '<span class="tag-red" style="margin-right:4px;">' + esc(t) + '</span>'; }).join('') + '</div>' : '')
+      + (c.feedback ? '<div style="margin-top:5px;font-size:13px;color:#4e5968;line-height:1.6;white-space:pre-wrap;">' + esc(c.feedback) + '</div>' : '')
+      + '<div style="margin-top:4px;font-size:11.5px;color:#8b95a1;">' + esc(c.createdBy) + (c.updatedBy ? ' · 수정 ' + esc(c.updatedBy) : '') + '</div></div>';
+  });
+
+  // 인스타 게시물
+  h += mktSec_('인스타 게시물 ' + d.posts.length, MKT_EDIT !== 'post' ? mktLink_('+ 게시물 등록', "MKT_EDIT='post';mktRenderDetail()") : '');
+  if (MKT_EDIT === 'post') {
+    h += '<div style="margin-top:8px;border:1px solid #e8f3ff;background:#f7fbff;border-radius:12px;padding:10px 12px;">'
+      + '<input type="text" id="mktPostUrl" placeholder="게시물 링크 — https://www.instagram.com/reel/…" style="margin:0;">'
+      + '<input type="text" id="mktPostUser" placeholder="게시한 계정 @아이디 (링크에 없으면 필수)" style="margin:8px 0 0;">'
+      + (d.campaigns.length ? '<select id="mktPostCamp" style="margin:8px 0 0;"><option value="">연결할 마케팅 이력 (선택)</option>' + d.campaigns.map(function(c) {
+          return '<option value="' + c.id + '">' + esc(c.runOn + ' ' + c.kind + (c.influencer ? ' · ' + c.influencer : '')) + '</option>';
+        }).join('') + '</select>' : '')
+      + '<div style="margin-top:8px;display:flex;gap:6px;"><button class="btn pri" onclick="mktPostAdd(this)">등록</button><button class="btn" onclick="MKT_EDIT=null;mktRenderDetail()">취소</button></div>'
+      + '<div style="margin-top:6px;font-size:12px;color:#5f6b7a;line-height:1.5;">' + (d.igReady ? '등록하면 바로 조회수·좋아요·댓글을 읽어 오고, 이후 1시간마다 갱신합니다. 인플루언서 계정이 비즈니스·크리에이터 계정이어야 자동으로 읽힙니다.' : '인스타 자동 연동 전이라 등록 뒤 [수기 입력]으로 숫자를 넣어 주세요.') + '</div></div>';
+  }
+  d.posts.forEach(function(p) {
+    var 내것 = 전권 || p.createdBy === me.name;
+    h += '<div style="margin-top:8px;border:1px solid #f2f4f6;border-radius:12px;padding:10px 12px;">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span style="font-size:13.5px;font-weight:700;">@' + esc(p.username) + '</span>'
+      + (p.mediaType === 'REELS' ? '<span class="tag-blue">릴스</span>' : '') + mktPostStatus_(p)
+      + '<span style="flex:1;"></span><a href="' + esc(p.permalink) + '" target="_blank" rel="noopener" style="font-size:12.5px;color:#1b64da;">열기</a></div>'
+      + '<div style="margin-top:5px;font-size:13px;color:#191f28;">조회 <b>' + mktNum(p.views) + '</b>' + (p.views24h ? ' <span style="color:#05754a;">+' + mktNum(p.views24h) + '</span>' : '') + ' · 좋아요 ' + mktNum(p.likes) + ' · 댓글 ' + mktNum(p.comments) + ' · 전체 ' + p.rank + '위</div>'
+      + (p.caption ? '<div style="margin-top:4px;font-size:12.5px;color:#5f6b7a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.caption) + '</div>' : '')
+      + (p.status !== '성공' && p.error ? '<div style="margin-top:4px;font-size:12px;color:#a35c11;">' + esc(p.error) + '</div>' : '')
+      + '<div style="margin-top:4px;font-size:11.5px;color:#8b95a1;">' + (p.campaignOn ? '이력 ' + esc(p.campaignOn) + ' · ' : '') + (p.metricsAt ? '갱신 ' + esc(mktWhen(p.metricsAt)) + ' · ' : '') + '등록 ' + esc(p.createdBy) + '</div>';
+    if (MKT_EDIT === 'manual:' + p.id) {
+      h += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
+        + '<input type="text" inputmode="numeric" id="mktMv" placeholder="조회수" value="' + (p.views == null ? '' : p.views) + '" style="margin:0;flex:1;min-width:80px;">'
+        + '<input type="text" inputmode="numeric" id="mktMl" placeholder="좋아요" value="' + (p.likes == null ? '' : p.likes) + '" style="margin:0;flex:1;min-width:70px;">'
+        + '<input type="text" inputmode="numeric" id="mktMc" placeholder="댓글" value="' + (p.comments == null ? '' : p.comments) + '" style="margin:0;flex:1;min-width:60px;"></div>'
+        + '<div style="margin-top:6px;display:flex;gap:6px;"><button class="btn pri" onclick="mktPostManual(' + p.id + ',this)">저장</button><button class="btn" onclick="MKT_EDIT=null;mktRenderDetail()">취소</button></div>';
+    } else if (내것 || p.status !== '성공') {
+      h += '<div style="margin-top:6px;display:flex;gap:6px;">'
+        + (p.status !== '성공' ? mktLink_('수기 입력', "MKT_EDIT='manual:" + p.id + "';mktRenderDetail()") : '')
+        + (내것 ? mktLink_('삭제', 'mktPostDel(' + p.id + ')') : '') + '</div>';
+    }
+    h += '</div>';
+  });
+
+  document.getElementById('hospModalBody').innerHTML = h;
+}
+function mktCampForm_(c) {
+  var o = (MKTD && MKTD.options) || { kinds: [], statuses: [], issueTags: [] };
+  var 값 = c || { kind: '인플루언서', runOn: (DATA && DATA.today) || '', status: '완료', influencer: '', influencerRegion: '', feedback: '', issues: [] };
+  if (!MKTD._form || MKTD._form.key !== (c ? c.id : 'new')) MKTD._form = { key: c ? c.id : 'new', issues: 값.issues.slice(), kind: 값.kind, status: 값.status };
+  var f = MKTD._form;
+  var chip = function(그룹, v, on) {
+    return '<button type="button" class="chip' + (on ? ' on' : '') + '" style="font-size:12.5px;padding:6px 12px;" onclick="mktFormPick(\'' + 그룹 + '\',\'' + esc(v) + '\')">' + esc(v) + '</button>';
+  };
+  return '<div style="margin-top:8px;border:1px solid #e8f3ff;background:#f7fbff;border-radius:12px;padding:10px 12px;">'
+    + '<div class="chips">' + o.kinds.map(function(k) { return chip('kind', k, f.kind === k); }).join('') + '</div>'
+    + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><input type="date" id="mktRunOn" value="' + esc(값.runOn) + '" style="margin:0;flex:1;min-width:140px;">'
+    + '<div class="chips" style="flex:1;">' + o.statuses.map(function(s) { return chip('status', s, f.status === s); }).join('') + '</div></div>'
+    + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><input type="text" id="mktInf" placeholder="인플루언서 (이름 또는 @계정)" value="' + esc(값.influencer || '') + '" style="margin:0;flex:2;min-width:150px;">'
+    + '<input type="text" id="mktInfRegion" placeholder="활동 지역" value="' + esc(값.influencerRegion || '') + '" style="margin:0;flex:1;min-width:100px;"></div>'
+    + '<div style="margin-top:8px;font-size:12.5px;color:#4e5968;font-weight:600;">협업 이슈</div>'
+    + '<div class="chips" style="margin-top:5px;">' + o.issueTags.map(function(t) { return chip('issue', t, f.issues.indexOf(t) >= 0); }).join('') + '</div>'
+    + '<textarea id="mktFeedback" placeholder="현장 피드백 — 원장님 성향, 진료·서비스 품질, 인플루언서 반응 등" style="margin-top:8px;min-height:80px;">' + esc(값.feedback || '') + '</textarea>'
+    + '<div style="margin-top:8px;display:flex;gap:6px;"><button class="btn pri" onclick="mktCampSave(' + (c ? c.id + ',' + c.version : 'null,0') + ',this)">저장</button>'
+    + '<button class="btn" onclick="MKT_EDIT=null;MKTD._form=null;mktRenderDetail()">취소</button>'
+    + (c ? '<span style="flex:1;"></span><button class="btn ghost" style="color:#d0223a;" onclick="mktCampDel(' + c.id + ',' + c.version + ')">삭제</button>' : '') + '</div></div>';
+}
+/* 칩을 누를 때 다시 그리면 입력 중인 글이 날아간다 — 칸 값을 먼저 건져 두고 그린다 */
+function mktFormKeep_() {
+  var 건짐 = {};
+  ['mktRunOn', 'mktInf', 'mktInfRegion', 'mktFeedback', 'mktSkillNote', 'mktCautionNote'].forEach(function(id) { var el = document.getElementById(id); if (el) 건짐[id] = el.value; });
+  return 건짐;
+}
+function mktFormRestore_(건짐) {
+  Object.keys(건짐).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = 건짐[id]; });
+}
+function mktFormPick(그룹, v) {
+  var f = MKTD._form; if (!f) return;
+  if (그룹 === 'issue') { var i = f.issues.indexOf(v); if (i >= 0) f.issues.splice(i, 1); else f.issues.push(v); }
+  else f[그룹] = v;
+  var 건짐 = mktFormKeep_(); mktRenderDetail(); mktFormRestore_(건짐);
+}
+function mktPickEval(k, v) {
+  var 건짐 = mktFormKeep_(); MKTD.evaluation[k] = v; mktRenderDetail(); mktFormRestore_(건짐);
+}
+function mktSaved_(btn, 문구) {
+  toast(문구 || '저장했습니다');
+  MKT_EDIT = null; if (MKTD) MKTD._form = null;
+  mktOpen(MKTD.hospital.code, true);
+  loadMkt(true); MKTP = null;
+}
+function mktBusy_(btn, on) { if (btn) { btn.disabled = on; } }
+function mktCampSave(id, version, btn) {
+  var f = MKTD._form;
+  var 몸통 = { 동작: '이력저장', code: MKTD.hospital.code, kind: f.kind, status: f.status, issues: f.issues,
+    runOn: document.getElementById('mktRunOn').value, influencer: document.getElementById('mktInf').value,
+    influencerRegion: document.getElementById('mktInfRegion').value, feedback: document.getElementById('mktFeedback').value };
+  if (!몸통.runOn) return 검증실패_('진행일을 넣어 주세요', 'mktRunOn');
+  if (id) { 몸통.id = id; 몸통.expectedVersion = version; }
+  mktBusy_(btn, true);
+  mktCall_(몸통).then(function() { mktSaved_(btn); }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
+function mktCampDel(id, version) {
+  if (!confirm('이 마케팅 이력을 지울까요? (연결된 게시물은 남습니다)')) return;
+  mktCall_({ 동작: '이력삭제', id: id, expectedVersion: version }).then(function() { mktSaved_(null, '지웠습니다'); }, function(e) { toast(e.message, true); });
+}
+function mktEvalSave(항목, btn) {
+  var E = MKTD.evaluation;
+  var 몸통 = { 동작: '평가저장', 항목: 항목, code: MKTD.hospital.code, expectedVersion: E.version };
+  if (항목 === '시술평가') {
+    if (!E.skillScore) return toast('별점을 골라 주세요', true);
+    몸통.score = E.skillScore; 몸통.note = document.getElementById('mktSkillNote').value;
+  } else if (항목 === '주의') {
+    몸통.caution = !!E.caution;
+    var n = document.getElementById('mktCautionNote');
+    몸통.note = n ? n.value : '';
+    if (몸통.caution && !String(몸통.note).trim()) return 검증실패_('주의 사유를 적어 주세요', 'mktCautionNote');
+  } else 몸통.address = document.getElementById('mktAddr').value;
+  mktBusy_(btn, true);
+  mktCall_(몸통).then(function() { mktSaved_(btn); }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
+function mktPostAdd(btn) {
+  var url = document.getElementById('mktPostUrl').value.trim();
+  if (!url) return 검증실패_('게시물 링크를 넣어 주세요', 'mktPostUrl');
+  var camp = document.getElementById('mktPostCamp');
+  mktBusy_(btn, true);
+  if (btn) btn.textContent = '등록 중…';
+  mktCall_({ 동작: '게시물등록', code: MKTD.hospital.code, url: url, username: document.getElementById('mktPostUser').value,
+    campaignId: camp && camp.value ? Number(camp.value) : null }).then(function(r) {
+    var g = r.갱신;
+    mktSaved_(btn, g && g.갱신 ? '등록하고 지표를 읽어 왔습니다' : g && (g.실패 || g.못찾음) ? '등록했지만 지표를 못 읽었습니다 — 수기 입력할 수 있어요' : '등록했습니다');
+  }, function(e) { mktBusy_(btn, false); if (btn) btn.textContent = '등록'; toast(e.message, true); });
+}
+function mktPostDel(id) {
+  if (!confirm('이 게시물을 목록에서 지울까요?')) return;
+  mktCall_({ 동작: '게시물삭제', id: id }).then(function() { mktSaved_(null, '지웠습니다'); }, function(e) { toast(e.message, true); });
+}
+function mktPostManual(id, btn) {
+  var v = function(i) { return document.getElementById(i).value.replace(/[,\s]/g, ''); };
+  mktBusy_(btn, true);
+  mktCall_({ 동작: '게시물수기', id: id, views: v('mktMv'), likes: v('mktMl'), comments: v('mktMc') })
+    .then(function() { mktSaved_(btn); }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
+/* MKT_UI_END */
 
 /* INBOUND_UI_BEGIN */
 var IB={data:null,detail:null,request:0,pending:null,saving:false,filter:'open',search:'',period:'30',limit:50,requestId:null};
