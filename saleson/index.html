@@ -657,6 +657,9 @@
      #loading이고, 홈은 boot()가 show('home')으로 켠다. -->
 <div class="view" id="view-home"><div class="wrap">
   <section id="homeWork" aria-label="주간 목표와 실행 업무" style="display:none"></section>
+  <!-- 데모처 제안서(2026-10-26) — 병원명으로 내 리드를 찾아 시작한다. 리드 탭이 빠졌고(10/14) 방문 계획 구역은
+       성과관리 대상에게 접혀 있어 그 밖에 둔다. 제안시작버튼_이 파일럿에게만 보인다 -->
+  <button class="btn pri" id="propStart" style="display:none;width:100%;margin:0 0 16px;" onclick="openPropFind()">제안서 만들기</button>
   <details id="homePerformanceArchive" open><summary class="qx-legacy-summary">월·분기 성과 대시보드</summary><section id="homePerformance" aria-label="4분기 월별 성과 대시보드" style="display:none"></section></details>
   <details id="homeActivity" open><summary>방문 계획·활동 현황 <span>기존 영업 기록 기준</span></summary>
   <div class="home2" id="home2">
@@ -1257,6 +1260,82 @@
   </div>
 </div>
 
+<!-- 데모처 맞춤 제안서 1단계 — 입력·병원 확인 (2026-10-24). openProp이 그린다. -->
+<div id="propModal" role="dialog" aria-modal="true" aria-label="제안서 만들기" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeProp()">
+  <div class="card" style="max-width:560px;width:100%;margin:0;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <strong id="propTitle">제안서 만들기</strong>
+      <button class="btn ghost" onclick="closeProp()">닫기</button>
+    </div>
+    <div id="propBody"><div class="empty">불러오는 중…</div></div>
+  </div>
+</div>
+
+<!-- 데모처 맞춤 제안서 6단계 — 미리보기·편집·인쇄 (2026-10-26). openPropView가 그린다.
+     제안서 HTML은 스크립트 없는 독립 문서라 iframe(srcdoc)에 넣는다. 인쇄만 부모가 부른다(allow-modals). -->
+<style>
+  #pvModal { display:none; position:fixed; inset:0; z-index:61; background:#f2f4f6; flex-direction:column; }
+  .pv-head { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fff; border-bottom:1px solid #e5e8eb; flex-wrap:wrap; }
+  .pv-head strong { flex:1; min-width:140px; font-size:15px; }
+  .pv-tabs { display:flex; gap:4px; background:#f2f4f6; border-radius:10px; padding:3px; }
+  .pv-tabs button { border:0; background:none; padding:6px 12px; border-radius:8px; font:inherit; font-size:13px; font-weight:600; color:#4e5968; cursor:pointer; }
+  .pv-tabs button.on { background:#fff; color:#191f28; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  #pvFlags { display:flex; flex-wrap:wrap; gap:6px; padding:8px 14px 0; }
+  #pvFlags:empty { display:none; }
+  .pv-flag { font-size:12px; padding:3px 10px; border-radius:99px; background:#e8f3ff; color:#1b64da; }
+  .pv-flag.w { background:#fff0ec; color:#b4441c; }
+  .pv-body { flex:1; min-height:0; display:flex; gap:12px; padding:10px 14px 14px; }
+  #pvFrame { flex:1; min-width:0; border:0; border-radius:10px; background:#e9edf2; }
+  #pvSide { width:380px; flex:none; overflow-y:auto; background:#fff; border-radius:10px; padding:4px 14px 0; }
+  .pv-sec { border-bottom:1px solid #f2f4f6; padding:10px 0; }
+  .pv-sec h4, .pv-sec summary { font-size:13px; font-weight:700; margin:0 0 4px; cursor:pointer; }
+  .pv-sec summary small { font-weight:600; color:#1b64da; margin-left:4px; }
+  .pv-el { padding:6px 0; border-top:1px dashed #eef0f3; }
+  .pv-el-h { display:flex; align-items:center; gap:6px; font-size:11px; color:#6b7684; }
+  .pv-hide { margin-left:auto; font-size:12px; color:#4e5968; display:flex; gap:4px; align-items:center; cursor:pointer; }
+  .pv-el textarea { width:100%; font:inherit; font-size:13px; line-height:1.5; margin-top:4px; padding:6px 8px; border:1px solid #e5e8eb; border-radius:8px; resize:vertical; }
+  .pv-el textarea.ch { border-color:#1b64da; background:#f5f9ff; }
+  .pv-el.off .pv-fixed, .pv-el.off textarea { opacity:.45; }
+  .pv-fixed { font-size:12.5px; color:#4e5968; margin-top:2px; word-break:break-all; }
+  .pv-badge { font-size:11px; color:#b4441c; background:#fff0ec; border-radius:4px; padding:0 5px; }
+  .pv-save { position:sticky; bottom:0; background:#fff; padding:10px 0 12px; border-top:1px solid #e5e8eb; }
+  .pv-file { display:inline-block; cursor:pointer; }
+  #pvSide .memo { font-size:12px; color:#6b7684; margin:4px 0; }
+  @media (max-width:760px) {
+    .pv-body { flex-direction:column; overflow-y:auto; }
+    #pvFrame { flex:none; height:70vh; }
+    #pvSide { width:auto; overflow:visible; }
+  }
+</style>
+<div id="pvModal" role="dialog" aria-modal="true" aria-label="제안서 미리보기">
+  <div class="pv-head">
+    <strong id="pvTitle">제안서</strong>
+    <div class="pv-tabs" role="tablist">
+      <button id="pvTab고객" role="tab" onclick="pvTab('고객')">고객 제안서</button>
+      <button id="pvTab브리핑" role="tab" onclick="pvTab('브리핑')">영업 브리핑</button>
+    </div>
+    <button class="btn" onclick="pvPrint()">인쇄·PDF</button>
+    <button class="btn ghost" onclick="closePropView()">닫기</button>
+  </div>
+  <div id="pvFlags"></div>
+  <div class="pv-body">
+    <iframe id="pvFrame" title="제안서 미리보기" sandbox="allow-same-origin allow-modals"></iframe>
+    <aside id="pvSide"></aside>
+  </div>
+</div>
+
+<style>
+#maModal .ma-match{border:1px solid #dce4ee;border-radius:10px;padding:4px 14px 14px;margin:18px 0 8px;min-width:0}
+#maModal .ma-match legend{font-weight:700;font-size:14px;padding:0 6px;color:#24364c}
+#maModal .ma-hint{font-size:12px;color:#5f6b7a;margin:2px 4px 6px;line-height:1.55}
+#maModal .ma-sub{font-size:13px;font-weight:600;color:#24364c;margin:20px 4px 0;line-height:1.55}
+#maModal .ma-checks{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 4px}
+#maModal .ma-checks label{display:inline-flex;align-items:center;gap:6px;font-size:14px;min-height:36px}
+#maModal .ma-checks input{width:18px;height:18px;margin:0;accent-color:#3182f6}
+#maModal .ma-attached{margin-top:14px;font-size:12px;color:#4e5968}
+#maModal .ma-attached summary{cursor:pointer;font-weight:600}
+#maModal .ma-attached ul{padding-left:18px;margin:8px 0 0;line-height:1.6;overflow-wrap:anywhere}
+</style>
 <div id="maModal" role="dialog" aria-modal="true" aria-label="제안서 자료 검토" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeMA()">
   <div class="card" style="max-width:720px;width:100%;margin:0;max-height:90vh;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;"><strong>제안서 자료 검토</strong><button class="btn ghost" onclick="closeMA()">닫기</button></div>
@@ -1534,7 +1613,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610261632-marketing-clabs';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610270752-bd0f517';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1776,6 +1855,7 @@ function 홈받기_() {
        (이 응답은 한 번만 받는다) — 기능을 끈 뒤에도 열린 창에는 버튼이 남지만, 관문 요청_이
        설정_을 다시 읽어 꺼져 있으면 409를 준다(피해 없음). */
     DATA.intelOn = !!d.intelOn; DATA.intelDegraded = !!d.intelDegraded;
+    DATA.intelPilot = !!d.intelPilot;   // 제안서 파일럿(R4) — 없으면(옛 관문) 만들기 링크를 안 그린다
     사전분석카드갱신_();
     /* ⚠ 여기서 `renderForm()`을 불렀다 (2026-08-16, 점검 P17에서 뺐다).
        renderForm이 읽는 것은 `DATA.types`·`matCats`·`channels`·`sources`·`evtList`·`evtTypes`인데
@@ -2459,6 +2539,7 @@ function renderHome() {
   var team = DATA.kpi && DATA.kpi.scope === 'team' && DATA.team;
 
   홈임시저장알림_();
+  제안시작버튼_();
 
   document.getElementById('tilesTitle').textContent = team ? '이번 주 팀 현황' : '이번 주 현황';
   document.getElementById('homeTiles').innerHTML = team
@@ -3585,12 +3666,23 @@ function planCard(p) {
        (2026-08-22, 점검 P42 · 259건·125건). 계획 카드가 그 값의 유일한 자리다. */
     + (p.contact ? '<div class="pmeta"><b>담당</b>' + esc(p.contact) + '</div>' : '')
     + (p.prep ? '<div class="pmeta"><b>준비</b>' + esc(p.prep) + '</div>' : '')
+    + 계획제안줄_(p)
     + '</div>'
     + '<div class="acts">'
     + '<button class="btn pri" onclick="prefill(' + p.k + ')">기록 쓰기</button>'
     + '<button class="btn" onclick="planStatus(' + p.k + ',\'연기\')">연기</button>'
     + '<button class="btn ghost" onclick="planStatus(' + p.k + ',\'취소\')">취소</button>'
     + '</div></div>';
+}
+/* 데모처 제안서 진입점(2026-10-24) — 리드 탭이 빠진 뒤(10/14) 리드 카드는 화면에 없다. 방문 계획의
+   병원이 내 리드(관리자는 전체)와 이름이 같으면 리드 카드와 같은 사전분석·제안서 줄을 붙인다.
+   N-Care 방문은 장비 제안 대상이 아니라 뺀다. 이름이 같은 리드가 둘 이상이면 고르지 않는다. */
+function 계획제안줄_(p) {
+  if (!(DATA.dbSrc && DATA.intelOn) || p.cat === 'N-Care') return '';
+  var 키 = String(p.hname || '').replace(/\s/g, '');
+  if (!키) return '';
+  var 같은 = (DATA.leads || []).filter(function(l) { return String(l.hname || '').replace(/\s/g, '') === 키 && l.no; });
+  return 같은.length === 1 ? 사전분석줄_(같은[0]) : '';
 }
 /* 연기로 옮기는 중인 계획의 **열쇠**를 쥔다 (2026-08-15, 설계 D5).
    `k`가 아니라 `키_()`로 푼 `{row, no}`를 담는 이유: 새 계획을 저장하면 `onData`가 목록을
@@ -6354,16 +6446,33 @@ function leadWebSave(row, status, url) {
  */
 function 사전분석줄_(l) {
   if (DATA.intelDegraded) return '<div class="memo">사전분석 · 상태 확인 불가</div>';
-  if (!l.intelState && l.websiteStatus !== '등록') return '';   // 홈페이지 줄이 이미 "아직 모름"을 말한다
-  var 버튼 = 사전분석버튼문구_(l);
+  /* 데모처 제안서(2026-10-24) — 홈페이지를 몰라도 주소·원장명으로 시작할 수 있다. 쓰기는 관문이
+     본인 리드·관리자로 막고, 조회 전용 계정에는 링크 자체를 안 그린다.
+     파일럿(R4, 10/26) — 만들기·병원 확인·[분석 시작]은 파일럿 명단의 영업·관리자(DATA.intelPilot)에게만 그린다.
+     관문도 같은 판정으로 막는다. 이미 만든 제안서의 [제안서 보기]는 명단과 무관하게 남긴다. */
+  var 조회전용 = !!(DATA.me && DATA.me.viewer), 파일럿 = !조회전용 && !!DATA.intelPilot;
+  var 제안 = (파일럿
+      ? ' <a href="#" onclick="openProp(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">['
+        + (l.intelPipeline === '제안서' && l.intelState === '식별대기' ? '병원 확인하기' : '제안서 만들기') + ']</a>' : '')
+    + (!조회전용 && l.intelPipeline === '제안서' && l.intelState === '완료'
+        ? ' <a href="#" onclick="openPropView(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[제안서 보기]</a>' : '');
+  if (!l.intelState && l.websiteStatus !== '등록') return 제안 ? '<div class="memo">사전분석 · 아직 안 함' + 제안 + '</div>' : '';
+  var 버튼 = l.intelPipeline === '제안서' || !파일럿 ? '' : 사전분석버튼문구_(l);
   return '<div class="memo">' + esc(사전분석문구_(l))
     + (버튼 ? ' <a href="#" onclick="leadIntelStart(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[' + esc(버튼) + ']</a>' : '')
-    + '</div>';
+    + 제안 + '</div>';
 }
 /** [F8] N2 — stale·identityChanged는 문구에 붙는 접미사일 뿐 별도 행이 아니다 */
 function 사전분석문구_(l) {
   var s = l.intelState;
   if (!s) return '사전분석 · 아직 안 함';
+  if (l.intelPipeline === '제안서') {
+    if (s === '식별대기') return '제안서 · 병원 확인 필요';
+    if ((s === '대기' || s === '실행중') && l.intelStage === '식별') return '제안서 · 병원 찾는 중…';
+    if (s === '대기' || s === '실행중') return '제안서 · 홈페이지 분석 중…';
+    if (s === '취소' && l.intelReason === '사용자취소') return '제안서 · 취소함';
+    if (s === '완료') return '제안서 · 완성' + (l.intelAt ? ' (' + 사전분석기준일_(l.intelAt) + ')' : '') + (l.intelStale ? ' · 병원 정보 바뀜' : '');
+  }
   if (s === '대기' || s === '실행중') return '사전분석 · 분석 중…';
   var 성공있음 = !!l.intelAt;
   var 기준 = 성공있음 ? 사전분석기준일_(l.intelAt) : '';
@@ -7448,6 +7557,7 @@ function renderMA() {
         + '<a class="btn ghost" href="' + esc(/^https?:\/\//i.test(s.url || '') ? s.url : '#') + '" target="_blank" rel="noopener noreferrer">원문 열기</a> '
         + (d.canCurate ? '<button class="btn ghost" onclick="editMA(' + Number(s.no) + ',0)">사용 표현 추가</button>' : '')
         + (items.length ? items.map(function(m) { return '<p>' + esc(status[m.state]) + ' · v' + Number(m.version) + ' · ' + esc(m.sourceStatus)
+          + '<br><span class="ma-hint">' + esc(maMatchSummary_(m)) + '</span>'
           + '<br>' + esc(m.approvedClaim) + (d.canCurate ? ' <button class="btn ghost" onclick="editMA(' + Number(s.no) + ',' + Number(m.id) + ')">검토</button>' : '') + '</p>'; }).join('') : '<p style="font-size:12px;">제안서에 사용할 표현을 아직 등록하지 않았습니다.</p>') + '</div>';
     }).join('')
     + d.items.filter(function(m) { return m.sourceStatus === '삭제됨'; }).map(function(m) {
@@ -7473,27 +7583,96 @@ function editMA(no, id) {
     + field('maLocation','근거 페이지 또는 슬라이드',item.evidenceLocation,300)
     + '<label class="f"><input type="checkbox" id="maShareable"' + (item.sourceShareable ? ' checked' : '') + '> 원문·파일 링크의 제안서 사용 가능</label>'
     + field('maPermission','자료 사용 승인 근거',item.sourcePermissionNote,1000)
+    + maMatchFields_(item)
     + '<p><button class="btn pri" onclick="saveMA()">초안 저장</button> '
     + (item.state === 'draft' && item.sourceStatus === '현재' ? '<button class="btn ghost" onclick="approveMA()">원문 확인 후 승인</button> ' : '')
     + (item.id && item.state !== 'withdrawn' ? '<button class="btn ghost" onclick="mutateMA(\'철회\')">표현 사용 철회</button>' : '') + '</p>'
     + '<p id="maMessage" role="status"></p>';
 }
+/* 제안서 연결(S5 매칭 필드, 0047) — 서버 `자료검증_`과 같은 목록·한도. 논문·보조 근거는 반입으로만 채우므로
+   여기서는 보여 주기만 하고 보내지 않는다(서버가 이전 값을 잇는다). */
+var MA_적응증 = ['흉터', '모공·잔주름', '튼살', '두피·탈모', '목주름', '리쥬브네이션'];
+function maMatchFields_(item) {
+  var syn = item.synergy || {};
+  function input(id, label, value, limit, hint) {
+    return '<label class="f" for="' + id + '">' + label + '</label>' + (hint ? '<p class="ma-hint">' + hint + '</p>' : '')
+      + '<input type="text" id="' + id + '" maxlength="' + limit + '" value="' + esc(value || '') + '">';
+  }
+  function area(id, label, value, limit, hint) {
+    return '<label class="f" for="' + id + '">' + label + '</label>' + (hint ? '<p class="ma-hint">' + hint + '</p>' : '')
+      + '<textarea id="' + id + '" maxlength="' + limit + '" rows="2">' + esc(value || '') + '</textarea>';
+  }
+  var papers = item.papers || [], extras = item.evidenceItems || [], 범위 = { customer: '고객', internal: '사내' };
+  return '<fieldset class="ma-match"><legend>제안서 연결</legend>'
+    + '<p class="ma-hint">병원 홈페이지에서 찾은 시술·장비와 맞으면 이 표현을 그 병원 제안서의 적응증 장에 붙입니다. 승인한 자료만 쓰입니다.</p>'
+    + '<label class="f" for="maAudience">공개 범위</label><select id="maAudience">'
+    + '<option value="internal"' + (item.audience !== 'customer' ? ' selected' : '') + '>사내 — 영업 브리핑에서 말로만</option>'
+    + '<option value="customer"' + (item.audience === 'customer' ? ' selected' : '') + '>고객 — 고객 제안서에 인용</option></select>'
+    + '<label class="f">적응증</label><div class="ma-checks">' + MA_적응증.map(function(x, i) {
+        return '<label><input type="checkbox" name="maInd" value="' + esc(x) + '"' + ((item.indications || []).indexOf(x) >= 0 ? ' checked' : '') + '> ' + esc(x) + '</label>';
+      }).join('') + '</div>'
+    + area('maTrigProc', '트리거 시술 (쉼표로 구분)', (item.triggerProcedures || []).join(', '), 2400, '병원이 운영하는 시술명에 이 낱말이 들어 있으면 연결합니다. 두 글자(흉터·모공)는 낱말 첫머리에서만 맞춥니다.')
+    + area('maTrigEq', '트리거 장비 (쉼표로 구분)', (item.triggerEquipment || []).join(', '), 2400)
+    + '<p class="ma-sub">시너지 — 병원이 이 장비를 갖고 있으면 병합 카드를 붙입니다. 비우면 시너지 없음.</p>'
+    + input('maSynTag', '시너지 장비', syn.equipmentTag, 80)
+    + input('maSynAlias', '같은 장비의 다른 표기 (쉼표로 구분)', (syn.equipmentAliases || []).join(', '), 800)
+    + area('maSynProto', '병합 방법', syn.protocolText, 600)
+    + input('maSynRef', '시너지 근거 (자료명·위치)', syn.evidenceRef, 300)
+    + (papers.length || extras.length ? '<details class="ma-attached"><summary>반입으로 붙은 근거 — 논문 ' + papers.length + '편 · 보조 근거 ' + extras.length + '건 (여기서는 고치지 않습니다)</summary><ul>'
+      + papers.map(function(p) { return '<li>' + esc([p.authors, p.year, p.journal].filter(Boolean).join(' · ')) + '<br>' + esc(p.title) + '</li>'; }).join('')
+      + extras.map(function(e) { return '<li>[' + esc(범위[e.audience] || e.audience) + '] ' + esc(e.sourceTitle) + ' · ' + esc(e.location) + '</li>'; }).join('')
+      + '</ul></details>' : '')
+    + '</fieldset>';
+}
+function maMatchSummary_(m) {
+  var ind = (m.indications || []).join('·');
+  var trig = (m.triggerProcedures || []).length + (m.triggerEquipment || []).length;
+  return (m.audience === 'customer' ? '고객용' : '사내용') + ' · ' + (ind || '적응증 없음') + ' · 트리거 ' + trig + '개'
+    + (m.synergy ? ' · 시너지 ' + m.synergy.equipmentTag : '') + ((m.papers || []).length ? ' · 논문 ' + m.papers.length + '편' : '');
+}
+function maMatchValues_() {
+  function value(id) { return document.getElementById(id).value.trim(); }
+  function names(id) { return value(id).split(',').map(function(s) { return s.trim(); }).filter(Boolean); }
+  var syn = { equipmentTag: value('maSynTag'), equipmentAliases: names('maSynAlias'), protocolText: value('maSynProto'), evidenceRef: value('maSynRef') };
+  var 시너지있음 = syn.equipmentTag || syn.equipmentAliases.length || syn.protocolText || syn.evidenceRef;
+  return { audience: value('maAudience') === 'customer' ? 'customer' : 'internal',
+    indications: Array.prototype.map.call(document.querySelectorAll('#maEditor input[name=maInd]:checked'), function(c) { return c.value; }),
+    triggerProcedures: names('maTrigProc'), triggerEquipment: names('maTrigEq'), synergy: 시너지있음 ? syn : null };
+}
+/** 시너지는 네 칸 중 하나라도 적으면 장비·방법·근거가 다 있어야 한다(서버도 같은 이유로 거절한다). */
+function maMatchProblem_(m) {
+  if (m.synergy && (!m.synergy.equipmentTag || !m.synergy.protocolText || !m.synergy.evidenceRef)) return '시너지를 넣으려면 장비·병합 방법·근거를 모두 적어 주세요. 시너지가 없으면 네 칸을 비워 주세요.';
+  return '';
+}
+function maMatchSame_(m, item) {
+  function same(a, b) { return (a || []).slice().sort().join('\n') === (b || []).slice().sort().join('\n'); }
+  var s = m.synergy, o = item.synergy;
+  return m.audience === (item.audience === 'customer' ? 'customer' : 'internal') && same(m.indications, item.indications)
+    && (m.triggerProcedures || []).join('\n') === (item.triggerProcedures || []).join('\n')
+    && (m.triggerEquipment || []).join('\n') === (item.triggerEquipment || []).join('\n')
+    && (!s && !o || !!s && !!o && s.equipmentTag === o.equipmentTag && s.protocolText === o.protocolText && s.evidenceRef === o.evidenceRef
+      && s.equipmentAliases.join('\n') === (o.equipmentAliases || []).join('\n'));
+}
 function maFields_() {
   function value(id) { return document.getElementById(id).value.trim(); }
-  return { product: '큐어젯', tags: value('maTags').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+  return Object.assign({ product: '큐어젯', tags: value('maTags').split(',').map(function(s) { return s.trim(); }).filter(Boolean),
     approvedClaim: value('maClaim'), limitations: value('maLimits'), evidenceQuote: value('maQuote'), evidenceLocation: value('maLocation'),
-    sourceShareable: document.getElementById('maShareable').checked === true, sourcePermissionNote: value('maPermission') };
+    sourceShareable: document.getElementById('maShareable').checked === true, sourcePermissionNote: value('maPermission') }, maMatchValues_());
 }
-function saveMA() { return mutateMA('저장', maFields_()); }
+function saveMA() {
+  var fields = maFields_(), problem = maMatchProblem_(fields);
+  if (problem) { document.getElementById('maMessage').textContent = problem; return; }
+  return mutateMA('저장', fields);
+}
 function approveMA() {
   if (!MA_EDIT || !MA_EDIT.item) return;
   var fields = maFields_(), item = MA_EDIT.item;
   if (['approvedClaim','limitations','evidenceQuote','evidenceLocation'].some(function(k) { return fields[k] !== item[k]; })
       || fields.tags.join(',') !== item.tags.join(',') || fields.sourceShareable !== !!item.sourceShareable
-      || fields.sourcePermissionNote !== (item.sourcePermissionNote || '')) {
+      || fields.sourcePermissionNote !== (item.sourcePermissionNote || '') || !maMatchSame_(fields, item)) {
     document.getElementById('maMessage').textContent = '수정한 내용을 먼저 초안으로 저장한 뒤 승인해 주세요.'; return;
   }
-  if (!confirm('원문과 대조하여 표현·적용 조건·근거 위치를 확인했으며 이 표현의 병원 제안서 사용을 승인합니까?')) return;
+  if (!confirm('원문과 대조하여 표현·적용 조건·근거 위치·공개 범위를 확인했으며 이 표현의 병원 제안서 사용을 승인합니까?')) return;
   return mutateMA('승인', { confirmSourceReviewed: true });
 }
 function mutateMA(action, extra) {
@@ -7570,6 +7749,436 @@ function intelRow(r) {
     + '<div class="m">' + esc(r.region || '-') + ' · ' + esc(r.rep || '-') + '</div>'
     + '<div class="memo">' + esc(r.state) + esc(기준) + '</div>'
     + '</div>';
+}
+
+/* ── 데모처 맞춤 제안서 1단계 — 입력·병원 확인 (2026-10-24, docs/AI제안서_확장기획_261024.md §4-1·§4-2) ──
+   [제안서 만들기] → 원장명·(홈페이지)·(주소) 입력 → 서버가 홈페이지를 찾아 주소·원장명·병원명으로 대조한다.
+   확신이 없으면 run이 식별대기로 멈추고 이 모달이 후보를 보여 준다. 닫은 뒤·계정이 바뀐 뒤 도착한
+   응답은 번호로 버린다(MA 모달과 같은 규칙). */
+var PROP = null, PROP번호 = 0;
+function 제안리드_(row) { return (DATA.leads || []).filter(function(x) { return x.k === row; })[0]; }
+function openProp(row) {
+  var l = 제안리드_(row);
+  if (!l || !l.no) return toast('이 리드는 새로고침 뒤에 열 수 있어요', true);
+  var 번호 = ++PROP번호, token = TOKEN;
+  PROP = { row: row, no: l.no, busy: false };
+  document.getElementById('propTitle').textContent = (l.hname || '병원') + ' — 제안서 만들기';
+  document.getElementById('propBody').innerHTML = '<div class="empty">불러오는 중…</div>';
+  document.getElementById('propModal').style.display = 'flex';
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '제안서상태', no: l.no })).then(function(r) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    PROP.state = r; renderProp();
+  }, function(e) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    document.getElementById('propBody').innerHTML = '<p class="memo">' + esc(e.message || '불러오지 못했습니다.') + '</p>';
+  });
+}
+function closeProp() { PROP번호++; PROP = null; document.getElementById('propModal').style.display = 'none'; }
+/* 홈 [제안서 만들기] (2026-10-26) — 영업사원은 병원명만 치면 된다. 병원은 **내 리드에서만** 고른다:
+   리드가 퍼널·KPI 단위이고 제안서·수집 기록이 lead_id에 묶이므로 여기서 리드를 만들지 않는다(사용자 확정).
+   보이는 조건은 리드 카드의 만들기 링크(사전분석줄_)와 같다. */
+function 제안시작버튼_() {
+  var el = document.getElementById('propStart');
+  if (!el) return;
+  var 보임 = !!(DATA && DATA.dbSrc && DATA.intelOn && !DATA.intelDegraded && DATA.intelPilot && !(DATA.me && DATA.me.viewer));
+  el.style.display = 보임 ? '' : 'none';
+}
+function openPropFind() {
+  PROP번호++; PROP = null;
+  document.getElementById('propTitle').textContent = '제안서 만들기';
+  document.getElementById('propBody').innerHTML = '<label class="f">병원명</label>'
+    + '<input type="text" id="propFindQ" placeholder="내 리드에서 찾습니다" autocomplete="off" oninput="propFindList()">'
+    + '<div id="propFindList"></div>';
+  document.getElementById('propModal').style.display = 'flex';
+  propFindList();
+  document.getElementById('propFindQ').focus();
+}
+function propFindList() {
+  var 입력칸 = document.getElementById('propFindQ'), 칸 = document.getElementById('propFindList');
+  if (!입력칸 || !칸) return;
+  var q = norm(입력칸.value).toLowerCase();
+  if (!q) { 칸.innerHTML = '<p class="memo" style="margin:4px 0 0;">병원명 일부만 넣어도 됩니다. 고른 뒤 원장님 성함과 홈페이지(선택)를 넣습니다.</p>'; return; }
+  var 관리자 = !!(DATA.me && DATA.me.admin);
+  var 찾음 = (DATA.leads || []).filter(function(l) {
+    return l.no && !/\s선매입\s*$/.test(String(l.hname || '')) && norm(l.hname).toLowerCase().indexOf(q) >= 0;
+  });
+  // 앞글자가 맞는 병원, 진행 중인 리드를 먼저
+  찾음.sort(function(a, b) {
+    var pa = norm(a.hname).toLowerCase().indexOf(q) === 0 ? 0 : 1, pb = norm(b.hname).toLowerCase().indexOf(q) === 0 ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return (a.stage === '실패' ? 1 : 0) - (b.stage === '실패' ? 1 : 0);
+  });
+  if (!찾음.length) {
+    칸.innerHTML = '<p class="memo" style="margin:8px 0 0;">내 리드에 「' + esc(입력칸.value.trim()) + '」이(가) 없습니다.<br>'
+      + '방문 계획이나 방문 기록을 먼저 남기면 리드로 등록됩니다. 등록한 뒤 여기서 다시 찾아 주세요.</p>'
+      + '<button class="btn" style="width:100%;margin-top:8px;" onclick="closeProp();show(\'plan\')">방문 계획 등록하러 가기</button>';
+    return;
+  }
+  칸.innerHTML = 찾음.slice(0, 8).map(function(l) {
+    var 상태 = l.intelPipeline === '제안서'
+      ? (l.intelState === '완료' ? ' · 제안서 있음' : l.intelState === '식별대기' ? ' · 병원 확인 필요' : l.intelState === '대기' || l.intelState === '실행중' ? ' · 만드는 중' : '') : '';
+    return '<div class="card" role="button" tabindex="0" style="margin:8px 0 0;padding:10px 12px;cursor:pointer;" onclick="openProp(' + l.k + ')"'
+      + ' onkeydown="if(event.key===\'Enter\')openProp(' + l.k + ')">'
+      + '<strong>' + esc(l.hname) + '</strong>'
+      + '<div class="memo" style="margin:2px 0 0;">' + esc([l.contact, l.stage, 관리자 ? l.rep : ''].filter(Boolean).join(' · ')) + esc(상태) + '</div></div>';
+  }).join('') + (찾음.length > 8 ? '<p class="memo" style="margin:8px 0 0;">' + (찾음.length - 8) + '곳 더 있습니다. 이름을 더 넣어 주세요.</p>' : '');
+}
+function 제안근거_(c) {
+  var g = c.근거 || {}, 칩 = [];
+  if (g.주소) 칩.push('주소 일치'); if (g.원장) 칩.push('원장님 성함 일치'); if (g.전화) 칩.push('전화 일치');
+  if (g.병원명) 칩.push('병원명 있음'); if (g.다지점) 칩.push('여러 지점 주소가 함께 있음');
+  if (c.읽기 && c.읽기 !== '정상') 칩.push('페이지를 읽지 못함(' + c.읽기 + ')');
+  return 칩.length ? 칩.join(' · ') : '근거 없음';
+}
+function renderProp() {
+  if (!PROP || !PROP.state) return;
+  var s = PROP.state, 입력 = s.입력 || {}, run = s.run, html = '';
+  if (run && run.state === '식별대기') {
+    var 후보 = run.후보 || [];
+    html += '<p style="font-size:13px;margin:6px 0 10px;">'
+      + (후보.length ? '이 병원의 공식 홈페이지가 맞는지 확인해 주세요. 맞는 곳을 고르면 다음 단계로 넘어갑니다.'
+        : '홈페이지를 찾지 못했습니다. 공식 홈페이지 주소를 직접 넣어 주세요.')
+      + (run.검색오류 ? '<br><span style="color:#5f6b7a;">자동 검색을 하지 못했습니다(' + esc(run.검색오류) + ').</span>' : '') + '</p>';
+    html += 후보.map(function(c, i) {
+      return '<label class="card" style="display:block;margin:0 0 8px;padding:10px;cursor:pointer;">'
+        + '<input type="radio" name="propPick" value="' + i + '"' + (i === 0 ? ' checked' : '') + '> '
+        + '<strong>' + esc(c.title || c.url) + '</strong>'
+        + '<div class="m" style="word-break:break-all;"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.url) + '</a></div>'
+        + '<div class="memo">' + esc(제안근거_(c)) + (c.발견주소 && c.발견주소.length ? ' · 페이지 주소: ' + esc(c.발견주소.join(', ')) : '') + '</div>'
+        + '</label>';
+    }).join('');
+    html += '<label class="f">' + (후보.length ? '목록에 없으면 직접 입력' : '홈페이지 주소') + '</label>'
+      + '<input type="text" id="propPickUrl" placeholder="예: example-clinic.com" autocomplete="off">'
+      + '<p id="propMsg" class="memo" style="color:#d22030;"></p>'
+      + '<div style="display:flex;gap:8px;margin-top:10px;">'
+      + '<button class="btn" style="flex:1;" onclick="propPick(true)">이번 제안서 취소</button>'
+      + '<button class="btn pri" style="flex:1;" onclick="propPick(false)">이 병원이 맞습니다</button></div>';
+    document.getElementById('propBody').innerHTML = html;
+    return;
+  }
+  if (run && (run.state === '대기' || run.state === '실행중')) {
+    html += '<p class="memo" style="margin:6px 0 12px;">' + (run.stage === '식별' ? '병원 홈페이지를 찾는 중입니다.' : '홈페이지를 분석하는 중입니다.')
+      + ' 10분 안팎으로 결과가 나옵니다. 입력을 바꾸면 처음부터 다시 합니다.</p>';
+  } else if (run && run.state === '완료') {
+    html += '<p class="memo" style="margin:6px 0 8px;">같은 입력으로 만든 초안이 있습니다. 성함·홈페이지·주소를 바꾸면 새로 만듭니다.</p>'
+      + (run.결과있음 ? '<button class="btn pri" style="width:100%;margin-bottom:12px;" onclick="var r=PROP.row;closeProp();openPropView(r);">제안서 보기·고치기</button>' : '');
+  }
+  var 제안 = (s.주소제안 || []).map(function(a, i) {
+    return '<a href="#" onclick="document.getElementById(\'propAddr\').value=PROP.state.주소제안[' + i + '];return false;" style="font-size:12px;">' + esc(a) + '</a>';
+  }).join('<br>');
+  /* 입력 순서(2026-10-26) — 영업사원이 아는 것부터: 원장님 성함 → 홈페이지(선택) → 주소(선택).
+     주소를 비우면 서버가 심평원에 같은 이름이 한 곳뿐일 때 그 주소를 쓴다(제안서요청_). */
+  html += '<label class="f">원장님 성함</label>'
+    + '<input type="text" id="propDoctor" placeholder="예: 홍길동" autocomplete="off" value="' + esc(입력.doctorName || '') + '">'
+    + '<label class="f">홈페이지 (선택)</label>'
+    + '<input type="text" id="propUrl" placeholder="비워 두면 자동으로 찾습니다" autocomplete="off" value="' + esc(입력.url || '') + '">'
+    + '<label class="f">병원 주소 (선택)</label>'
+    + '<input type="text" id="propAddr" placeholder="모르시면 비워 두세요" autocomplete="off" value="' + esc(입력.address || '') + '">'
+    + (제안 ? '<div class="memo" style="margin:-4px 0 8px;">심평원 등록 주소(눌러서 넣기): ' + 제안 + '</div>' : '')
+    + '<p class="memo" style="color:#5f6b7a;">주소가 있으면 같은 지점인지 더 정확히 가려냅니다. 없으면 찾은 홈페이지가 맞는지 한 번 확인해 달라고 할 수 있습니다. '
+    + '원장님 성함은 홈페이지 대조와 공개된 경력·논문을 찾는 데 씁니다.</p>'
+    + '<p id="propMsg" class="memo" style="color:#d22030;"></p>'
+    + '<button class="btn pri" style="width:100%;margin-top:8px;" onclick="propSubmit()">' + (run && run.state === '완료' ? '다시 만들기' : '만들기') + '</button>';
+  document.getElementById('propBody').innerHTML = html;
+}
+function 제안메시지_(m) { var el = document.getElementById('propMsg'); if (el) el.textContent = m || ''; }
+function propSubmit() {
+  if (!PROP || PROP.busy) return;
+  var 주소 = document.getElementById('propAddr').value.trim();   // 선택 — 형식은 서버가 본다
+  var 홈 = document.getElementById('propUrl').value.trim();
+  if (홈) { var 검증 = 홈페이지검증_(홈); if (!검증.ok) return 제안메시지_(검증.msg); 홈 = 검증.url; }
+  var 번호 = PROP번호, token = TOKEN, row = PROP.row;
+  PROP.busy = true; 제안메시지_('');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({
+    토큰: token, 동작: '제안서요청', no: PROP.no, address: 주소, url: 홈,
+    doctorName: document.getElementById('propDoctor').value.trim(),
+    expectedVersion: (PROP.state.입력 || {}).version || 0,
+  })).then(function(r) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    var l = 제안리드_(row);
+    if (l) {
+      l.intelState = '대기'; l.intelPipeline = '제안서'; l.intelStage = '식별'; l.intelReason = null;
+      l.websiteVersion = r.version; if (홈) { l.websiteStatus = '등록'; l.websiteUrl = 홈; }
+    }
+    closeProp(); renderLeads(); renderHome();   // 계획 카드에도 같은 줄이 있다
+    toast('병원 홈페이지를 찾기 시작했습니다. 10분쯤 뒤 홈 [제안서 만들기]에서 병원을 다시 찾으면 진행 상황이 보입니다.');
+  }, function(e) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    PROP.busy = false; 제안메시지_(e.message || '요청하지 못했습니다.');
+  });
+}
+function propPick(취소) {
+  if (!PROP || PROP.busy || !PROP.state.run) return;
+  var body = { 토큰: TOKEN, 동작: '식별선택', no: PROP.no, runId: PROP.state.run.runId };
+  if (취소) {
+    if (!confirm('이번 제안서 만들기를 취소할까요? 같은 입력으로 다시 만들 수 있습니다.')) return;
+    body.취소 = true;
+  } else {
+    var 직접 = document.getElementById('propPickUrl').value.trim();
+    if (직접) { var 검증 = 홈페이지검증_(직접); if (!검증.ok) return 제안메시지_(검증.msg); body.url = 검증.url; }
+    else {
+      var 고름 = document.querySelector('input[name="propPick"]:checked');
+      if (!고름) return 제안메시지_('후보를 고르거나 주소를 넣어 주세요.');
+      body.후보번호 = Number(고름.value);
+    }
+  }
+  var 번호 = PROP번호, token = TOKEN, row = PROP.row;
+  PROP.busy = true; 제안메시지_('');
+  관문호출_('/saleson-clinic-intel', JSON.stringify(body)).then(function(r) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    var l = 제안리드_(row);
+    if (l) {
+      if (취소) { l.intelState = '취소'; l.intelReason = '사용자취소'; }
+      else { l.intelState = '대기'; l.intelStage = '분석'; l.websiteStatus = '등록'; l.websiteUrl = r.url; l.websiteVersion = r.version; }
+    }
+    closeProp(); renderLeads(); renderHome();   // 계획 카드에도 같은 줄이 있다
+    toast(취소 ? '취소했습니다.' : '홈페이지를 확정했습니다. 분석을 이어갑니다.');
+  }, function(e) {
+    if (번호 !== PROP번호 || token !== TOKEN) return;
+    PROP.busy = false; 제안메시지_(e.message || '처리하지 못했습니다.');
+  });
+}
+
+/* ── 데모처 맞춤 제안서 6단계 — 미리보기·편집·인쇄 (2026-10-26, docs/AI제안서_확장기획_261024.md §8-6) ──
+   관문 `제안서조회`가 고객판·영업 브리핑 HTML과 편집 칸 목록을 준다. 화면은 편집을 PV.작업에만 모았다가
+   [수정 저장] 때 통째로 보낸다(`제안서편집` — 서버가 엄격 검증, version이 다르면 거절). 고칠 수 있는 것은
+   제목·문장·항목뿐이고 인용·수치·표·가격은 숨기기만 한다. 로고 그림은 고르는 즉시 저장한다(`로고교체`).
+   인쇄는 저장된 상태만 — 서버에서 새로 그린 고객판을 iframe에서 인쇄하고 인쇄 시각을 남긴다. */
+var PV = null, PV번호 = 0;
+function openPropView(row) {
+  var l = 제안리드_(row);
+  if (!l || !l.no) return toast('이 리드는 새로고침 뒤에 열 수 있어요', true);
+  PV번호++;
+  PV = { row: row, no: l.no, 판: '고객', busy: false, data: null, 작업: null, 원문: {}, 인쇄대기: false };
+  document.getElementById('pvTitle').textContent = (l.hname || '병원') + ' — 제안서';
+  document.getElementById('pvFlags').innerHTML = '';
+  document.getElementById('pvSide').innerHTML = '<div class="empty">불러오는 중…</div>';
+  document.getElementById('pvFrame').srcdoc = '';
+  document.getElementById('pvModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  pvLoad(false);
+}
+function closePropView() {
+  if (PV && PV.data && pvDirty_() && !confirm('저장하지 않은 수정이 있습니다. 닫을까요?')) return;
+  PV번호++; PV = null;
+  document.getElementById('pvModal').style.display = 'none';
+  document.getElementById('pvFrame').srcdoc = '';
+  document.body.style.overflow = '';
+}
+function pvLoad(인쇄) {
+  var 번호 = PV번호, token = TOKEN, body = { 토큰: token, 동작: '제안서조회', no: PV.no };
+  if (PV.data) body.runId = PV.data.runId;
+  if (인쇄) body.인쇄 = true;
+  PV.busy = true;
+  return 관문호출_('/saleson-clinic-intel', JSON.stringify(body)).then(function(r) {
+    if (번호 !== PV번호 || token !== TOKEN) return null;
+    PV.data = r; PV.busy = false;
+    PV.작업 = pv복사_(r.edits || {});
+    PV.원문 = {};
+    r.목록.장.concat(r.목록.브리핑).forEach(function(g) { g.요소.forEach(function(x) { if (x.고침) PV.원문[x.id] = x.글; }); });
+    pvRender(true);
+    return r;
+  }, function(e) {
+    if (번호 !== PV번호 || token !== TOKEN) return null;
+    PV.busy = false; PV.인쇄대기 = false;
+    if (!PV.data) document.getElementById('pvSide').innerHTML = '<p class="memo" style="padding:12px 0;">' + esc(e.message || '불러오지 못했습니다.') + '</p>';
+    else pv메시지_(e.message || '불러오지 못했습니다.', true);
+    return null;
+  });
+}
+function pv복사_(e) {
+  var o = { hide: (e.hide || []).slice(), text: {}, logo: {}, cover: {} };
+  Object.keys(e.text || {}).forEach(function(k) { o.text[k] = e.text[k]; });
+  Object.keys(e.logo || {}).forEach(function(k) { o.logo[k] = e.logo[k]; });
+  Object.keys(e.cover || {}).forEach(function(k) { o.cover[k] = e.cover[k]; });
+  return o;
+}
+/** 서버가 저장하는 모양(빈 칸 없음)으로 — 비교는 열쇠 순서를 맞춰서 한다 */
+function pv정리_(w) {
+  var o = {};
+  if (w.hide.length) o.hide = w.hide.slice();
+  if (Object.keys(w.text).length) o.text = w.text;
+  if (Object.keys(w.logo).length) o.logo = w.logo;
+  if (Object.keys(w.cover).length) o.cover = w.cover;
+  return o;
+}
+function pv열쇠_(v) {
+  if (Array.isArray(v)) return '[' + v.map(pv열쇠_).sort().join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(function(k) { return JSON.stringify(k) + ':' + pv열쇠_(v[k]); }).join(',') + '}';
+  return JSON.stringify(v);
+}
+function pvDirty_() { return !!(PV && PV.data && pv열쇠_(pv정리_(PV.작업)) !== pv열쇠_(PV.data.edits || {})); }
+function pv메시지_(m, 오류) {
+  var el = document.getElementById('pvMsg');
+  if (el) { el.textContent = m || ''; el.style.color = 오류 ? '#d22030' : '#4e5968'; }
+}
+function pvTab(판) {
+  if (!PV || !PV.data) return;
+  PV.판 = 판; pvRender(true);
+}
+function pvRender(프레임도) {
+  var d = PV.data, f = document.getElementById('pvFrame');
+  ['고객', '브리핑'].forEach(function(k) {
+    var b = document.getElementById('pvTab' + k);
+    b.className = PV.판 === k ? 'on' : ''; b.setAttribute('aria-selected', PV.판 === k ? 'true' : 'false');
+  });
+  if (프레임도) {
+    if (PV.인쇄대기) {
+      PV.인쇄대기 = false;
+      f.onload = function() { f.onload = null; pv인쇄_(f); };
+    }
+    f.srcdoc = PV.판 === '고객' ? d.고객HTML : d.브리핑HTML;
+  }
+  var 띠 = [];
+  if (d.reviewState !== 'MA승인') 띠.push(['w', 'MA 승인 전 — 고객에게 보내지 않습니다']);
+  if (d.stale) 띠.push(['w', '병원 정보가 바뀌었습니다 — 다시 만든 뒤 쓰세요']);
+  if (d.최신RunId && d.최신RunId !== d.runId) 띠.push(['w', '더 새 제안서가 있습니다']);
+  if (d.작성오류) 띠.push(['w', 'AI 문장 작성 실패(' + d.작성오류 + ') — 사실·승인 문구로만 만들었습니다']);
+  if (d.검토필요) 띠.push(['', '검토 필요 문장 ' + d.검토필요 + '개 — 영업 브리핑에서 확인']);
+  if (d.로고 && d.로고.오류) 띠.push(['w', '로고를 불러오지 못했습니다(' + d.로고.오류 + ')']);
+  if (d.버림 && d.버림.length) 띠.push(['w', '적용하지 못한 수정 ' + d.버림.length + '개 — 영업 브리핑 「고객판 점검」']);
+  if (d.pdfSavedAt) 띠.push(['', '마지막 인쇄 ' + new Date(d.pdfSavedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })]);
+  document.getElementById('pvFlags').innerHTML = 띠.map(function(x) { return '<span class="pv-flag' + (x[0] ? ' w' : '') + '">' + esc(x[1]) + '</span>'; }).join('');
+  pvSide_();
+}
+function pvSide_() {
+  var d = PV.data, w = PV.작업, h = '';
+  if (PV.판 === '고객') {
+    var 표지칸 = function(이름, k, max) {
+      return '<label class="f">' + 이름 + '</label><input type="text" maxlength="' + max + '" data-k="' + k + '" oninput="pvCover(this)" value="'
+        + esc(w.cover[k] != null ? w.cover[k] : (d.표지[k] || '')) + '">';
+    };
+    h += '<section class="pv-sec"><h4>표지</h4>' + 표지칸('원장님 성함', 'doctorName', 40) + 표지칸('직함', 'doctorTitle', 20) + 표지칸('담당자', 'author', 40) + '</section>';
+    var L = d.로고 || {};
+    h += '<section class="pv-sec"><h4>병원 로고</h4>';
+    if (!L.있음) h += '<p class="memo">받은 로고가 없습니다. 표지에 병원명만 나옵니다.</p>';
+    else {
+      h += '<p class="memo">' + (L.오류 ? '로고를 불러오지 못했습니다.'
+        : L.자동바탕 === 'light' ? '밝은 로고로 판정 — 짙은 표지에 그대로 얹습니다.'
+        : L.자동바탕 === 'dark' ? '어두운 로고로 판정 — 흰 판 위에 얹습니다.'
+        : '바탕을 판정하지 못해 흰 판 위에 얹습니다. 흰 글자 로고면 「밝은 로고」를 고르세요.') + (L.교체됨 ? ' 직접 올린 로고입니다.' : '') + '</p>'
+        + '<label class="f">바탕</label><select onchange="pvLogo(\'tone\', this.value)">'
+        + [['', '자동'], ['light', '밝은 로고 — 짙은 표지에 그대로'], ['dark', '어두운 로고 — 흰 판 위에']].map(function(o) {
+          return '<option value="' + o[0] + '"' + ((w.logo.tone || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'
+        + '<label class="f" style="display:flex;gap:6px;align-items:center;"><input type="checkbox" onchange="pvLogo(\'hidden\', this.checked)"'
+        + (w.logo.hidden ? ' checked' : '') + '> 표지에서 로고 숨기기</label>';
+    }
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><label class="btn ghost pv-file">로고 바꾸기'
+      + '<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" onchange="pvLogoFile(this)" style="display:none;"></label>'
+      + (L.교체됨 ? '<button class="btn ghost" onclick="pvLogoReset()">받은 로고로 되돌리기</button>' : '') + '</div>'
+      + '<p class="memo">1MB 이하 PNG·JPG·GIF·WebP·SVG. 고르면 바로 저장됩니다.</p></section>';
+  }
+  var 묶음 = PV.판 === '고객' ? d.목록.장 : d.목록.브리핑;
+  h += '<p class="memo" style="margin:10px 0 0;">' + (PV.판 === '고객'
+    ? '고칠 수 있는 것은 제목·문장·항목입니다. 인용·수치·표·가격은 숨기기만 합니다.'
+    : '영업 브리핑은 내부용입니다. 숨기거나 고친 내용은 브리핑에만 반영됩니다.') + '</p>';
+  h += 묶음.map(function(g, i) {
+    if (!g.요소.length) return '';
+    var 바뀜 = g.요소.filter(function(x) { return w.hide.indexOf(x.id) >= 0 || w.text[x.id] != null; }).length;
+    return '<details class="pv-sec"' + (i < 2 ? ' open' : '') + '><summary>' + esc(g.제목) + (바뀜 ? '<small>수정 ' + 바뀜 + '</small>' : '') + '</summary>'
+      + g.요소.map(pv요소_).join('') + '</details>';
+  }).join('');
+  h += '<div class="pv-save"><p id="pvMsg" class="memo"></p><button class="btn pri" style="width:100%;" onclick="pvSave()">수정 저장</button></div>';
+  document.getElementById('pvSide').innerHTML = h;
+}
+function pv요소_(x) {
+  var w = PV.작업, 숨김 = w.hide.indexOf(x.id) >= 0, 글 = w.text[x.id];
+  return '<div class="pv-el' + (숨김 ? ' off' : '') + '" style="margin-left:' + (x.깊이 * 12) + 'px;">'
+    + '<div class="pv-el-h"><span>' + esc(x.종류) + '</span>'
+    + (x.제외 && x.제외 !== '영업 숨김' ? '<span class="pv-badge">고객판 제외 · ' + esc(x.제외) + '</span>' : '')
+    + (x.숨김 ? '<label class="pv-hide"><input type="checkbox" data-id="' + esc(x.id) + '" onchange="pvHide(this)"' + (숨김 ? ' checked' : '') + '>숨김</label>' : '')
+    + '</div>'
+    + (x.고침 ? '<textarea rows="' + Math.min(5, Math.ceil(x.글.length / 34) || 1) + '" maxlength="600" data-id="' + esc(x.id) + '" oninput="pvText(this)"'
+        + (글 != null ? ' class="ch"' : '') + '>' + esc(글 != null ? 글 : x.글) + '</textarea>'
+      : '<div class="pv-fixed">' + esc(x.글) + '</div>')
+    + '</div>';
+}
+function pvText(el) {
+  var id = el.getAttribute('data-id'), v = el.value;
+  if (v.replace(/\s+/g, ' ').trim() === PV.원문[id]) delete PV.작업.text[id]; else PV.작업.text[id] = v;
+  el.className = PV.작업.text[id] != null ? 'ch' : '';
+  pv메시지_('');
+}
+function pvHide(el) {
+  var id = el.getAttribute('data-id'), i = PV.작업.hide.indexOf(id);
+  if (el.checked && i < 0) PV.작업.hide.push(id);
+  if (!el.checked && i >= 0) PV.작업.hide.splice(i, 1);
+  el.closest('.pv-el').className = 'pv-el' + (el.checked ? ' off' : '');
+  pv메시지_('');
+}
+function pvCover(el) {
+  var k = el.getAttribute('data-k'), v = el.value.replace(/\s+/g, ' ').trim();
+  if (!v || v === (PV.data.표지[k] || '')) delete PV.작업.cover[k]; else PV.작업.cover[k] = v;
+  pv메시지_('');
+}
+function pvLogo(k, v) {
+  if (k === 'tone') { if (v) PV.작업.logo.tone = v; else delete PV.작업.logo.tone; }
+  else { if (v) PV.작업.logo.hidden = true; else delete PV.작업.logo.hidden; }
+  pv메시지_('');
+}
+function pvSave() {
+  if (!PV || !PV.data || PV.busy) return;
+  if (!pvDirty_()) return pv메시지_('바뀐 것이 없습니다.');
+  var 번호 = PV번호, token = TOKEN;
+  PV.busy = true; pv메시지_('저장하는 중…');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '제안서편집', no: PV.no, runId: PV.data.runId,
+    expectedVersion: PV.data.version, edits: pv정리_(PV.작업) })).then(function() {
+    if (번호 !== PV번호 || token !== TOKEN) return;
+    toast('제안서 수정을 저장했습니다.');
+    pvLoad(false);
+  }, function(e) {
+    if (번호 !== PV번호 || token !== TOKEN) return;
+    PV.busy = false; pv메시지_(e.message || '저장하지 못했습니다.', true);
+  });
+}
+function pv로고보내기_(src) {
+  var 번호 = PV번호, token = TOKEN;
+  PV.busy = true; pv메시지_(src ? '로고를 올리는 중…' : '되돌리는 중…');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '로고교체', no: PV.no, runId: PV.data.runId,
+    expectedVersion: PV.data.version, src: src })).then(function() {
+    if (번호 !== PV번호 || token !== TOKEN) return;
+    toast(src ? '로고를 바꿨습니다.' : '받은 로고로 되돌렸습니다.');
+    pvLoad(false);
+  }, function(e) {
+    if (번호 !== PV번호 || token !== TOKEN) return;
+    PV.busy = false; pv메시지_(e.message || '로고를 바꾸지 못했습니다.', true);
+  });
+}
+function pvLogoFile(input) {
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file || !PV || !PV.data || PV.busy) return;
+  // 로고 교체는 version을 올린다 — 저장 안 한 수정이 있으면 먼저 저장하게 한다(덮어쓰기 거절을 피한다)
+  if (pvDirty_()) return pv메시지_('저장하지 않은 수정이 있습니다. 먼저 [수정 저장]을 눌러 주세요.', true);
+  if (file.size > 1048576) return pv메시지_('로고는 1MB 이하만 올릴 수 있습니다.', true);
+  var rd = new FileReader();
+  rd.onload = function() { if (PV) pv로고보내기_(String(rd.result)); };
+  rd.onerror = function() { pv메시지_('파일을 읽지 못했습니다.', true); };
+  rd.readAsDataURL(file);
+}
+function pvLogoReset() {
+  if (!PV || !PV.data || PV.busy) return;
+  if (pvDirty_()) return pv메시지_('저장하지 않은 수정이 있습니다. 먼저 [수정 저장]을 눌러 주세요.', true);
+  if (!confirm('직접 올린 로고 대신 홈페이지에서 받은 로고로 되돌릴까요?')) return;
+  pv로고보내기_(null);
+}
+/* 인쇄 — 저장된 상태만. 고객판은 서버에서 새로 그려 받고(인쇄 시각 기록) 그 문서를 iframe에서 인쇄한다.
+   iframe 인쇄가 막힌 환경이면 새 탭에 열어 Ctrl+P로 저장하게 한다. */
+function pvPrint() {
+  if (!PV || !PV.data || PV.busy) return;
+  if (pvDirty_()) return pv메시지_('저장하지 않은 수정이 있습니다. 저장한 뒤 인쇄해 주세요.', true);
+  PV.인쇄대기 = true;
+  if (PV.판 === '고객') pvLoad(true); else pvRender(true);
+}
+function pv인쇄_(f) {
+  try { f.contentWindow.focus(); f.contentWindow.print(); }
+  catch (e) {
+    var html = PV.판 === '고객' ? PV.data.고객HTML : PV.data.브리핑HTML;
+    var u = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    window.open(u, '_blank', 'noopener');
+    toast('새 탭에서 인쇄(Ctrl+P)로 PDF를 저장하세요.');
+    setTimeout(function() { URL.revokeObjectURL(u); }, 60000);
+  }
 }
 
 /* ── 관리자 현황 대시보드 ── */
