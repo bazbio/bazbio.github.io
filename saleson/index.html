@@ -1534,7 +1534,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610260925-ncare-assignment';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610261632-marketing-clabs';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1807,7 +1807,7 @@ function q4Navigation(){
  var actor=DATA.me.name+'|'+DATA.me.team+'|'+!!DATA.me.viewer;if(SALES_NAV.actor!==actor){SALES_NAV={open:'',current:'',actor:actor};}
  var viewer=!!DATA.me.viewer,cl=viewer&&String(DATA.me.team||'').trim()==='C-Labs';document.querySelector('.nav').dataset.viewer=String(viewer);
  ['nav-dash','nav-flow','nav-ncare','more-flow','more-dash','more-ncare'].forEach(function(id){document.getElementById(id).style.display=cl?'none':'';});
- var mk=!viewer||String(DATA.me.team||'').trim()==='MA';['nav-mkt','more-mkt'].forEach(function(id){document.getElementById(id).style.display=mk?'':'none';});
+ var mk=!viewer||['MA','C-Labs'].indexOf(String(DATA.me.team||'').trim())>=0;['nav-mkt','more-mkt'].forEach(function(id){document.getElementById(id).style.display=mk?'':'none';});
  document.querySelectorAll('.nav-group-label').forEach(function(label){var entries=Array.from(document.querySelectorAll('[data-nav-category="'+label.dataset.navGroup+'"]'));label.style.display=entries.some(function(el){return el.style.display!=='none';})?'':'none';});
  document.querySelectorAll('#view-more .menu-group').forEach(function(group){group.style.display=Array.from(group.querySelectorAll('.mrow')).some(function(el){return el.style.display!=='none';})?'':'none';});
  salesNavRender();
@@ -2050,7 +2050,7 @@ function 갈수있나_(v) {
   if (v === 'performance') return q4Allowed();
   if (!DATA || !DATA.me || !DATA.me.viewer) return !!DATA;
   var cl = String(DATA.me.team || '').trim() === 'C-Labs';
-  if (v === 'mkt') return String(DATA.me.team || '').trim() === 'MA';
+  if (v === 'mkt') return ['MA', 'C-Labs'].indexOf(String(DATA.me.team || '').trim()) >= 0;   // C-Labs는 열람만(관문이 쓰기를 막는다)
   var 막힘 = ['home', 'plan', 'log', 'lead', 'mine'].concat(
     cl ? ['dash', 'flow', 'kpi', 'ncare'] : ['meta']);
   return 막힘.indexOf(v) < 0;
@@ -8554,6 +8554,7 @@ function mktSec_(제목, 오른쪽) {
     + '<div style="font-size:13.5px;font-weight:700;color:#191f28;">' + 제목 + '</div>' + (오른쪽 || '') + '</div>';
 }
 function mktLink_(글, 동작) {
+  if (MKT && MKT.me && MKT.me.readOnly) return '';   // C-Labs 조회 계정 — 입력·수정 단추를 그리지 않는다
   return '<button type="button" class="btn ghost" style="padding:5px 10px;font-size:12.5px;" onclick="' + 동작 + '">' + 글 + '</button>';
 }
 function mktRenderDetail() {
