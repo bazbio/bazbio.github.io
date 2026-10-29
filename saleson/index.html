@@ -1688,7 +1688,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610300720-ce05444';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610300803-49b100a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -9184,6 +9184,7 @@ var MKTD = null;       // 열려 있는 병원 상세 응답
 var MKTMODE = 'inf';   // 'inf' IG/NAVER 인플루언서 · 'hosp' 협업 병원 · 'post' 인스타 게시물 순위
 var MKTF = { q: '', level: 0, sido: '', sigungu: '', rep: '', only: false, hideCaution: false, limit: 150 };
 var MKTPF = 30;        // 게시물 기간(일). 0 = 전체
+var MKT_ADD = false, MKT_ADD_V = '';   // [+ 병원 추가] 칸이 열렸는지 · 적어 둔 이름(목록을 다시 그려도 남게)
 var MKT_EDIT = null;   // 상세에서 열린 인라인 폼: 'camp:new' | 'camp:<id>' | 'post' | 'rate' | 'caution' | 'addr' | 'manual:<id>'
 var MKT_LV = { 1: ['#4e5968', '#f2f4f6'], 2: ['#1b64da', '#e8f3ff'], 3: ['#05754a', '#e5f7ef'], 4: ['#a35c11', '#fff4e0'], 5: ['#d0223a', '#ffeaed'] };
 var MKT_ST = { 예정: 'tag-blue', 진행: 'tag-orange', 완료: 'tag-green', 취소: 'tag-grey' };
@@ -9269,6 +9270,7 @@ function renderMkt() {
     + '<button type="button" class="chip' + (MKTF.only ? ' on' : '') + '" onclick="MKTF.only=!MKTF.only;renderMkt()">마케팅 진행 병원만</button>'
     + '<button type="button" class="chip' + (MKTF.hideCaution ? ' on' : '') + '" onclick="MKTF.hideCaution=!MKTF.hideCaution;renderMkt()">주의 병원 빼기</button>'
     + '</div></div>'
+    + '<div id="mktTools">' + mktTools_() + '</div>'
     + '<div id="mktList"></div>'
     + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">시술 숙련도 = 2026년 1월부터 노즐 유상 출고(단품+구독, 증정 제외) 월평균 · Lv.1 10개 이하 · Lv.2 30개 이하 · Lv.3 50개 이하 · Lv.4 100개 이하 · Lv.5 100개 초과. 신규 병원은 첫 출고부터 나눕니다.'
     + (MKT.nozzleSyncedAt ? ' 관리 시트 동기화 ' + esc(mktWhen(MKT.nozzleSyncedAt)) + '.' : ' 노즐 원천 자료가 아직 없습니다.') + '</div>';
@@ -9312,7 +9314,7 @@ function mktRenderList() {
       if (x.campaigns) 부가.push('마케팅 ' + x.campaigns + '회 · 최근 ' + esc(x.lastCampaign));
       if (x.posts) 부가.push('게시물 ' + x.posts + (x.topViews != null ? ' · 최고 ' + mktNum(x.topViews) + '회' : ''));
       if (x.skillScore) 부가.push('시술 ' + '★'.repeat(x.skillScore));
-      return '<div onclick="mktOpen(\'' + esc(x.code) + '\')" style="cursor:pointer;padding:11px 16px;border-bottom:1px solid #f2f4f6;">'
+      return '<div data-code="' + mkiAttr_(x.code) + '" onclick="mktOpen(this.dataset.code)" style="cursor:pointer;padding:11px 16px;border-bottom:1px solid #f2f4f6;">'
         + '<div style="display:flex;align-items:center;gap:8px;">' + mktLevelBadge(x.level)
         + '<span style="flex:1;min-width:0;font-size:14.5px;font-weight:700;color:#191f28;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(x.name) + '</span>'
         + (x.caution ? '<span class="tag-red">주의</span>' : '')
@@ -9349,7 +9351,7 @@ function renderMktPosts() {
     return '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f2f4f6;">'
       + '<div style="flex:0 0 28px;text-align:center;font-size:17px;font-weight:800;color:' + (i < 3 ? '#1b64da' : '#8b95a1') + ';">' + (i + 1) + '</div>'
       + '<div style="flex:1;min-width:0;">'
-      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><a href="javascript:void(0)" onclick="mktOpen(\'' + esc(p.code) + '\')" style="font-size:14.5px;font-weight:700;color:#191f28;text-decoration:none;">' + esc(p.hospital) + '</a>'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><a href="javascript:void(0)" data-code="' + mkiAttr_(p.code) + '" onclick="mktOpen(this.dataset.code)" style="font-size:14.5px;font-weight:700;color:#191f28;text-decoration:none;">' + esc(p.hospital) + '</a>'
       + '<span style="font-size:12.5px;color:#4e5968;">@' + esc(p.username) + '</span>'
       + (p.mediaType === 'REELS' ? '<span class="tag-blue">릴스</span>' : '')
       + mktPostStatus_(p) + '</div>'
@@ -9374,6 +9376,70 @@ function mktIgRefresh(btn) {
     toast('갱신 ' + r.갱신 + '건' + (r.못찾음 ? ' · 못 찾음 ' + r.못찾음 : '') + (r.실패 ? ' · 실패 ' + r.실패 : ''));
     MKTP = null; loadMktPosts();
   }, function(e) { toast(e.message, true); if (btn) { btn.disabled = false; btn.textContent = '지금 갱신'; } });
+}
+
+/* ── 데이터 추가/관리 (0051, 시안 「SalesON 협업 병원 대시보드」) ──
+ * [+ 병원 추가]: 장비·노즐·마케팅 기록이 없어 목록에 없던 거래처를 올려 둔다. 거래처 자체는 만들지 않는다.
+ * [인스타그램 데이터 동기화]: 등록된 게시물 지표를 지금 다시 읽는다(MA팀·관리자, 평소엔 1시간마다 자동). */
+function mktTools_() {
+  if (!MKT || !MKT.me || MKT.me.readOnly) return '';
+  var 전권 = mktEditAll_();
+  var h = '<div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:0 0 10px;">'
+    + (MKT_ADD ? '' : '<button type="button" class="btn pri" style="padding:8px 14px;" onclick="mktAddOpen()">+ 병원 추가</button>')
+    + (전권 ? '<button type="button" class="btn" style="padding:8px 14px;"' + (MKT.igReady ? ' onclick="mktIgSync(this)"' : ' disabled') + '>인스타그램 데이터 동기화</button>' : '')
+    + '</div>';
+  if (전권 && !MKT.igReady) h += '<div style="margin:-4px 4px 10px;font-size:12px;color:#a35c11;text-align:right;">인스타 자동 연동 준비 중 — 관리자가 연동 토큰을 넣으면 켜집니다</div>';
+  if (MKT_ADD) {
+    h += '<div class="card" style="padding:14px 16px;">'
+      + '<label for="mktAddHosp">협업 병원 목록에 올릴 병원</label>'
+      + '<input id="mktAddHosp" type="text" data-ac="hosp" autocomplete="off" placeholder="거래처 병원명을 입력해 고르세요" value="' + mkiAttr_(MKT_ADD_V) + '" oninput="MKT_ADD_V=this.value;var w=document.getElementById(\'mktAddPickWrap\');if(w)w.innerHTML=\'\'">'
+      + '<div id="mktAddPickWrap"></div>'
+      + '<div style="margin-top:6px;font-size:12px;color:#5f6b7a;line-height:1.6;">거래처에 있는 병원만 올릴 수 있습니다. 올린 뒤 상세에서 이력·게시물·평가를 넣어 주세요.</div>'
+      + '<div style="margin-top:10px;display:flex;gap:6px;"><button type="button" class="btn pri" onclick="mktAddSave(this)">추가</button>'
+      + '<button type="button" class="btn" onclick="MKT_ADD=false;MKT_ADD_V=\'\';mktRenderTools_()">취소</button></div></div>';
+  }
+  return h;
+}
+function mktRenderTools_() { var el = document.getElementById('mktTools'); if (el) el.innerHTML = mktTools_(); }
+function mktAddOpen() {
+  MKT_ADD = true; MKT_ADD_V = '';
+  mktRenderTools_();
+  var f = document.getElementById('mktAddHosp'); if (f) f.focus();
+}
+function mktAddSave(btn) {
+  var 이름 = String(MKT_ADD_V || '').trim();
+  if (!이름) return 검증실패_('병원 이름을 넣어 주세요', 'mktAddHosp');
+  var 후보 = mkiHospCands_(이름), 고른 = document.getElementById('mktAddPick'), code = '';
+  if (!후보.length) return 검증실패_('거래처에 없는 병원입니다 — 거래처 등록은 영업 담당에게 요청해 주세요', 'mktAddHosp');
+  if (후보.length === 1) code = 후보[0].code;
+  else if (고른 && 고른.value && 후보.some(function(h) { return h.code === 고른.value; })) code = 고른.value;
+  else {
+    document.getElementById('mktAddPickWrap').innerHTML = mkiHospPickHtml_('mktAddPick', 후보);
+    return 검증실패_('같은 이름의 병원이 ' + 후보.length + '곳입니다 — 아래에서 골라 주세요', 'mktAddPick');
+  }
+  var 끝 = function() { MKT_ADD = false; MKT_ADD_V = ''; mktRenderTools_(); mktOpen(code); };
+  if ((MKT.items || []).some(function(x) { return x.code === code; })) { toast('이미 협업 병원 목록에 있습니다'); return 끝(); }
+  mktBusy_(btn, true);
+  mktCall_({ 동작: '병원추가', code: code }).then(function() {
+    toast('협업 병원 목록에 올렸습니다');
+    끝(); loadMkt(true);
+  }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
+function mktIgSync(btn) {
+  mktBusy_(btn, true);
+  mktCall_({ 동작: '지표갱신' }).then(function(r) {
+    mktBusy_(btn, false);
+    toast(r.설정없음 ? '인스타 자동 연동이 아직 설정되지 않았습니다' : '게시물 지표 갱신 ' + r.갱신 + '건' + (r.못찾음 ? ' · 못 찾음 ' + r.못찾음 : '') + (r.실패 ? ' · 실패 ' + r.실패 : ''), !!r.설정없음);
+    MKTP = null; loadMkt(true);
+  }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
+function mktUnlist(code, btn) {
+  if (!confirm('협업 병원 목록에서 뺄까요?\n마케팅 이력·게시물·평가가 있는 병원은 그것 때문에 목록에 남습니다.')) return;
+  mktBusy_(btn, true);
+  mktCall_({ 동작: '병원빼기', code: code }).then(function() {
+    toast('목록에서 뺐습니다');
+    mktOpen(code, true); loadMkt(true);
+  }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
 }
 
 /* ── 병원 상세 ── */
@@ -9422,6 +9488,14 @@ function mktRenderDetail() {
       + '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">비우고 저장하면 관리 시트 주소로 돌아갑니다</div>';
   } else {
     h += '<div style="margin-top:6px;">' + mktLink_(E.addressOverride ? '주소 보정 고치기' : (H.sigungu ? '주소 보정' : '시/구가 비어 있어요 — 주소 넣기'), "MKT_EDIT='addr';mktRenderDetail()") + '</div>';
+  }
+
+  if (E.listedAt) {
+    var 뺄수 = !me.readOnly && (전권 || E.listedBy === me.name);
+    h += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:#5f6b7a;">'
+      + '<span>[+ 병원 추가]로 올린 병원 · ' + esc(E.listedBy || '') + ' · ' + esc(mktWhen(E.listedAt)) + '</span>'
+      + (뺄수 ? '<button type="button" class="btn ghost" style="padding:4px 10px;font-size:12px;" data-code="' + mkiAttr_(H.code) + '" onclick="mktUnlist(this.dataset.code,this)">목록에서 빼기</button>' : '')
+      + '</div>';
   }
 
   // 숙련도
@@ -9675,7 +9749,10 @@ function renderMktInf() {
     + '<div class="chips" id="mkiPf" style="margin-bottom:8px;"></div>'
     + '<div class="seg scrollx" id="mkiSt" style="margin:0;"></div></div>'
     + '<div id="mkiList"></div>'
-    + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">팔로워 수·링크는 직접 넣습니다. 협업 병원을 고르면 그 병원 영업 담당과 메일이 따라옵니다.</div>';
+    + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
+    + (MKTI.igReady ? '인스타그램 팔로워 수는 하루 한 번 자동으로 갱신합니다(비즈니스·크리에이터 계정). 네이버·개인 계정은 직접 넣습니다.'
+      : '팔로워 수·링크는 직접 넣습니다 — 인스타 자동 연동은 준비 중입니다.')
+    + ' 협업 병원을 고르면 그 병원 영업 담당과 메일이 따라옵니다.</div>';
   document.getElementById('mktBody').innerHTML = h;
   mkiRenderList();
 }
@@ -9713,7 +9790,9 @@ function mkiRenderList() {
   var 고르기 = document.getElementById('mkiHospPickWrap'), 고르기칸 = 고르기 ? 고르기.innerHTML : '';
   var 머리 = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 4px 8px;">'
     + '<span style="font-size:12.5px;color:#4e5968;">' + rows.length + '명 · 팔로워 많은 순</span>'
-    + (mkiRo_() || MKTI_OPEN === 'new' ? '' : '<button type="button" class="btn pri" style="padding:8px 14px;" onclick="mkiOpen(\'new\')">+ 인플루언서 추가</button>') + '</div>';
+    + '<span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">'
+    + (!mkiRo_() && mktEditAll_() ? '<button type="button" class="btn" style="padding:8px 14px;"' + (MKTI.igReady ? ' onclick="mkiSync(this)"' : ' disabled title="인스타 자동 연동 준비 중 — 관리자가 연동 토큰을 넣으면 켜집니다"') + '>인스타그램 데이터 동기화</button>' : '')
+    + (mkiRo_() || MKTI_OPEN === 'new' ? '' : '<button type="button" class="btn pri" style="padding:8px 14px;" onclick="mkiOpen(\'new\')">+ 인플루언서 추가</button>') + '</span></div>';
   var 새 = MKTI_OPEN === 'new' ? '<div class="mki open">' + mkiEditor_(null) + '</div>' : '';
   if (!rows.length && !새) {
     el.innerHTML = 머리 + '<div class="card empty">' + ((MKTI.items || []).length ? '조건에 맞는 인플루언서가 없습니다' : '등록된 인플루언서가 없습니다' + (mkiRo_() ? '' : ' — [+ 인플루언서 추가]')) + '</div>';
@@ -9774,7 +9853,8 @@ function mkiTop_(x) {
   var pc = MKTI_PF[x.platform] || MKTI_PF['인스타그램'], sc = MKTI_STC[x.stage] || MKTI_STC[0];
   return '<div class="mki-top"><div class="mki-av" style="color:' + pc[0] + ';background:' + pc[1] + ';">' + esc(String(x.handle).charAt(0).toUpperCase()) + '</div>'
     + '<div style="min-width:0;flex:1;"><div class="mki-nm">' + esc(mkiName_(x)) + '</div>'
-    + '<div class="mki-mt">' + esc(x.platform) + (x.followers != null ? ' · 팔로워 ' + mktNum(x.followers) + '명' : '') + '</div></div>'
+    + '<div class="mki-mt">' + esc(x.platform) + (x.followers != null ? ' · 팔로워 ' + mktNum(x.followers) + '명' : '')
+    + (x.followersCheckedAt && !x.followersSyncError ? ' · 자동 ' + esc(mktWhen(x.followersCheckedAt).slice(0, 5)) : '') + '</div></div>'
     + '<span class="mki-bd" style="color:' + sc[0] + ';background:' + sc[1] + ';">' + MKTI_ST[x.stage] + '</span></div>';
 }
 /* 협업 병원 고르기 — 칸은 공용 병원 자동완성(data-ac="hosp")을 쓴다(datalist는 없앴다, hospac 시험).
@@ -9793,6 +9873,25 @@ function mkiHospCands_(이름) {
   });
   return 후보;
 }
+function mkiHospPickHtml_(id, 후보) {
+  return '<select id="' + id + '" style="margin-top:6px;"><option value="">같은 이름이 ' + 후보.length + '곳 — 어느 병원인가요?</option>'
+    + 후보.map(function(h) { return '<option value="' + mkiAttr_(h.code) + '">' + esc([h.name, h.area || '지역 미상', h.rep ? '영업 ' + h.rep : '', h.code].filter(Boolean).join(' · ')) + '</option>'; }).join('') + '</select>';
+}
+/* 팔로워 자동 갱신 상태(0051) — 인스타 계정만. 못 읽으면 사유를 보여 주고 직접 넣게 한다 */
+function mkiFolHint_(x) {
+  if (!x || x.platform !== '인스타그램') return '';
+  if (x.followersSyncError) return '<div style="margin-top:4px;font-size:12px;color:#a35c11;">팔로워 자동 갱신 안 됨 — ' + esc(x.followersSyncError) + '. 직접 넣어 주세요</div>';
+  if (x.followersCheckedAt) return '<div style="margin-top:4px;font-size:12px;color:#5f6b7a;">팔로워 수는 인스타에서 자동으로 읽습니다(마지막 ' + esc(mktWhen(x.followersCheckedAt)) + ')</div>';
+  return '';
+}
+function mkiSync(btn) {
+  mktBusy_(btn, true);
+  mktCall_({ 동작: '팔로워갱신' }).then(function(r) {
+    mktBusy_(btn, false);
+    toast('팔로워 갱신 ' + r.갱신 + '명' + (r.실패 ? ' · 못 읽음 ' + r.실패 + '명(개인 계정 등 — 카드에서 직접 넣어 주세요)' : '') + (r.남음 ? ' · ' + r.남음 + '명은 다음 갱신 때' : ''));
+    mkiAfterWrite_();
+  }, function(e) { mktBusy_(btn, false); toast(e.message, true); });
+}
 function mkiEditor_(x) {
   var 새 = !x; x = x || { platform: '인스타그램', handle: '', followers: null, slots: [], progressNote: '', memo: '', profileUrl: '', uploads: [], log: [] };
   var opt = function(v) { return '<option' + (x.platform === v ? ' selected' : '') + '>' + v + '</option>'; };
@@ -9800,6 +9899,7 @@ function mkiEditor_(x) {
     + (새 ? '<div class="mki-nm" style="margin-bottom:4px;">새 인플루언서</div>' : '')
     + '<div class="mki-row2"><div><label for="mkiPlat">플랫폼</label><select id="mkiPlat">' + opt('인스타그램') + opt('네이버') + '</select></div>'
     + '<div><label for="mkiFol">팔로워 수</label><input id="mkiFol" type="text" inputmode="numeric" placeholder="예: 30000" value="' + (x.followers != null ? x.followers : '') + '"></div></div>'
+    + mkiFolHint_(x)
     + '<label for="mkiHandle">계정</label><input id="mkiHandle" type="text" autocomplete="off" placeholder="인스타 @아이디 · 네이버 블로그 아이디" value="' + mkiAttr_(x.handle) + '">'
     + '<label for="mkiHosp">협업 병원</label><input id="mkiHosp" type="text" data-ac="hosp" autocomplete="off" placeholder="병원명을 입력해 고르세요 (비우면 미정)" value="' + mkiAttr_(x.hospital || '') + '" oninput="var w=document.getElementById(\'mkiHospPickWrap\');if(w)w.innerHTML=\'\'">'
     + '<div id="mkiHospPickWrap"></div>'
@@ -9854,8 +9954,7 @@ function mkiSave(id, btn) {
       if (후보.length === 1) code = 후보[0].code;
       else if (고른 && 고른.value && 후보.some(function(h) { return h.code === 고른.value; })) code = 고른.value;
       else {
-        document.getElementById('mkiHospPickWrap').innerHTML = '<select id="mkiHospPick" style="margin-top:6px;"><option value="">같은 이름이 ' + 후보.length + '곳 — 어느 병원인가요?</option>'
-          + 후보.map(function(h) { return '<option value="' + mkiAttr_(h.code) + '">' + esc([h.name, h.area || '지역 미상', h.rep ? '영업 ' + h.rep : '', h.code].filter(Boolean).join(' · ')) + '</option>'; }).join('') + '</select>';
+        document.getElementById('mkiHospPickWrap').innerHTML = mkiHospPickHtml_('mkiHospPick', 후보);
         return 검증실패_('같은 이름의 병원이 ' + 후보.length + '곳입니다 — 아래에서 골라 주세요', 'mkiHospPick');
       }
     }
