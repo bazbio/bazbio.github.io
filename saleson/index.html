@@ -255,7 +255,7 @@
   #acBox .aci.on { background:#f2f4f6; }
   #acBox .aci.warn { color:#B45309; }
   #acBox .achd { padding:9px 12px 5px; font-size:11.5px; font-weight:700; color:#5f6b7a; }
-  #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:999px; z-index:80; display:none; max-width:88%; }
+  #toast { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); background:#191f28; color:#fff; font-size:14px; font-weight:600; padding:12px 22px; border-radius:22px; z-index:80; display:none; max-width:88%; width:max-content; box-sizing:border-box; }
   #toast.err { background:#d22030; }
   .pconly { display:none; }
   .seg { display:flex; gap:8px; margin-bottom:12px; }
@@ -1688,7 +1688,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610300803-49b100a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610310805-b02cc68';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2275,8 +2275,9 @@ function toast(msg, err) {
   t.onclick = function() { t.style.display = 'none'; };   // 탭하면 닫힌다
   clearTimeout(토스트타이머_);
   /* 오류는 길고 「무엇을 하면 되는지」가 들어 있다 — 2.6초로는 읽을 수 없고, 놓치면
-     「빨간 게 뜨고 사라졌다」만 남는다 (8/5 감사). 오류는 8초 + 탭 닫기. */
-  토스트타이머_ = setTimeout(function() { t.style.display = 'none'; }, err ? 8000 : 2600);
+     「빨간 게 뜨고 사라졌다」만 남는다 (8/5 감사). 오류는 8초 + 탭 닫기.
+     데모 구분 거절처럼 걸린 기록까지 적는 오류는 150자를 넘는다 — 한 글자 0.1초로 늘린다(최대 20초). */
+  토스트타이머_ = setTimeout(function() { t.style.display = 'none'; }, err ? Math.min(20000, Math.max(8000, String(msg).length * 100)) : 2600);
 }
 function busy(on, msg) {
   document.getElementById('loading').style.display = on ? 'flex' : 'none';
