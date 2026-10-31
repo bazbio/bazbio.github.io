@@ -2,6 +2,12 @@ const SESSION_KEY = 'flowdesk.auth.v1';
 const PRIVATE_CACHE_KEY = 'flowdesk.workspace.v1';
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const failure = (message, code = 401) => Object.assign(new Error(message), {code});
+const MAIL_RETRY_KEY='flowdesk.mail.retryUntil';
+export function mailRetrySeconds(error){
+  const header=Number(error.retryAfter),match=String(error.message??'').match(/after\s+(\d+)\s+seconds?/i);
+  const seconds=header>0?header:match?Number(match[1]):0;
+  return Number.isFinite(seconds)&&seconds>0?Math.min(3600,Math.ceil(seconds)):0;
+}
 
 /** Auth owns the signed-in identity; workspace data never enters persistent storage in hosted mode. */
 export async function createAuthClient(root) {
@@ -33,7 +39,7 @@ export async function createAuthClient(root) {
   const notice = (message, error = false) => { const el = root.querySelector('.auth-message'); if (el) {el.textContent = message; el.classList.toggle('error', error);} };
   async function parse(response) {
     let data; try {data = await response.json();} catch {throw failure('서버 응답을 확인하지 못했습니다. 다시 시도해 주세요.', response.status || 503);}
-    if (!response.ok) {const error = failure(data.error?.message || data.error || data.msg || data.message || '요청을 처리하지 못했습니다.', response.status); error.reason = data.code; error.result = data; throw error;}
+    if (!response.ok) {const error = failure(data.error?.message || data.error || data.msg || data.message || '요청을 처리하지 못했습니다.', response.status); error.reason = data.error_code || data.code; error.retryAfter=response.headers.get('retry-after'); error.result = data; throw error;}
     return data;
   }
   async function authFetch(path, method, body, accessToken) {
@@ -97,14 +103,29 @@ export async function createAuthClient(root) {
       '<form id="flowdesk-login"><label>회사 이메일<input type="email" name="email" autocomplete="username" placeholder="name@bazbiomedic.com" required></label><button type="submit" class="auth-primary">인증 메일 받기</button></form>');
     notice(message,Boolean(message));
     const form=root.querySelector('form');
+    const button=form.querySelector('[type=submit]');let retryUntil=0,timer;
+    try{const saved=Number(localStorage.getItem(MAIL_RETRY_KEY));if(saved>Date.now()&&saved<=Date.now()+3600000)retryUntil=saved;}catch{}
+    const tick=()=>{
+      if(form.isConnected===false){clearInterval(timer);return;}
+      const remaining=Math.max(0,Math.ceil((retryUntil-Date.now())/1000));
+      button.disabled=remaining>0;button.textContent=remaining?`재발송까지 ${remaining}초`:'인증 메일 받기';
+      if(!remaining)clearInterval(timer);
+    };
+    const cooldown=seconds=>{retryUntil=Date.now()+seconds*1000;try{localStorage.setItem(MAIL_RETRY_KEY,String(retryUntil));}catch{}clearInterval(timer);tick();timer=setInterval(tick,1000);};
+    if(retryUntil>Date.now())cooldown(Math.ceil((retryUntil-Date.now())/1000));
     form.addEventListener('submit',async event=>{
       event.preventDefault();const field=form.elements.email;if(!field.reportValidity())return;
+      if(retryUntil>Date.now())return;
       const address=field.value.trim().toLowerCase();
       if(!/^[^\s@]+@bazbiomedic\.com$/.test(address)){notice('회사 이메일(@bazbiomedic.com)을 입력해 주세요.',true);return;}
-      const button=form.querySelector('[type=submit]');button.disabled=true;
-      try{await authFetch('otp?redirect_to='+encodeURIComponent(config.redirectUrl || new URL('./',location.href).href),'POST',{email:address,create_user:false});notice('등록된 계정이면 인증 메일이 발송됩니다. 메일의 링크를 열고 10분 안에 4자리 비밀번호를 입력해 주세요.');}
-      catch(error){notice(error.code===429?'잠시 후 다시 요청해 주세요.':'인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.',true);}
-      finally{button.disabled=false;}
+      button.disabled=true;
+      try{await authFetch('otp?redirect_to='+encodeURIComponent(config.redirectUrl || new URL('./',location.href).href),'POST',{email:address,create_user:false});cooldown(60);notice('등록된 계정이면 인증 메일이 발송됩니다. 가장 최근 메일의 Sign in 링크를 열어 주세요. 이메일 인증 뒤 10분 안에 4자리 비밀번호를 입력하면 됩니다.');}
+      catch(error){
+        const seconds=error.code===429?mailRetrySeconds(error):0;
+        if(seconds)cooldown(seconds);
+        notice(error.code===429?(seconds?`재발송 제한입니다. ${seconds}초 뒤 다시 요청할 수 있습니다. 이미 받은 가장 최근 인증 메일의 Sign in 링크를 먼저 확인해 주세요.`:'인증 메일 발송 한도에 도달했습니다. 이미 받은 가장 최근 메일의 Sign in 링크를 확인해 주세요. 계속 제한되면 관리자에게 문의해 주세요.'):'인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.',true);
+      }
+      finally{tick();}
     });
   }
   function showPassword(configured=false) {
