@@ -408,7 +408,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
       <!-- 배포 빌드 표시 — `도구/등대배포.js`가 커밋 해시로 갈아 끼운다. 로컬에서 열면 dev다.
            **스크린샷이 스스로 어느 빌드인지 말하게 하려는 것이다** — 2026-08-16에 캐시된
            이전 빌드 화면을 최신이라 읽고 없는 버그를 고친 적이 있다. -->
-      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">919b2f8 · 261015</span>
+      <span class="sub" id="build" title="배포 빌드" style="opacity:.45">ship-99cb542b · 261031</span>
     </header>
 
     <!-- 리스크 보드 (SPEC 4·5절) — **탭 밖이다.** R6이 「목표 중 자료상 근거가 없는 구간을
@@ -658,7 +658,7 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
         <span class="cspacer"></span>
         <button type="button" class="ghost" id="xlsSales">엑셀</button>
       </div>
-      <div class="card">
+      <div class="card" id="salesInvoiceCard">
         <div class="unitbar" id="salesUnit"></div>
         <div class="scroll">
           <table class="pl" id="sales">
@@ -666,6 +666,15 @@ th .u{font-size:10.5px;font-weight:600;color:var(--ink-3);margin-left:3px;letter
             <tbody id="salesBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="card" id="shipmentCard" hidden>
+        <h3 class="ct">매출에 의한 장비 출고<span class="u">수불부 기준 · 대</span></h3>
+        <div class="scroll"><table class="pl">
+          <thead><tr id="shipmentHead"></tr></thead>
+          <tbody id="shipmentBody"></tbody>
+        </table></div>
+        <p class="note" id="shipmentNote"></p>
       </div>
 
       <!-- 채널별 — 결정_회계사TDL ⑨. 노즐 수량 모드에서는 아래 유상·무상 카드로 바뀐다 (2026-08-14) -->
@@ -3743,7 +3752,92 @@ function 매출행들(t) {
   return out;
 }
 
+// 실제 출고는 수불부 월을 쓴다. 세금계산서 월·국가·채널로 재배분하지 않는다.
+function 장비출고표(y) {
+  var 원천 = (DB['장비출고'] || []).filter(function (r) { return +r['회계연도'] === y; });
+  var 관측 = {}, 제품 = {}, 출고 = {}, 청구 = {}, 청구관측 = {};
+  원천.forEach(function (r) {
+    var m = +r['월']; 관측[m] = true;
+    출고[m] = (출고[m] || 0) + Number(r['수량'] || 0);
+    if (r['표준명']) {
+      var p = 제품[r['표준명']] = 제품[r['표준명']] || {};
+      p[m] = (p[m] || 0) + Number(r['수량'] || 0);
+    }
+  });
+  (DB['매출탭'] || []).forEach(function (r) {
+    if (+r['회계연도'] !== y) return;
+    var m = +r['월']; 청구관측[m] = true;
+    if (r['제품'] === '장비') 청구[m] = (청구[m] || 0) + Number(r['수량'] || 0);
+  });
+  var 달 = [], 끝 = Math.max.apply(null, [0].concat(Object.keys(관측).map(Number), Object.keys(청구관측).map(Number)));
+  for (var m = 1; m <= 끝; m++) 달.push(m);
+  var 누계 = function (값들) {
+    return 값들.reduce(function (a, v) { return v == null ? a : (a == null ? 0 : a) + v; }, null);
+  };
+  var 행 = function (이름, 급, 값f) {
+    var 값들 = 달.map(값f);
+    return { 이름: 이름, 급: 급, 형: '수', 값들: 값들.concat([누계(값들)]) };
+  };
+  var 줄들 = [행('장비 출고 계', 'total', function (m) { return 관측[m] ? 출고[m] || 0 : null; })];
+  Object.keys(제품).sort().forEach(function (p) {
+    줄들.push(행(p, 'child', function (m) { return 관측[m] ? 제품[p][m] || 0 : null; }));
+  });
+  줄들.push(행('세금계산서 기준 장비 대수', 'sub', function (m) { return 청구관측[m] ? 청구[m] || 0 : null; }));
+  줄들.push(행('차이 (출고 − 세금계산서)', 'op', function (m) {
+    return 관측[m] && 청구관측[m] ? (출고[m] || 0) - (청구[m] || 0) : null;
+  }));
+  var 관측달 = Object.keys(관측).map(Number).sort(function (a, b) { return a - b; });
+  var 비교달 = 달.filter(function (m) { return 관측[m] && 청구관측[m]; });
+  var 안내 = '재고자산수불부의 월별 「출고–영업」 중 장비 완제품을 합산합니다. '
+    + '선매입·선발행 건도 수불부에 기록된 출고월에 집계하며 반품은 원천의 음수 수량을 반영합니다. '
+    + '대체출고(견본·대여 등)는 제외합니다. 0은 출고 없음, —는 자료 없음입니다. '
+    + '국가·채널은 수불부에 없어 제품별로 표시합니다. 차이는 시점·집계 범위 차이이며 선매입 잔량을 뜻하지 않습니다. ';
+  안내 += 관측달.length ? '수불부 반영월: ' + 관측달.join('·') + '월. ' : y + '년 수불부 출고 자료가 아직 없습니다. ';
+  안내 += '각 기준의 누계는 자료가 있는 월의 합계이며, 차이 누계는 양쪽 자료가 있는 '
+    + (비교달.length ? 비교달.join('·') + '월만 비교합니다.' : '월이 없어 비워 둡니다.');
+  return { 달: 달, 줄들: 줄들, 관측달: 관측달,
+    머리: ['항목'].concat(달.map(function (m) { return m + '월'; }), ['누계 (반영월)']), 안내: 안내 };
+}
+
+function 장비출고그리기() {
+  var t = 장비출고표(매출연도);
+  var 표시 = function (v) { return v == null ? '—' : (v === 0 ? '0' : 수(v)); };
+  $('shipmentHead').innerHTML = t.머리.map(function (v) { return '<th scope="col">' + 벗기(v) + '</th>'; }).join('');
+  $('shipmentBody').innerHTML = t.줄들.map(function (r) {
+    return '<tr class="r-' + r.급 + '"><td>' + 벗기(r.이름) + '</td>'
+      + r.값들.map(function (v) { return '<td class="num' + (v < 0 ? ' neg' : '') + '">' + 표시(v) + '</td>'; }).join('') + '</tr>';
+  }).join('');
+  $('shipmentNote').textContent = t.안내;
+  $('asof').textContent = 매출연도 + '년 · 수불부 ' + (t.관측달.length ? t.관측달.length + '개월 반영' : '미반영') + ' · 단위 대';
+}
+
+function 매출선택그리기() {
+  // 토글들 — 상태에서 다시 그린다
+  $('segYear').innerHTML = [2024, 2025, 2026].map(function (y) {
+    return '<button type="button" data-y="' + y + '" aria-pressed="' + (매출연도 === y ? 'true' : 'false') + '">' + y + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('segYear').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { 매출연도 = +b.dataset.y; 매출그리기(); });
+  });
+  $('segMode').innerHTML = [['금액', '금액'], ['장비', '장비 대수'], ['출고', '장비 출고'], ['노즐', '노즐 수량']].map(function (p) {
+    return '<button type="button" data-m="' + p[0] + '" aria-pressed="' + (매출모드 === p[0] ? 'true' : 'false') + '">' + p[1] + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('segMode').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () { 매출모드 = b.dataset.m; 매출그리기(); });
+  });
+
+}
+
 function 매출그리기() {
+  매출선택그리기();
+  var 출고모드 = 매출모드 === '출고';
+  $('salesInvoiceCard').hidden = 출고모드;
+  $('shipmentCard').hidden = !출고모드;
+  if (출고모드) {
+    $('chanCard').hidden = $('nzCard').hidden = $('eqCard').hidden = true;
+    장비출고그리기();
+    return;
+  }
   var t = 매출맵(매출연도);
   var 행 = 매출행들(t);
   var 달 = t.달;
@@ -3776,7 +3870,7 @@ function 매출그리기() {
   // 단위가 모드에 따라 바뀐다 — 금액이면 백만원, 아니면 수량이다 (2026-08-10)
   $('salesUnit').textContent = 매출모드 === '금액'
     ? '백만원 · 괄호는 매출액 계 대비 비중(%)'
-    : (매출모드 === '장비' ? '수량 — 대' : '수량 — 개·대·건');
+    : (매출모드 === '장비' ? '수량 — 대 · 세금계산서 발행 기준' : '수량 — 개·대·건');
   var chanU = $('chanUnit'); if (chanU) chanU.textContent = 매출모드 === '금액' ? '백만원' : '수량';
 
   var 누적열 = 매출모드 === '장비';                 // 2024~선택 연도 전체 누적 대수
@@ -3901,20 +3995,6 @@ function 매출그리기() {
   $('salesBody').innerHTML = html;
   Array.prototype.forEach.call($('salesBody').querySelectorAll('.toggle'), function (b) {
     b.addEventListener('click', function () { 매출펼침[b.dataset['키']] = !매출펼침[b.dataset['키']]; 매출그리기(); });
-  });
-
-  // 토글들 — 상태에서 다시 그린다
-  $('segYear').innerHTML = [2024, 2025, 2026].map(function (y) {
-    return '<button type="button" data-y="' + y + '" aria-pressed="' + (매출연도 === y ? 'true' : 'false') + '">' + y + '</button>';
-  }).join('');
-  Array.prototype.forEach.call($('segYear').querySelectorAll('button'), function (b) {
-    b.addEventListener('click', function () { 매출연도 = +b.dataset.y; 매출그리기(); });
-  });
-  $('segMode').innerHTML = [['금액', '금액'], ['장비', '장비 대수'], ['노즐', '노즐 수량']].map(function (p) {
-    return '<button type="button" data-m="' + p[0] + '" aria-pressed="' + (매출모드 === p[0] ? 'true' : 'false') + '">' + p[1] + '</button>';
-  }).join('');
-  Array.prototype.forEach.call($('segMode').querySelectorAll('button'), function (b) {
-    b.addEventListener('click', function () { 매출모드 = b.dataset.m; 매출그리기(); });
   });
 
   var 단위 = 매출모드 === '금액' ? '단위 백만원' : (매출모드 === '장비' ? '단위 대' : '단위 개');
@@ -6328,6 +6408,10 @@ function 매출엑셀() {
     시트쓰기(wb, p[1], 장비칸 ? 머리.concat(['누적(24~)']) : 머리, 줄들);
   });
   매출모드 = 원래;
+  var 출고표 = 장비출고표(매출연도);
+  var 출고시트 = 시트쓰기(wb, '장비 출고 (수불부)', 출고표.머리, 출고표.줄들);
+  출고시트.addRow([]);
+  출고시트.addRow([출고표.안내]);
   return 내려받기(wb, '등대_매출_' + 매출연도 + '.xlsx');
 }
 
