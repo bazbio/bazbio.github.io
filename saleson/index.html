@@ -1688,7 +1688,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610310805-b02cc68';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610311945-a1d8b68';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2444,8 +2444,10 @@ function ac자리_() {
   var el = document.getElementById('acBox');
   if (!el || el.style.display === 'none' || !AC칸_) return;
   var b = AC칸_.getBoundingClientRect();
-  el.style.left = (b.left + window.scrollX) + 'px';
-  el.style.top = (b.bottom + window.scrollY + 4) + 'px';
+  var 고정 = el.parentNode !== document.body;   // 모달 dialog 안이면 화면 기준으로 붙인다
+  el.style.position = 고정 ? 'fixed' : '';
+  el.style.left = (b.left + (고정 ? 0 : window.scrollX)) + 'px';
+  el.style.top = (b.bottom + (고정 ? 0 : window.scrollY) + 4) + 'px';
   el.style.width = b.width + 'px';
 }
 function ac그리기_() {
@@ -2463,6 +2465,10 @@ function ac그리기_() {
   }
   if (!h) { ac접기_(); return; }   // 보여 줄 게 없을 뿐이다 — 칸은 놓지 않는다
   var el = ac상자_();
+  /* showModal로 연 dialog는 top layer다 — body에 붙인 목록은 그 뒤에 깔리고 눌리지도 않는다(inert).
+     칸이 열린 dialog 안에 있으면 목록도 그 dialog 안으로 옮긴다(큐돌이 활동 입력, 10-31) */
+  var 자리 = (AC칸_.closest && AC칸_.closest('dialog[open]')) || document.body;
+  if (el.parentNode !== 자리) 자리.appendChild(el);
   el.innerHTML = h;
   AC고름_ = -1;
   el.style.display = 'block';
@@ -2486,7 +2492,7 @@ document.addEventListener('keydown', function(e) {
   if (!AC칸_) return;
   var el = document.getElementById('acBox');
   if (!el || el.style.display === 'none') return;
-  if (e.key === 'Escape') { ac접기_(); return; }   // 접기만 — 다시 치면 또 떠야 한다
+  if (e.key === 'Escape') { e.preventDefault(); ac접기_(); return; }   // 접기만 — 다시 치면 또 떠야 한다. 모달 dialog까지 닫히지 않게 막는다
   var 것들 = el.querySelectorAll('.aci');
   if (!것들.length) return;
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -9108,7 +9114,7 @@ function qdOpen(kind,row){
  var r=QD.editing;var options=d.progress.goals.filter(function(g){return d.types[g.key];}).map(function(g){return [g.key,g.label];});
  if(d.assignment.content.role==='ES')options.push(['care_renew','N-Care 갱신'],['care_churn','N-Care 구독 종료']);
  var dialog=document.getElementById('qdDialog');
- dialog.innerHTML='<form id="qdForm" onsubmit="event.preventDefault();qdSave()"><div class="qd-dialog-head"><h3>활동 결과 입력</h3><button type="button" onclick="qdClose()" aria-label="입력 창 닫기">닫기</button></div><label>한 일<select id="qdKind" onchange="qdKindChanged()">'+options.map(function(g){return '<option value="'+g[0]+'" '+(g[0]===r.kind?'selected':'')+'>'+esc(g[1])+'</option>';}).join('')+'</select></label><div class="qd-two"><label>활동한 날짜<input id="qdDate" type="date" required min="'+d.week+'" max="'+(d.today<qdPlus(d.week,6)?d.today:qdPlus(d.week,6))+'" value="'+esc(r.happened_on)+'"></label><label>병원<input id="qdHospital" list="qdHospitals" required value="'+esc(r.hospital_name||'')+'" placeholder="병원명 검색 또는 입력"></label></div><datalist id="qdHospitals">'+d.accounts.map(function(a){return '<option value="'+esc(a.name)+'">'+esc(a.code)+'</option>';}).join('')+'</datalist><div id="qdFields"></div><div id="qdError" role="alert"></div><div class="qd-form-footer"><span>저장 실패 시 작성 내용은 이 기기에 남습니다.</span><button id="qdSaveButton" class="qd-primary">결과 저장</button></div></form>';
+ dialog.innerHTML='<form id="qdForm" onsubmit="event.preventDefault();qdSave()"><div class="qd-dialog-head"><h3>활동 결과 입력</h3><button type="button" onclick="qdClose()" aria-label="입력 창 닫기">닫기</button></div><label>한 일<select id="qdKind" onchange="qdKindChanged()">'+options.map(function(g){return '<option value="'+g[0]+'" '+(g[0]===r.kind?'selected':'')+'>'+esc(g[1])+'</option>';}).join('')+'</select></label><div class="qd-two"><label>활동한 날짜<input id="qdDate" type="date" required min="'+d.week+'" max="'+(d.today<qdPlus(d.week,6)?d.today:qdPlus(d.week,6))+'" value="'+esc(r.happened_on)+'"></label><label>병원<input id="qdHospital" data-ac="hosp" autocomplete="off" required value="'+esc(r.hospital_name||'')+'" placeholder="병원명 검색 또는 입력"></label></div><div id="qdFields"></div><div id="qdError" role="alert"></div><div class="qd-form-footer"><span>저장 실패 시 작성 내용은 이 기기에 남습니다.</span><button id="qdSaveButton" class="qd-primary">결과 저장</button></div></form>';
  qdFields(r.kind,r);dialog.showModal();document.getElementById('qdForm').addEventListener('input',qdStoreDraft);
 }
 function qdKindChanged(){var r=qdFormValue();r.kind=document.getElementById('qdKind').value;r.status='';qdFields(r.kind,r);qdStoreDraft();}
@@ -9130,7 +9136,7 @@ function qdStoreDraft(){if(!QD.editing||!document.getElementById('qdForm'))retur
 function qdClose(){qdStoreDraft();document.getElementById('qdDialog').close();}
 async function qdSave(){if(QD.saving)return;QD.saving=true;qdStoreDraft();var b=document.getElementById('qdSaveButton');b.disabled=true;try{await qdCall({action:'save',id:QD.editing.id,version:Number(QD.editing.version),result:qdFormValue()});localStorage.removeItem(qdDraftKey()+':activity');document.getElementById('qdDialog').close();QD.editing=null;await loadQudoli();qdNotice('저장했습니다. 목표에 반영했습니다.');}catch(e){document.getElementById('qdError').textContent=e.message;}finally{QD.saving=false;if(b.isConnected)b.disabled=false;}}
 function qdEdit(id){var row=QD.data.results.find(function(r){return r.id===id;});if(row)qdOpen(row.kind,row);}
-async function qdRemove(id){var r=QD.data.results.find(function(r){return r.id===id;});var reason=prompt('기록을 취소하는 이유를 적어 주세요.');if(!reason)return;try{await qdCall({action:'remove',id:id,version:r.version,reason:reason});await loadQudoli();}catch(e){qdNotice(e.message);}}
+async function qdRemove(id){var r=QD.data.results.find(function(r){return r.id===id;});if(!r)return;입력시트_({제목:'활동 기록 취소',라벨:'취소하는 이유',여러줄:true,예시:'예: 같은 방문을 두 번 입력함',확인:'기록 취소'},async function(reason){try{await qdCall({action:'remove',id:id,version:Number(r.version),reason:reason});await loadQudoli();}catch(e){qdNotice(e.message);}});}
 function qdNotes(){var o={};['shortfall','improvement','nextWeek','decision'].forEach(function(k){o[k]=document.getElementById('qd-note-'+k)?.value||'';});return o;}
 function qdSaveNotes(){try{localStorage.setItem(qdDraftKey()+':notes',JSON.stringify(qdNotes()));}catch(e){}}
 async function qdSubmit(){if(QD.saving)return;QD.saving=true;qdSaveNotes();var b=document.getElementById('qdSubmit');b.disabled=true;QD.submitId=QD.submitId||crypto.randomUUID();try{await qdCall({action:'submit',requestId:QD.submitId,sourceHash:QD.data.sourceHash,notes:qdNotes()});QD.submitId=null;localStorage.removeItem(qdDraftKey()+':notes');await loadQudoli();qdNotice('제출했습니다. 큐돌이가 주간 보고에 반영합니다.');}catch(e){qdNotice(e.message);}finally{QD.saving=false;if(b.isConnected)b.disabled=false;}}
