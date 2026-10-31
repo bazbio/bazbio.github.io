@@ -2,13 +2,6 @@ const SESSION_KEY = 'flowdesk.auth.v1';
 const PRIVATE_CACHE_KEY = 'flowdesk.workspace.v1';
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const failure = (message, code = 401) => Object.assign(new Error(message), {code});
-const MAIL_RETRY_KEY='flowdesk.mail.retryUntil';
-export function mailRetrySeconds(error){
-  const header=Number(error.retryAfter),match=String(error.message??'').match(/after\s+(\d+)\s+seconds?/i);
-  const seconds=header>0?header:match?Number(match[1]):0;
-  return Number.isFinite(seconds)&&seconds>0?Math.min(3600,Math.ceil(seconds)):0;
-}
-
 /** Auth owns the signed-in identity; workspace data never enters persistent storage in hosted mode. */
 export async function createAuthClient(root) {
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
@@ -48,7 +41,9 @@ export async function createAuthClient(root) {
       ...(body===undefined?{}:{body:JSON.stringify(body)}), signal:AbortSignal.timeout(20000),
     }));
   }
+  async function publicRequest(path,body){return parse(await fetch(config.supabaseUrl+'/functions/v1/flowdesk-api',{method:'POST',headers:{apikey:config.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({path,method:'POST',body}),cache:'no-store',signal:AbortSignal.timeout(20000)}));}
   async function refresh() {
+    if(session?.access_token?.startsWith('fdlogin_')){lock('로그인이 만료되었습니다. 다시 로그인해 주세요.');throw failure('다시 로그인해 주세요.');}
     if (!session?.refresh_token) throw failure('다시 로그인해 주세요.');
     if (!refreshing) {const generation = epoch; refreshing = authFetch('token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token})
       .then(value => {if(generation!==epoch)throw failure('로그인 계정이 변경되었습니다.'); saveSession(value);})
@@ -86,7 +81,7 @@ export async function createAuthClient(root) {
     const generation = epoch;
     const result = await request('/api/session');
     if(generation!==epoch)throw failure('로그인 계정이 변경되었습니다.');
-    if(result.authentication){if(!result.authentication.freshEmail){lock('이메일 인증 링크를 다시 받아 주세요.');return;}showPassword(result.authentication.configured);return;}
+    if(result.authentication){if(result.authentication.configured){lock('회사 이메일과 설정한 4자리 비밀번호로 로그인해 주세요.');return;}showPassword();return;}
     if(!result.member?.id || !result.member?.name)throw failure('워크스페이스 멤버 정보를 확인하지 못했습니다.',403);
     member = result.member;
     root.className = 'app-shell';
@@ -99,45 +94,28 @@ export async function createAuthClient(root) {
     return error.message?.includes('Failed to fetch')?'로그인 서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.':error.message || '로그인하지 못했습니다.';
   }
   function showLogin(message = '') {
-    layout('회사 이메일로 인증하세요', '1단계 · 회사 메일의 인증 링크를 확인한 뒤, 2단계에서 숫자 4자리 비밀번호를 입력합니다.',
-      '<form id="flowdesk-login"><label>회사 이메일<input type="email" name="email" autocomplete="username" placeholder="name@bazbiomedic.com" required></label><button type="submit" class="auth-primary">인증 메일 받기</button></form>');
-    notice(message,Boolean(message));
-    const form=root.querySelector('form');
-    const button=form.querySelector('[type=submit]');let retryUntil=0,timer;
-    try{const saved=Number(localStorage.getItem(MAIL_RETRY_KEY));if(saved>Date.now()&&saved<=Date.now()+3600000)retryUntil=saved;}catch{}
-    const tick=()=>{
-      if(form.isConnected===false){clearInterval(timer);return;}
-      const remaining=Math.max(0,Math.ceil((retryUntil-Date.now())/1000));
-      button.disabled=remaining>0;button.textContent=remaining?`재발송까지 ${remaining}초`:'인증 메일 받기';
-      if(!remaining)clearInterval(timer);
-    };
-    const cooldown=seconds=>{retryUntil=Date.now()+seconds*1000;try{localStorage.setItem(MAIL_RETRY_KEY,String(retryUntil));}catch{}clearInterval(timer);tick();timer=setInterval(tick,1000);};
-    if(retryUntil>Date.now())cooldown(Math.ceil((retryUntil-Date.now())/1000));
+    layout('함께할 일을 시작하세요','회사 이메일과 숫자 4자리 비밀번호로 로그인하세요.',
+      '<form id="flowdesk-login"><label>회사 이메일<input type="email" name="email" autocomplete="username" placeholder="name@bazbiomedic.com" required></label><label>숫자 4자리 비밀번호<input type="password" name="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="current-password" required></label><button type="submit" class="auth-primary">로그인</button></form><p class="auth-description">처음 사용하시면 개인별 등록 링크에서 비밀번호를 설정해 주세요. 비밀번호를 잊으셨다면 관리자에게 문의해 주세요.</p>');
+    notice(message,Boolean(message));const form=root.querySelector('form');
     form.addEventListener('submit',async event=>{
-      event.preventDefault();const field=form.elements.email;if(!field.reportValidity())return;
-      if(retryUntil>Date.now())return;
-      const address=field.value.trim().toLowerCase();
-      if(!/^[^\s@]+@bazbiomedic\.com$/.test(address)){notice('회사 이메일(@bazbiomedic.com)을 입력해 주세요.',true);return;}
+      event.preventDefault();const fields=new FormData(form),button=form.querySelector('[type=submit]'),generation=epoch;
+      const address=String(fields.get('email')).trim().toLowerCase(),pin=String(fields.get('password'));
+      if(!/^[0-9]{4}$/.test(pin)){notice('숫자 4자리를 입력해 주세요.',true);return;}
       button.disabled=true;
-      try{await authFetch('otp?redirect_to='+encodeURIComponent(config.redirectUrl || new URL('./',location.href).href),'POST',{email:address,create_user:false});cooldown(60);notice('등록된 계정이면 인증 메일이 발송됩니다. 가장 최근 메일의 Sign in 링크를 열어 주세요. 이메일 인증 뒤 10분 안에 4자리 비밀번호를 입력하면 됩니다.');}
-      catch(error){
-        const seconds=error.code===429?mailRetrySeconds(error):0;
-        if(seconds)cooldown(seconds);
-        notice(error.code===429?(seconds?`재발송 제한입니다. ${seconds}초 뒤 다시 요청할 수 있습니다. 이미 받은 가장 최근 인증 메일의 Sign in 링크를 먼저 확인해 주세요.`:'인증 메일 발송 한도에 도달했습니다. 이미 받은 가장 최근 메일의 Sign in 링크를 확인해 주세요. 계속 제한되면 관리자에게 문의해 주세요.'):'인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.',true);
-      }
-      finally{tick();}
+      try{const value=await publicRequest('/api/auth/login',{email:address,pin});if(generation!==epoch)return;saveSession(value);form.reset();await enter();}
+      catch(error){if(generation===epoch)notice(error.message,true);}finally{button.disabled=false;}
     });
   }
-  function showPassword(configured=false) {
-    layout(configured?'4자리 비밀번호를 입력하세요':'4자리 비밀번호를 설정하세요',configured?'2단계 · 이메일 인증을 완료했습니다.':'회사 이메일 인증을 완료했습니다. Flowdesk에서 사용할 숫자 4자리를 설정하세요.',
-      '<form id="flowdesk-password"><label>숫자 4자리<input type="password" name="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="'+(configured?'current-password':'new-password')+'" required></label>'+(configured?'':'<label>비밀번호 확인<input type="password" name="confirmation" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required></label>')+'<button type="submit" class="auth-primary">'+(configured?'확인하고 시작하기':'비밀번호 저장하고 시작하기')+'</button><button type="button" class="auth-secondary" id="flowdesk-cancel">로그인 화면으로</button></form>');
+  function showPassword(setupToken=null) {
+    layout('4자리 비밀번호를 설정하세요','처음 한 번만 설정하면 회사 이메일과 이 비밀번호로 바로 로그인할 수 있습니다.',
+      '<form id="flowdesk-password"><label>숫자 4자리<input type="password" name="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required></label><label>비밀번호 확인<input type="password" name="confirmation" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required></label><button type="submit" class="auth-primary">비밀번호 저장하고 시작하기</button><button type="button" class="auth-secondary" id="flowdesk-cancel">로그인 화면으로</button></form>');
     const form=root.querySelector('form');
     form.addEventListener('submit',async event=>{
       event.preventDefault();const fields=new FormData(form),pin=String(fields.get('password'));
       if(!/^[0-9]{4}$/.test(pin)){notice('숫자 4자리를 입력해 주세요.',true);return;}
-      if(!configured&&pin!==fields.get('confirmation')){notice('비밀번호가 일치하지 않습니다.',true);return;}
+      if(pin!==fields.get('confirmation')){notice('비밀번호가 일치하지 않습니다.',true);return;}
       const button=form.querySelector('[type=submit]');button.disabled=true;const generation=epoch;
-      try{await request('/api/auth/pin','POST',{operation:configured?'verify':'enroll',pin});if(generation!==epoch)return;form.reset();await enter();}
+      try{const value=setupToken?await publicRequest('/api/auth/setup',{setupToken,pin}):await request('/api/auth/pin','POST',{operation:'enroll',pin});if(generation!==epoch)return;saveSession(value);form.reset();await enter();}
       catch(error){if(generation===epoch)notice(error.message,true);}finally{button.disabled=false;}
     });
     root.querySelector('#flowdesk-cancel').onclick=()=>logout();
@@ -152,17 +130,18 @@ export async function createAuthClient(root) {
     const old=session?.access_token;
     if(old)try{await request('/api/auth/revoke','POST',{});}catch{}
     lock();
-    if(old)try{await authFetch('logout?scope=local','POST',undefined,old);}catch{}
+    if(old&&!old.startsWith('fdlogin_'))try{await authFetch('logout?scope=local','POST',undefined,old);}catch{}
   }
   async function start(signedIn, locked) {
     onSignedIn=signedIn;onLocked=locked;
     if(!hosted)return signedIn();
     clearPrivateCache();
     const hash=new URLSearchParams(location.hash.slice(1));
-    const authHash=hash.has('access_token')||hash.has('token_hash')||hash.has('error')||hash.has('error_description');
+    const authHash=hash.has('setup_token')||hash.has('access_token')||hash.has('token_hash')||hash.has('error')||hash.has('error_description');
     if(authHash)history.replaceState(null,'',location.pathname+location.search);
     if(configurationError){layout('앱 연결 설정이 필요합니다',configurationError);return;}
-    if(hash.has('error'))return showLogin('초대 또는 로그인 링크가 만료되었습니다. 로그인 링크를 다시 요청해 주세요.');
+    if(hash.has('setup_token')){const token=hash.get('setup_token');if(!/^fdsetup_[A-Za-z0-9_-]{43}$/.test(token))return showLogin('등록 링크 형식을 확인해 주세요.');saveSession(null);return showPassword(token);}
+    if(hash.has('error'))return showLogin('초대 또는 로그인 링크가 만료되었습니다. 관리자에게 새 등록 링크를 요청해 주세요.');
     if(hash.has('token_hash')) {
       const type=hash.get('type');
       if(!['invite','recovery','email','magiclink'].includes(type))return showLogin('초대 또는 로그인 링크 형식을 확인해 주세요.');
@@ -174,7 +153,7 @@ export async function createAuthClient(root) {
       saveSession({access_token:hash.get('access_token'),refresh_token:hash.get('refresh_token'),expires_in:Number(hash.get('expires_in')||3600)});
 
     } else {
-      try{const saved=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(saved?.access_token&&saved?.refresh_token)saveSession(saved);}catch{saveSession(null);}
+      try{const saved=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(saved?.access_token&&(saved?.refresh_token||saved.access_token.startsWith('fdlogin_')))saveSession(saved);}catch{saveSession(null);}
     }
     if(!session)return showLogin();
     layout('워크스페이스를 열고 있습니다','계정과 초대 권한을 확인합니다.');
