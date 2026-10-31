@@ -1334,6 +1334,7 @@
 <div class="view" id="view-brief"><div class="wrap">
   <p class="br-lead">제안서를 만들면 영업 브리핑이 같이 만들어집니다. 원장 이력·논문, 근처 큐어젯 병원, 예상 반박과 방문 질문을 방문 전에 확인하세요. 브리핑은 내부용이라 고객에게 보여 주지 않습니다.</p>
   <div id="brBody"><div class="card empty">불러오는 중…</div></div>
+</div></div>
 
 <!-- 데모처 맞춤 제안서 1단계 — 입력·병원 확인 (2026-10-24). openProp이 그린다. -->
 <div id="propModal" role="dialog" aria-modal="true" aria-label="제안서 만들기" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeProp()">
@@ -1689,7 +1690,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610311104-01dd573';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610312145-8f0b5e4';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
