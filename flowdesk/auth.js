@@ -70,7 +70,7 @@ export async function createAuthClient(root) {
       if(generation!==epoch)throw failure('로그인 계정이 변경되었습니다.');
       if(response.status===401 && retry){await refresh();return request(path,method,body,signal,false);}
       if(response.status===401){lock('로그인이 만료되었습니다. 다시 로그인해 주세요.');throw failure('다시 로그인해 주세요.');}
-      if(response.status===403 && !path.startsWith('/api/admin/')){lock('워크스페이스 접근 권한이 없습니다. 관리자에게 확인해 주세요.');throw failure('워크스페이스 접근 권한이 없습니다.',403);}
+      if(response.status===403 && !path.startsWith('/api/admin/') && !path.startsWith('/api/auth/')){lock('워크스페이스 접근 권한이 없습니다. 관리자에게 확인해 주세요.');throw failure('워크스페이스 접근 권한이 없습니다.',403);}
       const result=await parse(response);
       if(generation!==epoch)throw failure('로그인 계정이 변경되었습니다.');
       return result;
@@ -80,6 +80,7 @@ export async function createAuthClient(root) {
     const generation = epoch;
     const result = await request('/api/session');
     if(generation!==epoch)throw failure('로그인 계정이 변경되었습니다.');
+    if(result.authentication){if(!result.authentication.freshEmail){lock('이메일 인증 링크를 다시 받아 주세요.');return;}showPassword(result.authentication.configured);return;}
     if(!result.member?.id || !result.member?.name)throw failure('워크스페이스 멤버 정보를 확인하지 못했습니다.',403);
     member = result.member;
     root.className = 'app-shell';
@@ -92,32 +93,31 @@ export async function createAuthClient(root) {
     return error.message?.includes('Failed to fetch')?'로그인 서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.':error.message || '로그인하지 못했습니다.';
   }
   function showLogin(message = '') {
-    layout('함께할 일을 시작하세요', '초대받은 회사 이메일로 로그인하세요. 처음이라면 초대 메일의 링크에서 비밀번호를 설정해 주세요.',
-      `<form id="flowdesk-login"><label>회사 이메일<input type="email" name="email" autocomplete="username" placeholder="name@bazbiomedic.com" required></label><label>비밀번호<input type="password" name="password" autocomplete="current-password" required></label><button type="submit" class="auth-primary">로그인</button><button type="button" class="auth-secondary" id="flowdesk-magic">이메일로 로그인 링크 받기</button></form>`);
+    layout('회사 이메일로 인증하세요', '1단계 · 회사 메일의 인증 링크를 확인한 뒤, 2단계에서 숫자 4자리 비밀번호를 입력합니다.',
+      '<form id="flowdesk-login"><label>회사 이메일<input type="email" name="email" autocomplete="username" placeholder="name@bazbiomedic.com" required></label><button type="submit" class="auth-primary">인증 메일 받기</button></form>');
     notice(message,Boolean(message));
-    const form = root.querySelector('form');
-    form.addEventListener('submit',async event => {
-      event.preventDefault();const submit=form.querySelector('[type=submit]');submit.disabled=true;notice('로그인하고 있습니다.');
-      const data=new FormData(form),generation=epoch;
-      try {const value=await authFetch('token?grant_type=password','POST',{email:String(data.get('email')).trim(),password:data.get('password')});
-        if(generation!==epoch)return;saveSession(value);form.reset();await enter();
-      } catch(error){if(generation===epoch){member=null;saveSession(null);notice(errorText(error),true);}} finally {submit.disabled=false;}
-    });
-    root.querySelector('#flowdesk-magic').addEventListener('click',async event => {
-      const field=form.elements.email;if(!field.reportValidity())return;const button=event.currentTarget;button.disabled=true;
-      try {await authFetch('otp?redirect_to='+encodeURIComponent(config.redirectUrl || new URL('./',location.href).href),'POST',{email:field.value.trim(),create_user:false});notice('초대된 계정이면 로그인 링크가 발송됩니다. 회사 메일함을 확인해 주세요.');}
-      catch(error){notice(error.code===429?'잠시 후 다시 요청해 주세요.':'로그인 링크를 보내지 못했습니다. 비밀번호로 로그인하거나 관리자에게 확인해 주세요.',true);}
-      finally {button.disabled=false;}
+    const form=root.querySelector('form');
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();const field=form.elements.email;if(!field.reportValidity())return;
+      const address=field.value.trim().toLowerCase();
+      if(!/^[^\s@]+@bazbiomedic\.com$/.test(address)){notice('회사 이메일(@bazbiomedic.com)을 입력해 주세요.',true);return;}
+      const button=form.querySelector('[type=submit]');button.disabled=true;
+      try{await authFetch('otp?redirect_to='+encodeURIComponent(config.redirectUrl || new URL('./',location.href).href),'POST',{email:address,create_user:false});notice('등록된 계정이면 인증 메일이 발송됩니다. 메일의 링크를 열고 10분 안에 4자리 비밀번호를 입력해 주세요.');}
+      catch(error){notice(error.code===429?'잠시 후 다시 요청해 주세요.':'인증 메일을 보내지 못했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.',true);}
+      finally{button.disabled=false;}
     });
   }
-  function showPassword() {
-    layout('비밀번호를 설정하세요','앞으로 회사 이메일과 이 비밀번호로 로그인합니다.',
-      `<form id="flowdesk-password"><label>새 비밀번호 · 12자 이상<input type="password" name="password" autocomplete="new-password" minlength="12" required></label><label>비밀번호 확인<input type="password" name="confirmation" autocomplete="new-password" minlength="12" required></label><button type="submit" class="auth-primary">비밀번호 저장하고 시작하기</button><button type="button" class="auth-secondary" id="flowdesk-cancel">로그인 화면으로</button></form>`);
+  function showPassword(configured=false) {
+    layout(configured?'4자리 비밀번호를 입력하세요':'4자리 비밀번호를 설정하세요',configured?'2단계 · 이메일 인증을 완료했습니다.':'회사 이메일 인증을 완료했습니다. Flowdesk에서 사용할 숫자 4자리를 설정하세요.',
+      '<form id="flowdesk-password"><label>숫자 4자리<input type="password" name="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="'+(configured?'current-password':'new-password')+'" required></label>'+(configured?'':'<label>비밀번호 확인<input type="password" name="confirmation" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" required></label>')+'<button type="submit" class="auth-primary">'+(configured?'확인하고 시작하기':'비밀번호 저장하고 시작하기')+'</button><button type="button" class="auth-secondary" id="flowdesk-cancel">로그인 화면으로</button></form>');
     const form=root.querySelector('form');
-    form.addEventListener('submit',async event=>{event.preventDefault();const fields=new FormData(form);if(fields.get('password')!==fields.get('confirmation')){notice('비밀번호가 일치하지 않습니다.',true);return;}
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();const fields=new FormData(form),pin=String(fields.get('password'));
+      if(!/^[0-9]{4}$/.test(pin)){notice('숫자 4자리를 입력해 주세요.',true);return;}
+      if(!configured&&pin!==fields.get('confirmation')){notice('비밀번호가 일치하지 않습니다.',true);return;}
       const button=form.querySelector('[type=submit]');button.disabled=true;const generation=epoch;
-      try{if(session.expires_at<Date.now()/1000+60)await refresh();await authFetch('user','PUT',{password:fields.get('password')},session.access_token);if(generation!==epoch)return;form.reset();await enter();}
-      catch(error){if(generation===epoch)notice(errorText(error),true);}finally{button.disabled=false;}
+      try{await request('/api/auth/pin','POST',{operation:configured?'verify':'enroll',pin});if(generation!==epoch)return;form.reset();await enter();}
+      catch(error){if(generation===epoch)notice(error.message,true);}finally{button.disabled=false;}
     });
     root.querySelector('#flowdesk-cancel').onclick=()=>logout();
   }
@@ -128,7 +128,9 @@ export async function createAuthClient(root) {
     root.querySelector('#flowdesk-signout').onclick=()=>logout();
   }
   async function logout() {
-    const old=session?.access_token; lock();
+    const old=session?.access_token;
+    if(old)try{await request('/api/auth/revoke','POST',{});}catch{}
+    lock();
     if(old)try{await authFetch('logout?scope=local','POST',undefined,old);}catch{}
   }
   async function start(signedIn, locked) {
@@ -146,10 +148,10 @@ export async function createAuthClient(root) {
       layout('초대 링크를 확인하고 있습니다','이메일 인증을 확인합니다.');
       try {saveSession(await authFetch('verify','POST',{token_hash:hash.get('token_hash'),type}));}
       catch {return showLogin('초대 또는 로그인 링크가 만료되었거나 이미 사용되었습니다. 관리자에게 새 링크를 요청해 주세요.');}
-      if(['invite','recovery'].includes(type))return showPassword();
+
     } else if(hash.get('access_token') && hash.get('refresh_token')) {
       saveSession({access_token:hash.get('access_token'),refresh_token:hash.get('refresh_token'),expires_in:Number(hash.get('expires_in')||3600)});
-      if(['invite','recovery'].includes(hash.get('type')))return showPassword();
+
     } else {
       try{const saved=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(saved?.access_token&&saved?.refresh_token)saveSession(saved);}catch{saveSession(null);}
     }
