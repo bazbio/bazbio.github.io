@@ -1359,6 +1359,7 @@
   #pvFlags:empty { display:none; }
   .pv-flag { font-size:12px; padding:3px 10px; border-radius:99px; background:#e8f3ff; color:#1b64da; }
   .pv-flag.w { background:#fff0ec; color:#b4441c; }
+  .pv-flag-btn { font:inherit; font-size:12px; font-weight:700; padding:3px 10px; border-radius:99px; border:1px solid #b4441c; background:#fff; color:#b4441c; cursor:pointer; }
   .pv-body { flex:1; min-height:0; display:flex; gap:12px; padding:10px 14px 14px; }
   #pvFrame { flex:1; min-width:0; border:0; border-radius:10px; background:#e9edf2; }
   #pvSide { width:380px; flex:none; overflow-y:auto; background:#fff; border-radius:10px; padding:4px 14px 0; }
@@ -1688,7 +1689,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610311945-a1d8b68';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202610311104-01dd573';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -6544,7 +6545,7 @@ function 사전분석줄_(l) {
   var 제안 = (파일럿
       ? ' <a href="#" onclick="openProp(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">['
         + (l.intelPipeline === '제안서' && l.intelState === '식별대기' ? '병원 확인하기' : '제안서 만들기') + ']</a>' : '')
-    + (!조회전용 && l.intelPipeline === '제안서' && l.intelState === '완료'
+    + (!조회전용 && 제안서열림_(l)
         ? ' <a href="#" onclick="openPropView(' + l.k + '); return false;" style="font-size:12px;font-weight:700;">[제안서 보기]</a>' : '');
   if (!l.intelState && l.websiteStatus !== '등록') return 제안 ? '<div class="memo">사전분석 · 아직 안 함' + 제안 + '</div>' : '';
   var 버튼 = l.intelPipeline === '제안서' || !파일럿 ? '' : 사전분석버튼문구_(l);
@@ -6559,6 +6560,7 @@ function 사전분석문구_(l) {
   if (l.intelPipeline === '제안서') {
     if (s === '식별대기') return '제안서 · 병원 확인 필요';
     if ((s === '대기' || s === '실행중') && l.intelStage === '식별') return '제안서 · 병원 찾는 중…';
+    if ((s === '대기' || s === '실행중') && l.intelStage === '작성') return '제안서 · AI 문장 다시 쓰는 중…';
     if (s === '대기' || s === '실행중') return '제안서 · 홈페이지 분석 중…';
     if (s === '취소' && l.intelReason === '사용자취소') return '제안서 · 취소함';
     if (s === '완료') return '제안서 · 완성' + (l.intelAt ? ' (' + 사전분석기준일_(l.intelAt) + ')' : '') + (l.intelStale ? ' · 병원 정보 바뀜' : '');
@@ -7906,7 +7908,8 @@ function propFindList() {
   }
   칸.innerHTML = 찾음.slice(0, 8).map(function(l) {
     var 상태 = l.intelPipeline === '제안서'
-      ? (l.intelState === '완료' ? ' · 제안서 있음' : l.intelState === '식별대기' ? ' · 병원 확인 필요' : l.intelState === '대기' || l.intelState === '실행중' ? ' · 만드는 중' : '') : '';
+      ? (l.intelStage === '작성' && (l.intelState === '대기' || l.intelState === '실행중') ? ' · 제안서 있음 · AI 문장 다시 쓰는 중'
+        : l.intelState === '완료' ? ' · 제안서 있음' : l.intelState === '식별대기' ? ' · 병원 확인 필요' : l.intelState === '대기' || l.intelState === '실행중' ? ' · 만드는 중' : '') : '';
     return '<div class="card" role="button" tabindex="0" style="margin:8px 0 0;padding:10px 12px;cursor:pointer;" onclick="openProp(' + l.k + ')"'
       + ' onkeydown="if(event.key===\'Enter\')openProp(' + l.k + ')">'
       + '<strong>' + esc(l.hname) + '</strong>'
@@ -7946,7 +7949,10 @@ function renderProp() {
     document.getElementById('propBody').innerHTML = html;
     return;
   }
-  if (run && (run.state === '대기' || run.state === '실행중')) {
+  if (run && run.stage === '작성' && (run.state === '대기' || run.state === '실행중')) {
+    html += '<p class="memo" style="margin:6px 0 8px;">만든 제안서의 AI 문장만 다시 쓰는 중입니다. 1~2분이면 끝납니다.</p>'
+      + '<button class="btn pri" style="width:100%;margin-bottom:12px;" onclick="var r=PROP.row;closeProp();openPropView(r);">제안서 보기·고치기</button>';
+  } else if (run && (run.state === '대기' || run.state === '실행중')) {
     html += '<p class="memo" style="margin:6px 0 12px;">' + (run.stage === '식별' ? '병원 홈페이지를 찾는 중입니다.' : '홈페이지를 분석하는 중입니다.')
       + ' 보통 5~10분이면 결과가 나옵니다. 입력을 바꾸면 처음부터 다시 합니다.</p>';
   } else if (run && run.state === '완료') {
@@ -8069,11 +8075,14 @@ function 브리핑상태_(l) {
     t: '브리핑 준비됨' + (l.intelAt ? ' · ' + 사전분석기준일_(l.intelAt).replace(/\.\s*/g, '/').replace(/\/$/, '') + ' 작성' : '') + (l.intelStale ? ' · 병원 정보 바뀜' : ''),
     b: '<button class="btn pri" onclick="openPropView(' + l.k + ',\'브리핑\')">브리핑 열기</button>' };
   if (s === '식별대기') return { c: 'w', t: '병원 확인 필요', b: 버튼('병원 확인하기', 'openProp') };
+  // 작성만 다시(0052) — 완료된 제안서를 빌려 문장만 다시 쓰는 중이라 열기는 그대로 둔다
+  if (제안서열림_(l)) return { c: 'run', t: '브리핑 준비됨 · AI 문장 다시 쓰는 중',
+    b: '<button class="btn pri" onclick="openPropView(' + l.k + ',\'브리핑\')">브리핑 열기</button>' };
   if (s === '대기' || s === '실행중') return { c: 'run', t: '브리핑 만드는 중' + (l.intelStage ? ' · ' + (단계이름_[l.intelStage] || l.intelStage) : ''), b: '' };
   if (s) return { c: '', t: '만들지 못함', b: 버튼('다시 만들기', 'briefMake') };
   return { c: '', t: '브리핑 없음', b: 버튼('브리핑 만들기', 'briefMake') };
 }
-var 단계이름_ = { 식별: '병원 찾는 중', 홈페이지: '홈페이지 읽는 중', 외부조사: '원장님 조사 중', 분석: '작성 중' };
+var 단계이름_ = { 식별: '병원 찾는 중', 홈페이지: '홈페이지 읽는 중', 외부조사: '원장님 조사 중', 분석: '작성 중', 작성: 'AI 문장 다시 쓰는 중' };
 /* [브리핑 만들기] 한 번에 요청(2026-10-29) — 제안서상태로 지금 입력(원장명·홈페이지·주소·version)을 받아 그대로
    제안서요청에 보낸다. 입력을 안 바꾸므로 이미 등록된 홈페이지·주소를 지우지 않는다. 관문이 worker를 바로 깨워
    단계가 연달아 돈다(5~10분). 화면은 그동안 상태를 짧게 되묻는다(브리핑추적_). */
@@ -8087,7 +8096,7 @@ function briefMake(row) {
   관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '제안서상태', no: l.no })).then(function(st) {
     var run = st.run, 입력 = st.입력 || {};
     if (run && run.state === '식별대기') { 끝(); return openProp(row); }
-    if (run && (run.state === '대기' || run.state === '실행중')) { 끝(); 브리핑반영_(l, run); 브리핑추적_(row); return toast('브리핑을 만드는 중입니다.'); }
+    if (run && (run.state === '대기' || run.state === '실행중')) { 끝(); 브리핑반영_(l, run); 브리핑추적_(row, run.stage === '작성' ? '작성다시' : null); return toast('브리핑을 만드는 중입니다.'); }
     return 관문호출_('/saleson-clinic-intel', JSON.stringify({
       토큰: token, 동작: '제안서요청', no: l.no, address: 입력.address || '', url: 입력.url || '',
       doctorName: 입력.doctorName || '', expectedVersion: 입력.version || 0,
@@ -8101,35 +8110,53 @@ function briefMake(row) {
     });
   }).catch(function(e) { 끝(); toast((e && e.message) || '브리핑을 요청하지 못했습니다.', true); });
 }
-function 브리핑반영_(l, run) {
+/** 완성된 제안서를 열 수 있나 — 완료이거나, 완료 run을 빌려 AI 문장만 다시 쓰는 중(stage 작성, 0052) */
+function 제안서열림_(l) {
+  return l.intelPipeline === '제안서' && (l.intelState === '완료' || (l.intelStage === '작성' && (l.intelState === '대기' || l.intelState === '실행중')));
+}
+function 브리핑반영_(l, run, 다시쓰기) {
   l.intelPipeline = '제안서'; l.intelState = run.state; l.intelStage = run.stage; l.intelReason = run.reasonCode || null;
-  if (run.state === '완료') { l.intelAt = run.at; l.intelStale = false; }
+  // 작성만 다시에서 돌아온 완료는 새로 만든 제안서가 아니다 — 기준일·「병원 정보 바뀜」을 그대로 둔다(옛작업취소_가 버전변경으로 돌려도 완료다).
+  // 다시쓰기 여부는 부르는 쪽(추적의 모드)이 준다 — 리드의 intelStage는 홈 재조회가 먼저 덮을 수 있다(반증리뷰 10/31 2판)
+  if (run.state === '완료' && !다시쓰기) { l.intelAt = run.at; l.intelStale = false; }
 }
 /** 계획 카드는 홈에만 있고, renderHome이 브리핑갱신_으로 열린 브리핑 화면까지 고친다 */
 function 브리핑다시그리기_() { renderHome(); }
-/** 요청한 리드의 상태를 45초마다 되묻는다. 끝나거나(완료·식별대기·실패) 30분이 지나면 멈춘다 */
+/** 요청한 리드의 상태를 45초마다 되묻는다. 끝나거나(완료·식별대기·실패) 30분이 지나면 멈춘다.
+    모드 '작성다시' — [AI 문장 다시 쓰기]의 추적. 끝 알림과 기준일 보존은 이 모드로 정한다(로컬 상태가 아니라).
+    이미 돌던 추적이 있으면 모드만 바꾸고, 바꾸기 전에 보낸 조회의 응답은 버린다(다시 쓰기 전 스냅샷이 늦게 와도 끝으로 치지 않는다). */
 var 브리핑추적목록_ = {};
-function 브리핑추적_(row) {
+function 브리핑추적_(row, 모드) {
   var l = 제안리드_(row);
-  if (!l || 브리핑추적목록_[l.no]) return;
-  var no = l.no, token = TOKEN, 시작 = Date.now();
+  if (!l) return;
+  var 있던 = 브리핑추적목록_[l.no];
+  if (있던) { if (모드) { 있던.모드 = 모드; 있던.세대++; } return; }
+  var no = l.no, token = TOKEN, 시작 = Date.now(), 추적 = { 모드: 모드 || null, 세대: 0, 타이머: null };
+  var 그만 = function() { clearInterval(추적.타이머); if (브리핑추적목록_[no] === 추적) delete 브리핑추적목록_[no]; };
   var 한번 = function() {
-    if (token !== TOKEN || Date.now() - 시작 > 30 * 60 * 1000) { clearInterval(브리핑추적목록_[no]); delete 브리핑추적목록_[no]; return; }
+    if (token !== TOKEN || Date.now() - 시작 > 30 * 60 * 1000) return 그만();
+    var 세대 = 추적.세대;
     관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '제안서상태', no: no })).then(function(st) {
+      if (브리핑추적목록_[no] !== 추적 || 세대 !== 추적.세대) return;   // 이미 끝났거나 모드를 바꾸기 전에 보낸 조회
       var run = st.run, 리드 = 제안리드_(row);
       if (!run || !리드 || 리드.no !== no) return;
-      var 바뀜 = run.state !== 리드.intelState || run.stage !== 리드.intelStage;
-      브리핑반영_(리드, run);
+      var 바뀜 = run.state !== 리드.intelState || run.stage !== 리드.intelStage, 다시쓰기 = 추적.모드 === '작성다시';
+      브리핑반영_(리드, run, 다시쓰기);
       if (run.state !== '대기' && run.state !== '실행중') {
-        clearInterval(브리핑추적목록_[no]); delete 브리핑추적목록_[no];
-        toast(run.state === '완료' ? (리드.hname || '병원') + ' 브리핑이 준비됐습니다.'
+        그만();
+        // 작성만 다시의 출구 — 문장 없이 끝난 출구는 reasonCode(시간초과·버전변경·대상제외 …)가 사유다. 결과 안의 작성오류는 옛 값일 수 있다
+        if (다시쓰기 && run.state === '완료') toast((리드.hname || '병원') + (run.reasonCode ? ' — AI 문장 다시 쓰기를 끝내지 못했습니다(' + run.reasonCode + '). 이전 제안서 그대로입니다.'
+          : run.작성오류 ? ' — AI 문장을 또 쓰지 못했습니다(' + run.작성오류 + ').' : ' 브리핑에 AI 문장을 넣었습니다.'), !!(run.reasonCode || run.작성오류));
+        else toast(run.state === '완료' && run.작성오류 ? (리드.hname || '병원') + ' 브리핑은 준비됐지만 AI 문장을 쓰지 못했습니다(' + run.작성오류 + ').'
+          : run.state === '완료' ? (리드.hname || '병원') + ' 브리핑이 준비됐습니다.'
           : run.state === '식별대기' ? (리드.hname || '병원') + ' — 병원 확인이 필요합니다. [병원 확인하기]를 눌러 주세요.'
           : (리드.hname || '병원') + ' 브리핑을 만들지 못했습니다.', run.state !== '완료' && run.state !== '식별대기');
       }
       if (바뀜) 브리핑다시그리기_();
     }, function() {});
   };
-  브리핑추적목록_[no] = setInterval(한번, 45000);
+  추적.타이머 = setInterval(한번, 45000);
+  브리핑추적목록_[no] = 추적;
 }
 function renderBrief() {
   var el = document.getElementById('brBody');
@@ -8137,7 +8164,7 @@ function renderBrief() {
   var 이번주 = (DATA.plans || []).filter(function(p) { return p.dday >= 0 && p.cat !== 'N-Care'; })
     .sort(function(a, b) { return a.dday - b.dday; })
     .map(function(p) { return { p: p, l: 브리핑리드_(p) }; });
-  var 준비 = 이번주.filter(function(x) { return x.l && x.l.intelPipeline === '제안서' && x.l.intelState === '완료'; }).length;
+  var 준비 = 이번주.filter(function(x) { return x.l && 제안서열림_(x.l); }).length;
   var 카드 = 이번주.map(function(x) {
     var p = x.p, s = 브리핑상태_(x.l);
     var dd = p.dday === 0 ? '오늘' : 'D-' + p.dday;
@@ -8161,7 +8188,7 @@ function renderBrief() {
 function renderBriefList() {
   var el = document.getElementById('brList');
   if (!el) return;
-  var 다 = (DATA.leads || []).filter(function(l) { return l.intelPipeline === '제안서' && l.intelState === '완료'; })
+  var 다 = (DATA.leads || []).filter(제안서열림_)
     .sort(function(a, b) { return String(b.intelAt || '').localeCompare(String(a.intelAt || '')); });
   var q = BRQ.replace(/\s/g, '');
   var 목록 = q ? 다.filter(function(l) { return String(l.hname || '').replace(/\s/g, '').indexOf(q) >= 0; }) : 다;
@@ -8270,16 +8297,53 @@ function pvRender(프레임도) {
   if (d.reviewState !== 'MA승인') 띠.push(['w', 'MA 승인 전 — 고객에게 보내지 않습니다']);
   if (d.stale) 띠.push(['w', '병원 정보가 바뀌었습니다 — 다시 만든 뒤 쓰세요']);
   if (d.최신RunId && d.최신RunId !== d.runId) 띠.push(['w', '더 새 제안서가 있습니다']);
-  if (d.작성오류) 띠.push(['w', 'AI 문장 작성 실패(' + d.작성오류 + ') — 사실·승인 문구로만 만들었습니다']);
+  if (d.작성중) 띠.push(['', 'AI 문장을 다시 쓰는 중 — 1~2분 뒤 다시 열어 보세요']);
+  else if (d.다시쓰기사유) 띠.push(['w', 'AI 문장 다시 쓰기를 끝내지 못했습니다(' + d.다시쓰기사유 + ') — 이전 제안서 그대로입니다']);
+  if (!d.작성중 && d.작성오류) 띠.push(['w', 'AI 문장 작성 실패(' + d.작성오류 + ') — 사실·승인 문구로만 만들었습니다']);
+  if (!d.작성중 && d.작성오류 && d.작성다시이유) 띠.push(['', '다시 쓸 수 없음 — ' + d.작성다시이유]);
+  if (d.다시쓰기버림 && d.다시쓰기버림.length) 띠.push(['w', 'AI 문장을 다시 쓰며 내용이 바뀐 자리의 수정 ' + d.다시쓰기버림.length + '개를 지웠습니다 — 오른쪽 목록에서 확인해 주세요']);
   if (d.검토필요) 띠.push(['', '검토 필요 문장 ' + d.검토필요 + '개 — 영업 브리핑에서 확인']);
   if (d.로고 && d.로고.오류) 띠.push(['w', '로고를 불러오지 못했습니다(' + d.로고.오류 + ')']);
   if (d.버림 && d.버림.length) 띠.push(['w', '적용하지 못한 수정 ' + d.버림.length + '개 — 영업 브리핑 「고객판 점검」']);
   if (d.pdfSavedAt) 띠.push(['', '마지막 인쇄 ' + new Date(d.pdfSavedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })]);
-  document.getElementById('pvFlags').innerHTML = 띠.map(function(x) { return '<span class="pv-flag' + (x[0] ? ' w' : '') + '">' + esc(x[1]) + '</span>'; }).join('');
+  // 작성만 다시(0052) — 과금 없이 거절된 작성만 관문이 작성다시=true로 준다. 부르는 것은 파일럿만(제안서 만들기와 같은 선)
+  var 다시 = d.작성다시 && !d.작성중 && !!DATA.intelPilot && !(DATA.me && DATA.me.viewer);
+  document.getElementById('pvFlags').innerHTML = 띠.map(function(x) { return '<span class="pv-flag' + (x[0] ? ' w' : '') + '">' + esc(x[1]) + '</span>'; }).join('')
+    + (다시 ? '<button class="pv-flag-btn" onclick="pvRewrite()">AI 문장 다시 쓰기</button>' : '');
   pvSide_();
+}
+/* [AI 문장 다시 쓰기](2026-10-31) — 크레딧 부족·키 오류·호출 제한으로 작성이 과금 없이 거절된 제안서의 작성(S7)만 다시 부른다.
+   홈페이지·추출은 다시 하지 않는다. 저장한 수정은 새 2판에 맞는 것만 이어진다. 끝나면 브리핑추적_이 알려 준다. */
+function pvRewrite() {
+  if (!PV || !PV.data || PV.busy) return;
+  if (pvDirty_()) return pv메시지_('저장하지 않은 수정이 있습니다. 먼저 저장해 주세요.', true);
+  var 먼저 = { AI크레딧부족: 'Anthropic 크레딧이 채워졌는지', AI인증실패: '서버의 AI 키가 바뀌었는지', AI호출제한: '잠시(1분 이상) 지났는지' }[PV.data.작성오류];
+  if (!confirm('AI 문장 작성만 다시 부릅니다(Claude 호출 1회 과금, 1~2분).' + (먼저 ? ' ' + 먼저 + ' 먼저 확인해 주세요.' : '')
+    + ' 저장한 수정 중 문장이 바뀐 자리의 것은 지워집니다.')) return;
+  var 번호 = PV번호, token = TOKEN, row = PV.row;
+  PV.busy = true; pv메시지_('요청하는 중…');
+  관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '작성다시', no: PV.no, runId: PV.data.runId })).then(function() {
+    if (token !== TOKEN) return;
+    var l = 제안리드_(row);
+    if (l) { l.intelState = '대기'; l.intelStage = '작성'; }
+    if (번호 === PV번호) closePropView();
+    브리핑다시그리기_();
+    브리핑추적_(row, '작성다시');
+    toast('AI 문장을 다시 쓰기 시작했습니다. 1~2분 뒤 [브리핑 열기]로 확인하세요.');
+  }, function(e) {
+    if (번호 !== PV번호 || token !== TOKEN) return;
+    PV.busy = false; pv메시지_(e.message || '요청하지 못했습니다.', true);
+  });
 }
 function pvSide_() {
   var d = PV.data, w = PV.작업, h = '';
+  // AI 문장을 다시 쓰며 옮기지 못해 지운 수정 — 무엇을(원래 글·내가 쓴 글) 지웠는지 펼쳐 보이고, 저장하거나 [확인함]을 누르면 목록을 지운다
+  if (d.다시쓰기버림 && d.다시쓰기버림.length) {
+    h += '<section class="pv-sec"><h4>다시 쓰며 지운 수정 ' + d.다시쓰기버림.length + '개</h4><ul class="memo" style="padding-left:16px;margin:4px 0;">'
+      + d.다시쓰기버림.map(function(x) {
+        return '<li>' + esc(x.종류) + ' · 「' + esc(x.원문 || x.id) + '」' + (x.영업글 ? '<br>내가 쓴 글: 「' + esc(x.영업글) + '」' : '') + ' — ' + esc(x.사유) + '</li>';
+      }).join('') + '</ul><button class="btn ghost" onclick="pvSave(true)">확인함 — 목록 지우기</button></section>';
+  }
   if (PV.판 === '고객') {
     var 표지칸 = function(이름, k, max) {
       return '<label class="f">' + 이름 + '</label><input type="text" maxlength="' + max + '" data-k="' + k + '" oninput="pvCover(this)" value="'
@@ -8353,9 +8417,10 @@ function pvLogo(k, v) {
   else { if (v) PV.작업.logo.hidden = true; else delete PV.작업.logo.hidden; }
   pv메시지_('');
 }
-function pvSave() {
+function pvSave(확인) {
   if (!PV || !PV.data || PV.busy) return;
-  if (!pvDirty_()) return pv메시지_('바뀐 것이 없습니다.');
+  // 확인 — 바뀐 것이 없어도 저장한다(서버가 「다시 쓰며 지운 수정」 목록을 지운다)
+  if (!확인 && !pvDirty_()) return pv메시지_('바뀐 것이 없습니다.');
   var 번호 = PV번호, token = TOKEN;
   PV.busy = true; pv메시지_('저장하는 중…');
   관문호출_('/saleson-clinic-intel', JSON.stringify({ 토큰: token, 동작: '제안서편집', no: PV.no, runId: PV.data.runId,
