@@ -91,7 +91,7 @@
   .card:focus-visible { outline:3px solid var(--on-dark); outline-offset:3px; }
 
   .card--hero { grid-row:span 2; padding:26px 26px 28px; }
-  .card--ieum, .card--boosterjet, .card--flowdesk { grid-column:1 / -1; min-height:184px; }
+  .card--ieum, .card--boosterjet, .card--flowdesk, .card--board { grid-column:1 / -1; min-height:184px; }
   .card__status { font-size:11px; font-weight:700; padding:6px 10px; border:1px solid rgba(8,19,31,.24); border-radius:999px; }
 
   .card__top { display:flex; align-items:flex-start; justify-content:space-between; }
@@ -391,6 +391,21 @@
         <span class="card__cat">런칭 프로젝트 파일 공유</span>
         <h2 class="card__name">부스터젯</h2>
         <p class="card__desc">초대된 참여자와 파일 업로드 · 다운로드</p>
+      </div>
+    </a>
+
+    <!-- 유영환 이사 소통판 (claude.ai 비공개 페이지, 초대받은 사람만 열림) -->
+    <a class="card t4 card--board" href="https://claude.ai/artifact/RH2KDuLdgTHJDaTVQgZ7tk" target="_blank" rel="noopener">
+      <div class="card__top">
+        <span class="card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        </span>
+        <span class="card__status">유영환 이사 전용</span>
+      </div>
+      <div>
+        <span class="card__cat">이사 · Claude 소통</span>
+        <h2 class="card__name">이사 소통판</h2>
+        <p class="card__desc">현황 · 결정할 일 · 대화 · 초대받은 분만 열림</p>
       </div>
     </a>
 
