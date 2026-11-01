@@ -1691,7 +1691,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611011846-2f72b8d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611020728-afd715e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -9130,8 +9130,9 @@ async function wkPlanSave(){
 
 /* QUDOLI_UI_BEGIN — generated into 웹앱.html by 화면연결.mjs */
 var QD={data:null,week:'2026-10-26',name:'',tab:'goals',request:0,editing:null,saving:false,submitId:null};
-var QD_ROUTE_PENDING=typeof location!=='undefined'&&location.hash==='#qudoli';
-function qdInitialRoute(){if(!QD_ROUTE_PENDING)return '';QD_ROUTE_PENDING=false;return qdAllowed()?'qudoli':'';}
+var QD_ROUTE_PENDING=typeof location!=='undefined'&&/^#qudoli(?:\/|$)/.test(location.hash);
+// 큐돌이 요청 메일 링크 #qudoli/탭/주(월요일): 그 주·탭으로 연다. 월요일에 지난주 제출을 받기 위해서다(주가 바뀌어도 대상 주 고정).
+function qdInitialRoute(){if(!QD_ROUTE_PENDING)return '';QD_ROUTE_PENDING=false;var m=/^#qudoli\/(goals|records|tasks|analysis|report)\/(\d{4}-\d{2}-\d{2})$/.exec(location.hash);if(m&&new Date(m[2]+'T00:00:00Z').getUTCDay()===1){QD.tab=m[1];QD.week=m[2];QD.data=null;}return qdAllowed()?'qudoli':'';}
 function qdAllowed(){return !!(DATA&&DATA.dbSrc&&DATA.me&&!DATA.me.viewer&&(DATA.me.admin||['유영환','천상훈'].indexOf(DATA.me.name)>=0||['교육영업팀','장비영업팀'].indexOf(DATA.me.team)>=0));}
 function qdCall(body){return 관문호출_('/saleson-qudoli',JSON.stringify(Object.assign({토큰:TOKEN,week:QD.week,name:QD.name||DATA.me.name},body)));}
 function qdDraftKey(){return 'qudoli-draft:'+DATA.me.name+':'+QD.week;}
