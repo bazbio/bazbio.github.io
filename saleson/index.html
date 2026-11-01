@@ -1690,7 +1690,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202610312145-8f0b5e4';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611010207-2cd6167';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -7921,6 +7921,7 @@ function 제안근거_(c) {
   var g = c.근거 || {}, 칩 = [];
   if (g.주소) 칩.push('주소 일치'); if (g.원장) 칩.push('원장님 성함 일치'); if (g.전화) 칩.push('전화 일치');
   if (g.병원명) 칩.push('병원명 있음'); if (g.다지점) 칩.push('여러 지점 주소가 함께 있음');
+  if (c.목록의심) 칩.push('여러 병원을 늘어놓은 글일 수 있음');
   if (c.읽기 && c.읽기 !== '정상') 칩.push('페이지를 읽지 못함(' + c.읽기 + ')');
   return 칩.length ? 칩.join(' · ') : '근거 없음';
 }
@@ -7935,7 +7936,7 @@ function renderProp() {
       + (run.검색오류 ? '<br><span style="color:#5f6b7a;">자동 검색을 하지 못했습니다(' + esc(run.검색오류) + ').</span>' : '') + '</p>';
     html += 후보.map(function(c, i) {
       return '<label class="card" style="display:block;margin:0 0 8px;padding:10px;cursor:pointer;">'
-        + '<input type="radio" name="propPick" value="' + i + '"' + (i === 0 ? ' checked' : '') + '> '
+        + '<input type="radio" name="propPick" value="' + i + '"' + (i === 0 && !c.목록의심 ? ' checked' : '') + '> '
         + '<strong>' + esc(c.title || c.url) + '</strong>'
         + '<div class="m" style="word-break:break-all;"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.url) + '</a></div>'
         + '<div class="memo">' + esc(제안근거_(c)) + (c.발견주소 && c.발견주소.length ? ' · 페이지 주소: ' + esc(c.발견주소.join(', ')) : '') + '</div>'
