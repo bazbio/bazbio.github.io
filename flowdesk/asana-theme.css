@@ -354,3 +354,7 @@ svg { stroke-width: 1.5; }
   .mc-review-reason,.mc-ledger-reason,.mc-evidence blockquote { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto!important; } }
+
+.private-badge{display:inline-flex;align-items:center;font-size:9px;line-height:1;color:#6f5aa6;background:#efeaf9;border-radius:4px;padding:3px 5px;white-space:nowrap}
+.private-toggle{display:flex;align-items:center;gap:7px;font-size:11px;color:#7b8390}
+.private-toggle input{margin:0}

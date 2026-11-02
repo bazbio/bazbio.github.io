@@ -136,6 +136,8 @@ export function validateImport(data) {
     if (!projectIds.has(projectId) || sectionMap.get(sectionId)?.projectId !== projectId) fail(path, '프로젝트와 섹션의 연결이 올바르지 않습니다.');
     const assignee = text(item.assignee, `${path} 담당자`, 120);
     if (assignee && !memberIds.has(assignee)) fail(path, '존재하지 않는 담당자입니다.');
+    if (item.private !== undefined && typeof item.private !== 'boolean') fail(path, '나만 보기 값이 올바르지 않습니다.');
+    if (item.private === true && !assignee) fail(path, '나만 보기 작업에는 담당자가 필요합니다.');
     const subtasks = unique(list(item.subtasks, `${path} 하위 작업`, 500).map((value, subIndex) => {
       const subPath = `${path} 하위 작업 ${subIndex + 1}`; const sub = record(value, subPath);
       if (typeof sub.done !== 'boolean') fail(subPath, '완료 여부가 올바르지 않습니다.');
@@ -157,6 +159,7 @@ export function validateImport(data) {
       health: choice(item.health === undefined ? '' : item.health, HEALTH, `${path} 진행 상태`),
       description: text(item.description, `${path} 설명`, 20000),
       subtasks, comments, createdAt: timestamp(item.createdAt, `${path} 생성 시간`),
+      ...(item.private === true ? { private: true } : {}),
       ...(item.source ? { source: taskSource(item.source, `${path} 회의록 근거`) } : {}),
     };
   }), '작업');
