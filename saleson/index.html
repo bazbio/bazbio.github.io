@@ -187,6 +187,13 @@
   .save { width:100%; margin-top:22px; font-size:16px; font-weight:700; padding:15px; background:#1b64da; color:#fff; border:none; border-radius:12px; cursor:pointer; }
   .save:active { transform:scale(.985); opacity:.92; }
   .save:disabled { background:#5f6b7a; }
+  /* 저장 거절 사유 — 버튼 바로 위에 남는다(저장실패표시_). 다시 눌러 또 거절되면 한 번 깜빡인다 */
+  #fSave { scroll-margin-bottom:96px; }   /* 폰 아래 메뉴(.nav)에 버튼이 깔리지 않게 — 저장실패표시_가 버튼에 맞춘다 */
+  .savemsg { margin-top:18px; padding:12px 14px; background:#fff1f2; border:1px solid #f5b8bf; color:#b4232c; border-radius:12px; font-size:14px; font-weight:600; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .savemsg.warn { background:#fff8e6; border-color:#f3cf7a; color:#8a5300; }   /* 결과 모름(응답 지연) — 내 입력에서 확인 */
+  .savemsg.info { background:#eef4ff; border-color:#b9cff7; color:#1b4fa8; }   /* 이미 저장돼 있음 */
+  .savemsg.again { animation:savemsgFlash .5s ease-out; }
+  @keyframes savemsgFlash { 0% { opacity:.3; } 100% { opacity:1; } }   /* 색은 결과 종류(.warn·.info)마다 달라 투명도로 깜빡인다 */
 
   /* 리드 카드 */
   .lead .h { font-size:16.5px; font-weight:700; color:#191f28; }
@@ -884,7 +891,7 @@
   <div id="planDateHint" class="warnbox" style="display:none;"></div>
   <div class="card">
     <label class="f">병원 검색 *</label>
-    <input type="text" id="fHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkLeadF_()">
+    <input type="text" id="fHosp" data-ac="hosp" placeholder="병원명 입력 또는 선택" autocomplete="off" oninput="checkLeadF_();저장실패맞추기_()">
     <!-- 리드가 없는 병원이면 판매 구분을 여기서 받아 기록과 함께 리드를 만든다 (2026-08-16, P19·P49).
          계획을 안 거치고 기록만 쓰는 경로가 8월 90건 중 39건이고, 그쪽으로 들어온 병원은
          리드가 안 생겨 「리드 없이 계약까지」 가 실제로 일어났다(닥터스피부과의원 광주상무). -->
@@ -910,7 +917,7 @@
       </div>
     </div>
     <div class="row2">
-      <div><label class="f" for="fDate">방문일</label><input type="date" id="fDate" onchange="계획일안내_();q4VisitToggle()"></div>
+      <div><label class="f" for="fDate">방문일</label><input type="date" id="fDate" onchange="계획일안내_();q4VisitToggle();저장실패맞추기_()"></div>
       <div><label class="f" for="fNext">다음 방문 예정일</label><input type="date" id="fNext"></div>
     </div>
     <label class="f">판매 카테고리 *</label>
@@ -953,6 +960,7 @@
     <input type="text" id="fReaction" placeholder="예: 관심 높음, 가격 문의">
     <label class="f">Follow-up 사항</label>
     <input type="text" id="fFu" placeholder="예: 견적서 발송 후 재방문">
+    <div class="savemsg" id="fSaveMsg" role="alert" style="display:none;"></div>
     <button class="save" id="fSave" onclick="saveLog()">방문기록 저장</button>
   </div>
 </div></div>
@@ -1611,10 +1619,10 @@ function 러너_(ok, fail) {
 /* 실제 왕복. 실패는 전부 Error로 만들어 fail(e)에 넘긴다 — 호출부가 e.message를 읽는다. */
 function 호출_(fn, args, ok, fail) {
   var 끝난 = false;
-  var 실패 = function (msg) {
+  var 실패 = function (msg, 결과) {
     if (끝난) return;
     끝난 = true;
-    if (fail) fail(new Error(msg));
+    if (fail) fail(Object.assign(new Error(msg), { 결과: 결과 || '오류' }));   // 결과 종류(e.결과)는 관문호출_의 설명 참고
   };
   /* ⚠ 타임아웃은 「저장 안 됨」이 아니다. 서버가 이미 커밋했는데 응답만 늦은 경우가 있어서,
      다시 누르면 같은 기록이 두 번 들어간다. 확인할 곳을 알려 주고 임시저장은 안 지운다.
@@ -1625,7 +1633,7 @@ function 호출_(fn, args, ok, fail) {
   var 타이머 = setTimeout(function () {
     실패(쓰기
       ? '응답이 늦습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인해 주세요 — 없으면 다시 눌러 주세요.'
-      : '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.');
+      : '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.', 쓰기 ? '모름' : '오류');
   }, API_TIMEOUT);
 
   fetch(API_URL, {
@@ -1642,10 +1650,16 @@ function 호출_(fn, args, ok, fail) {
     clearTimeout(타이머);
     if (끝난) return;
     var r;
-    try { r = JSON.parse(본문); } catch (e) { return 실패('서버 응답을 읽지 못했습니다.'); }
+    try { r = JSON.parse(본문); } catch (e) { return 실패('서버 응답을 읽지 못했습니다.', 쓰기 ? '모름' : '오류'); }
     // 메모리 토큰만 죽고 저장소에 연장분이 있으면 로그인 화면 대신 새로 띄운다(저장토큰으로다시_)
     if (r && r.ok !== true && /세션이 만료/.test(String(r.error || '')) && 저장토큰으로다시_()) { 끝난 = true; return; }
-    if (!r || r.ok !== true) return 실패((r && r.error) || '요청을 처리하지 못했습니다.');
+    /* 결과 종류: 같은 기록 막기(같은기록_ — 관문 visit-act ①과 같은 문구)는 이미저장, 사용자오류_(서버가
+       판정하고 막음 — doPost가 `사용자` 표식을 싣는다)는 거절. 표식 없는 쓰기 오류는 시트에 쓴 뒤 난
+       시스템 예외일 수 있어 모름이다 — 표식을 안 싣는 옛 서버와 섞여도 「안 됨」으로 단정하지 않는다 */
+    if (!r || r.ok !== true) {
+      var 문구 = (r && r.error) || '요청을 처리하지 못했습니다.';
+      return 실패(문구, /^같은 내용이 이미 저장돼/.test(문구) ? '이미저장' : r && r.사용자 ? '거절' : 쓰기 ? '모름' : '오류');
+    }
     끝난 = true;
     if (ok) ok(r.data);
   }).catch(function (e) {
@@ -1661,10 +1675,12 @@ function 호출_(fn, args, ok, fail) {
     /* 네트워크가 끊기면 e.message는 항상 영어 원문("Failed to fetch"·"Load failed")이라
        그대로 보여 줄 수 없다 — 병원 지하에서 저장을 누른 사람이 보던 화면이 그것이었다. */
     console.warn('[호출 실패]', fn, e);
+    /* 끊김(TypeError)은 요청이 서버에 닿았는지 알려 주지 않는다 — 응답만 못 받았을 수 있다.
+       쓰기면 「안 됨」이라 하지 않고 확인부터 시킨다(결과 모름, 반증리뷰 11-02) */
     실패(e instanceof TypeError
-      ? (쓰기 ? '저장되지 않았습니다. 네트워크를 확인하고 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.'
+      ? (쓰기 ? '연결이 끊겼습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인하고, 없으면 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.'
               : '연결이 끊겼습니다. 네트워크를 확인해 주세요.')
-      : ((e && e.message) || '서버에 연결하지 못했습니다.'));
+      : ((e && e.message) || '서버에 연결하지 못했습니다.'), 쓰기 ? '모름' : e instanceof TypeError ? '끊김' : '오류');
   });
 }
 
@@ -1693,7 +1709,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611021323-e64a401';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611021433-ae23aad';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2149,7 +2165,7 @@ var 현재뷰_ = 'home';
 function show(v) {
   if (v === 'inbound' && !ibAllowed()) { toast('장비영업 또는 관리자 계정으로 로그인해 주세요.'); return; }
   if (v === 'qudoli' && !qdAllowed()) { toast('본인 영업 계정으로 로그인해 주세요.'); return; }
-  if(v==='log')q4VisitLoad();
+  if(v==='log'){q4VisitLoad();저장실패맞추기_();}
   // 제거한 탭의 옛 주소·저장 후 이동은 기본 화면으로 안내한다. 기존 데이터는 보존한다.
   if (['kpi','week','lead'].indexOf(v)>=0) v=기본화면_();
   if (v === 'performance' && !q4Allowed()) { toast('DB 연결된 영업 계정에서 사용할 수 있습니다.', true); return; }
@@ -4428,6 +4444,9 @@ function 방문유형_(s) {
 }
 function saveLog() {
   if(document.getElementById('fSave').disabled)return;
+  /* 누르는 순간 지난 사유를 지운다 — 검증보다 먼저. 검증에 막히면 이번 사유는 토스트·칸 표시로 나가는데,
+     상자에 지난 서버 거절이 남아 있으면 「고친 것이 또 같은 이유로 거절됐다」로 읽힌다(반증리뷰 11-02) */
+  저장실패지우기_();
   var name = document.getElementById('fHosp').value.trim();
   var code = '';
   DATA.hospitals.forEach(function(h) { if (h.name === name) code = h.code; });
@@ -4500,7 +4519,7 @@ function saveLog() {
       toast(r.msg); show('mine');
     };
     var 수정실패 = function(e) {
-      busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
+      busy(false); document.getElementById('fSave').disabled = false; 저장실패표시_(e);
     };
     /* DB가 원천이면 관문으로 간다 (0.3초). 폴백은 없다 — 실패해도 임시저장이 남으므로
        쓴 내용은 안 사라진다. `dbSrc`는 서버가 준다(초기데이터_) — 스크립트 속성을 되돌리면
@@ -4568,7 +4587,7 @@ function saveLog() {
     document.getElementById('fSave').disabled = false;
   };
   var 저장실패 = function(e) {
-    busy(false); document.getElementById('fSave').disabled = false; toast(e.message, true);
+    busy(false); document.getElementById('fSave').disabled = false; 저장실패표시_(e);
   };
   if (DATA.dbSrc) {
     관문호출_('/saleson-visit-act', JSON.stringify({
@@ -4578,7 +4597,52 @@ function saveLog() {
   }
   gsrun().withSuccessHandler(저장끝).withFailureHandler(저장실패).웹_방문기록저장(TOKEN, f);
 }
+/* 방문기록 저장이 거절되면 사유를 **버튼 바로 위에 남긴다** (2026-11-02, 영업팀 영상).
+   예전에는 화면 맨 아래 토스트뿐이었다. 데모 구분 거절(「같은 날 같은 제품 데모가 이미…」)은
+   길고, 눈은 방금 누른 버튼에 있고, PC에서는 토스트 자리가 Dock·창 아래에 깔리기도 한다 —
+   영상에는 버튼이 잠깐 회색이 됐다 돌아오는 것만 보였고, 운영 로그에는 같은 거절이
+   25초에 28번(10/30 00:26), 하루 140번(10/29) 쌓였다. 사람은 「저장 버튼이 안 먹는다」로 겪는다.
+   같은 거절이 또 오면 한 번 깜빡여 「이번에도 거절됐다」를 알린다.
+   ⚠ 「저장되지 않았습니다」는 **서버가 거절했을 때만** 앞세운다(관문호출_·호출_가 붙이는 e.결과). 응답이 늦은 것(모름)은
+     이미 커밋됐을 수 있고, 같은 기록 막기(이미저장)는 이미 들어가 있다 — 둘에 「안 됨」이라 하면
+     다시 써서 같은 방문이 두 건 된다(반증리뷰 11-02).
+   지우는 자리: 버튼을 누를 때(saveLog 첫 줄) · 폼을 비울 때(resetForm) · 다른 기록을 열 때(editMode) ·
+   **다른 대상으로 기록 화면을 열 때**(show('log') → 저장실패맞추기_). 계획 카드 [기록 쓰기]·임시저장
+   [불러오기]·뒤로가기가 모두 show('log')를 지나므로, 상자에 붙인 폼 열쇠가 다르면 거기서 걷힌다. */
+var 저장실패머리_ = { 거절: '저장되지 않았습니다 — ', 모름: '저장됐는지 확인이 필요합니다 — ' };
+/* 열쇠 = 그 사유를 낳은 판정 입력 — 로그인(TOKEN)·수정 대상·병원(saveLog와 같은 trim)·방문일·계획(PREFILL).
+   하나라도 바뀌면 앞 사유는 이 폼의 것이 아니다(반증리뷰 2판). ⚠ TOKEN이 들어가므로 DOM에 안 적고
+   변수에만 둔다. 맞추는 자리: show('log') · 병원 칸 oninput(자동완성 선택도 input을 쏜다) · 방문일 onchange */
+var 저장실패열쇠값_ = '';
+function 저장실패열쇠_() {
+  return [TOKEN, EDITKEY || '새 기록', document.getElementById('fHosp').value.trim(),
+    document.getElementById('fDate').value, PREFILL ? PREFILL.hcode + '@' + PREFILL.date : ''].join('|');
+}
+function 저장실패표시_(e) {
+  var el = document.getElementById('fSaveMsg');
+  var 결과 = (e && e.결과) || '오류';
+  var 문구 = (e && e.message) || '잠시 뒤 다시 눌러 주세요.';
+  el.textContent = (저장실패머리_[결과] || '') + 문구;
+  el.className = 'savemsg' + (결과 === '모름' ? ' warn' : 결과 === '이미저장' ? ' info' : '');
+  저장실패열쇠값_ = 저장실패열쇠_();
+  el.style.display = 'block';
+  el.classList.remove('again'); void el.offsetWidth; el.classList.add('again');
+  // 응답이 오기 전에 다른 화면으로 갔으면 상자는 숨은 폼에 있다 — 그때는 지금 화면에도 알린다
+  if (현재뷰_ !== 'log') { toast('방문기록: ' + el.textContent, 결과 !== '이미저장'); return; }
+  // 버튼에 맞춘다 — 상자에 맞추면 상자가 늘어난 만큼 버튼이 화면 아래로 밀려 「버튼이 사라졌다」가 된다.
+  // 상자는 버튼 바로 위라 함께 보인다
+  document.getElementById('fSave').scrollIntoView({ block: 'nearest' });
+}
+function 저장실패지우기_() {
+  var el = document.getElementById('fSaveMsg');
+  el.style.display = 'none'; el.textContent = ''; 저장실패열쇠값_ = '';
+}
+/* 폼의 대상(로그인·기록·병원·방문일·계획)이 바뀌었으면 앞 대상의 사유를 걷는다 */
+function 저장실패맞추기_() {
+  if (저장실패열쇠값_ && 저장실패열쇠값_ !== 저장실패열쇠_()) 저장실패지우기_();
+}
 function resetForm() {
+  저장실패지우기_();
   q4VisitReset();
   ['fHosp', 'fNext', 'fContact', 'fNote', 'fReaction', 'fFu', 'fNozzle'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('fDate').value = DATA.today;
@@ -4654,8 +4718,18 @@ function 관문호출_(경로, 몸통) {
       }
       if (!res.ok) {
         console.warn('[관문]', 경로, res.status, j);   // 상태 코드는 사람에게 안 보인다
-        throw new Error((j && j.error)
-          || '지금 서버가 응답하지 못했습니다. 잠시 뒤 다시 눌러 주세요.' + (읽기 ? '' : ' 쓰신 내용은 남아 있습니다.'));
+        var 문구 = (j && j.error)
+          || '지금 서버가 응답하지 못했습니다. 잠시 뒤 다시 눌러 주세요.' + (읽기 ? '' : ' 쓰신 내용은 남아 있습니다.');
+        /* 오류에 **결과 종류**(e.결과)를 붙인다 (2026-11-02, 반증리뷰). 문구만 넘기면 받는 쪽이
+           「거절」(서버가 판정하고 되돌림)·「모름」(응답이 늦음 — 이미 커밋됐을 수 있다)·「이미저장」·
+           「끊김」(요청이 서버에 못 감)·「오류」를 못 가려, 저장실패표시_가 전부에 「저장되지 않았습니다」를
+           붙였다 — 늦은 응답에 그렇게 말하면 다시 써서 같은 방문이 두 건 된다. 호출_(GAS)도 같은 이름을 쓴다.
+           ⚠ 도우미 함수로 빼지 않는다 — 여러 테스트가 이 함수만 떼어 돌린다(tokenrenew 등).
+           4xx는 서버가 판정하고 되돌린 것(거절)이다. 단 같은 기록 막기(visit-act ①)의 409는
+           **이미 저장돼 있다**는 뜻이라 따로 센다. 5xx는 어디까지 갔는지 이 자리에서 모른다 —
+           visit-act는 커밋 뒤에도 엔케어편입_이 돌아 500이 날 수 있다. 쓰기의 5xx는 모름이다 */
+        throw Object.assign(new Error(문구), { 결과: res.status === 409 && /^같은 내용이 이미 저장돼/.test(문구) ? '이미저장'
+          : res.status >= 400 && res.status < 500 ? '거절' : 읽기 ? '오류' : '모름' });
       }
       return j;
     });
@@ -4663,11 +4737,13 @@ function 관문호출_(경로, 몸통) {
     clearTimeout(타이머);
     console.warn('[관문]', 경로, e);
     if (e && e.name === 'AbortError') {
-      throw new Error(읽기 ? '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.'
-        : '응답이 늦습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인해 주세요 — 없으면 다시 눌러 주세요.');
+      throw Object.assign(new Error(읽기 ? '응답이 없습니다. 네트워크를 확인하고 다시 시도해 주세요.'
+        : '응답이 늦습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인해 주세요 — 없으면 다시 눌러 주세요.'), { 결과: 읽기 ? '오류' : '모름' });
     }
-    throw new Error(읽기 ? '연결이 끊겼습니다. 네트워크를 확인해 주세요.'
-      : '저장되지 않았습니다. 네트워크를 확인하고 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.');
+    // 끊김은 요청이 닿았는지 알려 주지 않는다 — 쓰기면 「안 됨」이라 하지 않고 확인부터(호출_와 같은 규칙)
+    throw Object.assign(new Error(읽기 ? '연결이 끊겼습니다. 네트워크를 확인해 주세요.'
+      : '연결이 끊겼습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인하고, 없으면 다시 눌러 주세요. 쓰신 내용은 그대로 남아 있습니다.'),
+      { 결과: 읽기 ? '끊김' : '모름' });
   });
 }
 
@@ -5571,6 +5647,7 @@ function editMode(on) {
   hosp.readOnly = !!on;
   hosp.style.background = on ? '#f2f4f6' : '';
   document.getElementById('fSave').textContent = on ? '수정 저장' : '방문기록 저장';
+  저장실패지우기_();   // 다른 기록을 열었으면 앞 기록의 거절 사유는 맞지 않는다
   var b = document.getElementById('editBanner');
   if (b) b.style.display = on ? 'flex' : 'none';
 }
