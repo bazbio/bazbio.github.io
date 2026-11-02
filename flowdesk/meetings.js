@@ -156,7 +156,7 @@ export function mountMeetingCenter(container, options = {}) {
   function titleBlock() {
     const head = element('div', 'mc-page-heading');
     const description = element('div');
-    description.append(element('span', 'mc-eyebrow', '경영혁신실 · 주간 미팅'), element('h1', '', '회의록에서 실행까지'), element('p', '', '받은 회의록 메일의 할 일을 담당자별 업무로 연결합니다.'));
+    description.append(element('span', 'mc-eyebrow', '경영혁신실 · CATS Global 미팅'), element('h1', '', '회의록에서 실행까지'), element('p', '', '받은 회의록 메일의 할 일을 담당자별 업무로 연결합니다.'));
     const actions = element('div', 'mc-heading-actions');
     const refreshButton = button('처리 이력 새로고침', 'mc-secondary', () => refresh(), 'refresh');
     refreshButton.disabled = loading || busy || Boolean(editing);
@@ -194,7 +194,7 @@ export function mountMeetingCenter(container, options = {}) {
     const schedule = element('div', 'mc-monitor-detail');
     const scheduleHeading = element('div', 'mc-schedule-heading');
     scheduleHeading.append(element('span', '', '확인 시간'), badge(data.monitor.automationStatus === 'ACTIVE' ? '예약 활성' : '예약 설정 확인 중', data.monitor.automationStatus === 'ACTIVE' ? 'success' : 'neutral'));
-    schedule.append(scheduleHeading, element('strong', '', '매주 금요일 13:00–20:00'), element('small', '', '매시간 · 한국 시간 (Asia/Seoul)'));
+    schedule.append(scheduleHeading, element('strong', '', data.monitor.schedule || '예약 정보를 기다리는 중'), element('small', '', '한국 시간 (Asia/Seoul) · 마지막 확인이 보낸 예약 설정'));
     const checked = element('div', 'mc-monitor-detail'); checked.append(element('span', '', '마지막 확인 시도'), element('strong', '', dateText(data.monitor.lastCheckedAt, true)), element('small', '', data.monitor.lastCheckedAt ? '연결 및 처리 확인 시점' : '첫 확인을 기다리고 있습니다'));
     row.append(status, schedule, checked);
     return row;
@@ -208,7 +208,7 @@ export function mountMeetingCenter(container, options = {}) {
     const grid = element('dl', 'mc-criteria-grid');
     const rules = [
       ['확인할 메일함', '받은메일함'],
-      ['제목 형식', data.monitor.subjectPattern || '[회의록] 경영혁신실 미팅 (YYYY.MM.DD)'],
+      ['제목 형식', data.monitor.subjectPattern || '[회의록] 경영혁신실 미팅 (YYYY.MM.DD) · [회의록] CATS Global 미팅 (YYYY.MM.DD)'],
       ['보낸 사람 표시 이름', data.monitor.senderDisplayName || '유영환'],
     ];
     rules.forEach(([label, value]) => { const row = element('div'); row.append(element('dt', '', label), element('dd', '', value)); grid.append(row); });

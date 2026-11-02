@@ -1,6 +1,6 @@
-import { createInitialState, loadState, saveState, uid, filterTasks, validateImport } from './model.js?v=83eddfd1c57d';
-import { mountMeetingCenter } from './meetings.js?v=83eddfd1c57d';
-import { createAuthClient } from './auth.js?v=83eddfd1c57d';
+import { createInitialState, loadState, saveState, uid, filterTasks, validateImport } from './model.js?v=ecd1eef8298f';
+import { mountMeetingCenter } from './meetings.js?v=ecd1eef8298f';
+import { createAuthClient } from './auth.js?v=ecd1eef8298f';
 
 const $ = (s, r=document) => r.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
