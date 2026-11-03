@@ -1709,7 +1709,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611021433-ae23aad';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611031301-b1cf9a3';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -6681,6 +6681,7 @@ function 사전분석문구_(l) {
     if (s === '식별대기') return '제안서 · 병원 확인 필요';
     if ((s === '대기' || s === '실행중') && l.intelStage === '식별') return '제안서 · 병원 찾는 중…';
     if ((s === '대기' || s === '실행중') && l.intelStage === '작성') return '제안서 · AI 문장 다시 쓰는 중…';
+    if ((s === '대기' || s === '실행중') && l.intelStage === '브리핑') return '제안서 · 브리핑 쓰는 중…';
     if (s === '대기' || s === '실행중') return '제안서 · 홈페이지 분석 중…';
     if (s === '취소' && l.intelReason === '사용자취소') return '제안서 · 취소함';
     if (s === '완료') return '제안서 · 완성' + (l.intelAt ? ' (' + 사전분석기준일_(l.intelAt) + ')' : '') + (l.intelStale ? ' · 병원 정보 바뀜' : '');
@@ -8203,7 +8204,7 @@ function 브리핑상태_(l) {
   if (s) return { c: '', t: '만들지 못함', b: 버튼('다시 만들기', 'briefMake') };
   return { c: '', t: '브리핑 없음', b: 버튼('브리핑 만들기', 'briefMake') };
 }
-var 단계이름_ = { 식별: '병원 찾는 중', 홈페이지: '홈페이지 읽는 중', 외부조사: '원장님 조사 중', 분석: '작성 중', 작성: 'AI 문장 다시 쓰는 중' };
+var 단계이름_ = { 식별: '병원 찾는 중', 홈페이지: '홈페이지 읽는 중', 외부조사: '원장님 조사 중', 분석: '작성 중', 작성: 'AI 문장 다시 쓰는 중', 브리핑: '브리핑 쓰는 중' };
 /* [브리핑 만들기] 한 번에 요청(2026-10-29) — 제안서상태로 지금 입력(원장명·홈페이지·주소·version)을 받아 그대로
    제안서요청에 보낸다. 입력을 안 바꾸므로 이미 등록된 홈페이지·주소를 지우지 않는다. 관문이 worker를 바로 깨워
    단계가 연달아 돈다(5~10분). 화면은 그동안 상태를 짧게 되묻는다(브리핑추적_). */
@@ -8231,12 +8232,13 @@ function briefMake(row) {
     });
   }).catch(function(e) { 끝(); toast((e && e.message) || '브리핑을 요청하지 못했습니다.', true); });
 }
-/** 완성된 제안서를 열 수 있나 — 완료이거나, 완료 run을 빌려 AI 문장만 다시 쓰는 중(stage 작성, 0052) */
+/** 완성된 제안서를 열 수 있나 — 완료이거나, 완료 run을 빌려 AI 문장만 다시 쓰는 중(stage 작성 0052, 빌린 브리핑 단계 0054) */
 function 제안서열림_(l) {
-  return l.intelPipeline === '제안서' && (l.intelState === '완료' || (l.intelStage === '작성' && (l.intelState === '대기' || l.intelState === '실행중')));
+  var 쓰는중 = l.intelState === '대기' || l.intelState === '실행중';
+  return l.intelPipeline === '제안서' && (l.intelState === '완료' || (쓰는중 && (l.intelStage === '작성' || (l.intelStage === '브리핑' && l.intelBorrowed))));
 }
 function 브리핑반영_(l, run, 다시쓰기) {
-  l.intelPipeline = '제안서'; l.intelState = run.state; l.intelStage = run.stage; l.intelReason = run.reasonCode || null;
+  l.intelPipeline = '제안서'; l.intelState = run.state; l.intelStage = run.stage; l.intelReason = run.reasonCode || null; l.intelBorrowed = !!run.빌림;
   // 작성만 다시에서 돌아온 완료는 새로 만든 제안서가 아니다 — 기준일·「병원 정보 바뀜」을 그대로 둔다(옛작업취소_가 버전변경으로 돌려도 완료다).
   // 다시쓰기 여부는 부르는 쪽(추적의 모드)이 준다 — 리드의 intelStage는 홈 재조회가 먼저 덮을 수 있다(반증리뷰 10/31 2판)
   if (run.state === '완료' && !다시쓰기) { l.intelAt = run.at; l.intelStale = false; }
@@ -8266,9 +8268,17 @@ function 브리핑추적_(row, 모드) {
       if (run.state !== '대기' && run.state !== '실행중') {
         그만();
         // 작성만 다시의 출구 — 문장 없이 끝난 출구는 reasonCode(시간초과·버전변경·대상제외 …)가 사유다. 결과 안의 작성오류는 옛 값일 수 있다
-        if (다시쓰기 && run.state === '완료') toast((리드.hname || '병원') + (run.reasonCode ? ' — AI 문장 다시 쓰기를 끝내지 못했습니다(' + run.reasonCode + '). 이전 제안서 그대로입니다.'
-          : run.작성오류 ? ' — AI 문장을 또 쓰지 못했습니다(' + run.작성오류 + ').' : ' 브리핑에 AI 문장을 넣었습니다.'), !!(run.reasonCode || run.작성오류));
+        // 브리핑 단계(0054)의 출구 사유는 「브리핑:」으로 시작한다 — 작성 다시의 실패가 아니다. AI 브리핑 문장이 빠졌는지는 브리핑판으로 안다
+        var 작성사유 = run.reasonCode && run.reasonCode.indexOf('브리핑:') !== 0 ? run.reasonCode : null;
+        // 브리핑 단계 출구 사유(만료·예외)는 9절에 적히지 않는다 — 사유를 토스트에 직접 싣는다
+        var 브리핑사유 = run.reasonCode && run.reasonCode.indexOf('브리핑:') === 0 ? run.reasonCode.slice(4) : '';
+        var 뼈대 = run.브리핑판 === '뼈대' || run.브리핑판 === '부분', 뼈대말 = run.브리핑판 === '부분' ? 'AI 브리핑 문장을 일부만 썼습니다' : 'AI 브리핑 문장을 쓰지 못했습니다';
+        var 뼈대사유 = 브리핑사유 ? '(' + 브리핑사유 + ')' : '(브리핑 9절에 사유)';
+        if (다시쓰기 && run.state === '완료') toast((리드.hname || '병원') + (작성사유 ? ' — AI 문장 다시 쓰기를 끝내지 못했습니다(' + 작성사유 + '). 이전 제안서 그대로입니다.'
+          : run.작성오류 ? ' — AI 문장을 또 쓰지 못했습니다(' + run.작성오류 + ').'
+          : 뼈대 ? ' — ' + 뼈대말 + 뼈대사유 + '.' : ' 브리핑에 AI 문장을 넣었습니다.'), !!(작성사유 || run.작성오류 || 뼈대));
         else toast(run.state === '완료' && run.작성오류 ? (리드.hname || '병원') + ' 브리핑은 준비됐지만 AI 문장을 쓰지 못했습니다(' + run.작성오류 + ').'
+          : run.state === '완료' && 뼈대 ? (리드.hname || '병원') + ' 브리핑은 준비됐지만 ' + 뼈대말 + 뼈대사유 + '.'
           : run.state === '완료' ? (리드.hname || '병원') + ' 브리핑이 준비됐습니다.'
           : run.state === '식별대기' ? (리드.hname || '병원') + ' — 병원 확인이 필요합니다. [병원 확인하기]를 눌러 주세요.'
           : (리드.hname || '병원') + ' 브리핑을 만들지 못했습니다.', run.state !== '완료' && run.state !== '식별대기');
@@ -8421,11 +8431,13 @@ function pvRender(프레임도) {
   if (d.작성중) 띠.push(['', 'AI 문장을 다시 쓰는 중 — 1~2분 뒤 다시 열어 보세요']);
   else if (d.다시쓰기사유) 띠.push(['w', 'AI 문장 다시 쓰기를 끝내지 못했습니다(' + d.다시쓰기사유 + ') — 이전 제안서 그대로입니다']);
   if (!d.작성중 && d.작성오류) 띠.push(['w', 'AI 문장 작성 실패(' + d.작성오류 + ') — 사실·승인 문구로만 만들었습니다']);
-  if (!d.작성중 && d.작성오류 && d.작성다시이유) 띠.push(['', '다시 쓸 수 없음 — ' + d.작성다시이유]);
+  var 브리핑빠짐 = d.브리핑판 === '뼈대' || d.브리핑판 === '부분';
+  if (!d.작성중 && 브리핑빠짐) 띠.push(['w', 'AI 브리핑 문장 ' + (d.브리핑판 === '부분' ? '일부만 들어감' : '없음') + ' — 영업 브리핑 9절에 사유']);
+  if (!d.작성중 && (d.작성오류 || 브리핑빠짐) && d.작성다시이유) 띠.push(['', '다시 쓸 수 없음 — ' + d.작성다시이유]);
   if (d.다시쓰기버림 && d.다시쓰기버림.length) 띠.push(['w', 'AI 문장을 다시 쓰며 내용이 바뀐 자리의 수정 ' + d.다시쓰기버림.length + '개를 지웠습니다 — 오른쪽 목록에서 확인해 주세요']);
-  if (d.검토필요) 띠.push(['', '검토 필요 문장 ' + d.검토필요 + '개 — 영업 브리핑에서 확인']);
+  if (d.검토필요) 띠.push(['', '고객판 AI 문장 중 서버 검증에서 뺀 것 ' + d.검토필요 + '개 — 제안서에 싣지 않았습니다']);
   if (d.로고 && d.로고.오류) 띠.push(['w', '로고를 불러오지 못했습니다(' + d.로고.오류 + ')']);
-  if (d.버림 && d.버림.length) 띠.push(['w', '적용하지 못한 수정 ' + d.버림.length + '개 — 영업 브리핑 「고객판 점검」']);
+  if (d.버림 && d.버림.length) 띠.push(['w', '적용하지 못한 수정 ' + d.버림.length + '개 — 영업 브리핑 맨 끝 메모']);
   if (d.pdfSavedAt) 띠.push(['', '마지막 인쇄 ' + new Date(d.pdfSavedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })]);
   // 작성만 다시(0052) — 과금 없이 거절된 작성만 관문이 작성다시=true로 준다. 부르는 것은 파일럿만(제안서 만들기와 같은 선)
   var 다시 = d.작성다시 && !d.작성중 && !!DATA.intelPilot && !(DATA.me && DATA.me.viewer);
