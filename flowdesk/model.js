@@ -211,3 +211,21 @@ export function filterTasks(state, options = {}) {
   else if (sort === 'created') result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return result;
 }
+
+/**
+ * 보드·목록에서 카드를 끌어 놓은 자리를 작업 배열 순서로 옮긴다. 화면 순서는 배열 순서를 그대로 따른다.
+ * beforeId가 있으면 그 작업 바로 앞에, 없으면 sectionId 섹션의 마지막 작업 뒤에 둔다. 섹션이 비어 있으면 원래 자리를 지킨다.
+ * 작업 객체는 그대로 두고 순서만 바꾼 새 배열을 돌려준다(섹션·상태 변경은 부르는 쪽 몫).
+ */
+export function reorderTask(tasks, id, sectionId, beforeId = '') {
+  const from = tasks.findIndex(task => task.id === id);
+  if (from < 0) return tasks.slice();
+  const moving = tasks[from], rest = tasks.filter((_, index) => index !== from);
+  let at = beforeId && beforeId !== id ? rest.findIndex(task => task.id === beforeId) : -1;
+  if (at < 0) {
+    const last = rest.findLastIndex(task => task.sectionId === sectionId);
+    at = last < 0 ? from : last + 1;
+  }
+  rest.splice(at, 0, moving);
+  return rest;
+}

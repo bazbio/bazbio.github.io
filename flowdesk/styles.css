@@ -19,3 +19,4 @@
 @media(min-width:901px){.sidebar{width:260px}.workspace{margin-left:260px;width:calc(100% - 260px)}.brand{height:72px}.project-header{padding-top:27px;padding-bottom:16px}.global-search{width:440px}}
 @media(max-width:900px){.project-title h1{font-size:21px}}
 @media(max-width:650px){.project-title h1{font-size:17px}.view-tabs{gap:9px;padding-left:15px;padding-right:15px;height:44px}.view-tabs button{font-size:11px;padding:5px 9px;height:29px;margin-bottom:3px}.content-area{min-height:calc(100vh - 285px)}}
+.task-card.drop-before,.task-row.drop-before{box-shadow:0 -3px 0 #4573d2}.board-column.drop-end>.add-row,.task-section.drop-end>.add-row{box-shadow:0 -3px 0 #4573d2}
