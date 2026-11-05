@@ -4,6 +4,24 @@
 .post-heading { margin-bottom: 16px; }
 .post-heading h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
 .post-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+.post-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.post-form { padding: 18px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.post-fields { display: flex; flex-direction: column; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.post-fields:disabled input, .post-fields:disabled textarea { opacity: .7; }
+.post-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; font-size: 13px; }
+.post-field-pair { display: flex; gap: 12px; }
+.post-field-label { font-weight: 500; }
+.post-field-hint { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.post-field input, .post-field textarea { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #cfcbcb; border-radius: 6px; background: #fff; color: #1e1f21; font: inherit; }
+.post-field textarea { resize: vertical; line-height: 1.6; }
+.post-field input:focus-visible, .post-field textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: -1px; }
+.post-form-message { min-height: 18px; margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.post-form-message.error { color: #b3261e; }
+.post-form-actions, .post-manage { display: flex; justify-content: flex-end; gap: 8px; }
+.post-manage { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--border); }
+.post-action:disabled { opacity: .55; cursor: default; }
+.post-action.danger { border-color: #e3b5b1; color: #b3261e; }
+.post-action.danger:hover { background: #fdf1f0; }
 .post-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; }
 .post-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border: 0; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .post-row:last-child { border-bottom: 0; }
@@ -39,4 +57,6 @@
   .post-file { flex-wrap: wrap; }
   .post-file-name { flex-basis: 100%; }
   .post-action { flex: 1; }
+  .post-heading-row { flex-direction: column; gap: 10px; }
+  .post-heading-row .post-action { width: 100%; }
 }
