@@ -138,7 +138,6 @@
   .mki-own > div { background:#f9fafb; border-radius:10px; padding:7px 10px; min-width:0; }
   .mki-own small { display:block; font-size:11px; color:#8b95a1; }
   .mki-own b { display:block; font-size:13px; font-weight:600; color:#191f28; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .mki-mail { display:inline-block; margin-top:4px; font-size:12px; font-weight:600; color:#1b64da; text-decoration:none; border:1px solid #1b64da; border-radius:999px; padding:2px 10px; }
   .mki-flow { display:flex; align-items:center; margin:14px 6px 4px; }
   .mki-dot { width:14px; height:14px; border-radius:50%; border:2px solid #d1d6db; background:#fff; flex:none; padding:0; }
   button.mki-dot { cursor:pointer; }
@@ -158,6 +157,13 @@
   .mki-vis .vr { display:flex; gap:10px; align-items:baseline; margin-top:2px; }
   .mki-vis .vr span { width:28px; font-size:13px; color:#4e5968; flex:none; }
   .mki-vis .vr b { font-size:14.5px; color:#1b64da; }
+  .mki-vis .vr em { font-style:normal; font-size:11px; font-weight:700; color:#fff; background:#1b64da; border-radius:999px; padding:1px 7px; flex:none; }
+  .mki-up { background:#f9fafb; border-radius:10px; padding:8px 10px; margin-bottom:8px; font-size:13px; color:#191f28; }
+  .mki-up small { display:block; font-size:12px; color:#4e5968; }
+  .mki-match { background:#fdecef; color:#b3202f; border-radius:10px; padding:8px 10px; font-size:12.5px; font-weight:600; margin:8px 0; }
+  .mki-ed .mki-cfl { display:flex; align-items:center; gap:6px; margin:0; font-size:13px; font-weight:600; color:#1b64da; cursor:pointer; }
+  .mki-ed .mki-cfl input { width:18px; height:18px; flex:none; padding:0; margin:0; }
+  .mki-hint { font-size:11.5px; color:#8b95a1; margin:-4px 0 4px; line-height:1.5; }
   .mki-lk { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
   .mki-lk a { font-size:12px; font-weight:600; color:#1b64da; background:#e8f3ff; border-radius:999px; padding:3px 10px; text-decoration:none; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mki-tap { font-size:12px; color:#8b95a1; margin-bottom:8px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -167,7 +173,7 @@
   .mki-ed input, .mki-ed select, .mki-ed textarea { width:100%; min-width:0; margin:0; padding:10px 12px; font-family:inherit; font-size:16px;
     border:1px solid #e5e8eb; background:#fff; color:#191f28; border-radius:10px; }
   .mki-ed textarea { min-height:0; }
-  .mki-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .mki-row2 { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
   /* 방문 일정 한 차 — 날짜 한 줄, 시작~종료 한 줄. 카드가 300px 안팎이라 한 줄에 다 넣으면 시간이 잘린다 */
   .mki-slot { display:grid; grid-template-columns:30px minmax(0,1fr); gap:6px; align-items:start; margin-bottom:10px; }
   .mki-slot > span { font-size:13px; color:#4e5968; padding-top:11px; }
@@ -1709,7 +1715,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611031301-b1cf9a3';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611051310-e36eee0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -9904,7 +9910,8 @@ function mktPostManual(id, btn) {
 }
 
 /* ── IG/NAVER 인플루언서 정보 (2026-10-29, 마케팅 목록 변경 요청 · 0050) ──
- * 인플루언서 한 명당 카드 하나. 협업 병원의 영업 담당·메일은 관문이 거래처에서 따라 읽는다.
+ * 인플루언서 한 명당 카드 하나. 협업 병원의 영업 담당은 관문이 거래처에서 따라 읽는다.
+ * 매칭필요는 따로 저장하지 않는다 — 일정 단계인데 협업 병원이 없으면 매칭필요다(0060).
  * 진행 단계는 점을 눌러 바로 바꾸고(되돌릴 때만 확인), 나머지는 카드를 펼쳐 [저장]한다. */
 var MKTI = null;                                   // 인플루언서 목록 응답
 var MKTI_LOADING = false;                          // 첫 목록을 받는 중 — renderMktInf가 겹쳐 부르지 않게
@@ -9917,12 +9924,33 @@ var MKTI_EDIT = 0;                                 // 편집 세션 번호 — �
 var MKTI_BUSY = {};                                // 단계 저장 중인 id — 목록이 새로 와서 카드 객체가 바뀌어도 잠금이 남게
 var MKTI_ST = ['일정', '방문', '업로드 중', '완료'];
 var MKTI_STC = [['#a35c11', '#fff4e0'], ['#7c3aed', '#f1ebff'], ['#1b64da', '#e8f3ff'], ['#05754a', '#e5f7ef']];
+var MKTI_MATCH = -2;                                // 단계 칩의 매칭필요 값 — 실제 단계 번호와 겹치지 않게
+var MKTI_MATCHC = ['#b3202f', '#fdecef'];
 var MKTI_PF = { 인스타그램: ['#c2185b', '#fde4ef'], 네이버: ['#05754a', '#e5f7ef'] };
 
 function mkiAttr_(s) { return esc(s).replace(/"/g, '&quot;'); }
 function mkiRo_() { return !MKT || !MKT.me || !!MKT.me.readOnly; }
 function mkiItem_(id) { return ((MKTI && MKTI.items) || []).filter(function(x) { return x.id === id; })[0] || null; }
 function mkiName_(x) { return (x.platform === '인스타그램' ? '@' : '') + x.handle; }
+function mkiMatch_(x) { return !x.code; }
+function mkiChip_(x) { return mkiMatch_(x) ? MKTI_MATCH : x.stage; }
+/* 자동 메일이 돌고 있는지 — 틱이 멈추면 메일 알림도 함께 멈추니 화면이 직접 보여 준다 */
+function mkiAutoNote_() {
+  var a = MKTI.automail;
+  if (!a) return '';
+  var 경고 = function(글) { return '<div style="margin:0 4px 8px;padding:8px 10px;border-radius:10px;background:#fdecef;color:#b3202f;font-size:12.5px;font-weight:600;">' + 글 + '</div>'; };
+  if (!a.at) return 경고('자동 메일이 아직 실행된 기록이 없습니다 — 방문 리마인드를 직접 챙기고 관리자에게 알려 주세요');
+  if (a.stale || a.ok === false) return 경고('자동 메일이 멈춘 것 같습니다 (마지막 실행 ' + esc(mkiWhen_(a.at)) + ') — 방문 리마인드를 직접 챙기고 관리자에게 알려 주세요');
+  return a.undelivered ? 경고('자동 메일 ' + a.undelivered + '건 확인이 필요합니다 — 관리자에게 알려 주세요') : '';
+}
+/* 카드의 리마인드 결과 — 지금 확정 일정에 대한 것만 관문이 내려 준다 */
+function mkiRemindTxt_(x) {
+  var r = x.reminder;
+  if (!r) return '';
+  var 글 = { relay_accepted: '리마인드 보냄' + (r.to ? ' · ' + r.to : '') + (r.at ? ' · ' + mkiWhen_(r.at) : ''), sending: '리마인드 보내는 중', failed: r.retrying ? '리마인드 실패 · 다시 시도 중' : '리마인드 재시도 끝 · 직접 챙겨 주세요',
+    unknown: '리마인드 전달 여부 확인 필요 · 직접 챙겨 주세요', skipped: '리마인드 못 보냄 · 직접 챙겨 주세요' }[r.status] || '';
+  return 글 ? '<div style="margin-top:4px;font-size:12px;color:' + (r.status === 'relay_accepted' ? '#4e5968' : '#b3202f') + ';">' + esc(글) + '</div>' : '';
+}
 function loadMktInf(조용히) {
   var seq = ++MKTI_SEQ;
   var 쓰기뒤 = seq === MKTI_FLOOR;   // 쓰기 직후 재조회 — 실패하면 화면이 저장 전 상태일 수 있어 조용히 넘기지 않는다
@@ -9961,7 +9989,7 @@ function renderMktInf() {
     + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
     + (MKTI.igReady ? '인스타그램 팔로워 수는 하루 한 번 자동으로 갱신합니다(비즈니스·크리에이터 계정). 네이버·개인 계정은 직접 넣습니다.'
       : '팔로워 수·링크는 직접 넣습니다 — 인스타 자동 연동은 준비 중입니다.')
-    + ' 협업 병원을 고르면 그 병원 영업 담당과 메일이 따라옵니다.</div>';
+    + ' 협업 병원을 고르면 그 병원 영업 담당이 따라옵니다. 병원이 없는 인플루언서는 매칭필요에 모입니다.</div>';
   document.getElementById('mktBody').innerHTML = h;
   mkiRenderList();
 }
@@ -9985,16 +10013,16 @@ function mkiRenderList() {
     var n = p[0] ? 검색.filter(function(x) { return x.platform === p[0]; }).length : 검색.length;
     return '<button type="button" class="chip' + (MKTIF.platform === p[0] ? ' on' : '') + '" onclick="MKTIF.platform=\'' + p[0] + '\';mkiRenderList()">' + p[1] + ' ' + n + '</button>';
   }).join('');
-  st.innerHTML = [-1, 0, 1, 2, 3].map(function(s) {
-    var n = s < 0 ? 플랫폼.length : 플랫폼.filter(function(x) { return x.stage === s; }).length;
-    return '<div class="chip' + (MKTIF.stage === s ? ' on' : '') + '" onclick="MKTIF.stage=' + s + ';mkiRenderList()">' + (s < 0 ? '전체' : MKTI_ST[s]) + ' ' + n + '</div>';
+  st.innerHTML = [-1, MKTI_MATCH, 0, 1, 2, 3].map(function(s) {
+    var n = s === -1 ? 플랫폼.length : 플랫폼.filter(function(x) { return mkiChip_(x) === s; }).length;
+    return '<div class="chip' + (MKTIF.stage === s ? ' on' : '') + '" onclick="MKTIF.stage=' + s + ';mkiRenderList()">' + (s === -1 ? '전체' : s === MKTI_MATCH ? '매칭필요' : MKTI_ST[s]) + ' ' + n + '</div>';
   }).join('');
-  var rows = MKTIF.stage < 0 ? 플랫폼 : 플랫폼.filter(function(x) { return x.stage === MKTIF.stage; });
+  var rows = MKTIF.stage === -1 ? 플랫폼 : 플랫폼.filter(function(x) { return mkiChip_(x) === MKTIF.stage; });
   // 펼쳐 둔 카드는 필터에 걸려도 남긴다 — 입력 중인 내용이 사라지지 않게
   var 열린 = typeof MKTI_OPEN === 'number' && mkiItem_(MKTI_OPEN);
   if (열린 && rows.indexOf(열린) < 0) rows = [열린].concat(rows);
   var 보존 = {};
-  Array.prototype.forEach.call(document.querySelectorAll('#mkiList .mki-ed [id]'), function(e) { 보존[e.id] = e.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('#mkiList .mki-ed [id]'), function(e) { 보존[e.id] = e.type === 'checkbox' ? e.checked : e.value; });
   // 같은 이름 병원 고르기 칸도 살린다 — 값만 두면 칸이 사라져 다시 골라야 한다(Codex 6차). 카드를 바꾸면 mkiOpen이 편집칸을 먼저 치운다
   var 고르기 = document.getElementById('mkiHospPickWrap'), 고르기칸 = 고르기 ? 고르기.innerHTML : '';
   var 머리 = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:2px 4px 8px;">'
@@ -10004,37 +10032,36 @@ function mkiRenderList() {
     + (mkiRo_() || MKTI_OPEN === 'new' ? '' : '<button type="button" class="btn pri" style="padding:8px 14px;" onclick="mkiOpen(\'new\')">+ 인플루언서 추가</button>') + '</span></div>';
   var 새 = MKTI_OPEN === 'new' ? '<div class="mki open">' + mkiEditor_(null) + '</div>' : '';
   if (!rows.length && !새) {
-    el.innerHTML = 머리 + '<div class="card empty">' + ((MKTI.items || []).length ? '조건에 맞는 인플루언서가 없습니다' : '등록된 인플루언서가 없습니다' + (mkiRo_() ? '' : ' — [+ 인플루언서 추가]')) + '</div>';
+    el.innerHTML = mkiAutoNote_() + 머리 + '<div class="card empty">' + ((MKTI.items || []).length ? '조건에 맞는 인플루언서가 없습니다' : '등록된 인플루언서가 없습니다' + (mkiRo_() ? '' : ' — [+ 인플루언서 추가]')) + '</div>';
     return;
   }
-  el.innerHTML = 머리 + '<div class="mki-grid">' + 새 + rows.map(mkiCard_).join('') + '</div>';
+  el.innerHTML = mkiAutoNote_() + 머리 + '<div class="mki-grid">' + 새 + rows.map(mkiCard_).join('') + '</div>';
   if (고르기칸 && document.getElementById('mkiHospPickWrap')) document.getElementById('mkiHospPickWrap').innerHTML = 고르기칸;
-  Object.keys(보존).forEach(function(k) { var e = document.getElementById(k); if (e) e.value = 보존[k]; });
+  Object.keys(보존).forEach(function(k) { var e = document.getElementById(k); if (e) { if (e.type === 'checkbox') e.checked = 보존[k]; else e.value = 보존[k]; } });
 }
 function mkiWhen_(s) { return mktWhen(s) || ''; }
 function mkiLogTxt_(g) { return esc(MKTI_ST[g.f]) + ' → ' + esc(MKTI_ST[g.t]) + ' · ' + esc(g.by) + ' · ' + esc(mkiWhen_(g.at)); }
 function mkiSlotTxt_(t) {
-  var 날 = '날짜 미정';
-  if (t.d) { var a = t.d.split('-'); 날 = Number(a[1]) + '/' + Number(a[2]) + '(' + '일월화수목금토'.charAt(new Date(+a[0], +a[1] - 1, +a[2]).getDay()) + ')'; }
+  var 날 = t.d ? mkiDay_(t.d) : '날짜 미정';
   var 시 = t.s || t.e ? (t.s || '') + ' ~ ' + (t.e || '') : '시간 미정';
   return 날 + ' ' + 시;
 }
-function mkiMail_(x) {
-  if (!x.repEmail) return '<span style="display:block;margin-top:3px;font-size:12px;color:#8b95a1;">' + (x.rep ? '메일 주소 없음' : '') + '</span>';
-  var 제목 = '[SalesON] ' + mkiName_(x) + ' 협업 진행 문의';
-  var 본문 = x.rep + '님, 안녕하세요.\n\n' + mkiName_(x) + ' 인플루언서 건(' + (x.hospital || '') + ' · ' + MKTI_ST[x.stage] + ' 단계) 관련해 문의드립니다.\n\n';
-  return '<a class="mki-mail" onclick="event.stopPropagation()" href="mailto:' + mkiAttr_(x.repEmail) + '?subject=' + encodeURIComponent(제목) + '&body=' + encodeURIComponent(본문) + '">메일 보내기</a>';
+/* 업로드 일정 한 줄 — '11/20(금)' 꼴. 카드와 방문 일정이 같은 날짜 표기를 쓴다 */
+function mkiDay_(d) {
+  if (!d) return '미정';
+  var a = d.split('-');
+  return Number(a[1]) + '/' + Number(a[2]) + '(' + '일월화수목금토'.charAt(new Date(+a[0], +a[1] - 1, +a[2]).getDay()) + ')';
 }
 function mkiCard_(x) {
   if (MKTI_OPEN === x.id) return '<div class="mki open" data-id="' + x.id + '">' + mkiTop_(x) + mkiEditor_(x) + '</div>';
   var ro = mkiRo_();
-  var 점 = '', 이름 = '';
+  var 점 = '', 이름 = '', 지금단계 = mkiMatch_(x) && x.stage === 0 ? -1 : x.stage;
   for (var i = 0; i < 4; i++) {
     점 += (ro ? '<span' : '<button type="button" onclick="event.stopPropagation();mkiStage(' + x.id + ',' + i + ')" aria-label="' + MKTI_ST[i] + ' 단계로 변경"')
-      + ' class="mki-dot' + (i < x.stage ? ' d' : i === x.stage ? ' c' : '') + '">' + (ro ? '</span>' : '</button>')
-      + (i < 3 ? '<span class="mki-ln' + (i < x.stage ? ' d' : '') + '"></span>' : '');
-    이름 += ro ? '<span class="' + (i === x.stage ? 'c' : '') + '">' + MKTI_ST[i] + '</span>'
-      : '<button type="button" class="' + (i === x.stage ? 'c' : '') + '" onclick="event.stopPropagation();mkiStage(' + x.id + ',' + i + ')">' + MKTI_ST[i] + '</button>';
+      + ' class="mki-dot' + (i < 지금단계 ? ' d' : i === 지금단계 ? ' c' : '') + '">' + (ro ? '</span>' : '</button>')
+      + (i < 3 ? '<span class="mki-ln' + (i < 지금단계 ? ' d' : '') + '"></span>' : '');
+    이름 += ro ? '<span class="' + (i === 지금단계 ? 'c' : '') + '">' + MKTI_ST[i] + '</span>'
+      : '<button type="button" class="' + (i === 지금단계 ? 'c' : '') + '" onclick="event.stopPropagation();mkiStage(' + x.id + ',' + i + ')">' + MKTI_ST[i] + '</button>';
   }
   var 메모 = String(x.progressNote || '').split('\n').map(function(t) { return t.trim(); }).filter(Boolean);
   var 일정 = (x.slots || []).filter(function(t) { return t.d || t.s || t.e; });
@@ -10046,25 +10073,27 @@ function mkiCard_(x) {
   });
   return '<div class="mki" data-id="' + x.id + '" onclick="mkiOpen(' + x.id + ')">' + mkiTop_(x)
     + '<div class="mki-own"><div><small>협업 병원</small><b>' + (x.hospital ? '<a href="javascript:void(0)" data-code="' + mkiAttr_(x.code) + '" onclick="event.stopPropagation();mktOpen(this.dataset.code)" style="color:inherit;">' + esc(x.hospital) + '</a>' : '미정') + '</b></div>'
-    + '<div><small>영업 담당</small><b>' + esc(x.rep || (x.hospital ? '미지정' : '—')) + '</b>' + mkiMail_(x) + '</div></div>'
+    + '<div><small>영업 담당</small><b>' + esc(x.rep || (x.hospital ? '미지정' : '—')) + '</b></div></div>'
+    + (mkiMatch_(x) ? '<div class="mki-match">협업 병원을 정해 주세요 — 정하면 매칭필요에서 빠집니다</div>' : '')
     + '<div class="mki-flow">' + 점 + '</div><div class="mki-lb">' + 이름 + '</div>'
     + (ro ? '' : '<p class="mki-sh">단계를 눌러 진행 상황을 바꿀 수 있어요</p>')
     + (x.log && x.log.length ? '<div class="mki-lg">최근 변경 · ' + mkiLogTxt_(x.log[0]) + '</div>' : '')
     + (메모.length ? '<div class="mki-note">' + 메모.map(function(t) { return '<div>· ' + esc(t) + '</div>'; }).join('') + '</div>' : '')
     + '<div class="mki-vis"><small>방문 가능 일정</small>' + (일정.length ? x.slots.map(function(t, i) {
-        return t.d || t.s || t.e ? '<div class="vr"><span>' + (i + 1) + '차</span><b>' + esc(mkiSlotTxt_(t)) + '</b></div>' : '';
-      }).join('') : '<div class="vr"><b>미정</b></div>') + '</div>'
+        return t.d || t.s || t.e ? '<div class="vr"><span>' + (i + 1) + '차</span><b>' + esc(mkiSlotTxt_(t)) + '</b>' + (t.c === true ? '<em>확정</em>' : '') + '</div>' : '';
+      }).join('') : '<div class="vr"><b>미정</b></div>') + mkiRemindTxt_(x) + '</div>'
+    + '<div class="mki-up"><small>업로드 일정</small>예상 ' + esc(mkiDay_(x.uploadExpectedOn)) + ' · 완료 ' + esc(mkiDay_(x.uploadDoneOn)) + '</div>'
     + (링크.length ? '<div class="mki-lk">' + 링크.join('') + '</div>' : '')
     + '<div class="mki-tap">' + (x.memo ? '비고 · ' + esc(x.memo) : (ro ? '' : '눌러서 일정·비고·링크 입력')) + '</div>'
     + '<div class="mki-ft">최근 수정 ' + esc(mkiWhen_(x.updatedAt)) + ' · ' + esc(x.updatedBy || x.createdBy) + '</div></div>';
 }
 function mkiTop_(x) {
-  var pc = MKTI_PF[x.platform] || MKTI_PF['인스타그램'], sc = MKTI_STC[x.stage] || MKTI_STC[0];
+  var pc = MKTI_PF[x.platform] || MKTI_PF['인스타그램'], sc = mkiMatch_(x) ? MKTI_MATCHC : MKTI_STC[x.stage] || MKTI_STC[0];
   return '<div class="mki-top"><div class="mki-av" style="color:' + pc[0] + ';background:' + pc[1] + ';">' + esc(String(x.handle).charAt(0).toUpperCase()) + '</div>'
     + '<div style="min-width:0;flex:1;"><div class="mki-nm">' + esc(mkiName_(x)) + '</div>'
     + '<div class="mki-mt">' + esc(x.platform) + (x.followers != null ? ' · 팔로워 ' + mktNum(x.followers) + '명' : '')
     + (x.followersCheckedAt && !x.followersSyncError ? ' · 자동 ' + esc(mktWhen(x.followersCheckedAt).slice(0, 5)) : '') + '</div></div>'
-    + '<span class="mki-bd" style="color:' + sc[0] + ';background:' + sc[1] + ';">' + MKTI_ST[x.stage] + '</span></div>';
+    + '<span class="mki-bd" style="color:' + sc[0] + ';background:' + sc[1] + ';">' + (mkiMatch_(x) ? '매칭필요' : MKTI_ST[x.stage]) + '</span></div>';
 }
 /* 협업 병원 고르기 — 칸은 공용 병원 자동완성(data-ac="hosp")을 쓴다(datalist는 없앴다, hospac 시험).
    적은 이름 → 거래처 코드: 협업 병원 목록(MKT.items) 먼저, 없으면 거래처 목록(DATA.hospitals) */
@@ -10117,8 +10146,12 @@ function mkiEditor_(x) {
     var t = (x.slots || [])[i] || {};
     h += '<div class="mki-slot"><span>' + (i + 1) + '차</span><div class="mki-slot-in"><input type="date" id="mkiD' + i + '" value="' + mkiAttr_(t.d || '') + '" aria-label="' + (i + 1) + '차 날짜">'
       + '<div class="mki-tt"><input type="time" id="mkiS' + i + '" value="' + mkiAttr_(t.s || '') + '" aria-label="' + (i + 1) + '차 시작 시간"><em>~</em>'
-      + '<input type="time" id="mkiE' + i + '" value="' + mkiAttr_(t.e || '') + '" aria-label="' + (i + 1) + '차 종료 시간"></div></div></div>';
+      + '<input type="time" id="mkiE' + i + '" value="' + mkiAttr_(t.e || '') + '" aria-label="' + (i + 1) + '차 종료 시간"></div>'
+      + '<label class="mki-cfl"><input type="checkbox" id="mkiC' + i + '"' + (t.c === true ? ' checked' : '') + ' onchange="mkiConfirm(' + i + ')">이 일정으로 방문 확정</label></div></div>';
   });
+  h += '<div class="mki-hint">확정한 일정은 업로드 전 단계면 이틀 전에 영업 담당에게 메일로 알립니다. 일정 단계에서 일정이 지나면 방문으로 바뀝니다</div>'
+    + '<div class="mki-row2"><div><label for="mkiUpE">업로드 예상일</label><input type="date" id="mkiUpE" value="' + mkiAttr_(x.uploadExpectedOn || '') + '"></div>'
+    + '<div><label for="mkiUpD">업로드 완료일</label><input type="date" id="mkiUpD" value="' + mkiAttr_(x.uploadDoneOn || '') + '"></div></div>';
   h += '<label for="mkiProg">진행 메모</label><textarea id="mkiProg" rows="3" placeholder="계약서 서명 완료&#10;제품 배송 중 (한 줄에 하나)">' + esc(x.progressNote) + '</textarea>'
     + '<label for="mkiMemo">비고</label><textarea id="mkiMemo" rows="3" placeholder="인플루언서 특징을 적어주세요">' + esc(x.memo) + '</textarea>'
     + '<label for="mkiProfile">인스타그램·블로그 주소</label><input id="mkiProfile" type="text" inputmode="url" autocomplete="off" placeholder="' + mkiAttr_(x.defaultProfileUrl || 'https://instagram.com/아이디') + '" value="' + mkiAttr_(x.profileUrl) + '">'
@@ -10132,6 +10165,11 @@ function mkiEditor_(x) {
     + (지우기 ? '<button type="button" class="btn ghost" style="margin-left:auto;color:#d0223a;" onclick="mkiDel(' + x.id + ')">지우기</button>' : '')
     + '</div></div>';
   return h;
+}
+/* 확정은 하나만 — 하나를 켜면 나머지를 끈다 */
+function mkiConfirm(i) {
+  if (!document.getElementById('mkiC' + i).checked) return;
+  [0, 1, 2].forEach(function(n) { if (n !== i) document.getElementById('mkiC' + n).checked = false; });
 }
 function mkiOpen(id) {
   if (MKTI_OPEN === id) return;
@@ -10159,7 +10197,7 @@ function mkiSave(id, btn) {
     if (기존 && 기존.code && mkiNm_(병원) === mkiNm_(기존.hospital)) code = 기존.code;
     else {
       var 후보 = mkiHospCands_(병원), 고른 = document.getElementById('mkiHospPick');
-      if (!후보.length) return 검증실패_('등록된 병원 이름을 골라 주세요', 'mkiHosp');
+      if (!후보.length) return 검증실패_('거래처에 없는 병원입니다 — 거래처 등록은 영업 담당에게 요청해 주세요', 'mkiHosp');
       if (후보.length === 1) code = 후보[0].code;
       else if (고른 && 고른.value && 후보.some(function(h) { return h.code === 고른.value; })) code = 고른.value;
       else {
@@ -10170,7 +10208,8 @@ function mkiSave(id, btn) {
   }
   if (!v('mkiHandle').trim()) return 검증실패_('계정을 넣어 주세요', 'mkiHandle');
   var 몸통 = { 동작: '인플루언서저장', platform: v('mkiPlat'), handle: v('mkiHandle'), followers: v('mkiFol').replace(/[,\s명]/g, ''),
-    code: code, slots: [0, 1, 2].map(function(i) { return { d: v('mkiD' + i), s: v('mkiS' + i), e: v('mkiE' + i) }; }),
+    code: code, slots: [0, 1, 2].map(function(i) { return { d: v('mkiD' + i), s: v('mkiS' + i), e: v('mkiE' + i), c: document.getElementById('mkiC' + i).checked }; }),
+    uploadExpectedOn: v('mkiUpE'), uploadDoneOn: v('mkiUpD'),
     progressNote: v('mkiProg'), memo: v('mkiMemo'), profileUrl: v('mkiProfile'), uploads: v('mkiUp') };
   if (id) { 몸통.id = id; 몸통.expectedVersion = MKTI_BASE; }
   var 세션 = MKTI_EDIT;
@@ -10183,6 +10222,7 @@ function mkiSave(id, btn) {
 }
 function mkiStage(id, to) {
   var x = mkiItem_(id); if (!x || x.stage === to) return;
+  if (to > 0 && !x.code) { toast('협업 병원을 먼저 정해 주세요', true); return; }
   if (MKTI_BUSY[id]) { toast('앞의 단계 변경을 저장하는 중입니다'); return; }   // 한 카드에 하나씩 — 겹치면 실패 되돌림이 엉킨다
   if (to < x.stage && !confirm(mkiName_(x) + ' 진행 단계를 ' + MKTI_ST[x.stage] + ' → ' + MKTI_ST[to] + '(으)로 되돌릴까요?')) return;
   var 전 = x.stage;
