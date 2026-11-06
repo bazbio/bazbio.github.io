@@ -251,7 +251,9 @@
 
   /* 오버레이 */
   #loading, #gate { position:fixed; inset:0; background:#f9fafb; z-index:70; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; }
-  #gate { display:none; }
+  #gate { display:none; overflow-y:auto; justify-content:flex-start; }
+  #gate > div { flex:none; }
+  #gate::before, #gate::after { content:''; flex:1 0 0; }   /* 가운데 정렬을 빈 칸으로 한다 — 넘쳐도 위가 잘리지 않고 스크롤된다 */
   .spin { width:32px; height:32px; border:3px solid #e5e8eb; border-top-color:#3182f6; border-radius:50%; animation:sp 0.8s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
   /* 갱신 알약 · 뼈대 (2026-08-15, 설계 D2) — 읽기는 화면을 지우지 않는다.
@@ -1135,7 +1137,7 @@
     <div style="font-size:15px;font-weight:700;color:#1b64da;">⑦ 로그인이 안 될 때</div>
     <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
       · 이름은 사번 없이 <b>실명 그대로</b> (예: 홍길동)<br>
-      · PIN은 관리자(유영환)에게 받은 번호<br>
+      · PIN은 관리자(유영환)에게 받은 번호. 잊었으면 로그인 화면의 [PIN을 잊으셨나요?]로 회사 메일에서 새로 정합니다<br>
       · 인증번호 메일이 안 오면 스팸함 확인 → 그래도 없으면 관리자에게 이메일 등록 요청<br>
       · 화면이 이상하면 브라우저 새로고침 (카톡에서 열었다면 창을 닫고 다시 열기)
     </div>
@@ -1440,6 +1442,7 @@
 <div id="refreshBar"><div class="spin"></div>갱신 중…</div>
 <div id="ptr" style="display:none;position:fixed;top:0;left:50%;transform:translate(-50%,-54px);z-index:90;background:#fff;border:1px solid #e5e8eb;border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:600;color:#4e5968;box-shadow:0 4px 14px rgba(0,0,0,.08);white-space:nowrap;">아래로 당겨서 새로고침</div>
 <div id="gate">
+  <div id="gateBusy" style="display:none;position:absolute;top:18px;left:0;right:0;font-size:13px;color:#4e5968;">처리하고 있습니다…</div>
   <div style="font-size:52px;font-weight:700;line-height:1;letter-spacing:-.02em;background:linear-gradient(120deg,#3182f6 20%,#1b64da 80%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#1b64da;">SalesON</div>
   <div style="margin-top:10px;font-size:12px;font-weight:600;color:#5f6b7a;letter-spacing:.38em;text-indent:.38em;">BAZ BIOMEDIC</div>
   <div style="margin-top:26px;font-size:19px;font-weight:700;color:#1A1A1A;">임직원 로그인</div>
@@ -1449,8 +1452,20 @@
       <label class="f">이름</label>
       <input type="text" id="liName" placeholder="예: 홍길동" autocomplete="off">
       <label class="f">PIN (웹 비밀번호)</label>
-      <input type="password" id="liPin" inputmode="numeric" placeholder="관리자에게 받은 번호">
+      <input type="password" id="liPin" inputmode="numeric" placeholder="내 PIN">
       <button class="save" onclick="doLogin()">로그인</button>
+      <button class="btn ghost" style="display:block;margin:12px auto 0;" onclick="PIN찾기()">PIN을 잊으셨나요?</button>
+      <div id="gateOk" style="margin-top:14px;font-size:13.5px;color:#0a7d4f;text-align:center;line-height:1.6;white-space:pre-line;"></div>
+    </div>
+    <div id="pinResetWrap" style="display:none;">
+      <div id="pinResetMsg" style="margin-top:4px;font-size:13.5px;color:#4e5968;line-height:1.6;text-align:center;">링크를 확인하고 있습니다…</div>
+      <label class="f">새 PIN (4~6자리 숫자)</label>
+      <input type="password" id="pinNew" inputmode="numeric" maxlength="6" autocomplete="new-password">
+      <label class="f">새 PIN 한 번 더</label>
+      <input type="password" id="pinNew2" inputmode="numeric" maxlength="6" autocomplete="new-password">
+      <button class="btn ghost" id="pinResetRetry" style="display:none;margin:12px auto 0;" onclick="PIN재설정확인_()">다시 확인</button>
+      <button class="save" id="pinResetSave" disabled onclick="PIN재설정저장()">저장</button>
+      <button class="btn ghost" style="display:block;margin:12px auto 0;" onclick="PIN재설정끝내기_('')">취소</button>
     </div>
     <div id="otpWrap" style="display:none;">
       <div id="otpMsg" style="margin-top:4px;font-size:13.5px;color:#4e5968;line-height:1.6;text-align:center;"></div>
@@ -1635,7 +1650,7 @@ function 호출_(fn, args, ok, fail) {
      (임시저장은 성공 핸들러에서만 지운다 — 여기 오면 그대로 남는다) */
   /* 갱신·메모·리포트요청 — 이 셋이 빠져서 웹_엔케어가입갱신·웹_메타메모_·웹_리포트요청은
      타임아웃 때 "다시 시도" 문구가 떠 재시도를 유도했다. 쓰기는 이미 커밋됐을 수 있다 (2026-08-21) */
-  var 쓰기 = /저장|수정|변경|등록|처리|삭제|전환|갱신|메모|리포트요청/.test(fn);
+  var 쓰기 = /저장|수정|변경|등록|처리|삭제|전환|갱신|메모|리포트요청|^웹_PIN재설정$/.test(fn);
   var 타이머 = setTimeout(function () {
     실패(쓰기
       ? '응답이 늦습니다. 저장됐을 수 있으니 「내 입력」에서 먼저 확인해 주세요 — 없으면 다시 눌러 주세요.'
@@ -1715,7 +1730,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611051310-e36eee0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611060605-82dc7c0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1788,9 +1803,11 @@ function boot() {
   스냅샷받기_();
   var 보낸토큰 = TOKEN;
   gsrun().withSuccessHandler(function(b) {
+    if (보낸토큰 !== TOKEN) return;   // 그 사이 세션이 바뀌었다 — 앞사람의 부트가 새 화면을 덮으면 안 된다
     토큰연장받기_(b, 보낸토큰);
     onBoot최신_(b);
   }).withFailureHandler(function(e) {
+    if (보낸토큰 !== TOKEN) return;
     /* 스냅샷으로 이미 앱이 떠 있으면 로그인 화면으로 내쫓지 않는다. 토큰이 죽은 경우라면
        관문도 같은 규칙으로 401을 내므로 스냅샷이 애초에 안 그려졌고, 그러면 여기서 뜬다. */
     /* ⚠ **왜 로그인 화면이 떴는지 말해 준다** (2026-08-16, 감사 화8). 여태 빈 문구였다 —
@@ -1848,6 +1865,7 @@ function 기기날짜_() {
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 function 스냅샷받기_() {
+  var 보낸토큰 = TOKEN;
   fetch(GATE_URL + '/saleson-boot', {
     method: 'POST',
     // text/plain이라야 CORS 사전요청이 없다. 토큰 안의 한글은 본문이라 그대로 실린다
@@ -1858,6 +1876,7 @@ function 스냅샷받기_() {
     return res.ok ? res.json() : null;   // 404 = 아직 안 구워졌다. 오류가 아니다
   }).then(function (r) {
     if (!r || !r.payload) return;
+    if (보낸토큰 !== TOKEN) return;      // 그 사이 세션이 바뀌었다
     if (그린부트_) return;               // GAS가 먼저 왔다 — 낡은 것으로 덮지 않는다
     // 모양이 어긋난 스냅샷은 아예 안 쓴다. 2026-08-02에 관문이 이중 인코딩된 문자열을
     // 저장해 여기가 onData(undefined)로 터졌는데, 아래 catch가 삼켜서 조용히 느려지기만 했다
@@ -2036,12 +2055,14 @@ function q4Navigation(){
 }
 
 function onData(d) {
+  if (세션끝남_) return;   // 저장 전에 떠난 부트가 끝난 세션을 되살리지 못한다
   DATA = d;
   // 열쇠 통일 — GAS 목록은 row가 있다
   열쇠매기기_(DATA.plans); 열쇠매기기_(DATA.leads);
   스플래시끄기_();
   document.getElementById('loading').style.display = 'none';
-  document.getElementById('gate').style.display = 'none';
+  if (!PIN재설정값) document.getElementById('gate').style.display = 'none';   // 재설정 입력을 늦게 온 부트가 걷지 못한다
+  if (재설정안내_) { toast(재설정안내_, true); 재설정안내_ = ''; }
   document.getElementById('heroTitle').textContent = d.me.name + ' 님';
   document.getElementById('heroMeta').textContent = (d.me.team ? d.me.team + ' · ' : '') + d.today;
   // 조회 전용 계정: 입력 탭(홈·계획·기록·리드) 숨기고 현황부터
@@ -2084,8 +2105,9 @@ function onData(d) {
   화면이력_(현재뷰_);
   setTimeout(prefetch, 1200);
 }
-function doLogout() {
-  if (!confirm('로그아웃할까요?')) return;
+/* 세션에 매인 전역을 비운다. 로그아웃만 비우면, 재설정·재로그인으로 사람이 바뀔 때 앞 세션의 쓴적_ 때문에
+   로그인이 성공해도 게이트가 안 걷히고 앞사람 목록이 먼저 그려진다(반증리뷰 11-05). */
+function 세션비우기_() {
   closeMA();
   if (typeof wkReset === 'function') wkReset();
   qhomeReset();
@@ -2095,11 +2117,21 @@ function doLogout() {
   QD.request++;QD.data=null;QD.name='';QD.editing=null;
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
+  그린부트_ = ''; 조작함_ = false; 쓴적_ = false;
+  show('home');
+}
+function doLogout() {
+  if (!confirm('로그아웃할까요?')) return;
+  세션비우기_();
   try { localStorage.removeItem('saleson_token'); } catch (e) {}
   document.getElementById('liName').value = '';
   document.getElementById('liPin').value = '';
-  show('home');
   showLogin('로그아웃되었습니다.');
+}
+/* 로그인 성공 직전. 첫 로그인은 비울 것이 없다 */
+function 앞세션정리_() {
+  세션끝남_ = false;
+  if (TOKEN || DATA || 쓴적_) 세션비우기_();
 }
 /* 스플래시는 화면이 실제로 쓸 수 있게 된 순간에만 걷는다 — 부트가 끝났거나(onData)
    로그인 화면을 띄웠거나(showLogin). 시간으로 걷으면 흰 화면이 먼저 보인다. */
@@ -2110,16 +2142,190 @@ function 스플래시끄기_() {
   setTimeout(function () { s.style.display = 'none'; }, 300);
 }
 
+/* 재설정 화면이 떠 있으면 뒤에서 온 응답(세션 만료 등)이 입력 화면을 걷지 못한다. 세션이 끝난 문서도 같다 —
+   늦은 401이 「새 PIN을 저장했습니다」나 인증번호 단계를 지우면 안 된다(반증리뷰 11-05).
+   로그인 화면에서 사람이 한 동작의 결과는 로그인화면_을 바로 부른다. */
 function showLogin(msg) {
+  if (PIN재설정값 || 세션끝남_) return;
+  로그인화면_(msg);
+}
+function 로그인화면_(msg) {
   스플래시끄기_();
   document.getElementById('loading').style.display = 'none';
   document.getElementById('gate').style.display = 'flex';
-  document.getElementById('gateMsg').textContent = msg || '';
+  document.getElementById('gateMsg').textContent = 재설정안내_ || msg || '';
+  document.getElementById('gateOk').textContent = '';
   backToLogin();
+  // 안내는 버튼 아래에 있다 — 낮은 화면에선 첫 화면 밖이라 내려서 보여 준다(375×553 실측, 11-06). 1e6은 끝까지라는 뜻
+  if (재설정안내_ || msg) document.getElementById('gate').scrollTop = 1e6;
 }
 function backToLogin() {
   document.getElementById('loginStep').style.display = 'block';
   document.getElementById('otpWrap').style.display = 'none';
+  document.getElementById('pinResetWrap').style.display = 'none';
+}
+/* 로그인 화면의 요청이 진행 중인 동안 버튼을 잠근다. 게이트는 #loading과 z-index가 같고 뒤에 있어
+   busy()가 안 보인다 — 표시가 없으면 다시 누르게 되고, 한 번만 쓰는 링크의 둘째 응답이
+   첫 결과를 덮는다(「저장했습니다」와 「링크 만료」가 한 화면에 남았다, 반증리뷰 11-05).
+   진행 중인 요청 수를 센다 — 켜고 끄기 한 값이면 먼저 끝난 요청이 남의 잠금을 푼다. */
+function 게이트진행_(on) {
+  게이트진행수_ = Math.max(0, 게이트진행수_ + (on ? 1 : -1));
+  var 잠금 = 게이트진행수_ > 0;
+  document.getElementById('gateBusy').style.display = 잠금 ? 'block' : 'none';
+  [].forEach.call(document.querySelectorAll('#gate button'), function (b) {
+    b.disabled = 잠금 || (b.id === 'pinResetSave' && !PIN재설정이름);   // 저장은 링크를 확인한 뒤에만 열린다
+  });
+}
+/* PIN 재설정 — 서버 쪽 설명은 30_웹API.gs. 링크 값은 주소의 # 뒤에 있어 서버 기록에 안 남고,
+   화면이 읽자마자 주소창·방문 기록에서 지운다. */
+var PIN재설정값 = '';      // 있으면 재설정 화면을 쥐고 있다는 뜻이다
+var PIN재설정이름 = '';    // 서버가 살아 있다고 답한 링크의 주인. 비어 있으면 저장을 못 누른다
+var 재설정안내_ = '';      // 재설정이 끝난 뒤 boot가 로그인 화면으로 떨어져도 이 안내가 남는다
+var 진입전앱_ = false;     // 링크가 앱이 보이는 채로 들어왔다 — 저장 없이 끝나면 그 앱으로 돌아간다. 세션 만료 화면은 해당 없다
+var 세션끝남_ = false;     // 저장 성공·결과 모름 — 이 문서의 세션은 끝났다. 다음 로그인 전까지 늦은 응답이 화면을 못 바꾼다
+var 게이트세대_ = 0;       // 게이트 화면이 바뀔 때마다 오른다. 다른 세대의 늦은 응답은 화면을 건드리지 못한다
+var 게이트진행수_ = 0;
+function PIN찾기() {
+  재설정안내_ = '';
+  var n = document.getElementById('liName').value.trim();
+  if (!n) return 로그인화면_('이름을 입력한 뒤 눌러 주세요.');
+  var 세대 = 게이트세대_;
+  게이트진행_(true);
+  gsrun().withSuccessHandler(function () {
+    게이트진행_(false);
+    // 기다리는 사이 앱·인증번호 단계·재설정 화면으로 넘어갔으면 그 화면을 걷지 않는다
+    if (세대 !== 게이트세대_ || document.getElementById('gate').style.display === 'none'
+      || document.getElementById('otpWrap').style.display === 'block') return;
+    로그인화면_('');
+    document.getElementById('gateOk').textContent = '등록된 이름이면 회사 메일로 재설정 링크를 보냈습니다.\n30분 안에 열어 주세요.\n스팸함도 확인하고, 몇 분 안에 안 오면 다시 눌러 주세요.\n그래도 없으면 관리자에게 문의해 주세요.';
+    document.getElementById('gate').scrollTop = 1e6;
+  }).withFailureHandler(function (e) {
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;
+    로그인화면_(String(e && e.message ? e.message : e));
+  }).웹_PIN재설정메일(n);
+}
+/* 주소에 #pin= 이 있으면 재설정 화면을 연다. 첫 로드뿐 아니라 이미 열린 문서로 들어온 링크도
+   여기로 온다(hashchange·popstate) — 앱 창이 열린 채 메일 앱에서 링크를 누르면 그렇게 된다. */
+function PIN재설정진입_() {
+  var m = /^#pin=(.+)$/.exec(location.hash || '');
+  if (!m) return false;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  게이트세대_++;
+  if (!PIN재설정값) 진입전앱_ = !!DATA && document.getElementById('gate').style.display === 'none';
+  PIN재설정값 = '';
+  PIN재설정이름 = '';
+  재설정안내_ = '';
+  document.getElementById('pinNew').value = '';    // 앞 링크에서 친 PIN이 뒷사람 칸에 남지 않게
+  document.getElementById('pinNew2').value = '';
+  로그인화면_('');
+  PIN재설정값 = m[1];
+  document.getElementById('loginStep').style.display = 'none';
+  document.getElementById('pinResetWrap').style.display = 'block';
+  document.getElementById('pinResetSave').disabled = true;
+  PIN재설정확인_();
+  return true;
+}
+function PIN재설정확인_() {
+  var 값 = PIN재설정값;
+  var 글 = document.getElementById('pinResetMsg');
+  글.textContent = '링크를 확인하고 있습니다…';
+  document.getElementById('pinResetRetry').style.display = 'none';
+  gsrun().withSuccessHandler(function (r) {
+    if (값 !== PIN재설정값) return;   // 그 사이 다른 링크가 들어왔다
+    PIN재설정이름 = r.name;
+    글.textContent = r.name + ' 님의 새 PIN을 정해 주세요.\n저장하면 지금 로그인된 기기도 다시 로그인해야 합니다.';
+    글.style.whiteSpace = 'pre-line';
+    document.getElementById('pinResetSave').disabled = 게이트진행수_ > 0;
+  }).withFailureHandler(function (e) {
+    if (값 !== PIN재설정값) return;
+    if (e && e.결과 === '거절') return PIN재설정끝내기_(String(e.message));   // 서버가 판정해 막았다
+    // 일시 장애다 — 링크는 살아 있을 수 있고 주소에서 이미 지웠으니 값을 버리면 되돌아갈 길이 없다
+    글.textContent = '링크를 확인하지 못했습니다. 네트워크를 확인하고 다시 눌러 주세요.';
+    document.getElementById('pinResetRetry').style.display = 'block';
+  }).웹_PIN재설정확인(값);
+}
+function PIN재설정값비우기_() {
+  게이트세대_++;
+  PIN재설정값 = '';
+  PIN재설정이름 = '';
+  진입전앱_ = false;
+  document.getElementById('pinNew').value = '';
+  document.getElementById('pinNew2').value = '';
+}
+/* 저장 없이 재설정 화면을 닫는다(취소·링크 거절). 앱이 보이는 채로 들어왔으면 그 앱으로 돌아간다 —
+   새로고침하면 임시저장이 없는 입력이 사라진다. 그 밖에는 로그인 화면이다. 세션 만료로 떠 있던 로그인 화면을
+   걷으면 PIN 없이 직전 앱이 보이므로, 메모리의 DATA·TOKEN이 있다는 것만으로 앱으로 보내지 않는다. */
+function PIN재설정끝내기_(문구) {
+  var 앱으로 = 진입전앱_;
+  PIN재설정값비우기_();
+  if (앱으로) {
+    backToLogin();
+    document.getElementById('gate').style.display = 'none';
+    if (문구) toast(문구, true);
+    return;
+  }
+  로그인화면_(문구);
+  if (TOKEN && !DATA && !세션끝남_) { 재설정안내_ = 문구; boot(); }   // 첫 로드로 들어온 링크 — boot가 앱을 띄우면 onData가, 세션이 죽었으면 로그인 화면이 이 안내를 보여 준다
+}
+function PIN재설정저장() {
+  var a = document.getElementById('pinNew').value.trim();
+  var b = document.getElementById('pinNew2').value.trim();
+  var 안내 = document.getElementById('gateMsg');
+  var 알림 = function (글) {   // 안내는 [취소] 아래에 있다 — 낮은 화면에선 안 내리면 눌러도 아무 일 없는 것처럼 보인다
+    안내.textContent = 글;
+    document.getElementById('gate').scrollTop = 1e6;
+  };
+  if (!/^\d{4,6}$/.test(a)) return 알림('PIN은 4~6자리 숫자로 정해 주세요.');
+  if (a !== b) return 알림('두 번 입력한 PIN이 다릅니다.');
+  안내.textContent = '';
+  var 이름 = PIN재설정이름;
+  var 세대 = 게이트세대_;
+  게이트진행_(true);
+  gsrun().withSuccessHandler(function (r) {
+    게이트진행_(false);
+    /* 세대가 오른 사람의 토큰만 죽었다 — 공용 PC에서 남의 로그인을 지우지 않는다. */
+    var 주인 = String(TOKEN || '').split('|')[0];
+    try {
+      if ((localStorage.getItem('saleson_token') || '').split('|')[0] === r.name) localStorage.removeItem('saleson_token');
+    } catch (e) {}
+    if (세대 !== 게이트세대_) {   // 기다리는 사이 다른 링크가 들어왔다 — 그 화면은 두고 결과만 알린다
+      if (주인 === r.name) { 세션비우기_(); 세션끝남_ = true; }
+      toast(r.name + ' 님의 새 PIN을 저장했습니다.', true);
+      return;
+    }
+    if (진입전앱_ && 주인 !== r.name) {   // 남의 링크다. 지금 앱의 세션은 살아 있다
+      return PIN재설정끝내기_(r.name + ' 님의 새 PIN을 저장했습니다.\n지금 화면은 ' + 주인 + ' 님 계정입니다.');
+    }
+    PIN재설정값비우기_();
+    if (TOKEN || DATA) 세션비우기_();   // 서버가 이 세션을 죽였다. 남겨 두면 늦은 응답이 앱을 되살린다
+    세션끝남_ = true;
+    document.getElementById('liName').value = r.name;
+    document.getElementById('liPin').value = '';
+    로그인화면_('');
+    document.getElementById('gateOk').textContent = !r.관문미반영
+      ? '새 PIN을 저장했습니다. 새 PIN으로 로그인해 주세요.'
+      : r.사람손
+        ? '새 PIN을 저장했습니다.\n지금은 로그인이 안 될 수 있습니다. 관리자에게 알렸으니 안 되면 관리자에게 문의해 주세요.'
+        : '새 PIN을 저장했습니다.\n지금은 로그인이 바로 안 될 수 있습니다. 10분쯤 뒤에 새 PIN으로 로그인해 주세요.';
+    document.getElementById('gate').scrollTop = 1e6;
+  }).withFailureHandler(function (e) {
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;
+    var 문구 = String(e && e.message ? e.message : e);
+    if (e && e.결과 === '거절') {
+      if (/링크가 만료|관리자에게/.test(문구)) return PIN재설정끝내기_(문구);
+      알림(문구);   // 앞선 저장 대기 등 — 링크가 살아 있어 다시 누르면 된다
+      return;
+    }
+    /* 결과 모름 — 서버가 이미 바꿨는데 응답만 잃었을 수 있다. 다시 누르게 두면 「링크 만료」만 보고
+       실패로 읽는다. 앱이 떠 있었어도 로그인 화면에 둔다: 안내가 가리키는 칸이 거기 있고, 세션이 죽었는지
+       모르는 앱을 보여 줄 수 없다. 저장소 토큰은 안 지운다 — 안 바뀌었으면 새로고침으로 돌아간다. */
+    PIN재설정값비우기_();
+    세션끝남_ = true;
+    로그인화면_('저장됐을 수 있습니다.\n방금 정한 새 PIN으로 로그인해 보고, 안 되면 [PIN을 잊으셨나요?]로 메일을 다시 받아 주세요.');
+    if (이름) document.getElementById('liName').value = 이름;
+  }).웹_PIN재설정(PIN재설정값, a);
 }
 function otpStep(hint) {
   document.getElementById('loginStep').style.display = 'none';
@@ -2131,11 +2337,17 @@ function otpStep(hint) {
 function doLogin() {
   var n = document.getElementById('liName').value.trim();
   var p = document.getElementById('liPin').value.trim();
-  if (!n || !p) return showLogin('이름과 PIN을 모두 입력해 주세요.');
+  재설정안내_ = '';
+  if (!n || !p) return 로그인화면_('이름과 PIN을 모두 입력해 주세요.');
+  var 세대 = 게이트세대_;
   busy(true);
+  게이트진행_(true);   // [PIN을 잊으셨나요?]가 이 응답과 엇갈리지 않게
   gsrun().withSuccessHandler(function(r) {
     busy(false);
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;   // 기다리는 사이 재설정 링크가 들어왔다
     if (r && r.token) {          // 신뢰 기기 — 인증번호 없이 바로 로그인
+      앞세션정리_();
       TOKEN = r.token;
       try { localStorage.setItem('saleson_token', TOKEN); } catch (e) {}
       backToLogin();
@@ -2144,7 +2356,10 @@ function doLogin() {
     }
     if (r && r.need === 'otp') otpStep(r.hint);
   }).withFailureHandler(function(e) {
-    busy(false); showLogin(String(e && e.message ? e.message : e));
+    busy(false);
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;
+    로그인화면_(String(e && e.message ? e.message : e));
   }).웹_로그인(n, p, DEV, DEV_OLD);
 }
 function doOtp() {
@@ -2152,14 +2367,22 @@ function doOtp() {
   var p = document.getElementById('liPin').value.trim();
   var c = document.getElementById('liOtp').value.trim();
   if (!c) return document.getElementById('gateMsg').textContent = '인증번호를 입력해 주세요.';
+  var 세대 = 게이트세대_;
   busy(true);
+  게이트진행_(true);
   gsrun().withSuccessHandler(function(r) {
+    busy(false);
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;
+    앞세션정리_();
     TOKEN = r.token;
     try { localStorage.setItem('saleson_token', TOKEN); } catch (e) {}
     backToLogin();
     onBoot(r.data);
   }).withFailureHandler(function(e) {
     busy(false);
+    게이트진행_(false);
+    if (세대 !== 게이트세대_) return;
     document.getElementById('gateMsg').textContent = String(e && e.message ? e.message : e);
   }).웹_인증확인(n, p, c, DEV);
 }
@@ -2284,7 +2507,11 @@ function 기본화면_() {
   if (!DATA || !DATA.me || !DATA.me.viewer) return 'home';
   return String(DATA.me.team || '').trim() === 'C-Labs' ? 'meta' : 'dash';
 }
+/* 재설정 링크가 이미 열린 문서로 들어오면 #만 바뀌어 다시 읽히지 않는다. 안 가로채면 아래 popstate가
+   'pin=…'을 화면 이름으로 보고 기본 화면으로 보내며, 값은 주소창과 방문 기록에 남는다. */
+window.addEventListener('hashchange', function() { PIN재설정진입_(); });
 window.addEventListener('popstate', function(e) {
+  if (PIN재설정진입_()) return;
   // 모달이 먼저다 — 항목을 안 만들었으니 그 자리를 되밀어 깊이를 되돌린다
   if (모달열림_()) {
     모달닫기_();
@@ -8957,7 +9184,7 @@ function dashWeek(wk) { DASHW = wk; renderDash(); }
 
 /* 토큰·기기 ID가 같은 origin의 localStorage에 있으므로 기다릴 것이 없다 (ADR 0008).
    예전에는 셸에서 postMessage로 받아 오느라 부팅 전에 최대 1.2초를 기다렸다. */
-boot();
+if (!PIN재설정진입_()) boot();
 
 /* 부팅이 어떤 이유로도 화면을 못 그리면 스플래시가 영원히 남는다 — 흰 화면으로 보인다.
    62초는 아무도 안 기다린다 (8/13 「화면이 멈춘다」 문의) — 6초에 상태 문구, 12초에 로그인

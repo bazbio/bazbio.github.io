@@ -31,11 +31,12 @@ self.addEventListener('fetch', function (e) {
       .then(function (res) {
         // 오프라인 대비 사본 — 예전에는 사본이 없어 비행기 모드에서 흰 화면이었다
         const copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(req.url, copy); }).catch(function () {});
+        // 주소의 # 뒤는 열쇠에 넣지 않는다 — PIN 재설정 링크 값이 기기 캐시에 남는다
+        caches.open(CACHE).then(function (c) { c.put(req.url.split('#')[0], copy); }).catch(function () {});
         return res;
       })
       .catch(function () {
-        return caches.match(req.url).then(function (m) { return m || Response.error(); });
+        return caches.match(req.url.split('#')[0]).then(function (m) { return m || Response.error(); });
       })
   );
 });
