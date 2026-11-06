@@ -1449,7 +1449,7 @@
   <div style="margin-top:8px;font-size:12.5px;color:#4e5968;line-height:1.6;">국내영업 · 관리자 · 조회 계정 공통<br>새 기기는 최초 1회 메일 인증이 필요합니다</div>
   <div style="margin-top:20px;width:100%;max-width:320px;text-align:left;">
     <div id="loginStep">
-      <label class="f">이름</label>
+      <label class="f">이름 (메일 주소 말고 한글 이름)</label>
       <input type="text" id="liName" placeholder="예: 홍길동" autocomplete="off">
       <label class="f">PIN (웹 비밀번호)</label>
       <input type="password" id="liPin" inputmode="numeric" placeholder="내 PIN">
@@ -1730,7 +1730,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611060605-82dc7c0';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611060709-9d8b27c';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2185,10 +2185,17 @@ var 진입전앱_ = false;     // 링크가 앱이 보이는 채로 들어왔다
 var 세션끝남_ = false;     // 저장 성공·결과 모름 — 이 문서의 세션은 끝났다. 다음 로그인 전까지 늦은 응답이 화면을 못 바꾼다
 var 게이트세대_ = 0;       // 게이트 화면이 바뀔 때마다 오른다. 다른 세대의 늦은 응답은 화면을 건드리지 못한다
 var 게이트진행수_ = 0;
+/* 로그인 이름은 시트의 담당자명과 글자까지 같아야 한다. 메일 주소를 넣으면 로그인은 「이름 또는 PIN」으로만
+   거절되고, 재설정은 없는 이름이라 메일 없이 끝나는데 화면은 「보냈습니다」라고 한다(11-06 천상훈 팀장).
+   없는 이름과 같은 답을 주는 서버 원칙은 그대로 두고, 이름일 수 없는 값만 보내기 전에 화면에서 돌려보낸다. */
+function 이름칸오류_(n) {
+  return /[@＠]/.test(n) ? '메일 주소가 아니라 이름을 넣어 주세요. (예: 홍길동)' : '';
+}
 function PIN찾기() {
   재설정안내_ = '';
   var n = document.getElementById('liName').value.trim();
   if (!n) return 로그인화면_('이름을 입력한 뒤 눌러 주세요.');
+  if (이름칸오류_(n)) return 로그인화면_(이름칸오류_(n));
   var 세대 = 게이트세대_;
   게이트진행_(true);
   gsrun().withSuccessHandler(function () {
@@ -2338,6 +2345,7 @@ function doLogin() {
   var n = document.getElementById('liName').value.trim();
   var p = document.getElementById('liPin').value.trim();
   재설정안내_ = '';
+  if (이름칸오류_(n)) return 로그인화면_(이름칸오류_(n));
   if (!n || !p) return 로그인화면_('이름과 PIN을 모두 입력해 주세요.');
   var 세대 = 게이트세대_;
   busy(true);
