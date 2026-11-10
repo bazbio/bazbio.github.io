@@ -1,9 +1,9 @@
-import { createInitialState, loadState, saveState, uid, filterTasks, validateImport, reorderTask } from './model.js?v=e81c6175412f';
-import { mountMeetingCenter } from './meetings.js?v=e81c6175412f';
-import { mountPosts, forgetPosts } from './posts.js?v=e81c6175412f';
-import { createAuthClient } from './auth.js?v=e81c6175412f';
-import { startDragScroll } from './drag-scroll.js?v=e81c6175412f';
-import { inviteScopeMarkup, bindInviteScope, readInviteScope, inviteScopeLabel } from './invite-scope.js?v=e81c6175412f';
+import { createInitialState, loadState, saveState, uid, filterTasks, validateImport, reorderTask } from './model.js?v=6c8daa678855';
+import { mountMeetingCenter } from './meetings.js?v=6c8daa678855';
+import { mountPosts, forgetPosts } from './posts.js?v=6c8daa678855';
+import { createAuthClient } from './auth.js?v=6c8daa678855';
+import { startDragScroll } from './drag-scroll.js?v=6c8daa678855';
+import { inviteScopeMarkup, bindInviteScope, readInviteScope, inviteScopeLabel } from './invite-scope.js?v=6c8daa678855';
 
 const $ = (s, r=document) => r.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -37,7 +37,7 @@ const project=()=>state.projects.find(p=>p.id===state.activeProjectId)||state.pr
 const member=id=>state.members.find(m=>m.id===id);
 const myId=()=>auth.hosted?auth.member?.id:(state.members.find(m=>m.id==='me')?.id??state.members.find(m=>m.name===state.profile.name)?.id);
 const viewer=()=>auth.hosted?{name:auth.member?.name||'',initials:auth.member?.name?.slice(0,2)||''}:state.profile;
-const canInvite=()=>!auth.hosted||auth.member?.role==='admin';
+const canInvite=()=>!auth.hosted||auth.member?.role==='admin'||!Array.isArray(auth.member?.projectIds);
 // Project-limited members never see meeting minutes, other projects or workspace-wide tools.
 const limited=()=>auth.hosted&&Array.isArray(auth.member?.projectIds);
 const scopeKey=value=>JSON.stringify(Array.isArray(value)?[...value].sort():null);

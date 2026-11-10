@@ -2,7 +2,7 @@ const SESSION_KEY = 'flowdesk.auth.v1';
 const PRIVATE_CACHE_KEY = 'flowdesk.workspace.v1';
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const failure = (message, code = 401) => Object.assign(new Error(message), {code});
-/** Auth owns the signed-in identity; workspace data never enters persistent storage in hosted mode. */
+/** Auth owns the signed-in identity (90-day device login token only); workspace data never enters persistent storage in hosted mode. */
 export async function createAuthClient(root) {
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
   let config, configurationError;
@@ -19,7 +19,7 @@ export async function createAuthClient(root) {
   const clearPrivateCache = () => { try { localStorage.removeItem(PRIVATE_CACHE_KEY); } catch {} };
   const saveSession = value => {
     session = value ? {...value, expires_at:value.expires_at || Math.floor(Date.now()/1000) + Number(value.expires_in || 0)} : null;
-    try { if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); else sessionStorage.removeItem(SESSION_KEY); } catch {}
+    try { if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session)); else {localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY);} } catch {}
   };
   function lock(message = '') {
     epoch++; pending.forEach(controller => controller.abort()); pending.clear(); member = null; saveSession(null); clearPrivateCache();
@@ -153,7 +153,7 @@ export async function createAuthClient(root) {
       saveSession({access_token:hash.get('access_token'),refresh_token:hash.get('refresh_token'),expires_in:Number(hash.get('expires_in')||3600)});
 
     } else {
-      try{const saved=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(saved?.access_token&&(saved?.refresh_token||saved.access_token.startsWith('fdlogin_')))saveSession(saved);}catch{saveSession(null);}
+      try{const saved=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');if(saved?.access_token&&(saved.access_token.startsWith('fdlogin_')?Number(saved.expires_at)>Date.now()/1000:true)&&(saved?.refresh_token||saved.access_token.startsWith('fdlogin_')))saveSession(saved);}catch{saveSession(null);}
     }
     if(!session)return showLogin();
     layout('워크스페이스를 열고 있습니다','계정과 초대 권한을 확인합니다.');
