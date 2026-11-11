@@ -698,6 +698,12 @@
 .qd-reason em{min-width:0;overflow-wrap:anywhere}
 @container (max-width:860px){.qd-row{grid-template-columns:minmax(0,1fr) auto}.qd-row .qd-meter{grid-column:1/-1;order:3}.qd-row-acts{grid-column:1/-1;order:4;justify-content:flex-start}}
 @container (max-width:420px){.qd-row{grid-template-columns:minmax(0,1fr)}.qd-row-num{text-align:left}}
+/* SalesON 기록 자동 집계(11-11) */
+.qd-auto{margin:6px 0 0;font-size:12px;color:#1b64da;}
+.qd-supplement-row{display:flex;flex-wrap:wrap;gap:4px 10px;padding:8px 0;border-top:1px solid #eef0f3;font-size:13px;min-width:0;}
+.qd-supplement-row b{font-weight:600;overflow-wrap:anywhere;}
+.qd-supplement-row span{color:#5f6b7a;overflow-wrap:anywhere;}
+.qd-supplement-row em{flex-basis:100%;font-style:normal;color:#c2410c;overflow-wrap:anywhere;}
 /* QUDOLI_STYLE_END */
 
 /* INBOUND_STYLE_BEGIN */
@@ -956,6 +962,17 @@
     <div class="chips" id="fCat"></div>
     <label class="f">활동 유형 *</label>
     <div class="chips" id="fType"></div>
+    <!-- 전화 목적(11-11, 기록→큐돌이 자동 집계) — 전화를 고르면 열린다. 고른 목적은 활동 유형 「전화/목적」으로 저장된다 -->
+    <div id="fCallPurposeWrap" style="display:none;margin-top:8px;">
+      <div style="font-size:12px;color:#5f6b7a;margin-bottom:6px;">전화 목적 * — 고른 목적대로 큐돌이 주간 목표에 자동으로 셉니다(11/23 주부터). 다섯에 안 맞으면 「기타」(세지 않음)</div>
+      <div class="chips" id="fCallPurpose"></div>
+    </div>
+    <!-- 결과(11-11) — 큐돌이에 세는 기록(전화 목적·장비 DM·첫방문·제안)만 열린다. 선택지는 큐돌이 입력과 같다(_공유/기록집계.mjs 결과선택지_) -->
+    <div id="fOutcomeWrap" style="display:none;margin-top:8px;">
+      <div style="font-size:12px;color:#5f6b7a;margin-bottom:6px;">결과 *</div>
+      <div class="chips" id="fOutcome"></div>
+      <div id="fOutcomeNote" style="margin-top:6px;font-size:12px;color:#5f6b7a;line-height:1.6;"></div>
+    </div>
     <input type="text" id="fTypeEtc" style="display:none;margin-top:8px;" placeholder="활동 유형 직접 입력 (예: 정기 결제, 실장님 미팅)" autocomplete="off">
     <!-- 직접 입력은 방문으로 집계된다 (2026-08-16) — 방문유형_()가 「방문/」을 붙인다.
          현장에 간 것이 아닌 활동을 여기 적으면 방문 수가 부풀려지므로 그 자리를 알려 준다 -->
@@ -1574,6 +1591,8 @@ var ACTTEAM = '전체';   // 현황 탭 활동현황 구역의 팀 필터 ('전�
 var DASHM = '';
 var DASHW = '';
 var selType = '';
+var selCallPurpose = '';   // 전화 목적(11-11) — 읽을 때는 전화목적값_()
+var selOutcome = '';       // 결과(11-11) — 읽을 때는 기록결과값_()
 var selPType = '';
 var selPCh = '';
 var selPSrc = '';
@@ -1771,7 +1790,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611111404-ad0328a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611111714-8d7a232';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4203,6 +4222,8 @@ function renderForm() {
   if (폼첫그리기_) document.getElementById('fDate').value = DATA.today;
   /* 입력할 때마다 임시저장 — 앱이 닫히거나 저장이 실패해도 내용을 잃지 않는다.
      `fStage`(단계 select)와 `fTypeEtc`(유형 직접 입력)가 빠져 있었다 (2026-08-16, 감사 화11) */
+  var 직접칸 = document.getElementById('fTypeEtc');
+  if (직접칸 && !직접칸.dataset.outcome) { 직접칸.dataset.outcome = '1'; 직접칸.addEventListener('input', function() { 결과칸맞춤_(); }); }
   ['fHosp', 'fNote', 'fContact', 'fReaction', 'fFu', 'fNozzle', 'fNext', 'fDate', 'fStage', 'fTypeEtc'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el && !el.dataset.draft) { el.dataset.draft = '1'; el.addEventListener('input', 임시저장_); }
@@ -4216,9 +4237,14 @@ function renderForm() {
      남고, 저장하면 「활동 유형을 선택해 주세요」에서 막혔다. 두 사람이 계획은 26·33건인데
      기록은 9·8건뿐인 이유다 — 「저장이 안 된다」의 실체다. */
   var tw = document.getElementById('fType');
-  tw.innerHTML = DATA.types.map(function(t) {
+  tw.innerHTML = 기록유형목록_(DATA.types).map(function(t) {
     return '<div class="chip" data-v="' + esc(t) + '" onclick="pickType(this)">' + esc(t) + '</div>';
   }).join('') + '<div class="chip" data-v="__etc" onclick="pickType(this)">기타 (직접 입력)</div>';
+  var 목적칸 = document.getElementById('fCallPurpose');
+  if (목적칸) 목적칸.innerHTML = 전화목적목록_().map(function(t) {
+    return '<div class="chip" data-v="' + esc(t) + '" onclick="pickCallPurpose(this)">' + esc(t) + '</div>';
+  }).join('');
+  결과칸맞춤_();
   var st = document.getElementById('fStage');
   st.innerHTML = '<option value="">선택 안 함</option>';
   DATA.stages.forEach(function(s) {
@@ -4273,7 +4299,7 @@ function renderForm() {
      남는다. 그러면 화면은 「아무것도 안 골랐다」인데 검증은 통과해서, 다시 안 누르고 저장하면
      **눈에 안 보이는 값으로 저장**된다 — 조용한 오염이라 나중에 원인을 못 찾는다.
      `resetForm`·`resetPlanForm`은 sel*와 `.on`을 같이 지우는데 여기에는 그 짝이 없었다. */
-  [['#fType', selType], ['#fCat', selFCat], ['#pType', selPType], ['#pCat', selPCat],
+  [['#fType', selType], ['#fCallPurpose', 전화목적값_()], ['#fCat', selFCat], ['#pType', selPType], ['#pCat', selPCat],
     ['#pCh', selPCh], ['#fCh', selFCh], ['#pSrc', selPSrc], ['#eType', selEType]].forEach(function(쌍) {
     if (!쌍[1]) return;
     document.querySelectorAll(쌍[0] + ' .chip').forEach(function(c) {
@@ -4454,6 +4480,7 @@ function pickPCat(el) {
 function pickFCat(el) {
   selFCat = el.getAttribute('data-v');
   q4VisitToggle();
+  if (typeof 결과칸맞춤_ === 'function') 결과칸맞춤_();   // 새 전역은 typeof로 — 시험이 이 함수만 떼어 돌린다
   document.querySelectorAll('#fCat .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   임시저장_();   // 칩만 누르고 앱을 닫아도 남아야 한다 (감사 화11 — 계획 폼 pickP*와 같은 규칙)
 }
@@ -4638,8 +4665,80 @@ function resetPlanForm(keepDate) {
   document.getElementById('pWebUrlWrap').style.display = 'none';
   checkNewHosp();
 }
+/* 전화 목적(11-11) — 서버 `_공유/기록집계.mjs` 전화목적과 같은 다섯 개·같은 순서(test/autoagg.test.mjs가 대조) */
+function 전화목적목록_() { return ['새 병원', '이전 상담 재연락', '장비 도입 상담', 'N-Care 설명', '해지 병원', '기타']; }
+/* 결과 선택지와 자동 집계에 필요한 칸 — 서버 `_공유/기록집계.mjs` 결과선택지_·큐돌이규칙 types[kind].needed와 같다(test/autoagg.test.mjs가 모든 유형×카테고리로 대조) */
+function 기록결과표_(유형, 카테고리) {
+  var 장비 = String(카테고리 || '').indexOf('장비') >= 0;
+  var 표 = {
+    '전화/새 병원': [['통화', '부재', '번호 오류'], []],
+    '전화/이전 상담 재연락': [['상담 완료', '부재'], ['접촉자', '진행 내용 · 고객 반응', 'Follow-up 사항', '다음 방문 예정일']],
+    '전화/장비 도입 상담': [['상담 완료', '답변 대기'], ['접촉자', '진행 내용 · 고객 반응', 'Follow-up 사항', '다음 방문 예정일']],
+    '전화/N-Care 설명': [['상담 완료', '답변 대기'], ['접촉자', '진행 내용 · 고객 반응']],
+    '전화/해지 병원': [['통화', '부재', '번호 오류'], []]
+  };
+  if (표[유형]) return 표[유형];
+  if (!장비) return null;
+  if (유형 === 'DM') return [['발송', '실패'], ['진행 내용 · 고객 반응']];
+  if (유형 === '방문/첫방문') return [['소개·자료 전달', '만나지 못함'], []];
+  if (유형 === '방문/제안') return [['상담 완료', '답변 대기'], ['접촉자', '진행 내용 · 고객 반응', 'Follow-up 사항', '다음 방문 예정일']];
+  return null;
+}
+function 기록결과값_() { return typeof selOutcome === 'undefined' ? '' : selOutcome; }
+function 지금기록유형_() {
+  if (selType === '__etc') { var e = document.getElementById('fTypeEtc'); return 방문유형_(e ? e.value : ''); }
+  return selType === '전화' ? (전화목적값_() ? '전화/' + 전화목적값_() : '') : selType;
+}
+/* 기록 폼에서 지금 비어 있는 필수 선택(전화 목적·결과) — 계획 요약이 이 칸을 접어 숨기지 않게 한다(반증리뷰 2판 채택7) */
+function 기록필수선택빔_() {
+  return (selType === '전화' && !전화목적값_()) || (!!기록결과표_(지금기록유형_(), selFCat) && !기록결과값_());
+}
+function 결과칸맞춤_() {
+  var w = document.getElementById('fOutcomeWrap'), 칩 = document.getElementById('fOutcome');
+  if (!w || !칩) return;
+  var 표 = 기록결과표_(지금기록유형_(), selFCat);
+  if (!표 || 표[0].indexOf(기록결과값_()) < 0) selOutcome = '';
+  w.style.display = 표 ? 'block' : 'none';
+  칩.innerHTML = 표 ? 표[0].map(function(t) { return '<div class="chip' + (t === 기록결과값_() ? ' on' : '') + '" data-v="' + esc(t) + '" onclick="pickOutcome(this)">' + esc(t) + '</div>'; }).join('') : '';
+  var n = document.getElementById('fOutcomeNote');
+  if (n) n.textContent = 표 ? '큐돌이 주간 목표에 자동으로 셉니다(11/23 주부터). ' + (표[1].length ? '세려면 함께 채워 주세요: ' + 표[1].join(' · ') : '') : '';
+}
+function pickOutcome(el) { selOutcome = el.getAttribute('data-v'); 결과칸맞춤_(); 임시저장_(); }
+/* 새 전역은 typeof로 감싼다 — 다른 시험이 웹앱 함수만 떼어 돌린다 */
+function 전화목적값_() { return typeof selCallPurpose === 'undefined' ? '' : selCallPurpose; }
+/* 옛 서버(GAS 부팅)가 준 유형 목록에 DM이 없으면 전화 뒤에 붙인다 — 00_설정.gs ACT_TYPES에는 이미 있다 */
+function 기록유형목록_(목록) {
+  var a = (목록 || []).slice();
+  if (a.indexOf('DM') < 0) { var i = a.indexOf('전화'); a.splice(i < 0 ? a.length : i + 1, 0, 'DM'); }
+  return a;
+}
+function 전화목적칸맞춤_() {
+  var w = document.getElementById('fCallPurposeWrap');
+  if (selType !== '전화') selCallPurpose = '';
+  if (w) w.style.display = selType === '전화' ? 'block' : 'none';
+  document.querySelectorAll('#fCallPurpose .chip').forEach(function(c) { c.classList.toggle('on', !!전화목적값_() && c.getAttribute('data-v') === 전화목적값_()); });
+  결과칸맞춤_();
+}
+function pickCallPurpose(el) {
+  selCallPurpose = el.getAttribute('data-v');
+  전화목적칸맞춤_();
+  임시저장_();
+}
+/* 저장된 유형 하나로 칩을 고른다 — 「전화/새 병원」이면 전화 칩과 목적 칩을 함께. 맞는 칩이 없으면 false */
+function 기록유형고르기_(t) {
+  t = String(t || '');
+  var 목적 = '';
+  if (t.indexOf('전화/') === 0 && 전화목적목록_().indexOf(t.slice(3)) >= 0) { 목적 = t.slice(3); t = '전화'; }
+  var 맞은칩 = null;
+  document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === t) 맞은칩 = c; });
+  if (!맞은칩) return false;
+  pickType(맞은칩);
+  selCallPurpose = 목적; 전화목적칸맞춤_();
+  return true;
+}
 function pickType(el) {
   selType = el.getAttribute('data-v');
+  전화목적칸맞춤_();
   q4VisitToggle();
   document.querySelectorAll('#fType .chip').forEach(function(c) { c.classList.toggle('on', c === el); });
   var etc = document.getElementById('fTypeEtc');
@@ -4674,11 +4773,7 @@ function prefill(row) {
   document.getElementById('fHosp').value = p.hname;
   checkLeadF_();   // 프로그램으로 넣으면 oninput이 안 뜬다 — 리드 블록을 직접 맞춘다
   document.getElementById('fContact').value = p.contact || '';
-  var 맞은칩 = null;
-  document.querySelectorAll('#fType .chip').forEach(function(c) {
-    if (c.getAttribute('data-v') === p.type) 맞은칩 = c;
-  });
-  if (맞은칩) { pickType(맞은칩); }
+  if (기록유형고르기_(p.type)) { /* 칩(전화 목적 포함)을 골랐다 */ }
   else if (p.type) {
     /* 계획에서 자유 입력한 유형이다(유비야 '결제', 김민주 '미팅' 등 실제 23건).
        예전에는 아무 칩도 안 맞아 **유형이 빈 채로** 남았고, 저장하면
@@ -4709,7 +4804,8 @@ function 계획요약_() {
   if (!el || !묶음 || !병원) return;
   var 맞음 = !!(PREFILL && PREFILL.plan && !EDITKEY && String(병원.value || '').trim() === PREFILL.hname);
   if (!맞음) { el.style.display = 'none'; 묶음.style.display = ''; return; }
-  var p = PREFILL.plan, 접을수있음 = !!selType && !!selFCat && selType !== '__etc' && selType === p.type && selFCat === p.cat, 접힘 = 접을수있음 && !PREFILL.열림;
+  var p = PREFILL.plan, 접을수있음 = !!selType && !!selFCat && selType !== '__etc' && selType === p.type && selFCat === p.cat
+    && !(typeof 기록필수선택빔_ === 'function' && 기록필수선택빔_()), 접힘 = 접을수있음 && !PREFILL.열림;
   var 줄 = function(이름, 값) {
     return 값 ? '<div style="display:flex;gap:10px;font-size:13px;line-height:1.7;"><span style="flex:0 0 84px;color:#5f6b7a;">' + 이름
       + '</span><b style="min-width:0;overflow-wrap:anywhere;font-weight:600;">' + esc(값) + '</b></div>' : '';
@@ -4797,8 +4893,9 @@ function saveLog() {
     hname: name, hcode: code,
     date: document.getElementById('fDate').value,
     next: document.getElementById('fNext').value,
-    type: selType === '__etc' ? 방문유형_(document.getElementById('fTypeEtc').value) : selType,
+    type: selType === '__etc' ? 방문유형_(document.getElementById('fTypeEtc').value) : selType === '전화' && 전화목적값_() ? '전화/' + 전화목적값_() : selType,
     cat: selFCat,
+    outcome: 기록결과표_(지금기록유형_(), selFCat) ? 기록결과값_() : '',
     stage: document.getElementById('fStage').value,
     contact: document.getElementById('fContact').value,
     note: document.getElementById('fNote').value,
@@ -4827,6 +4924,8 @@ function saveLog() {
     }
   }
   if (!f.type) return 검증실패_('활동 유형을 선택해 주세요', selType === '__etc' ? 'fTypeEtc' : 'fType');
+  if (f.type === '전화') return 검증실패_('전화 목적을 골라 주세요 — 다섯에 안 맞으면 「기타」', 'fCallPurpose');
+  if (기록결과표_(f.type, f.cat) && !f.outcome) return 검증실패_('결과를 골라 주세요 — 큐돌이 주간 목표에 셀지 정합니다', 'fOutcome');
   if (!f.note.trim()) return 검증실패_('진행 내용을 입력해 주세요', 'fNote');
   if(!q4VisitAttach(f))return;
   document.getElementById('fSave').disabled = true;
@@ -4994,6 +5093,7 @@ function resetForm() {
   selMats = []; matVals = {};
   document.getElementById('fMatDetails').innerHTML = '';
   document.querySelectorAll('#fType .chip, #fCat .chip, #fCh .chip, #fMat .chip').forEach(function(c) { c.classList.remove('on'); });
+  selCallPurpose = ''; selOutcome = ''; 전화목적칸맞춤_();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5528,7 +5628,7 @@ function 임시저장_() {
       fu: document.getElementById('fFu').value,
       nozzle: document.getElementById('fNozzle').value,
       performance:q4VisitValue(),performancePending:Q4V.pending,
-      type: selType, cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value,
+      type: selType, callPurpose: 전화목적값_(), outcome: 기록결과값_(), cat: selFCat, ch: selFCh, dealer: document.getElementById('fDealer').value,
       web: selFWeb, webUrl: document.getElementById('fWebUrl').value, at: Date.now(),
       /* 여태 이 셋이 빠져 있었다 (감사 화11) — 「기타」로 직접 적은 유형, 배포 자료 선택,
          그 자료의 세부내용. 되살리면 유형이 빈 채로 돌아와 저장에서 막히고(활동 유형을
@@ -5581,7 +5681,9 @@ function 임시저장복구_() {
     document.getElementById('fFu').value = d.fu || '';
     document.getElementById('fNozzle').value = d.nozzle || '';
     document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.type) pickType(c); });
+    selCallPurpose = d.type === '전화' && 전화목적목록_().indexOf(d.callPurpose) >= 0 ? d.callPurpose : ''; 전화목적칸맞춤_();
     document.querySelectorAll('#fCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.cat) pickFCat(c); });
+    selOutcome = String(d.outcome || ''); 결과칸맞춤_();
     // 리드 없는 병원의 판매 구분·딜러명 — checkLeadF_()가 이미 위에서 #fLeadSec을 열어 뒀다 (P58)
     document.querySelectorAll('#fCh .chip').forEach(function(c) { if (c.getAttribute('data-v') === d.ch) pickFCh(c); });
     document.getElementById('fDealer').value = d.dealer || '';
@@ -6187,8 +6289,9 @@ function editLog(k) {
   document.getElementById('fReaction').value = '';
   document.getElementById('fFu').value = l.fu || '';
   document.getElementById('fNozzle').value = l.nozzle || '';
-  document.querySelectorAll('#fType .chip').forEach(function(c) { if (c.getAttribute('data-v') === l.type) pickType(c); });
+  기록유형고르기_(l.type);
   document.querySelectorAll('#fCat .chip').forEach(function(c) { if (c.getAttribute('data-v') === l.cat) pickFCat(c); });
+  selOutcome = String(l.outcome || ''); 결과칸맞춤_();
   (l.mats || []).forEach(function(m) {
     document.querySelectorAll('#fMat .chip').forEach(function(c) {
       if (c.getAttribute('data-v') === m && !c.classList.contains('on')) toggleMat(c);
@@ -9947,17 +10050,27 @@ function qdGoalRow(d,g){
  var automatic=['contract','demo','es_visit','referral_demo'].indexOf(g.key)>=0;
  var button=automatic?'<button onclick="qdExisting(\''+g.key+'\')">기존 기록 확인·입력</button>':g.key==='unique_contact'?'<button onclick="qdTab(\'records\')">연락한 병원 보기</button>':d.canWrite?'<button class="qd-primary" onclick="qdOpen(\''+g.key+'\')">결과 입력</button>':'';
  var canNa=qdCanNa(d,g),pct=!g.na&&g.target>0?Math.min(100,g.actual/g.target*100):0;
- return '<div class="qd-row'+(g.na?' off':'')+'" data-goal="'+qdAttr(g.key)+'"><div class="qd-row-name"><b>'+esc(g.label)+'</b><span class="qd-state">'+esc((g.period==='month'?g.month+' 월 목표 · ':'')+(unset?'목표량 미정 · 배정안에서 정하면 셉니다':g.state))+'</span><details><summary>무엇을 해야 완료인가요?</summary><p>'+esc(g.criterion)+'</p></details>'+(g.pending?'<p class="qd-warning">기존 기록 '+g.pending+'건은 분류 확인 중입니다.</p>':'')+(g.waiting?'<p class="qd-warning">입력한 기록 '+g.waiting+'건은 결과가 아직 확정 전(답변·확인 대기 등)이라 숫자에 안 들어갔습니다. 결과가 나오면 기록을 열어 결과를 바꿔 주세요.</p>':'')+'</div>'
+ return '<div class="qd-row'+(g.na?' off':'')+'" data-goal="'+qdAttr(g.key)+'"><div class="qd-row-name"><b>'+esc(g.label)+'</b><span class="qd-state">'+esc((g.period==='month'?g.month+' 월 목표 · ':'')+(unset?'목표량 미정 · 배정안에서 정하면 셉니다':g.state))+'</span><details><summary>무엇을 해야 완료인가요?</summary><p>'+esc(g.criterion)+'</p></details>'+(g.pending?'<p class="qd-warning">기존 기록 '+g.pending+'건은 분류 확인 중입니다.</p>':'')+(g.waiting?'<p class="qd-warning">입력한 기록 '+g.waiting+'건은 결과가 아직 확정 전(답변·확인 대기 등)이라 숫자에 안 들어갔습니다. 결과가 나오면 기록을 열어 결과를 바꿔 주세요(SalesON 기록은 「내 입력」에서).</p>':'')+(g.auto?'<p class="qd-auto">SalesON 기록에서 자동으로 '+g.auto+'곳을 셌습니다.</p>':'')+(g.supplement?'<p class="qd-warning">SalesON 기록 '+g.supplement+'곳은 아직 안 셌습니다(보완 필요) — 아래 「SalesON 기록 보완 필요」에서 무엇을 고칠지 확인하세요.</p>':'')+'</div>'
   +'<div class="qd-row-num">'+(g.na?'<span class="qd-pill">해당 없음</span>':'<b>'+g.actual+'</b> / '+esc(target))+'</div>'
   +'<div class="qd-meter"><i'+(pct>=100?' class="done"':'')+' style="width:'+pct+'%"></i></div>'
   +'<div class="qd-row-acts">'+button+(canNa?'<label class="qd-check qd-na"><input type="checkbox" '+(g.na?'checked ':'')+'onchange="qdNa(\''+g.key+'\',this.checked,this)"> 이번 주 해당 없음</label>':'')+'</div>'
   +(g.na?'<div class="qd-reason"><span>사유</span>'+(canNa?'<input id="qd-na-reason-'+qdAttr(g.key)+'" maxlength="200" value="'+qdAttr(g.naReason)+'" placeholder="예: 이번 주 대상 병원 없음 (선택)" onchange="qdNaReason(\''+g.key+'\',this)">':'<em>'+esc(g.naReason||'적지 않음')+'</em>')+'</div>':'')+'</div>';
 }
+// SalesON 기록에서 파생했지만 필수 칸이 모자라 세지 않은 것(11-11 자동 집계, 서버 `_공유/기록집계.mjs`) — 무엇을 채우면 되는지 보인다
+function qdSupplementHtml(d){
+ // 목표 숫자와 같은 집합(서버 progress.supplementRows — 배정 목표에 있고 아직 세지 않은 병원만, 11-11 반증리뷰 채택6)
+ var rows=(d.progress&&d.progress.supplementRows)||[];if(!rows.length)return '';
+ var label=function(k){return d.types&&d.types[k]?d.types[k].label:k;};
+ return '<section class="qd-sheet qd-supplement"><div class="qd-sheet-head"><h3>SalesON 기록 보완 필요</h3><span>'+rows.length+'건</span></div>'
+  +rows.map(function(r){return '<div class="qd-supplement-row"><b>'+esc(String(r.happened_on).slice(5).replace('-','/'))+' · '+esc(r.hospital_name)+'</b><span>'+esc(r.activity_type)+' → '+esc(label(r.kind))+'</span><em>'+esc(r.reason)+'</em></div>';}).join('')
+  +'<p class="qd-help">'+(d.canWrite?'SalesON 「내 입력」에서 그 기록을 열어 위 안내대로 고치면 자동으로 셉니다.':'담당자가 SalesON 기록을 위 안내대로 고치면 자동으로 셉니다.')+'</p></section>';
+}
 function qdSheetHtml(d,goals){
  var s=qdSheetSummary(goals,d.week,d.today),kpi=function(n,sub,t){return '<div class="qd-kpi"><b>'+n+'</b>'+(sub?'<small> '+sub+'</small>':'')+'<span>'+t+'</span></div>';};
  var out='<section class="qd-sheet"><h3>이번 주 요약</h3><div class="qd-kpis">'+kpi(s.future?'시작 전':s.rate===null?'-':s.rate+'%','','완료율 · 홈과 같은 기준')+kpi(s.done,'/ '+s.counted,'다 채운 목표')+kpi(s.na,'개','이번 주 해당 없음')+'</div></section>';
  Array.from(new Set(goals.map(function(g){return g.group;}))).forEach(function(group){var rows=goals.filter(function(g){return g.group===group;});out+='<section class="qd-sheet"><div class="qd-sheet-head"><h3>'+esc(group)+'</h3><span>'+rows.length+'개 항목</span></div>'+rows.map(function(g){return qdGoalRow(d,g);}).join('')+'</section>';});
- out+='<div class="qd-help">전화·DM·방문을 같은 병원에 했다면 각각 활동은 기록하지만 연락한 병원은 1곳입니다. 표시된 수는 현재 입력된 기록 기준이며, 기록하지 않은 활동은 반영되지 않습니다.</div>';
+ out+=qdSupplementHtml(d);
+ out+='<div class="qd-help">'+(d.progress&&d.progress.recordedAuto?'11/23 주부터 SalesON 「기록 입력」의 전화(목적)·DM·첫방문·제안 방문도 결과에 따라 자동으로 셉니다(이번 주 '+d.progress.recordedAuto+'건). 같은 활동을 큐돌이에도 입력했으면 한 번만 셉니다. ':'')+'전화·DM·방문을 같은 병원에 했다면 각각 활동은 기록하지만 연락한 병원은 1곳입니다. 표시된 수는 현재 입력된 기록 기준이며, 기록하지 않은 활동은 반영되지 않습니다.</div>';
  out+='<details class="qd-tasks"><summary>이번 주 먼저 챙길 병원·업무</summary>'+d.assignment.content.tasks.map(function(t){return '<p>'+esc(t)+'</p>';}).join('')+'</details>';
  return out;
 }
