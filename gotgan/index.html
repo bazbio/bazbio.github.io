@@ -1646,13 +1646,29 @@ async function handleAmtFile(file) {
 // 부담이었다. 설정 시트에 실행 횟수 1칸만 는다(정착 기준 측정).
 
 // 서버 제목코드_와 같은 정규식 — 바꾸면 양쪽을 함께 바꾼다
-function titleCode(t) {
+function titleCode(t, 실재) {
+  return 괄호코드(t) || 맨몸코드(t, 실재);
+}
+// 서버 맨몸코드_와 같은 규칙 (2026-11-12) — 예산마스터에 실재하는 코드만 받는다. 이유는 서버 주석
+function 맨몸코드(t, 실재) {
+  if (!실재) return '';
+  const re = /(^|[^A-Za-z0-9-])([A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?-\d{3})(?![0-9A-Za-z])/g;
+  const s = String(t || '');
+  let m, 찾음 = '';
+  while ((m = re.exec(s)) !== null) {
+    const c = normCode(m[2]);
+    if (Object.prototype.hasOwnProperty.call(실재, c)) 찾음 = c;
+  }
+  return 찾음;
+}
+function 괄호코드(t) {
   /* 대괄호만 읽던 것을 소괄호까지 넓혔다 (2026-08-21). 8월 기안 155건 중 7건이
      `(RND-CJP-007)`처럼 소괄호로 적혀 있었고 — 전부 연구개발팀이다 — 그중 4건은
      실재하는 코드였다. 제대로 적었는데 형식 때문에 안 붙었고, 그 3건은 사람이 손으로
      배정해야 했다. 「적어 봐야 소용없네」로 굳으면 안내가 죽는다.
      맨몸 코드(괄호 없음)는 실측 0건이라 안 받는다 — 괄호를 요구하는 편이
-     문서번호·차량번호·카드번호가 섞여 드는 것을 막는다. */
+     문서번호·차량번호·카드번호가 섞여 드는 것을 막는다.
+     → 11-12에 실측 16건이 나와, 예산마스터에 실재하는 코드에 한해 받는다(맨몸코드). */
   const m = String(t || '').match(/[\[(（]\s*[A-Za-z]{2,3}(?:-[A-Za-z]{2,4})?-\d{3}\s*[\])）]/g);
   if (!m) return '';
   return normCode(m[m.length - 1].replace(/[\[\]()（）\s]/g, ''));
@@ -1664,7 +1680,7 @@ function 사전확인계산(items) {
   const A = aggregate();
   const 누적 = {};
   return items.map(it => {
-    const code = titleCode(it.title);
+    const code = titleCode(it.title, A.budCode);
     const amt = Number(it.amount) || 0;
     if (!code) return Object.assign({}, it, { code: '', verdict: 'nocode' });
     const b = A.budCode[code];
