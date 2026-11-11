@@ -88,6 +88,7 @@
   /* 방문기록의 다섯 칸 (점검 P23) — 본문(note) 아래에 한 벌로 붙는다 */
   .logmeta { margin-top:9px; padding-top:9px; border-top:1px solid #f2f4f6; font-size:12.5px; color:#4e5968; line-height:1.75; }
   .logmeta b { display:inline-block; min-width:56px; color:#8b95a1; font-weight:600; }
+  .hhlink { color:inherit; text-decoration:underline; text-decoration-color:#c9d3df; text-underline-offset:3px; cursor:pointer; }
   .plan .acts { display:flex; flex-direction:column; gap:7px; }
   .btn { font-family:inherit; font-size:13.5px; font-weight:600; padding:10px 16px; border:1px solid #e5e8eb; background:#fff; color:#4e5968; border-radius:12px; cursor:pointer; }
   .btn.pri { background:#1b64da; border-color:#1b64da; color:#fff; }
@@ -1053,6 +1054,13 @@
     <span style="font-size:13px;color:#4e5968;">회사 공식 영업 자료 — 항상 최신 자료를 사용하세요</span>
     <button class="refresh" onclick="MATL=null;loadMat()">새로고침</button>
   </div>
+  <!-- 현장 요청 (11-11, MA 요청 자동 추출) — 영업 기록에서 MA·임상팀 몫 요청을 모은다. renderMat이 DB 원천일 때만 보인다 -->
+  <div class="card" id="reqCard" style="display:none;cursor:pointer;" onclick="reqOpen()">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <span style="font-size:14px;font-weight:600;">📮 현장 요청 — 영업 기록에 적힌 MA·임상팀 요청을 모아 봅니다</span>
+      <span style="color:#5f6b7a;">›</span>
+    </div>
+  </div>
   <!-- 병원 사전분석 진입점 (슬라이스 C-1, §5-3) — 사전분석카드갱신_이 표시 여부를 정한다 -->
   <button class="btn ghost" id="maManageBtn" style="display:none;margin-bottom:10px;" onclick="openMA()">제안서 자료 검토</button>
   <div class="card" id="intelCard" style="display:none;cursor:pointer;" onclick="openIntelList()">
@@ -1092,11 +1100,12 @@
   <div class="card">
     <div style="font-size:15px;font-weight:700;color:#1b64da;">① 매일 하는 일은 딱 3가지</div>
     <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
-      <b>1. 계획 등록</b> — <b>계획 탭</b>에서 다음 주 방문 계획을 금요일까지 등록<br>
-      <b>2. 방문 기록</b> — 방문 후 <b>기록 탭</b>에서 결과 입력 (홈 계획 카드의 [기록 쓰기]를 누르면 자동으로 채워져요)<br>
+      <b>1. 계획 등록</b> — <b>계획 탭</b>에서 다음 주 방문 계획을 금요일까지 등록 (필수 칸만 보이고, 상세 내용·접촉 예정자·준비 사항은 [더 적기(선택)]에 접혀 있어요)<br>
+      <b>2. 방문 기록</b> — 방문 후 <b>기록 탭</b>에서 결과 입력 (홈 계획 카드의 [기록 쓰기]를 누르면 계획 내용이 자동으로 채워져요)<br>
       <b>3. 리드 관리</b> — <b>리드 탭</b>에서 내 리드의 단계를 탭해서 변경 (컨택 → 데모 → 협의 → 계약)
     </div>
-    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">기록을 남기면 같은 병원의 계획이 자동으로 '완료' 처리됩니다. 방문 못 간 계획은 홈에서 [연기/취소]로 정리해 주세요 — 안 하면 매일 아침 미기록 알림이 갑니다.</div>
+    <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">기록을 남기면 같은 병원의 계획이 자동으로 '완료' 처리됩니다. 방문 못 간 계획은 홈에서 [연기/취소]로 정리해 주세요 — 안 하면 매일 아침 미기록 알림이 갑니다.<br>
+      쓰던 기록·계획은 자동으로 임시저장돼요(칸 아래 「임시저장됨 · 시각」). 기록 화면에서는 [임시저장]을 직접 눌러도 됩니다.</div>
   </div>
 
   <div class="card">
@@ -1104,6 +1113,7 @@
     <div style="margin-top:10px;font-size:14px;line-height:1.8;color:#4e5968;">
       · <b>판매 카테고리</b> — <span class="tag" style="margin:0;">장비 판매</span> <span class="tag ncare" style="margin:0;">N-Care</span> 중 선택 (필수)<br>
       · <b>판매 단계</b> — 데모 완료·협의중·제안 완료·계약 등. <b>퍼널·KPI가 전부 이걸로 집계</b>되니 정확하게!<br>
+      · <b>진행 내용 · 고객 반응</b> — 한 칸에 함께 적어요. MA·임상팀에 부탁할 것은 <b>「요청: …」</b> 한 줄로 따로 적어 주세요<br>
       · <b>데모 노즐 사용량 · 배포 자료</b> — 데모/자료 전달 시 함께 입력
     </div>
     <div style="margin-top:10px;font-size:12.5px;color:#4e5968;">단계를 '계약'으로 저장하면 해당 병원 리드가 자동으로 계약·달성 처리됩니다.</div>
@@ -1129,6 +1139,8 @@
       <tr><td style="white-space:nowrap;"><b>홈</b></td><td>이번 주 내 계획 + 내 KPI + 월별 누적. 하단 [더보기]에서 전체 메뉴</td></tr>
       <tr><td><b>계획</b></td><td>방문 계획 등록 (새 병원이면 리드도 자동 생성)</td></tr>
       <tr><td><b>기록</b></td><td>방문 결과 입력</td></tr>
+      <tr><td style="white-space:nowrap;"><b>내 주간 목표</b></td><td>이번 주 목표·달성을 한 페이지에서 보고, 같은 페이지 아래에서 한 주 정리·제출. 그 주에 할 수 없는 목표는 「이번 주 해당 없음」과 사유 한 줄(계약·시연·연락 병원 수처럼 기록에서 자동으로 세는 목표는 제외)</td></tr>
+      <tr><td style="white-space:nowrap;"><b>병원 이력</b></td><td>리드·내 입력·큐돌이 목록의 <b>병원 이름</b>을 누르면 그 병원의 리드·N-Care·계획·방문기록·활동을 담당자와 관계없이 한 번에</td></tr>
       <tr><td><b>실패관리</b></td><td>데모 실패 병원 담당 배정 · 컨택 기록 · 다음 연락 관리</td></tr>
       <tr><td><b>자료</b></td><td>회사 공식 영업 자료실 (MA·C-Labs 업로드) — 항상 여기 있는 최신 자료로 배포</td></tr>
       <tr><td style="white-space:nowrap;"><b>학회/세미나</b></td><td>행사별 참석자·달성 현황, 내 모객 등록</td></tr>
@@ -1759,7 +1771,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611111009-fafb18e';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611111404-ad0328a';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2144,6 +2156,11 @@ function 세션비우기_() {
   q4HomeReset();
   IB.request++;IB.data=null;IB.detail=null;IB.pending=null;document.getElementById('ibDialog')?.remove();
   QD.request++;QD.data=null;QD.name='';QD.editing=null;
+  // 병원 이력·현장 요청·마케팅 상세의 늦은 응답이 다음 사람 화면에 남지 않게(2판 채택14). 이 함수만 떼어 돌리는 시험이 있어 있을 때만 건드린다
+  if (typeof HH !== 'undefined') { HH = null; HH_SEQ++; }
+  if (typeof REQ !== 'undefined') REQ = null;
+  if (typeof MKT_SEQ !== 'undefined') MKT_SEQ++;
+  if (typeof 모달닫기_ === 'function') 모달닫기_();
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
   그린부트_ = ''; 조작함_ = false; 쓴적_ = false;
@@ -2551,7 +2568,8 @@ window.addEventListener('popstate', function(e) {
   if (PIN재설정진입_()) return;
   // 모달이 먼저다 — 항목을 안 만들었으니 그 자리를 되밀어 깊이를 되돌린다
   if (모달열림_()) {
-    모달닫기_();
+    if (HH && (HH.back || HH.ret) && document.getElementById('hhRoot')) hospHistBack();   // 병원 이력은 상세로 돌아간다
+    else 모달닫기_();
     try { history.pushState({ v: 현재뷰_ }, '', '#' + 현재뷰_); } catch (e2) {}
     return;
   }
@@ -5017,7 +5035,7 @@ function 관문호출_(경로, 몸통) {
      방금 쓴 게 안 보이고, 「사라졌다」가 된다 (8/5 감사). `호출_`과 같은 60초. */
   var 제어 = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var 타이머 = 제어 ? setTimeout(function() { 제어.abort(); }, API_TIMEOUT) : 0;
-  var 읽기 = 경로 === '/saleson-inquiries';
+  var 읽기 = 경로 === '/saleson-inquiries' || 경로 === '/saleson-hospital';
   return fetch(GATE_URL + 경로, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -5878,7 +5896,7 @@ function 기록상세_(l) {
 function mineLogCard(l) {
   return '<div class="card">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
-    + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
+    + '<b style="font-size:16px;">' + 병원이력링크_(l.hname) + '</b>'
     + '<span style="font-size:12px;color:#5f6b7a;white-space:nowrap;">' + esc(l.date) + ' ' + esc(l.dow) + '</span></div>'
     + '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
     + (l.cat ? '<span class="tag' + (l.cat === 'N-Care' ? ' ncare' : '') + '">' + esc(l.cat) + '</span>' : '')
@@ -5920,10 +5938,204 @@ function deleteLog(열쇠) {
     busy(false); toast(e.message, true);
   });
 }
+/* ── 병원 이력 한 화면 (2026-11-11, 11/10 영업팀 개선 미팅 「병원을 누르면 이력이 한 번에」) ──
+ * 병원 이름을 누르면 그 병원의 리드·N-Care·앞으로의 계획·방문기록·큐돌이 활동을 담당자와 무관하게 한 창에 모은다.
+ * 서버는 saleson-hospital(_공유/병원이력.mjs) — 같은 병원 판정(거래처 코드 먼저, 코드 없는 행만 이름)과 열람 범위가 거기 있다.
+ * 조회 전용 계정(C-Labs·MA)에는 링크·버튼을 그리지 않는다(영업 브리핑 열람과 같은 선, 11-11 반증리뷰 채택3).
+ * hospModal을 재사용한다 — 화면에 그린 #hhRoot의 차례 번호가 지금 모달의 주인일 때만 늦은 응답을 그린다(채택5: 바깥 클릭으로 닫았거나
+ * 다른 화면이 모달을 쓰면 버린다). 상세에서 열면 상세의 입력값을 건져 두었다가 [← 이전 화면]에서 상세를 최신으로 다시 그린 뒤 값을 되살린다
+ * — 떼어 둔 화면을 되붙이면 그 사이 도착한 상세 응답(N-Care 전환 이력·노즐 근거, 마케팅 재조회)이 버려져 「불러오는 중」에 멈췄다(2판 채택3). */
+var HH = null;          // { data, back, ret:{다시, 값들, 위치}, limit, seq, name, code }
+var HH_SEQ = 0;
+function 병원이력가능_() { return !!(DATA && DATA.me && !DATA.me.viewer); }
+function 병원이력링크_(이름, 코드) {
+  if (!이름) return '';
+  if (!병원이력가능_()) return esc(이름);
+  return '<a href="javascript:void(0)" class="hhlink" data-h="' + mkiAttr_(이름) + '" data-c="' + mkiAttr_(코드 || '') + '"'
+    + ' onclick="event.stopPropagation();hospHistOpen(this.dataset.h,this.dataset.c)" title="이 병원의 이력 한 번에 보기">' + esc(이름) + '</a>';
+}
+/** 지금 모달의 입력값(id 있는 칸)을 건진다 — 상세를 다시 그린 뒤 되살린다 */
+function 입력값건지기_(body) {
+  var 값 = {};
+  Array.prototype.forEach.call(body.querySelectorAll('input[id],select[id],textarea[id]'), function(el) {
+    값[el.id] = { value: el.value, checked: !!el.checked };
+  });
+  return 값;
+}
+function 입력값되살리기_(값) {
+  Object.keys(값 || {}).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el || el.disabled) return;
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = 값[id].checked; else el.value = 값[id].value;
+  });
+}
+/** 돌아가기: 함수면 [← 이전 화면]에서 그것을 부른다. { 다시: fn }이면 지금 상세의 입력값을 건져 두고, 돌아올 때 fn으로 다시 그린 뒤 되살린다.
+ *  true는 이력 안에서 다른 병원을 고를 때 — 처음 돌아갈 곳을 이어받고, 없으면 지금 이력(고르기 화면)으로 돌아온다 */
+function hospHistOpen(이름, 코드, 돌아가기) {
+  if (!이름 && !코드) return;
+  var 차례 = ++HH_SEQ;
+  var body = document.getElementById('hospModalBody'), 모달 = document.getElementById('hospModal');
+  var back = null, ret = null;
+  if (typeof 돌아가기 === 'function') back = 돌아가기;
+  else if (돌아가기 === true && HH && document.getElementById('hhRoot')) {
+    if (HH.ret || HH.back) { ret = HH.ret; back = HH.back; }
+    else { var 이전 = HH.name, 이전코드 = HH.code; back = function() { hospHistOpen(이전, 이전코드); }; }
+  } else if (돌아가기 && typeof 돌아가기.다시 === 'function' && 모달.style.display !== 'none') {
+    ret = { 다시: 돌아가기.다시, 값들: 입력값건지기_(body), 위치: body.scrollTop };
+  }
+  HH = { data: null, back: back, ret: ret, limit: 30, seq: 차례, name: 이름 || '', code: 코드 || '' };
+  body.innerHTML = 병원이력머리_(이름 || 코드, '') + '<div class="card empty" style="border:none;">불러오는 중…</div>';
+  모달.style.display = 'flex';
+  body.scrollTop = 0;
+  관문호출_('/saleson-hospital', JSON.stringify({ 토큰: TOKEN, name: 이름 || '', code: 코드 || '' }))
+    .then(화면갱신감싸기_(function(d) {
+      if (!병원이력주인_(차례)) return;          // 다른 병원을 열었거나, 닫았거나, 다른 화면이 모달을 쓴다 — 덮지 않는다
+      HH.data = d; 병원이력그리기_();
+    }, '이력은 받았지만 화면을 그리지 못했습니다'), function(e) {
+      if (!병원이력주인_(차례)) return;
+      body.innerHTML = 병원이력머리_(이름 || 코드, '') + '<div class="card empty" style="border:none;">' + esc(e.message) + '</div>';
+    });
+}
+/* 고르기 화면에서 한 곳을 고른다 — 상세에서 왔으면 그 상세로, 아니면 고르기 화면으로 돌아오게 */
+function hospHistPick(이름, 코드) { hospHistOpen(이름, 코드, (HH && HH.back) || true); }
+function 병원이력주인_(차례) {
+  var 뿌리 = document.getElementById('hhRoot');
+  return !!(HH && HH.seq === 차례 && 뿌리 && 뿌리.getAttribute('data-seq') === String(차례)
+    && document.getElementById('hospModal').style.display !== 'none');
+}
+function hospHistBack() {
+  var h = HH; HH = null;
+  var body = document.getElementById('hospModalBody');
+  if (h && h.ret) { h.ret.다시(); 입력값되살리기_(h.ret.값들); body.scrollTop = h.ret.위치 || 0; return; }
+  if (h && h.back) return h.back();
+  document.getElementById('hospModal').style.display = 'none';
+}
+function 병원이력머리_(제목, 아래) {
+  var 뒤로 = HH && (HH.back || HH.ret);
+  return '<div id="hhRoot" data-seq="' + (HH ? HH.seq : 0) + '" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div style="min-width:0;"><div style="font-size:12px;font-weight:700;color:#1b64da;">병원 이력</div>'
+    + '<div style="font-size:17px;font-weight:700;color:#191f28;word-break:keep-all;overflow-wrap:anywhere;">' + esc(제목) + '</div>' + (아래 || '') + '</div>'
+    + '<button class="btn ghost" style="flex:0 0 auto;" onclick="hospHistBack()">' + (뒤로 ? '← 이전 화면' : '닫기') + '</button></div>';
+}
+function 병원이력칸_(제목, 내용) {
+  return '<div style="margin-top:16px;font-size:13.5px;font-weight:700;color:#191f28;">' + 제목 + '</div>' + 내용;
+}
+/** 큐돌이 활동 한 건의 업무 칸(만난 사람·다음 할 일·약속일·시각·장소·근거 …) — 따로 보이는 활동과 방문기록에 붙은 활동이 같은 모양을 쓴다 */
+function 병원활동세부_(a) {
+  if (a.hidden) return '<div style="margin-top:4px;font-size:12px;color:#8b95a1;">세부 내용은 담당자 본인과 관리자만 봅니다.</div>';
+  var 줄 = [];
+  if (a.contact) 줄.push(['만난 사람', a.contact]);
+  if (a.next || a.nextOn) 줄.push(['다음 할 일', [a.next, a.nextOn ? '(' + a.nextOn + ')' : ''].filter(Boolean).join(' ')]);
+  (a.extra || []).forEach(function(x) { 줄.push([x[0], x[1]]); });
+  return 줄.length ? '<div class="logmeta">' + 줄.map(function(x) { return '<div><b>' + esc(x[0]) + '</b>' + esc(x[1]) + '</div>'; }).join('') + '</div>' : '';
+}
+function 병원이력그리기_() {
+  var d = HH && HH.data; if (!d) return;
+  if (d.choose && d.choose.length) {
+    // 같은 이름 거래처가 여럿 — 섞지 않고 고르게 한다(채택1)
+    var 고르기 = '<div style="margin-top:10px;font-size:13px;color:#4e5968;">이 이름의 거래처가 ' + d.choose.length + '곳 있습니다. 어느 병원인지 골라 주세요.</div>'
+      + d.choose.map(function(c) {
+        return '<button class="btn" style="display:block;width:100%;margin-top:8px;text-align:left;" data-h="' + mkiAttr_(c.name) + '" data-c="' + mkiAttr_(c.code) + '"'
+          + ' onclick="hospHistPick(this.dataset.h,this.dataset.c)">'
+          + '<b>' + esc(c.name) + '</b> <span style="font-size:12.5px;color:#5f6b7a;">' + esc([c.code, c.region, c.rep ? '영업 ' + c.rep : ''].filter(Boolean).join(' · ')) + '</span></button>';
+      }).join('');
+    document.getElementById('hospModalBody').innerHTML = 병원이력머리_(HH.name || d.hospital.name, '') + 고르기;
+    return;
+  }
+  var H = d.hospital, S = d.summary;
+  var 메타 = [H.region, H.code || '거래처 미연결', H.rep ? '영업 ' + H.rep : '', H.careRep ? '케어 ' + H.careRep : '']
+    .filter(Boolean).map(esc).join(' · ');
+  var 꼬리 = '<div style="margin-top:4px;font-size:13px;color:#4e5968;">' + 메타 + '</div>'
+    + (H.code ? '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'
+      // 거래처 조회가 실패했으면 「없음」으로 단정하지 않는다(2판 채택5). N-Care는 Pool 단계가 있으면 그것을 함께 보인다(2판 채택13)
+      + (H.unknown ? '<span class="tag">장비·N-Care 확인 못 함</span>'
+        : '<span class="tag">' + (H.hasEquipment ? '장비 보유' : '장비 없음') + '</span>'
+          + '<span class="tag' + (H.ncareJoined ? ' ncare' : '') + '">' + (H.ncareJoined ? 'N-Care 가입' : d.ncare.length ? 'N-Care 가입 표시 없음 · Pool ' + d.ncare[0].stage + '단계' : 'N-Care 미가입') + '</span>')
+      + (H.status ? '<span class="tag">' + esc(H.status) + '</span>' : '') + '</div>' : '');
+  var h = 병원이력머리_(H.name, 꼬리);
+  var 실패 = Object.keys(d.errors || {});
+  if (실패.length) h += '<div style="margin-top:8px;font-size:12.5px;color:#d0223a;">일부 이력(' + 실패.map(esc).join('·') + ')을 불러오지 못했습니다. 빈 칸이 「없음」이 아닐 수 있습니다 — 잠시 뒤 다시 열어 주세요.</div>';
+  if (S.ambiguous) h += '<div style="margin-top:8px;font-size:12.5px;color:#a35c11;">같은 이름을 쓰는 다른 거래처가 있어, 거래처 없이 그 이름으로만 적힌 기록 ' + S.ambiguous + '건은 어느 지점인지 몰라 여기 싣지 않았습니다.</div>';
+  if ((S.moreTables || []).length) h += '<div style="margin-top:8px;font-size:12.5px;color:#a35c11;">' + S.moreTables.map(esc).join('·') + '은 오래된 것 일부만 보입니다.</div>';
+
+  // 한눈 요약
+  var 칸 = [['첫 연락', S.firstContact || '—'], ['마지막 연락', S.lastContact || '—'], ['기록', (S.logs + S.activities) + '건' + (S.more ? '+' : '')], ['다녀간 사람', S.reps.length ? S.reps.join(', ') : '—']];
+  h += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;">'
+    + 칸.map(function(x) {
+      return '<div style="background:#f9fafb;border-radius:10px;padding:8px 10px;min-width:0;"><div style="font-size:11.5px;color:#5f6b7a;">' + x[0] + '</div>'
+        + '<div style="font-size:13.5px;font-weight:700;color:#191f28;overflow-wrap:anywhere;">' + esc(x[1]) + '</div></div>';
+    }).join('') + '</div>';
+
+  if (d.leads.length) h += 병원이력칸_('리드', d.leads.map(function(l) {
+    return '<div style="margin-top:6px;border:1px solid #f2f4f6;border-radius:12px;padding:9px 12px;font-size:13px;color:#191f28;">'
+      + '<span class="tag' + (l.stage === '계약' ? ' ncare' : '') + '">' + esc(l.stage || '단계 없음') + '</span> '
+      + esc([l.target, l.demoOn ? '데모 ' + l.demoOn : '', l.dealOn ? '계약 ' + l.dealOn : '', l.source, l.rep].filter(Boolean).join(' · '))
+      + (l.failReason ? '<div style="margin-top:4px;color:#5f6b7a;">실패 사유 · ' + esc(l.failReason) + '</div>' : '')
+      + (l.failFix || l.retryOn ? '<div style="margin-top:4px;color:#5f6b7a;">' + esc([l.failFix ? '다시 연락할 조건 · ' + l.failFix : '', l.retryOn ? '재연락일 ' + l.retryOn : ''].filter(Boolean).join(' · ')) + '</div>' : '')
+      + (l.note ? '<div style="margin-top:4px;color:#5f6b7a;white-space:pre-wrap;overflow-wrap:anywhere;">메모 · ' + esc(l.note) + '</div>' : '') + '</div>';
+  }).join(''));
+
+  if (d.ncare.length) h += 병원이력칸_('N-Care 관리', d.ncare.map(function(p) {
+    return '<div style="margin-top:6px;border:1px solid #f2f4f6;border-radius:12px;padding:9px 12px;font-size:13px;color:#191f28;">'
+      + '<b>' + p.stage + '단계 · ' + esc(ncStageName(p.stage)) + '</b> '
+      + esc([p.careRep ? '케어 ' + p.careRep : '케어 담당 미지정', p.grade ? '노즐 ' + p.grade : '', p.tier, p.expiresOn ? '만료 ' + p.expiresOn : ''].filter(Boolean).join(' · '))
+      + '</div>';
+  }).join(''));
+
+  var 앞 = d.plans.filter(function(p) { return p.upcoming; }).sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  if (앞.length) h += 병원이력칸_('앞으로의 계획 ' + 앞.length + '건', 앞.map(function(p) {
+    return '<div style="margin-top:6px;border:1px solid #e8f3ff;background:#f7fbff;border-radius:12px;padding:9px 12px;font-size:13px;color:#191f28;">'
+      + '<b>' + esc(p.date) + '</b> ' + esc([p.type, p.purpose, p.contact ? p.contact + ' 만남' : '', p.rep, p.status === '연기' ? '연기' : ''].filter(Boolean).join(' · '))
+      + (p.prep ? '<div style="margin-top:4px;color:#5f6b7a;">준비 · ' + esc(p.prep) + '</div>' : '') + '</div>';
+  }).join(''));
+
+  // 활동 이력 — 방문기록과 큐돌이 활동을 날짜순으로 한 줄에. 방문기록에 붙은 큐돌이 활동은 그 기록 안에 상태·세부까지 펼친다
+  var 줄 = d.logs.map(function(l) { return { date: l.date, log: l }; })
+    .concat(d.activities.map(function(a) { return { date: a.date, act: a }; }))
+    .sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+  var 보일 = 줄.slice(0, HH.limit);
+  h += 병원이력칸_('활동 이력 ' + 줄.length + '건' + (S.more ? ' (오래된 것은 일부만)' : ''), 줄.length ? 보일.map(function(x) {
+    if (x.log) {
+      var l = x.log;
+      return '<div style="margin-top:8px;border:1px solid #f2f4f6;border-radius:12px;padding:10px 12px;">'
+        + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;"><b>' + esc(l.date) + ' ' + esc(l.dow) + '</b>'
+        + (l.type ? '<span class="tag">' + esc(l.type) + '</span>' : '')
+        + (l.cat ? '<span class="tag' + (l.cat === 'N-Care' ? ' ncare' : '') + '">' + esc(l.cat) + '</span>' : '')
+        + (l.stage ? '<span class="tag">' + esc(l.stage) + '</span>' : '')
+        + '<span style="flex:1;"></span><span style="font-size:12px;color:#5f6b7a;">' + esc(l.rep) + '</span></div>'
+        + (l.note ? '<div style="margin-top:6px;font-size:13.5px;color:#4e5968;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;">' + esc(l.note) + '</div>' : '')
+        + 기록상세_(l)
+        + (l.acts || []).map(function(a) {
+          return '<div style="margin-top:8px;background:#f9fafb;border-radius:10px;padding:8px 10px;">'
+            + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;"><span class="tag">큐돌이 · ' + esc(a.label) + '</span>' + (a.status ? '<span class="tag">' + esc(a.status) + '</span>' : '') + '</div>'
+            + (a.detail ? '<div style="margin-top:4px;font-size:13px;color:#4e5968;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;">' + esc(a.detail) + '</div>' : '')
+            + 병원활동세부_(a) + '</div>';
+        }).join('') + '</div>';
+    }
+    var a = x.act;
+    return '<div style="margin-top:8px;border:1px solid #f2f4f6;border-radius:12px;padding:10px 12px;">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;"><b>' + esc(a.date) + '</b>'
+      + '<span class="tag">큐돌이 · ' + esc(a.label) + '</span>' + (a.status ? '<span class="tag">' + esc(a.status) + '</span>' : '')
+      + '<span style="flex:1;"></span><span style="font-size:12px;color:#5f6b7a;">' + esc(a.rep) + '</span></div>'
+      + (a.detail ? '<div style="margin-top:6px;font-size:13.5px;color:#4e5968;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;">' + esc(a.detail) + '</div>' : '')
+      + 병원활동세부_(a) + '</div>';
+  }).join('') + (줄.length > HH.limit ? '<div style="margin-top:10px;text-align:center;"><button class="btn" onclick="HH.limit+=30;병원이력그리기_()">이전 기록 더 보기 (' + (줄.length - HH.limit) + '건)</button></div>' : '')
+    : '<div style="margin-top:6px;font-size:13px;color:#8b95a1;">아직 남은 방문기록·활동이 없습니다.</div>');
+
+  var 지난 = d.plans.filter(function(p) { return !p.upcoming; });
+  if (지난.length) h += '<details style="margin-top:14px;"><summary style="font-size:13px;font-weight:700;color:#4e5968;cursor:pointer;">지난·취소된 계획 ' + 지난.length + '건</summary>'
+    + 지난.map(function(p) {
+      return '<div style="margin-top:6px;font-size:12.5px;color:#4e5968;">' + esc(p.date) + ' · ' + esc([p.type, p.purpose, p.status, p.rep].filter(Boolean).join(' · ')) + '</div>';
+    }).join('') + '</details>';
+  h += '<div style="margin-top:14px;font-size:12px;color:#8b95a1;line-height:1.5;">담당자와 관계없이 이 병원에 남은 기록을 모았습니다. 본인 기록은 「내 입력」·큐돌이 「활동 이력」에서 고칩니다. 다른 담당자의 기록은 그 담당자나 관리자에게 요청해 주세요.</div>';
+  var body = document.getElementById('hospModalBody'), 위치 = body.scrollTop;
+  body.innerHTML = h; body.scrollTop = 위치;
+}
+
 function mineLeadCard(l) {
   return '<div class="card">'
     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">'
-    + '<b style="font-size:16px;">' + esc(l.hname) + '</b>'
+    + '<b style="font-size:16px;">' + 병원이력링크_(l.hname) + '</b>'
     + '<span style="font-size:12px;color:#5f6b7a;">' + esc(l.stage || '') + (MINE.admin && l.rep ? ' · ' + esc(l.rep) : '') + '</span></div>'
     + (l.target
         ? '<div style="margin-top:5px;font-size:13px;color:#4e5968;">' + esc(l.target) + '</div>'
@@ -6865,7 +7077,7 @@ function leadCard(l) {
   var ch = l.channel ? (l.channel === '딜러' && l.dealer ? '딜러(' + l.dealer + ')' : l.channel) : '';
   var src = l.source ? (ch ? ch + ' · ' : '') + l.source + (l.refer ? ' (' + l.refer + ')' : '') : '';
   return '<div class="card lead' + (done ? ' done' : '') + '">'
-    + '<div class="h">' + esc(l.hname) + (done ? '<span class="badge deal">계약</span>' : '') + '</div>'
+    + '<div class="h">' + 병원이력링크_(l.hname) + (done ? '<span class="badge deal">계약</span>' : '') + '</div>'
     + '<div class="m">' + ioBadge(l.source) + ' ' + esc(l.contact || '-') + (l.ename ? ' · ' + esc(l.ename) : '') + (src ? ' · ' + esc(src) : '') + '</div>'
     /* 전화번호 (2026-08-16, 점검 P21) — 행사 참석자 등록에서 받아 `leads.phone`에 27건이
        쌓여 있는데 여태 어떤 읽기 경로도 안 가져왔다. 「문의는 앱에서 바로 전화가 되는데
@@ -7597,9 +7809,10 @@ function ncOpen(id) {
   var canEdit = !me.viewer && (me.admin || p.rep === me.name);
   var canAssign = !me.viewer && (me.admin || p.rep === me.name || !p.rep);
   var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
-    + '<div><div style="font-size:17px;font-weight:700;color:#191f28;">' + esc(p.hname) + '</div>'
+    + '<div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#191f28;overflow-wrap:anywhere;">' + esc(p.hname) + '</div>'
     + '<div style="margin-top:4px;font-size:13px;color:#4e5968;">' + esc(p.region || '') + (p.code ? ' · ' + esc(p.code) : ' · 거래처 미연결') + ' · 노즐 ' + ncGradeBadge(p.grade) + '</div></div>'
-    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+    + '<div style="display:flex;gap:6px;flex:0 0 auto;">' + (병원이력가능_() ? '<button class="btn" data-h="' + mkiAttr_(p.hname) + '" data-c="' + mkiAttr_(p.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{다시:function(){ncOpen(' + p.id + ')}})">전체 이력</button>' : '')
+    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div></div>';
   if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
 
   /* 단계 전환은 두 걸음이다 (8/13 요청) — 누르면 「선택」만 되고, [저장]을 눌러야 옮겨진다.
@@ -7990,6 +8203,8 @@ function renderMat() {
   var d = MATL;
   document.getElementById('maManageBtn').style.display = DATA && DATA.dbSrc && DATA.me
     && (DATA.me.admin || String(DATA.me.team || '').trim() === 'MA') ? 'inline-block' : 'none';
+  var 요청카드 = document.getElementById('reqCard');
+  if (요청카드) 요청카드.style.display = DATA && DATA.dbSrc && DATA.me && (!DATA.me.viewer || String(DATA.me.team || '').trim() === 'MA') ? 'block' : 'none';
   var up = document.getElementById('matUpCard');
   up.style.display = d.canUpload ? 'block' : 'none';
   if (d.canUpload && !document.getElementById('mCat').innerHTML) {
@@ -8011,6 +8226,63 @@ function renderMat() {
     ? items.map(matCard).join('')
     : '<div class="card empty">등록된 자료가 없습니다.' + (d.canUpload ? '<br><br>위 폼에서 첫 자료를 올려 보세요.' : '') + '</div>';
 }
+/* ── 현장 요청 (2026-11-11, 11/10 개선 미팅 「MA 요청 사항 자동 추출」) ──
+ * 서버 saleson-hospital 동작 '요청목록'(_공유/MA요청.mjs) — 「요청: …」 줄은 「요청」, 자유 문장에서 MA 몫 낱말로 고른 것은 「요청 후보」.
+ * 읽기만 한다. 병원 이름을 누르면 병원 이력 한 화면으로 이어진다(돌아오기 가능). */
+var REQ = null;   // { items, days, from, today, kind, seq }
+function reqOpen(일수) {
+  var 차례 = (REQ && REQ.seq || 0) + 1, 종류 = (REQ && REQ.kind) || '전체';
+  REQ = { items: null, days: 일수 || (REQ && REQ.days) || 60, kind: 종류, seq: 차례 };
+  var body = document.getElementById('hospModalBody');
+  body.innerHTML = 요청머리_() + '<div class="card empty" style="border:none;">불러오는 중…</div>';
+  document.getElementById('hospModal').style.display = 'flex';
+  관문호출_('/saleson-hospital', JSON.stringify({ 토큰: TOKEN, 동작: '요청목록', days: REQ.days }))
+    .then(화면갱신감싸기_(function(d) {
+      if (!요청주인_(차례)) return;
+      REQ.items = d.items || []; REQ.from = d.from; REQ.today = d.today; REQ.truncated = !!d.truncated; 요청그리기_();
+    }, '요청 목록은 받았지만 화면을 그리지 못했습니다'), function(e) {
+      if (!요청주인_(차례)) return;
+      body.innerHTML = 요청머리_() + '<div class="card empty" style="border:none;">' + esc(e.message) + '</div>';
+    });
+}
+function 요청주인_(차례) {
+  var 뿌리 = document.getElementById('reqRoot');
+  return !!(REQ && REQ.seq === 차례 && 뿌리 && 뿌리.getAttribute('data-seq') === String(차례) && document.getElementById('hospModal').style.display !== 'none');
+}
+function 요청머리_() {
+  return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    + '<div id="reqRoot" data-seq="' + (REQ ? REQ.seq : 0) + '" style="min-width:0;"><div style="font-size:12px;font-weight:700;color:#1b64da;">현장 요청</div>'
+    + '<div style="font-size:17px;font-weight:700;color:#191f28;">MA·임상팀에 온 요청</div></div>'
+    + '<button class="btn ghost" style="flex:0 0 auto;" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+}
+function 요청그리기_() {
+  if (!REQ || !REQ.items) return;
+  var 모두 = REQ.items, 명시 = 모두.filter(function(x) { return x.kind === '명시'; }).length;
+  var 보일 = REQ.kind === '전체' ? 모두 : 모두.filter(function(x) { return x.kind === REQ.kind; });
+  var h = 요청머리_()
+    + '<div style="margin-top:8px;font-size:12.5px;color:#4e5968;line-height:1.6;">' + esc(REQ.from || '') + ' ~ ' + esc(REQ.today || '') + ' 기록에서 뽑았습니다. '
+    + (REQ.truncated ? '<b style="color:#a35c11;">기록이 많아 오래된 쪽 일부는 빠졌습니다.</b> ' : '')
+    + '<b>요청</b>은 기록에 「요청: …」으로 적은 줄, <b>요청 후보</b>는 문장에 「요청」과 자료·영상·가이드·레터·세미나 같은 낱말이 함께 있는 것이라 MA 몫이 아닐 수도 있습니다.</div>'
+    + '<div class="chips" style="margin-top:10px;">'
+    + [['전체', 모두.length], ['명시', 명시], ['후보', 모두.length - 명시]].map(function(t) {
+      return '<div class="chip' + (REQ.kind === t[0] ? ' on' : '') + '" onclick="REQ.kind=\'' + t[0] + '\';요청그리기_()">' + (t[0] === '명시' ? '요청' : t[0] === '후보' ? '요청 후보' : '전체') + ' ' + t[1] + '</div>';
+    }).join('')
+    + [30, 60, 180].map(function(n) {
+      return '<div class="chip' + (REQ.days === n ? ' on' : '') + '" onclick="reqOpen(' + n + ')">최근 ' + n + '일</div>';
+    }).join('') + '</div>';
+  h += 보일.length ? 보일.map(function(x) {
+    return '<div style="margin-top:8px;border:1px solid ' + (x.kind === '명시' ? '#b0d3ff' : '#f2f4f6') + ';border-radius:12px;padding:10px 12px;">'
+      + '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;"><b>' + esc(x.date) + '</b>'
+      + '<span class="tag' + (x.kind === '명시' ? ' ncare' : '') + '">' + (x.kind === '명시' ? '요청' : '요청 후보') + '</span>'
+      + (x.hname && !병원이력가능_() ? '<b>' + esc(x.hname) + '</b>' : '')
+      + (x.hname && 병원이력가능_() ? '<a href="javascript:void(0)" class="hhlink" style="font-weight:700;" data-h="' + mkiAttr_(x.hname) + '" data-c="' + mkiAttr_(x.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,요청그리기_)">' + esc(x.hname) + '</a>' : '')
+      + '<span style="flex:1;"></span><span style="font-size:12px;color:#5f6b7a;">' + esc(x.rep) + '</span></div>'
+      + '<div style="margin-top:6px;font-size:13.5px;color:#191f28;line-height:1.6;overflow-wrap:anywhere;">' + esc(x.text) + '</div></div>';
+  }).join('') : '<div style="margin-top:10px;font-size:13px;color:#8b95a1;">이 기간에 해당하는 요청이 없습니다.</div>';
+  h += '<div style="margin-top:14px;font-size:12px;color:#8b95a1;line-height:1.5;">영업 담당에게는 기록의 「진행 내용 · 고객 반응」 칸에 「요청: …」 한 줄로 적도록 안내하고 있습니다. 처리 여부는 아직 여기서 기록하지 않습니다.</div>';
+  document.getElementById('hospModalBody').innerHTML = h;
+}
+
 function matCard(m) {
   var c = MATCOLOR[m.cat] || MATCOLOR['기타'];
   return '<div class="card">'
@@ -9754,16 +10026,18 @@ function qdHistoryHtml(){
  var d=QD.data;
  return '<div class="qd-record-tools"><p>전화·DM·방문·시연·계약·N-Care를 함께 봅니다.</p>'+(d.canWrite?'<button class="qd-primary" onclick="qdOpen(\''+(d.assignment.content.role==='ES'?'care_consult':'call')+'\')">활동 기록</button>':'')+'</div><div class="qd-filters"><label>병원 찾기<input id="qdHistorySearch" placeholder="병원명" oninput="qdHistoryFilter()"></label><label>기간<select id="qdHistoryPeriod" onchange="qdHistoryFilter()"><option value="week">선택한 주</option><option value="all">누적 이력</option></select></label></div><div id="qdHistoryList">'+qdHistoryRows('','week')+'</div><p class="qd-help">기존 방문과 그 방문에 연결한 활동은 한 줄로 모았습니다. 장비 실적은 기존 SalesON의 확인된 분류를 사용합니다. 누적 방문·시연·계약은 2026년 4분기 기준입니다.</p>';
 }
+// 병원 이름을 누르면 병원 이력 한 화면(웹앱 병원이력링크_, 11-11). 웹앱 밖(하네스)에서는 글자만
+function qdHosp(n,c){return typeof 병원이력링크_==='function'&&n?병원이력링크_(n,c||''):esc(n);}
 function qdHistoryRows(search,period){
  var d=QD.data,rows=(d.history||[]).filter(function(r){return r.hospital_name.indexOf(search)>=0&&(period==='all'||r.date>=d.week&&r.date<=qdPlus(d.week,6));});
- return rows.length?rows.map(function(r){return '<article class="qd-record"><div><b>'+esc(r.hospital_name)+'</b><span>'+esc(r.date+' · '+r.label+' · '+r.status)+'</span><p>'+esc(r.tags.join(' · '))+'</p><p>'+esc(r.detail)+'</p></div><div>'+(r.resultId&&d.canWrite?'<button onclick="qdEdit(\''+r.resultId+'\')">활동 수정</button>':'')+(r.source==='inbound'?'<button onclick="ibJump('+r.inquiryId+')">연락·배정 이력</button>':r.source!=='result'?'<button onclick="qdExisting(\''+(r.source==='performance'?'demo':'es_visit')+'\')">원래 기록 보기</button>':'')+'</div></article>';}).join(''):'<div class="qd-empty">해당 기간의 기록이 없습니다. 누적 이력에서도 확인할 수 있습니다.</div>';
+ return rows.length?rows.map(function(r){return '<article class="qd-record"><div><b>'+qdHosp(r.hospital_name,r.account_code)+'</b><span>'+esc(r.date+' · '+r.label+' · '+r.status)+'</span><p>'+esc(r.tags.join(' · '))+'</p><p>'+esc(r.detail)+'</p></div><div>'+(r.resultId&&d.canWrite?'<button onclick="qdEdit(\''+r.resultId+'\')">활동 수정</button>':'')+(r.source==='inbound'?'<button onclick="ibJump('+r.inquiryId+')">연락·배정 이력</button>':r.source!=='result'?'<button onclick="qdExisting(\''+(r.source==='performance'?'demo':'es_visit')+'\')">원래 기록 보기</button>':'')+'</div></article>';}).join(''):'<div class="qd-empty">해당 기간의 기록이 없습니다. 누적 이력에서도 확인할 수 있습니다.</div>';
 }
 function qdHistoryFilter(){document.getElementById('qdHistoryList').innerHTML=qdHistoryRows(document.getElementById('qdHistorySearch').value,document.getElementById('qdHistoryPeriod').value);}
 function qdTasksHtml(){
  var d=QD.data,open=(d.tasks||[]).filter(function(t){return ['open','blocked'].includes(t.status);}),closed=(d.tasks||[]).filter(function(t){return !['open','blocked'].includes(t.status);});
  var rows=function(items){return items.map(function(t){return '<article class="qd-record"><div><b>'+esc(t.title)+'</b><span>'+esc((t.hospital_name||'공통 업무')+' · 실행일 '+t.due_on+' · 최초 기한 '+t.original_due_on)+'</span><p>'+esc(({open:'진행 중',blocked:'진행이 막힘',done:'완료',cancelled:'취소'})[t.status])+(t.status!=='done'&&t.status!=='cancelled'&&t.due_on<d.today?' · 기한 초과':'')+(t.origin_week<d.week?' · 이전 주 이월':'')+'</p><p>'+esc(t.note||'')+'</p></div>'+(d.canWrite?'<button onclick="qdTaskOpen(\''+t.id+'\')">상태·결과 기록</button>':'')+'</article>';}).join('');};
  var out='<div class="qd-record-tools"><h3>남은 할 일 '+open.length+'건</h3>'+(d.canWrite?'<button class="qd-primary" onclick="qdTaskOpen()">할 일 추가</button>':'')+'</div><p class="qd-help">활동 입력의 다음 약속은 자동으로 할 일이 됩니다. 다음 주 일정도 여기에 적으세요. 미완료 업무는 주가 바뀌어도 남고, 기한을 바꾸면 최초 기한과 변경 사유를 보관합니다.</p>'+rows(open)+'<details><summary>완료·취소한 업무 '+closed.length+'건</summary>'+rows(closed)+'</details><h3>시연 후 48시간 관리</h3><p>시연 종료 시각부터 고객 반응 확인과 다음 상담 약속을 각각 관리합니다. 지난주 시연도 함께 확인합니다.</p>';
- out+=(d.analysis?.followup.rows||[]).map(function(r){return '<article class="qd-record"><div><b>'+esc(r.hospital_name)+'</b><span>'+esc(r.date+' 시연 · 후속 기한 '+qdKst(r.dueAt))+'</span>'+r.steps.map(function(s){return '<p>'+esc(s.label+' — '+s.status)+(s.finishedAt?' · '+esc(qdKst(s.finishedAt)):'')+'</p>';}).join('')+'</div><div class="qd-actions">'+(d.canWrite?'<button onclick="qdTimeOpen(\''+r.key+'\')">'+(r.happenedAt?'시연 시각 수정':'시연 종료 시각 입력')+'</button><button onclick="qdFollowOpen(\''+r.key+'\',\'feedback\')">반응 확인 기록</button><button onclick="qdFollowOpen(\''+r.key+'\',\'next_meeting\')">다음 상담 기록</button>':'')+'</div></article>';}).join('');
+ out+=(d.analysis?.followup.rows||[]).map(function(r){return '<article class="qd-record"><div><b>'+qdHosp(r.hospital_name,r.account_code)+'</b><span>'+esc(r.date+' 시연 · 후속 기한 '+qdKst(r.dueAt))+'</span>'+r.steps.map(function(s){return '<p>'+esc(s.label+' — '+s.status)+(s.finishedAt?' · '+esc(qdKst(s.finishedAt)):'')+'</p>';}).join('')+'</div><div class="qd-actions">'+(d.canWrite?'<button onclick="qdTimeOpen(\''+r.key+'\')">'+(r.happenedAt?'시연 시각 수정':'시연 종료 시각 입력')+'</button><button onclick="qdFollowOpen(\''+r.key+'\',\'feedback\')">반응 확인 기록</button><button onclick="qdFollowOpen(\''+r.key+'\',\'next_meeting\')">다음 상담 기록</button>':'')+'</div></article>';}).join('');
  return out;
 }
 function qdAnalysisHtml(){
@@ -9771,7 +10045,7 @@ function qdAnalysisHtml(){
  var card=function(label,value,sub){return '<article class="qd-card"><h4>'+esc(label)+'</h4><div class="qd-count"><b>'+esc(value)+'</b></div><p>'+esc(sub||'')+'</p></article>';};
  var out='<h3>이번 주 실행 상태</h3><div class="qd-grid">'+card('미완료 업무',a.tasks.open+'건','기한 초과 '+a.tasks.overdue+'건 · 이월 '+a.tasks.carried+'건')+card('48시간 내 처리율',qdRate(a.followup.rate),'늦게 완료 '+a.followup.late+'건 · 현재 기한 초과 '+a.followup.overdue+'건')+card('시연 시각 확인',a.followup.unknown+'건','종료 시각을 확인해야 48시간을 계산합니다.')+'</div>';
  if(d.assignment.content.role==='ES'){
-  var c=a.care;out+='<h3>N-Care 구독 변화</h3><div class="qd-grid">'+card('이번 주 순증',c.net+'곳','신규 '+c.new+' + 재가입 '+c.rejoin+' − 이탈 '+c.churn)+card('전체 이탈률',qdRate(c.churnRate),'주 시작 상태 미확인 '+c.openingUnknown+'곳')+card('확인된 구독 병원',c.ending+'곳','현재 상태 미확인 '+c.endingUnknown+'곳')+'</div><p class="qd-help">'+esc(c.definition)+'<br>확인된 시작 구독 '+c.opening+'곳 중 이탈 '+c.openingChurn+'곳 ('+qdRate(c.verifiedCohortChurnRate)+'). 결제 시스템과 자동 대사하지 않으며 확인 근거를 기록합니다.</p><details><summary>병원별 구독 상태 확인</summary>'+c.current.map(function(r){return '<article class="qd-record"><div><b>'+esc(r.hospital_name)+'</b><span>'+esc(r.active===null?'유료 구독 확인 필요':r.active?'구독 중':'구독 종료')+' · '+esc(r.expires_on?'확인된 만료일 '+r.expires_on:r.legacyExpires?'기존 자료 만료일 '+r.legacyExpires:'만료일 미확인')+'</span></div>'+(d.canWrite?'<button onclick="qdCareOpen(\''+esc(r.account_code)+'\')">구독 여부 확인</button>':'')+'</article>';}).join('')+'</details>';
+  var c=a.care;out+='<h3>N-Care 구독 변화</h3><div class="qd-grid">'+card('이번 주 순증',c.net+'곳','신규 '+c.new+' + 재가입 '+c.rejoin+' − 이탈 '+c.churn)+card('전체 이탈률',qdRate(c.churnRate),'주 시작 상태 미확인 '+c.openingUnknown+'곳')+card('확인된 구독 병원',c.ending+'곳','현재 상태 미확인 '+c.endingUnknown+'곳')+'</div><p class="qd-help">'+esc(c.definition)+'<br>확인된 시작 구독 '+c.opening+'곳 중 이탈 '+c.openingChurn+'곳 ('+qdRate(c.verifiedCohortChurnRate)+'). 결제 시스템과 자동 대사하지 않으며 확인 근거를 기록합니다.</p><details><summary>병원별 구독 상태 확인</summary>'+c.current.map(function(r){return '<article class="qd-record"><div><b>'+qdHosp(r.hospital_name,r.account_code)+'</b><span>'+esc(r.active===null?'유료 구독 확인 필요':r.active?'구독 중':'구독 종료')+' · '+esc(r.expires_on?'확인된 만료일 '+r.expires_on:r.legacyExpires?'기존 자료 만료일 '+r.legacyExpires:'만료일 미확인')+'</span></div>'+(d.canWrite?'<button onclick="qdCareOpen(\''+esc(r.account_code)+'\')">구독 여부 확인</button>':'')+'</article>';}).join('')+'</details>';
  }
  out+='<h3>영업 전환율</h3><p class="qd-help">'+esc(a.funnel.definition)+'<br>관찰 기준일: '+esc(a.funnel.observedThrough)+'</p><div class="qd-grid">'+a.funnel.rows.map(function(r){return card(r.label,qdRate(r.rate),r.numerator+' / '+r.denominator+'곳 · 다음 단계 대기 '+r.remaining.length+'곳'+(r.unknown?' · 판정 불가 '+r.unknown+'곳':''));}).join('')+'</div>'+(a.funnel.legacy?'<p class="qd-help">'+esc(a.funnel.legacy.label)+'</p><div class="qd-grid">'+a.funnel.legacy.rows.map(function(r){return card(r.label,qdRate(r.rate),r.numerator+' / '+r.denominator+'곳');}).join('')+'</div>':'')+'<h3>큐돌이가 먼저 챙길 일</h3><ul class="qd-advice">'+(a.recommendations.length?a.recommendations.map(function(x){return '<li>'+esc(x)+'</li>';}).join(''):'<li>현재 확인된 기록에서 추가 조치가 필요한 항목이 없습니다. 미입력 활동은 판단할 수 없습니다.</li>')+'</ul>';
  return out;
@@ -10058,7 +10332,9 @@ function mktUnlist(code, btn) {
 }
 
 /* ── 병원 상세 ── */
+var MKT_SEQ = 0;   // 마케팅 상세 조회 차례 — 늦게 온 다른 병원 응답이 MKTD를 바꾸지 않게(2판 채택3)
 function mktOpen(code, 다시) {
+  var 차례 = ++MKT_SEQ;
   if (!다시) { MKT_EDIT = null; MKTD = null; }
   var body = document.getElementById('hospModalBody');
   if (!다시) {
@@ -10066,8 +10342,13 @@ function mktOpen(code, 다시) {
     document.getElementById('hospModal').style.display = 'flex';
   }
   mktCall_({ 동작: '병원상세', code: code }).then(화면갱신감싸기_(function(d) {
-    MKTD = d; mktRenderDetail();
+    if (차례 !== MKT_SEQ) return;                     // 더 나중에 연 상세가 있다
+    MKTD = d;
+    if (document.getElementById('hhRoot')) return;   // 그 사이 [전체 이력]을 열었다 — 이력 화면을 덮지 않는다(돌아오면 MKTD로 다시 그린다)
+    mktRenderDetail();
   }, '상세는 받았지만 화면을 그리지 못했습니다'), function(e) {
+    // 실패도 주인일 때만 그린다 — 열린 병원 이력이나 다른 병원 상세를 오류 문구로 덮지 않는다(2판 채택4)
+    if (차례 !== MKT_SEQ || document.getElementById('hhRoot') || document.getElementById('hospModal').style.display === 'none') { toast(e.message, true); return; }
     body.innerHTML = '<div class="card empty" style="border:none;">' + esc(e.message) + '</div>';
   });
 }
@@ -10086,7 +10367,8 @@ function mktRenderDetail() {
   var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
     + '<div style="min-width:0;"><div style="font-size:17px;font-weight:700;color:#191f28;">' + esc(H.name) + (E.caution ? ' <span class="tag-red">마케팅 주의</span>' : '') + '</div>'
     + '<div style="margin-top:4px;font-size:13px;color:#4e5968;">' + [H.kind, H.department, H.code].filter(function(v, i, a) { return v && a.indexOf(v) === i; }).map(esc).join(' · ') + '</div></div>'
-    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div>';
+    + '<div style="display:flex;gap:6px;flex:0 0 auto;">' + (병원이력가능_() ? '<button class="btn" data-h="' + mkiAttr_(H.name) + '" data-c="' + mkiAttr_(H.code) + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{다시:function(){mktRenderDetail()}})">전체 이력</button>' : '')
+    + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div></div>';
 
   // 기본 정보
   var 정보 = [
