@@ -1790,7 +1790,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611111714-8d7a232';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611142203-5e12fff';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -10034,7 +10034,17 @@ function qdRender(){
  document.getElementById('qdBody').innerHTML=toolbar+'<div class="qd-status">'+esc(state)+'</div>'+tabs+'<p id="qdNotice" role="status" aria-live="polite"></p>'+body+'<dialog id="qdDialog" class="qd-dialog"></dialog>';
  if(toReport){var rs=document.getElementById('qdReportSection');if(rs&&rs.scrollIntoView)rs.scrollIntoView({block:'start'});}
 }
-function qdStateText(d){return d.submission?(d.submission.changed?'제출 후 바뀐 기록이 있습니다. 확인 후 수정본을 제출해 주세요.':'큐돌이에 제출했습니다 · 수정본 '+d.submission.revision):'결과를 기록하고 금요일 17시까지 이번 주 보고를 제출해 주세요.';}
+// 입력 기한 단계: 서버 inputDeadline(_공유/큐돌이요청.mjs)과 같은 규칙이다. 테스트가 시각 표로 두 함수를 대조한다(2판 채택⑧).
+function qdDeadline(week,now){var fri=qdPlus(week,4),sat=qdPlus(week,5),mon=qdPlus(week,7),t=function(d,hm){return Date.parse(d+'T'+hm+':00+09:00');};
+ if(sat<'2026-11-21')return {stage:'legacy',late:now>t(mon,'10:00')};
+ if(now<t(fri,'17:00'))return {stage:'open',late:false};if(now<t(sat,'12:00'))return {stage:'grace',late:true};return {stage:'closed',late:true};}
+function qdMd(d){return Number(d.slice(5,7))+'/'+Number(d.slice(8,10));}
+function qdStateText(d,now){if(d.submission)return d.submission.changed?'제출 후 바뀐 기록이 있습니다. 확인 후 수정본을 제출해 주세요.':'큐돌이에 제출했습니다 · 수정본 '+d.submission.revision;
+ var x=qdDeadline(d.week,now==null?Date.now():now),fri=qdMd(qdPlus(d.week,4)),sat=qdMd(qdPlus(d.week,5));
+ if(x.stage==='legacy')return '결과를 기록하고 금요일 17시까지 이번 주 보고를 제출해 주세요.';
+ if(x.stage==='open')return fri+'(금) 오후 5시 마감 — 결과 기록과 이번 주 보고(다음 주 계획 포함)를 제출해 주세요. '+sat+'(토) 낮 12시에 이 기록으로 다음 주 배정안을 만듭니다.';
+ if(x.stage==='grace')return '입력 기한('+fri+' 금 오후 5시)이 지났습니다. '+sat+'(토) 낮 12시 전까지 입력하시면 다음 주 배정안에 들어갑니다.';
+ return '입력 기한('+fri+' 금 오후 5시)이 지났습니다. 지금 입력한 기록은 월요일 주간 보고에 반영됩니다.';}
 /* 주간 목표 보고서 — 목표 카드를 한 장의 표로 모으고 한 주 정리·제출까지 한 페이지에 둔다(2026-11-10 영업팀 개선 요청).
    실적을 세는 방식은 그대로다(서버 progress). 요약 숫자는 홈 goalSummary와 같은 정의다 — 주 목표 가운데 판정할 수 있는 것
    (목표량>0, 시작 전 주 아님, 시각·대상 확인 필요 아님)만 세고, 완료율은 다 채운 목표의 비율이다(KPI별 비율을 평균내지 않는다). */
@@ -11193,7 +11203,7 @@ function qwfRender(){var d=QWF.data,host=document.getElementById('qwfPanel');if(
   h+='<p class="qx-note">기존 명단은 구독 사실 확정 자료가 아닙니다. 담당 ES가 근거를 확인해 저장하면 활동 이력·주간 확인 목표·구독 분석에 함께 반영됩니다. 단순 상태 확인은 신규 가입이나 재가입 실적으로 세지 않습니다.</p><p>현재 구독 확인 '+d.careState.ending+'곳 · 현재 상태 미확인 '+d.careState.endingUnknown+'곳 · 주 시작 상태 미확인 '+d.careState.openingUnknown+'곳</p><div class="qwf-controls"><button onclick="QWF.careScope=\'assigned\';qwfRender()">이번 확인 배정</button><button onclick="QWF.careScope=\'all\';qwfRender()">전체 담당 병원</button></div><label>병원 검색<input id="qwfCareSearch" placeholder="병원명 또는 담당자" oninput="qwfCareFilter(this.value)"></label><div id="qwfCareRows">'+qwfCareRows('')+'</div>';
  }
  if(QWF.tab==='mail'&&d.manager){h+='<p class="qx-note">직원 안내는 발송 전 초안입니다. 기존 목표 안내와 N-Care 안내를 별도로 보관합니다. 직원 메일은 담당임원 승인 때 해당 직원에게만 자동 발송되며, 이 화면에서 따로 보내는 기능은 없습니다.</p><button onclick="qwfDrafts()">현재 목표·업무로 초안 갱신</button>'+d.drafts.map(x=>'<div class="qwf-item"><b>'+esc(x.name)+'</b><p>'+esc(x.subject)+'</p><small>'+esc(x.email)+'</small><p><button data-id="'+x.id+'" onclick="qwfMail(this.dataset.id)">초안 보기</button></p></div>').join('');}
- if(QWF.tab==='reports'&&d.manager){h+='<p>서버 실행: 일 18:00 다음 주 배정안 · 금 17:30 제출 취합 · 월 14:00 전주 보고 · 매일 18:30 일일 보고. 직원 안내 메일은 담당임원 승인 즉시 해당 직원에게만 발송됩니다.</p>'+d.runs.map(r=>'<div class="qwf-item"><b>'+r.date+' · '+esc(r.kind)+' · '+qwfStatus(r.status)+'</b><p>'+esc(r.subject||r.error_code||'배정 초안 준비')+'</p>'+(r.subject?'<button data-id="'+r.id+'" onclick="qwfReport(this.dataset.id)">보고 보기</button>':'')+'</div>').join('');}
+ if(QWF.tab==='reports'&&d.manager){h+='<p>직원 입력 기한: 금 17:00 · 서버 실행: 금 17:30 제출 취합 · 토 12:00 다음 주 배정안(실패 시 일 09:00·12:00 재시도) · 월 14:00 전주 보고 · 매일 18:30 일일 보고. 직원 안내 메일은 담당임원 승인 즉시 해당 직원에게만 발송됩니다.</p>'+d.runs.map(r=>'<div class="qwf-item"><b>'+r.date+' · '+esc(r.kind)+' · '+qwfStatus(r.status)+'</b><p>'+esc(r.subject||r.error_code||'배정 초안 준비')+'</p>'+(r.subject?'<button data-id="'+r.id+'" onclick="qwfReport(this.dataset.id)">보고 보기</button>':'')+'</div>').join('');}
  if(QWF.tab==='carePriority'&&d.manager)h+=qwfPriorityPanel();
  host.innerHTML=h;
 }
@@ -11204,7 +11214,7 @@ function qwfDialog(title,body,onSubmit){var dialog=document.getElementById('qwfD
 function qwfMailText(res){var m=res&&res.mail,alert=res&&res.alert==='relay_accepted'?' 이사님 메일로 알렸습니다.':' 이사님 알림도 보내지 못했습니다. 직원에게 직접 안내해 주세요.';return m==='relay_accepted'?'승인했습니다. 해당 직원에게 확정 안내 메일을 보냈습니다.':res&&res.decision==='reject'?'반려했습니다. 직원에게는 아무것도 보내지 않았습니다.':m==='superseded'?'승인은 반영됐습니다. 그사이 더 새 버전이 승인돼 이 버전 안내는 보내지 않았습니다.':m==='queued'||m==='sending'?'승인은 반영됐습니다. 안내 메일은 발송 처리 중이며, 중간에 끊기면 서버가 15분 안에 이어 보내거나 결과 불명으로 이사님께 알립니다.':m==='unknown'?'승인은 반영됐지만 안내 메일 접수를 확인하지 못했습니다. 중복 방지를 위해 다시 보내지 않습니다.'+alert:m==='failed'?'승인은 반영됐지만 안내 메일을 보내지 못했습니다.'+alert:'저장했습니다.';}
 function qwfMailState(d,id){var open={queued:1,sending:1,unknown:1,failed:1},names={queued:'발송 대기',sending:'발송 중',relay_accepted:'접수됨',unknown:'결과 불명(재발송 안 함)',failed:'실패',superseded:'새 버전으로 대체(보내지 않음)'},rows=(d.deliveries||[]).filter(x=>Number(x.rep_id)===id).sort((a,b)=>(open[b.status]||0)-(open[a.status]||0)||String(b.week).localeCompare(String(a.week))||Number(b.revision)-Number(a.revision));return rows.map(m=>'<p><small>안내 메일 '+esc(m.week)+' R'+Number(m.revision)+' · '+(names[m.status]||esc(m.status))+' · '+esc(m.to_email)+(m.error_code?' · '+esc(m.error_code):'')+'</small></p>').join('');}
 async function qwfSave(action,body){if(QWF.saving)return;QWF.saving=true;var btn=document.getElementById('qwfSubmit');if(btn)btn.disabled=true;try{var res=await qwfApi(action,body);document.getElementById('qwfDialog')?.close();await qwfLoad();toast(action==='decide'?qwfMailText(res):(res?.dropped?.length?'목표 묶음 기준으로 저장했습니다. 목표 표에서 빠진 항목: '+res.dropped.join(', ')+'. ':'저장했습니다. ')+(res?.uncoded?.length?'병원 코드를 찾지 못한 과제 '+res.uncoded.length+'건('+res.uncoded.join(', ')+') — 병원명을 확인해 주세요. ':'')+(res?.reasonsDropped?'바뀐 내용이 없어 고친 이유는 남기지 않았습니다. ':'')+'직원 메일은 발송하지 않았습니다.');}catch(e){var el=document.getElementById('qwfError');if(el)el.textContent=e.message;else toast(e.message);}finally{QWF.saving=false;if(btn)btn.disabled=false;}}
-async function qwfProposal(id,week){var d=QWF.data;week=week||d.week;var cur=week===d.week,p=d.decisions.find(x=>Number(x.rep_id)===id&&x.status==='draft'&&x.week===week),active=(cur?d.assignments:(d.nextAssignments||[])).find(x=>Number(x.rep_id)===id&&x.week===week),a=active||(cur?null:d.assignments.find(x=>Number(x.rep_id)===id&&x.week===d.week));if(!p&&!a){var prev=new Date(week+'T00:00:00Z');prev.setUTCDate(prev.getUTCDate()-7);try{var old=await qwfApi('read',{week:prev.toISOString().slice(0,10)});a=old.assignments.find(x=>Number(x.rep_id)===id);}catch{} }if(!p&&!a){toast('직전 확정 목표가 없습니다. 일요일 18:00 서버가 다음 주 배정안을 준비하면 확인해 주세요.');return;}
+async function qwfProposal(id,week){var d=QWF.data;week=week||d.week;var cur=week===d.week,p=d.decisions.find(x=>Number(x.rep_id)===id&&x.status==='draft'&&x.week===week),active=(cur?d.assignments:(d.nextAssignments||[])).find(x=>Number(x.rep_id)===id&&x.week===week),a=active||(cur?null:d.assignments.find(x=>Number(x.rep_id)===id&&x.week===d.week));if(!p&&!a){var prev=new Date(week+'T00:00:00Z');prev.setUTCDate(prev.getUTCDate()-7);try{var old=await qwfApi('read',{week:prev.toISOString().slice(0,10)});a=old.assignments.find(x=>Number(x.rep_id)===id);}catch{} }if(!p&&!a){toast('직전 확정 목표가 없습니다. 서버가 다음 주 배정안을 준비하면(토 12:00, 실패하면 일 09:00·12:00) 확인해 주세요.');return;}
  // 반증리뷰 11-10 2판: 큐돌이 초안을 반려했다면, 다시 쓸 때 그 반려안의 과제 행(표 pid 포함)을 채워 이어 쓴다(from_decision_id).
  var r=p?null:d.decisions.find(x=>Number(x.rep_id)===id&&x.status==='rejected'&&x.week===week&&(x.created_by==null||x.from_decision_id)),src=p||r;
  QWF.edit={id:p?.id||crypto.randomUUID(),rep_id:id,week,version:Number(p?.version||0),base_revision:Number(active?.revision||0),goals:(p||a).content.goals,base:src?.tasks||[],draft:(src?.tasks||[]).filter(x=>!x.id),reason0:src?.reason||'',from:r?.id||null,fromQudoli:!!src&&(src.created_by==null||!!src.from_decision_id)};
