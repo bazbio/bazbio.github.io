@@ -1790,7 +1790,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611142203-5e12fff';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611161600-46cf2d6';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -10716,7 +10716,7 @@ function mktPostManual(id, btn) {
 
 /* ── IG/NAVER 인플루언서 정보 (2026-10-29, 마케팅 목록 변경 요청 · 0050) ──
  * 인플루언서 한 명당 카드 하나. 협업 병원의 영업 담당은 관문이 거래처에서 따라 읽는다.
- * 매칭필요는 따로 저장하지 않는다 — 일정 단계인데 협업 병원이 없으면 매칭필요다(0060).
+ * 매칭필요는 따로 저장하지 않는다 — 협업 병원이 없거나(0060), 일정 단계인데 확정한 일정이 없으면(11-16) 매칭필요다.
  * 진행 단계는 점을 눌러 바로 바꾸고(되돌릴 때만 확인), 나머지는 카드를 펼쳐 [저장]한다. */
 var MKTI = null;                                   // 인플루언서 목록 응답
 var MKTI_LOADING = false;                          // 첫 목록을 받는 중 — renderMktInf가 겹쳐 부르지 않게
@@ -10737,7 +10737,14 @@ function mkiAttr_(s) { return esc(s).replace(/"/g, '&quot;'); }
 function mkiRo_() { return !MKT || !MKT.me || !!MKT.me.readOnly; }
 function mkiItem_(id) { return ((MKTI && MKTI.items) || []).filter(function(x) { return x.id === id; })[0] || null; }
 function mkiName_(x) { return (x.platform === '인스타그램' ? '@' : '') + x.handle; }
-function mkiMatch_(x) { return !x.code; }
+/* 매칭필요 — 협업 병원이 없거나, 일정 단계인데 확정한 방문 일정이 없다(11-16 차성민 프로 요청 「일정 확정이 안 되면 매칭필요로」) */
+function mkiConfirmed_(x) { return (x.slots || []).some(function(t) { return t && t.c === true; }); }
+function mkiMatch_(x) { return !x.code || (x.stage === 0 && !mkiConfirmed_(x)); }
+function mkiMatchTxt_(x) {   // 남은 조치를 모두 말한다 — 시킨 대로 한 번 하면 빠지거나, 남은 것을 다시 말한다
+  var 미확정 = x.stage === 0 && !mkiConfirmed_(x);
+  if (!x.code && 미확정) return '협업 병원과 방문 일정을 정해 주세요 — 둘 다 정하면 매칭필요에서 빠집니다';
+  return !x.code ? '협업 병원을 정해 주세요 — 정하면 매칭필요에서 빠집니다' : '방문 일정을 확정해 주세요 — 확정하면 매칭필요에서 빠집니다';
+}
 function mkiChip_(x) { return mkiMatch_(x) ? MKTI_MATCH : x.stage; }
 /* 자동 메일이 돌고 있는지 — 틱이 멈추면 메일 알림도 함께 멈추니 화면이 직접 보여 준다 */
 function mkiAutoNote_() {
@@ -10750,10 +10757,19 @@ function mkiAutoNote_() {
 }
 /* 카드의 리마인드 결과 — 지금 확정 일정에 대한 것만 관문이 내려 준다 */
 function mkiRemindTxt_(x) {
-  var r = x.reminder;
+  var r = x.reminder || x.confirmMail;   // 같은 일정이면 리마인드가 늘 나중 메일이다. 옛 응답(confirmMail 없음)도 그대로 읽힌다
   if (!r) return '';
-  var 글 = { relay_accepted: '리마인드 보냄' + (r.to ? ' · ' + r.to : '') + (r.at ? ' · ' + mkiWhen_(r.at) : ''), sending: '리마인드 보내는 중', failed: r.retrying ? '리마인드 실패 · 다시 시도 중' : '리마인드 재시도 끝 · 직접 챙겨 주세요',
-    unknown: '리마인드 전달 여부 확인 필요 · 직접 챙겨 주세요', skipped: '리마인드 못 보냄 · 직접 챙겨 주세요' }[r.status] || '';
+  var 이름 = r.kind === '방문확정' ? '확정 안내' : '리마인드';   // 확정 안내 뒤 D-2 09시에 리마인드가 한 번 더 간다(0063)
+  // 확정 안내는 부속 메일 — 일시 실패는 이틀 전 리마인드가 대신한다. 받는 사람이 없으면 리마인드도 막히니 그때만 빨갛게 알린다
+  if (r.kind === '방문확정' && r.status !== 'relay_accepted') {
+    var 막힘 = r.status === 'skipped' && r.code === 'recipient_missing';
+    var 안내 = 막힘 ? '확정 안내 못 보냄 · 명부에 담당 메일이 없습니다 — 관리자에게 알려 주세요'
+      : r.status === 'sending' ? '확정 안내 보내는 중' : r.status === 'failed' && r.retrying ? '확정 안내 실패 · 다시 시도 중'
+      : r.status === 'unknown' ? '확정 안내 전달 여부 확인 필요 · 이틀 전 리마인드는 그대로 갑니다' : '확정 안내 못 보냄 · 이틀 전 리마인드로 알립니다';
+    return '<div style="margin-top:4px;font-size:12px;color:' + (막힘 ? '#b3202f' : '#8b95a1') + ';">' + esc(안내) + '</div>';
+  }
+  var 글 = { relay_accepted: 이름 + ' 보냄' + (r.to ? ' · ' + r.to : '') + (r.at ? ' · ' + mkiWhen_(r.at) : ''), sending: 이름 + ' 보내는 중', failed: r.retrying ? 이름 + ' 실패 · 다시 시도 중' : 이름 + ' 재시도 끝 · 직접 챙겨 주세요',
+    unknown: 이름 + ' 전달 여부 확인 필요 · 직접 챙겨 주세요', skipped: 이름 + ' 못 보냄 · 직접 챙겨 주세요' }[r.status] || '';
   return 글 ? '<div style="margin-top:4px;font-size:12px;color:' + (r.status === 'relay_accepted' ? '#4e5968' : '#b3202f') + ';">' + esc(글) + '</div>' : '';
 }
 function loadMktInf(조용히) {
@@ -10794,7 +10810,7 @@ function renderMktInf() {
     + '<div style="margin:6px 4px 16px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
     + (MKTI.igReady ? '인스타그램 팔로워 수는 하루 한 번 자동으로 갱신합니다(비즈니스·크리에이터 계정). 네이버·개인 계정은 직접 넣습니다.'
       : '팔로워 수·링크는 직접 넣습니다 — 인스타 자동 연동은 준비 중입니다.')
-    + ' 협업 병원을 고르면 그 병원 영업 담당이 따라옵니다. 병원이 없는 인플루언서는 매칭필요에 모입니다.</div>';
+    + ' 협업 병원을 고르면 그 병원 영업 담당이 따라옵니다. 병원이 없거나 방문 일정을 확정하지 않은 인플루언서는 매칭필요에 모입니다.</div>';
   document.getElementById('mktBody').innerHTML = h;
   mkiRenderList();
 }
@@ -10860,7 +10876,7 @@ function mkiDay_(d) {
 function mkiCard_(x) {
   if (MKTI_OPEN === x.id) return '<div class="mki open" data-id="' + x.id + '">' + mkiTop_(x) + mkiEditor_(x) + '</div>';
   var ro = mkiRo_();
-  var 점 = '', 이름 = '', 지금단계 = mkiMatch_(x) && x.stage === 0 ? -1 : x.stage;
+  var 점 = '', 이름 = '', 지금단계 = !x.code && x.stage === 0 ? -1 : x.stage;   // 병원 있는 미확정 카드는 일정 점을 켠다
   for (var i = 0; i < 4; i++) {
     점 += (ro ? '<span' : '<button type="button" onclick="event.stopPropagation();mkiStage(' + x.id + ',' + i + ')" aria-label="' + MKTI_ST[i] + ' 단계로 변경"')
       + ' class="mki-dot' + (i < 지금단계 ? ' d' : i === 지금단계 ? ' c' : '') + '">' + (ro ? '</span>' : '</button>')
@@ -10879,7 +10895,7 @@ function mkiCard_(x) {
   return '<div class="mki" data-id="' + x.id + '" onclick="mkiOpen(' + x.id + ')">' + mkiTop_(x)
     + '<div class="mki-own"><div><small>협업 병원</small><b>' + (x.hospital ? '<a href="javascript:void(0)" data-code="' + mkiAttr_(x.code) + '" onclick="event.stopPropagation();mktOpen(this.dataset.code)" style="color:inherit;">' + esc(x.hospital) + '</a>' : '미정') + '</b></div>'
     + '<div><small>영업 담당</small><b>' + esc(x.rep || (x.hospital ? '미지정' : '—')) + '</b></div></div>'
-    + (mkiMatch_(x) ? '<div class="mki-match">협업 병원을 정해 주세요 — 정하면 매칭필요에서 빠집니다</div>' : '')
+    + (mkiMatch_(x) ? '<div class="mki-match">' + mkiMatchTxt_(x) + '</div>' : '')
     + '<div class="mki-flow">' + 점 + '</div><div class="mki-lb">' + 이름 + '</div>'
     + (ro ? '' : '<p class="mki-sh">단계를 눌러 진행 상황을 바꿀 수 있어요</p>')
     + (x.log && x.log.length ? '<div class="mki-lg">최근 변경 · ' + mkiLogTxt_(x.log[0]) + '</div>' : '')
@@ -10954,7 +10970,7 @@ function mkiEditor_(x) {
       + '<input type="time" id="mkiE' + i + '" value="' + mkiAttr_(t.e || '') + '" aria-label="' + (i + 1) + '차 종료 시간"></div>'
       + '<label class="mki-cfl"><input type="checkbox" id="mkiC' + i + '"' + (t.c === true ? ' checked' : '') + ' onchange="mkiConfirm(' + i + ')">이 일정으로 방문 확정</label></div></div>';
   });
-  h += '<div class="mki-hint">확정한 일정은 업로드 전 단계면 이틀 전에 영업 담당에게 메일로 알립니다. 일정 단계에서 일정이 지나면 방문으로 바뀝니다</div>'
+  h += '<div class="mki-hint">일정을 확정하면 15분 안에 영업 담당에게 확정 안내 메일이 가고, 방문 이틀 전 오전 9시에 리마인드가 한 번 더 갑니다(업로드 전 단계). 일정 단계에서 일정이 지나면 방문으로 바뀝니다</div>'
     + '<div class="mki-row2"><div><label for="mkiUpE">업로드 예상일</label><input type="date" id="mkiUpE" value="' + mkiAttr_(x.uploadExpectedOn || '') + '"></div>'
     + '<div><label for="mkiUpD">업로드 완료일</label><input type="date" id="mkiUpD" value="' + mkiAttr_(x.uploadDoneOn || '') + '"></div></div>';
   h += '<label for="mkiProg">진행 메모</label><textarea id="mkiProg" rows="3" placeholder="계약서 서명 완료&#10;제품 배송 중 (한 줄에 하나)">' + esc(x.progressNote) + '</textarea>'
@@ -11028,6 +11044,8 @@ function mkiSave(id, btn) {
 function mkiStage(id, to) {
   var x = mkiItem_(id); if (!x || x.stage === to) return;
   if (to > 0 && !x.code) { toast('협업 병원을 먼저 정해 주세요', true); return; }
+  // 확정 없이 앞 단계로 가면 매칭필요에서 조용히 빠진다 — 막지는 않고 한 번 묻는다(방문 날짜를 나중에 적는 경우가 있다)
+  if (x.stage === 0 && to > 0 && !mkiConfirmed_(x) && !confirm(mkiName_(x) + ' 은(는) 확정한 방문 일정이 없습니다. 확정 없이 ' + MKTI_ST[to] + ' 단계로 옮길까요?')) return;
   if (MKTI_BUSY[id]) { toast('앞의 단계 변경을 저장하는 중입니다'); return; }   // 한 카드에 하나씩 — 겹치면 실패 되돌림이 엉킨다
   if (to < x.stage && !confirm(mkiName_(x) + ' 진행 단계를 ' + MKTI_ST[x.stage] + ' → ' + MKTI_ST[to] + '(으)로 되돌릴까요?')) return;
   var 전 = x.stage;
