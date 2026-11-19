@@ -88,17 +88,113 @@
   /* 방문기록의 다섯 칸 (점검 P23) — 본문(note) 아래에 한 벌로 붙는다 */
   .logmeta { margin-top:9px; padding-top:9px; border-top:1px solid #f2f4f6; font-size:12.5px; color:#4e5968; line-height:1.75; }
   .logmeta b { display:inline-block; min-width:56px; color:#8b95a1; font-weight:600; }
-  .hosprow { display:block; width:100%; text-align:left; font-family:inherit; background:none; border:none; padding:13px 2px; cursor:pointer; color:inherit; border-radius:0; }
-  .hosprow + .hosprow { box-shadow:inset 0 1px 0 #f2f4f6; }
-  .hosprow:hover { background:#f9fafb; }
-  .hosprow:focus-visible { outline:2px solid #3182f6; outline-offset:-2px; }
-  /* 병원 탭·병원 이력 창의 꼬리표 — .tag는 .plan 안에서만 모양이 있어 여기서는 맨 글자로 나왔다. :where라 .tag.ncare 색이 그대로 이긴다 */
-  /* 병원 탭에서 연 병원 이력(11-20) — 작은 창이 아니라 화면 가득, 기록을 접지 않고 전부. 다른 화면이 hospModal을 쓰면 #hhRoot가 없어 원래 크기다 */
-  #hospModalBody:has(#hhRoot[data-full="1"]) { max-width:920px !important; max-height:none !important; height:100%; }
-  @media (max-width:899px) {
-    #hospModal:has(#hhRoot[data-full="1"]) { padding:0 !important; }
-    #hospModalBody:has(#hhRoot[data-full="1"]) { border-radius:0; border:none; }
+  /* ── 병원 탭 새 디자인(2026-11-20, 이사 지시 「병원 탭부터 적용」) ──
+     따뜻한 종이색 바탕 · 흰 카드 · 가는 선 · 파랑은 누르는 것에만. 색 점(.nh-dot)은 분류 표시에만 쓰고 면을 칠하지 않는다.
+     병원 탭(#view-hosp)과 거기서 연 병원 이력(#hhRoot[data-full])에만 닿는다 — 다른 탭과 작은 이력 창은 그대로다. */
+  body:has(#view-hosp.on) { background:#f6f5f4; }
+  #view-hosp .wrap { max-width:1120px; }
+  .nh-h1 { font-size:36px; line-height:1.1; font-weight:700; letter-spacing:-1px; margin:4px 0 0; color:rgba(0,0,0,.95); overflow-wrap:anywhere; }
+  .nh-lede { margin:8px 0 0; font-size:15px; line-height:1.5; color:#615d59; }
+  .nh-btn { font-family:inherit; font-size:14px; font-weight:500; padding:5px 14px; min-height:34px; border:1px solid #e6e6e6; background:#fff; color:rgba(0,0,0,.95); border-radius:8px; cursor:pointer; }
+  .nh-btn:active { transform:scale(.97); }
+  .nh-bar { display:flex; align-items:center; gap:4px; margin-top:20px; border-bottom:1px solid #e6e6e6; flex-wrap:wrap; }
+  .nh-tabs { display:flex; gap:4px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+  .nh-tabs::-webkit-scrollbar { display:none; }
+  .nh-tab { font-family:inherit; background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; padding:8px 10px 9px; font-size:14px; color:#615d59; white-space:nowrap; cursor:pointer; }
+  .nh-tab .n { margin-left:4px; font-size:12.5px; color:#a39e98; font-weight:400; }
+  .nh-tab.on { color:rgba(0,0,0,.95); font-weight:600; border-bottom-color:rgba(0,0,0,.95); }
+  input#hospQ { width:260px; max-width:100%; margin:0 0 6px; padding:6px 10px; font-size:14px; border:1px solid #ddd; border-radius:4px; background:#fff; color:rgba(0,0,0,.95); }
+  input#hospQ:focus { outline:none; border-color:#c9c9c9; box-shadow:rgba(0,0,0,.02) 0 .8px 2.925px, rgba(0,0,0,.027) 0 2.025px 7.847px, rgba(0,0,0,.04) 0 4px 18px; }
+  .nh-tbl { margin-top:14px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; overflow:hidden; }
+  .nh-th, .hosprow { display:grid; grid-template-columns:minmax(170px,1.5fr) minmax(190px,1.8fr) 96px minmax(140px,1.1fr) 62px 92px; align-items:center; }
+  .nh-th { font-size:12px; font-weight:600; color:#a39e98; letter-spacing:.01em; border-bottom:1px solid #e6e6e6; background:#fcfcfb; }
+  .nh-th > div { padding:9px 14px; }
+  .hosprow { width:100%; text-align:left; font-family:inherit; background:none; border:none; border-bottom:1px solid #efeeec; padding:0; cursor:pointer; color:inherit; border-radius:0; }
+  .hosprow:last-child { border-bottom:none; }
+  .hosprow:hover { background:#fafaf9; }
+  .hosprow:focus-visible, .nh-tab:focus-visible, .nh-btn:focus-visible, .nh-chip:focus-visible { outline:2px solid #0075de; outline-offset:-2px; }
+  .hosprow > div { padding:11px 14px; min-width:0; }
+  .nh-hn { font-size:15px; font-weight:600; color:rgba(0,0,0,.95); overflow-wrap:anywhere; }
+  .nh-hr { margin-top:1px; font-size:12.5px; color:#a39e98; }
+  .nh-tags { display:flex; gap:5px; flex-wrap:wrap; }
+  .nh-tag { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:500; color:#31302e; background:#f3f2f0; border-radius:4px; padding:1px 7px; white-space:nowrap; }
+  .nh-dot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:0 0 7px; background:#a39e98; }
+  .nh-cell { font-size:14px; color:#31302e; }
+  .nh-cell small { display:block; margin-top:1px; font-size:12.5px; color:#a39e98; font-variant-numeric:normal; white-space:normal; }
+  .nh-num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .nh-none { color:#a39e98; }
+  .nh-note { margin-top:12px; font-size:13px; line-height:1.5; color:#a39e98; }
+  .nh-warn { margin-top:12px; font-size:13px; line-height:1.5; color:#a35c11; }
+  .nh-warn.red { color:#d0223a; }
+  .nh-empty { padding:44px 16px; text-align:center; font-size:14.5px; color:#615d59; }
+  /* 병원 탭에서 연 병원 이력 — 팝업이 아니라 문서 한 장. 다른 화면이 hospModal을 쓰면 #hhRoot[data-full]이 없어 원래 창 모양이다 */
+  #hospModal:has(#hhRoot[data-full="1"]) { background:#f6f5f4 !important; padding:0 !important; align-items:stretch !important; }
+  #hospModalBody:has(#hhRoot[data-full="1"]) { max-width:none !important; max-height:none !important; height:100%; margin:0; border:none; border-radius:0; background:transparent;
+    padding:20px max(28px, calc((100% - 900px) / 2)) 90px; color:rgba(0,0,0,.95); }
+  .nh-props { margin:20px 0 0; display:grid; grid-template-columns:112px 1fr; row-gap:6px; font-size:14.5px; max-width:640px; }
+  .nh-props dt { color:#615d59; }
+  .nh-props dd { margin:0; display:flex; gap:6px; flex-wrap:wrap; align-items:center; min-width:0; overflow-wrap:anywhere; }
+  .nh-stats { margin-top:22px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .nh-stat { background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:14px 16px; min-width:0; }
+  .nh-stat .k { font-size:12px; font-weight:600; color:#a39e98; }
+  .nh-stat .v { margin-top:4px; font-size:22px; font-weight:700; letter-spacing:-.25px; line-height:1.27; font-variant-numeric:tabular-nums; }
+  .nh-stat .s { font-size:12.5px; color:#615d59; min-height:19px; }
+  .nh-h2 { display:flex; align-items:baseline; gap:8px; margin:38px 0 0; font-size:22px; font-weight:700; letter-spacing:-.25px; line-height:1.27; color:rgba(0,0,0,.95); }
+  .nh-h2 .n { font-size:14px; font-weight:400; letter-spacing:0; color:#a39e98; }
+  .nh-card { margin-top:12px; background:#fff; border:1px solid #e6e6e6; border-radius:12px; overflow:hidden; }
+  .nh-vrow { display:grid; grid-template-columns:140px 64px 1fr; gap:12px; align-items:baseline; padding:12px 18px; border-bottom:1px solid #efeeec; font-size:14.5px; }
+  .nh-vrow:last-child, .nh-demo:last-child, .nh-line:last-child { border-bottom:none; }
+  .nh-vrow b { font-weight:600; }
+  .nh-vrow .rc { font-size:13.5px; color:#615d59; overflow-wrap:anywhere; }
+  .nh-demo { padding:16px 20px; border-bottom:1px solid #efeeec; }
+  .nh-demo.soon { background:#fbfaf8; }
+  .nh-dh { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .nh-dh .d { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .nh-who { margin-left:auto; font-size:13px; font-weight:400; color:#615d59; }
+  .nh-body { margin:8px 0 0; font-size:15px; line-height:1.5; color:#31302e; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .nh-quote { margin-top:10px; padding:10px 14px; background:#f6f5f4; border-radius:8px; font-size:14.5px; line-height:1.5; color:#31302e; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .nh-quote .ql { display:block; margin-bottom:2px; font-size:12px; font-weight:600; color:#a39e98; }
+  .nh-kv { margin-top:10px; display:flex; gap:6px 18px; flex-wrap:wrap; font-size:13.5px; color:#615d59; }
+  .nh-kv b { margin-left:5px; font-weight:500; color:#31302e; }
+  .nh-line { padding:12px 18px; border-bottom:1px solid #efeeec; font-size:14.5px; line-height:1.5; color:#31302e; overflow-wrap:anywhere; }
+  .nh-line .sub { margin-top:3px; font-size:13.5px; color:#615d59; white-space:pre-wrap; }
+  .nh-chips { margin-top:14px; display:flex; gap:6px; flex-wrap:wrap; }
+  .nh-chip { font-family:inherit; background:#fff; border:1px solid #e6e6e6; border-radius:9999px; padding:3px 12px; min-height:30px; font-size:13.5px; color:#31302e; cursor:pointer; }
+  .nh-chip.on { background:rgba(0,0,0,.92); border-color:rgba(0,0,0,.92); color:#fff; font-weight:500; }
+  .nh-mon { margin:22px 0 0; font-size:12px; font-weight:600; color:#a39e98; }
+  .nh-ev { display:grid; grid-template-columns:84px 1fr; gap:14px; padding:14px 0; border-bottom:1px solid #e6e6e6; }
+  .nh-dt { padding-top:1px; font-size:13.5px; color:#615d59; font-variant-numeric:tabular-nums; }
+  .nh-dt small { display:block; font-size:12px; color:#a39e98; }
+  .nh-tt { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:15px; font-weight:600; color:rgba(0,0,0,.95); }
+  .nh-sub { margin-top:10px; padding:10px 14px; background:#f6f5f4; border-radius:8px; }
+  .nh-ev .logmeta, .nh-sub .logmeta { border-top-color:#efeeec; }
+  @media (min-width:900px) and (max-width:1240px) {
+    .nh-th, .hosprow { grid-template-columns:minmax(150px,1.4fr) minmax(160px,1.6fr) minmax(130px,1.1fr) 92px; }
+    .nh-th > div:nth-child(3), .nh-th > div:nth-child(5), .hosprow > .c-rep, .hosprow > .c-visits { display:none; }
   }
+  @media (max-width:899px) {
+    .nh-h1 { font-size:28px; letter-spacing:-.75px; }
+    .nh-th { display:none; }
+    .hosprow { grid-template-columns:1fr auto; }
+    .hosprow > div { padding:5px 14px; }
+    .hosprow > .c-name { grid-column:1 / -1; padding-top:12px; }
+    .hosprow > .c-tags { grid-column:1 / -1; }
+    .hosprow > .c-rep, .hosprow > .c-visits { display:none; }
+    .hosprow > .c-last, .hosprow > .c-demo { padding-bottom:12px; }
+    .hosprow > .c-demo { text-align:right; }
+    .nh-bar { border-bottom:none; }
+    .nh-tabs { width:100%; border-bottom:1px solid #e6e6e6; }
+    input#hospQ { width:100%; margin:10px 0 0; padding:10px 12px; font-size:16px; }
+    #hospModalBody:has(#hhRoot[data-full="1"]) { padding:14px 16px 90px; }
+    .nh-stats { grid-template-columns:repeat(2,1fr); }
+    .nh-stat .v { font-size:18px; }
+    .nh-props { grid-template-columns:92px 1fr; }
+    .nh-vrow { grid-template-columns:1fr auto; }
+    .nh-vrow .rc { grid-column:1 / -1; }
+    .nh-ev { grid-template-columns:1fr; gap:4px; }
+    .nh-dt small { display:inline; margin-left:6px; }
+  }
+  /* 병원 탭·병원 이력 창의 꼬리표 — .tag는 .plan 안에서만 모양이 있어 여기서는 맨 글자로 나왔다. :where라 .tag.ncare 색이 그대로 이긴다 */
   :where(#hhRoot, #hhRoot ~ *, .hosprow) .tag { display:inline-block; font-size:12px; font-weight:600; color:#4e5968; background:#f2f4f6; border-radius:999px; padding:3px 10px; white-space:nowrap; }
   .hhlink { color:inherit; text-decoration:underline; text-decoration-color:#c9d3df; text-underline-offset:3px; cursor:pointer; }
   .plan .acts { display:flex; flex-direction:column; gap:7px; }
@@ -1261,13 +1357,15 @@
 
 <!-- 병원 — 병원별 이력 찾아보기 (2026-11-20). 원천은 관문 saleson-hospital 동작 '병원목록', 한 줄을 누르면 병원 이력 한 화면(hospHistOpen) -->
 <div class="view" id="view-hosp"><div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
-    <span style="font-size:13px;color:#4e5968;">병원별 방문 · 데모 · 리드 이력</span>
-    <button class="refresh" onclick="HOSP=null;loadHosp()">새로고침</button>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+    <div style="min-width:0;"><h1 class="nh-h1">병원</h1><p class="nh-lede">병원별 방문 · 데모 · 리드 이력입니다. 병원을 누르면 그 병원의 이력이 전부 열립니다.</p></div>
+    <button class="nh-btn" onclick="HOSP=null;loadHosp()">새로고침</button>
   </div>
-  <input type="text" inputmode="search" id="hospQ" aria-label="병원 찾기" placeholder="병원명 검색 (지역 · 담당자 · 거래처 코드도 됩니다)" autocomplete="off" oninput="hospSearch(this.value)" style="margin-bottom:10px;">
-  <div class="seg scrollx" id="hospSeg" style="max-width:none;"></div>
-  <div id="hospBody"><div class="card empty">불러오는 중…</div></div>
+  <div class="nh-bar">
+    <div class="nh-tabs" id="hospSeg"></div><span style="flex:1;"></span>
+    <input type="text" inputmode="search" id="hospQ" aria-label="병원명 검색" placeholder="병원명 검색" title="지역 · 담당자 · 거래처 코드로도 찾습니다" autocomplete="off" oninput="hospSearch(this.value)">
+  </div>
+  <div id="hospBody"><div class="nh-tbl"><div class="nh-empty">불러오는 중…</div></div></div>
 </div></div>
 
 <div class="view" id="view-inbound"><div class="wrap"><div id="ibBody"></div></div></div>
@@ -1814,7 +1912,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611200802-312d11b';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611200850-d11ae1d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -6144,6 +6242,9 @@ function hospHistBack() {
 }
 function 병원이력머리_(제목, 아래) {
   var 뒤로 = HH && (HH.back || HH.ret);
+  // 병원 탭에서 연 이력(11-20 새 디자인) — 위에 돌아가기 단추, 아래 큰 제목. #hhRoot는 그대로 모달 주인 표지다
+  if (HH && HH.full) return '<div id="hhRoot" data-seq="' + HH.seq + '" data-full="1"><button class="nh-btn" onclick="hospHistBack()">' + (뒤로 ? '← 이전 화면' : '← 병원 목록') + '</button></div>'
+    + '<h1 class="nh-h1" style="margin-top:18px;">' + esc(제목) + '</h1>' + (아래 || '');
   return '<div id="hhRoot" data-seq="' + (HH ? HH.seq : 0) + '"' + (HH && HH.full ? ' data-full="1"' : '') + ' style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
     + '<div style="min-width:0;"><div style="font-size:12px;font-weight:700;color:#1b64da;">병원 이력</div>'
     + '<div style="font-size:17px;font-weight:700;color:#191f28;word-break:keep-all;overflow-wrap:anywhere;">' + esc(제목) + '</div>' + (아래 || '') + '</div>'
@@ -6174,6 +6275,7 @@ function 병원이력그리기_() {
     document.getElementById('hospModalBody').innerHTML = 병원이력머리_(HH.name || d.hospital.name, '') + 고르기;
     return;
   }
+  if (HH.full) return 병원이력문서_(d);   // 병원 탭에서 연 이력은 문서 한 장으로 그린다(11-20). 아래는 다른 진입점의 작은 창
   var H = d.hospital, S = d.summary;
   var 메타 = [H.region, H.code || '거래처 미연결', H.rep ? '영업 ' + H.rep : '', H.careRep ? '케어 ' + H.careRep : '']
     .filter(Boolean).map(esc).join(' · ');
@@ -6367,6 +6469,19 @@ function 병원찾기_(h, 말) {
   if (!말) return true;
   return String([h.name, h.region, h.code, h.rep, h.careRep].join('|')).replace(/\s/g, '').toLowerCase().indexOf(말) >= 0;
 }
+/** 꼬리표 — 회색 면에 색 점 하나. 색은 분류만 알린다 */
+function 병원꼬리표_(글, 색) { return '<span class="nh-tag"><i class="nh-dot"' + (색 ? ' style="background:' + 색 + '"' : '') + '></i>' + esc(글) + '</span>'; }
+function 병원유형색_(유형) {
+  var t = String(유형 || '');
+  if (t.indexOf('큐돌이') === 0) return '#ff64c8';
+  if (데모유형_(t)) return '#9a6dd7';
+  if (/첫방문|전화|DM/.test(t)) return '#62aef0';
+  if (/FU|제안/.test(t)) return '#dd5b00';
+  if (/교육/.test(t)) return '#2a9d99';
+  if (/정기/.test(t)) return '#1aae39';
+  if (/납품|점검|회수|철수/.test(t)) return '#8a6a45';
+  return '';
+}
 function renderHosp() {
   var d = HOSP; if (!d) return;
   var 나 = (DATA && DATA.me && DATA.me.name) || '', 기준 = 병원날짜빼기_(d.today, 30);
@@ -6375,41 +6490,157 @@ function renderHosp() {
   var 칸들 = ['전체', '내 병원', '최근 30일', '데모', '장비 보유', 'N-Care', '거래처 미연결'];
   document.getElementById('hospSeg').innerHTML = 칸들.map(function(s) {
     var 수 = 찾은.filter(function(h) { return 병원필터_(h, s, 나, 기준); }).length;
-    return '<button type="button" class="chip' + (s === HOSPSEG ? ' on' : '') + '" style="white-space:nowrap;" data-s="' + mkiAttr_(s) + '" onclick="hospSeg(this.dataset.s)">' + esc(s) + ' ' + 수 + '</button>';
+    return '<button type="button" class="nh-tab' + (s === HOSPSEG ? ' on' : '') + '" data-s="' + mkiAttr_(s) + '" onclick="hospSeg(this.dataset.s)">' + esc(s) + '<span class="n">' + 수 + '</span></button>';
   }).join('');
   var 목록 = 찾은.filter(function(h) { return 병원필터_(h, HOSPSEG, 나, 기준); });
-  var h = '';
+  var h = '', 없음 = '<span class="nh-none">—</span>';
   var 실패 = Object.keys(d.errors || {});
-  if (실패.length) h += '<div class="card" style="padding:10px 14px;font-size:12.5px;color:#d0223a;">일부 정보(' + 실패.map(esc).join('·') + ')를 불러오지 못했습니다. 빈 칸이 「없음」이 아닐 수 있습니다 — 새로고침해 주세요.</div>';
+  if (실패.length) h += '<div class="nh-warn red">일부 정보(' + 실패.map(esc).join('·') + ')를 불러오지 못했습니다. 빈 칸이 「없음」이 아닐 수 있습니다 — 새로고침해 주세요.</div>';
   if (!목록.length) {
-    document.getElementById('hospBody').innerHTML = h + '<div class="card empty">' + (말 ? '찾는 병원이 없습니다. 병원명 일부만 적어 보세요.' : '해당하는 병원이 없습니다.') + '</div>';
+    document.getElementById('hospBody').innerHTML = h + '<div class="nh-tbl"><div class="nh-empty">' + (말 ? '찾는 병원이 없습니다. 병원명 일부만 적어 보세요.' : '해당하는 병원이 없습니다.') + '</div></div>';
     return;
   }
-  h += kick(목록.length + '곳 · 최근 활동순');
-  h += '<div class="card" style="padding:4px 16px;">' + 목록.slice(0, HOSPLIM).map(function(x) {
-    var 태그 = (x.linked ? '' : '<span class="tag">거래처 미연결</span>')
-      + (x.equip ? '<span class="tag">장비 보유</span>' : '')
-      + (x.ncare || x.ncStage ? '<span class="tag ncare">N-Care' + (x.ncStage ? ' ' + x.ncStage + '단계' : '') + '</span>' : '')
-      + (x.leadStage ? '<span class="tag">리드 ' + esc(x.leadStage) + '</span>' : '')
-      + (x.demoNext ? '<span class="tag">데모 예정 ' + esc(x.demoNext.slice(5)) + '</span>' : '');
-    var 줄 = [];
-    if (x.visits) 줄.push('방문 ' + x.visits + '회');
-    if ((x.reps || []).length) 줄.push((x.reps.length > 3 ? x.reps.slice(0, 3).join(', ') + ' 외 ' + (x.reps.length - 3) + '명' : x.reps.join(', ')));
-    if (x.demoOn) 줄.push('데모 ' + x.demoOn + (x.demos > 1 ? ' (' + x.demos + '회)' : ''));
-    if (x.nextPlan) 줄.push('다음 계획 ' + x.nextPlan);
-    return '<button type="button" class="hosprow" data-h="' + mkiAttr_(x.name) + '" data-c="' + mkiAttr_(x.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{전체:true})">'
-      + '<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'
-      + '<b style="font-size:14.5px;color:#191f28;overflow-wrap:anywhere;">' + esc(x.name) + '</b>'
-      + '<span style="font-size:12px;color:#5f6b7a;">' + esc([x.region, x.rep ? '영업 ' + x.rep : '', x.careRep ? '케어 ' + x.careRep : ''].filter(Boolean).join(' · ')) + '</span>'
-      + '<span style="margin-left:auto;font-size:12px;font-weight:700;white-space:nowrap;color:' + (x.lastOn ? '#1b64da' : '#8b95a1') + ';">' + (x.lastOn ? esc(x.lastOn) : '기록 없음') + '</span></div>'
-      + (태그 ? '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">' + 태그 + '</div>' : '')
-      + (x.lastOn ? '<div style="margin-top:5px;font-size:12.5px;color:#4e5968;overflow-wrap:anywhere;">최근 ' + esc([x.lastType, x.lastRep].filter(Boolean).join(' · ')) + '</div>' : '')
-      + (줄.length ? '<div style="margin-top:3px;font-size:12.5px;color:#5f6b7a;overflow-wrap:anywhere;">' + esc(줄.join(' · ')) + '</div>' : '')
-      + '</button>';
-  }).join('') + '</div>';
-  if (목록.length > HOSPLIM) h += '<div style="margin:4px 0 14px;text-align:center;"><button class="btn" onclick="HOSPLIM+=50;renderHosp()">더 보기 (' + (목록.length - HOSPLIM) + '곳)</button></div>';
-  if (d.ambiguous) h += '<div style="margin:0 4px 14px;font-size:12px;color:#8b95a1;line-height:1.5;">같은 이름을 쓰는 거래처가 여럿이라 어느 지점인지 알 수 없는 기록 ' + d.ambiguous + '건은 방문 수에 넣지 않았습니다.</div>';
+  h += '<div class="nh-tbl"><div class="nh-th"><div>병원</div><div>상태</div><div>영업 담당</div><div>최근 활동</div><div>방문</div><div>최근 데모</div></div>'
+    + 목록.slice(0, HOSPLIM).map(function(x) {
+      var 태그 = (x.linked ? '' : 병원꼬리표_('거래처 미연결'))
+        + (x.equip ? 병원꼬리표_('장비 보유', '#2a9d99') : '')
+        + (x.ncare || x.ncStage ? 병원꼬리표_('N-Care' + (x.ncStage ? ' ' + x.ncStage + '단계' : ''), '#1aae39') : '')
+        + (x.leadStage ? 병원꼬리표_('리드 ' + x.leadStage, '#dd5b00') : '')
+        + (x.demoNext ? 병원꼬리표_('데모 예정 ' + x.demoNext.slice(5), '#9a6dd7') : '')
+        + (x.nextPlan ? 병원꼬리표_('다음 계획 ' + x.nextPlan.slice(5), '#62aef0') : '');
+      var 유형 = String(x.lastType || '').replace(/^방문\//, '');
+      return '<button type="button" class="hosprow" data-h="' + mkiAttr_(x.name) + '" data-c="' + mkiAttr_(x.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{전체:true})">'
+        + '<div class="c-name"><div class="nh-hn">' + esc(x.name) + '</div>' + (x.region ? '<div class="nh-hr">' + esc(x.region) + '</div>' : '') + '</div>'
+        + '<div class="c-tags"><div class="nh-tags">' + (태그 || 없음) + '</div></div>'
+        + '<div class="nh-cell c-rep">' + (x.rep ? esc(x.rep) : '<span class="nh-none">미지정</span>') + (x.careRep ? '<small>케어 ' + esc(x.careRep) + '</small>' : '') + '</div>'
+        + '<div class="nh-cell c-last">' + (x.lastOn ? '<span class="nh-num">' + esc(x.lastOn) + '</span><small><i class="nh-dot"' + (병원유형색_(x.lastType) ? ' style="background:' + 병원유형색_(x.lastType) + '"' : '') + '></i> ' + esc([유형, x.lastRep].filter(Boolean).join(' · ')) + '</small>' : '<span class="nh-none">기록 없음</span>') + '</div>'
+        + '<div class="nh-cell c-visits nh-num">' + (x.visits ? x.visits + '회' + ((x.reps || []).length ? '<small>' + x.reps.length + '명</small>' : '') : 없음) + '</div>'
+        + '<div class="nh-cell c-demo nh-num">' + (x.demoOn ? esc(x.demoOn.slice(2)) + (x.demos > 1 ? '<small>' + x.demos + '회</small>' : '') : 없음) + '</div>'
+        + '</button>';
+    }).join('') + '</div>';
+  if (목록.length > HOSPLIM) h += '<div style="margin-top:14px;text-align:center;"><button class="nh-btn" onclick="HOSPLIM+=50;renderHosp()">더 보기 (' + (목록.length - HOSPLIM) + '곳)</button></div>';
+  h += '<div class="nh-note">' + 목록.length + '곳 · 최근 활동순'
+    + (d.ambiguous ? '<br>같은 이름을 쓰는 거래처가 여럿이라 어느 지점인지 알 수 없는 기록 ' + d.ambiguous + '건은 방문 수에 넣지 않았습니다.' : '') + '</div>';
   document.getElementById('hospBody').innerHTML = h;
+}
+
+/* ── 병원 탭에서 연 병원 이력 — 문서 한 장 (2026-11-20 새 디자인) ──
+ * 제목 → 속성 → 숫자 4칸 → 누가 언제 방문했나 → 데모 이력 → 리드·N-Care·계획 → 전체 이력(월별, 접지 않는다).
+ * 싣는 값·필터·안내 문구는 작은 창(병원이력그리기_)과 같다 — 모양만 다르다. 값은 서버 병원이력.mjs가 만든다 */
+function 병원이력행_(x) {
+  var l = x.log, a = x.act, r = l || a;
+  var 유형 = l ? (l.type || '기록') : '큐돌이 · ' + a.label;
+  var 꼬리 = l ? (l.cat ? 병원꼬리표_(l.cat, l.cat === 'N-Care' ? '#1aae39' : '') : '') + (l.stage ? 병원꼬리표_(l.stage) : '') : (a.status ? 병원꼬리표_(a.status) : '');
+  var 글 = l ? l.note : a.detail, 색 = 병원유형색_(l ? l.type : '큐돌이');
+  return '<div class="nh-ev"><div class="nh-dt">' + esc(String(r.date || '').slice(5)) + (l && l.dow ? '<small>' + esc(l.dow) + '요일</small>' : '') + '</div><div style="min-width:0;">'
+    + '<div class="nh-tt"><i class="nh-dot"' + (색 ? ' style="background:' + 색 + '"' : '') + '></i>' + esc(유형) + 꼬리 + '<span class="nh-who">' + esc(r.rep) + '</span></div>'
+    + (글 ? '<p class="nh-body">' + esc(글) + '</p>' : '')
+    + (l ? 기록상세_(l) + (l.acts || []).map(function(b) {
+        return '<div class="nh-sub"><div class="nh-tt" style="font-size:14px;"><i class="nh-dot" style="background:#ff64c8"></i>큐돌이 · ' + esc(b.label) + (b.status ? 병원꼬리표_(b.status) : '') + '</div>'
+          + (b.detail ? '<p class="nh-body">' + esc(b.detail) + '</p>' : '') + 병원활동세부_(b) + '</div>';
+      }).join('') : 병원활동세부_(a))
+    + '</div></div>';
+}
+function 병원이력문서_(d) {
+  var H = d.hospital, S = d.summary, 방문자 = d.visitors || [], 데모 = d.demos || [];
+  var 상태 = !H.code ? 병원꼬리표_('거래처 미연결')
+    // 거래처 조회가 실패했으면 「없음」으로 단정하지 않는다. N-Care는 Pool 단계가 있으면 함께 보인다(작은 창과 같은 규칙)
+    : (H.unknown ? 병원꼬리표_('장비·N-Care 확인 못 함')
+      : 병원꼬리표_(H.hasEquipment ? '장비 보유' : '장비 없음', H.hasEquipment ? '#2a9d99' : '')
+        + 병원꼬리표_(H.ncareJoined ? 'N-Care 가입' : d.ncare.length ? 'N-Care 가입 표시 없음 · Pool ' + d.ncare[0].stage + '단계' : 'N-Care 미가입', H.ncareJoined || d.ncare.length ? '#1aae39' : ''))
+      + (H.status ? 병원꼬리표_(H.status) : '');
+  var 앞 = d.plans.filter(function(p) { return p.upcoming; }).sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  var 속성 = [['지역', esc(H.region || '—')], ['거래처 코드', esc(H.code || '—')], ['영업 담당', esc(H.rep || '미지정')], ['케어 담당', esc(H.careRep || '미지정')], ['상태', 상태]];
+  if (앞.length) 속성.push(['다음 계획', '<span class="nh-num">' + esc(앞[0].date) + '</span>']);
+  var h = 병원이력머리_(H.name, '') + '<dl class="nh-props">' + 속성.map(function(x) { return '<dt>' + x[0] + '</dt><dd>' + x[1] + '</dd>'; }).join('') + '</dl>';
+  var 실패 = Object.keys(d.errors || {});
+  if (실패.length) h += '<div class="nh-warn red">일부 이력(' + 실패.map(esc).join('·') + ')을 불러오지 못했습니다. 빈 칸이 「없음」이 아닐 수 있습니다 — 잠시 뒤 다시 열어 주세요.</div>';
+  if (S.ambiguous) h += '<div class="nh-warn">같은 이름을 쓰는 다른 거래처가 있어, 거래처 없이 그 이름으로만 적힌 기록 ' + S.ambiguous + '건은 어느 지점인지 몰라 여기 싣지 않았습니다.</div>';
+  if ((S.moreTables || []).length) h += '<div class="nh-warn">' + S.moreTables.map(esc).join('·') + '은 오래된 것 일부만 보입니다.</div>';
+
+  // 숫자 4칸 — 방문은 방문자별 합계(표시 한도 밖까지 센 값), 데모는 지난 데모 방문기록
+  var 방문합 = 방문자.length ? 방문자.reduce(function(n, v) { return n + (v.count || 0); }, 0) : S.logs;
+  var 지난데모 = 데모.filter(function(x) { return x.src === '기록' && !x.future; });
+  var 칸 = [['방문', 방문합 + '회' + (S.more && !방문자.length ? '+' : ''), 방문자.length ? 방문자.length + '명이 다녀감' : ''],
+    ['데모', 지난데모.length + '회', 지난데모.length ? '최근 ' + 지난데모[0].date : '기록 없음'],
+    ['첫 연락', S.firstContact || '—', ''], ['마지막 연락', S.lastContact || '—', '']];
+  h += '<div class="nh-stats">' + 칸.map(function(x) {
+    return '<div class="nh-stat"><div class="k">' + x[0] + '</div><div class="v">' + esc(x[1]) + '</div><div class="s">' + esc(x[2]) + '</div></div>';
+  }).join('') + '</div>';
+
+  if (방문자.length) h += '<div class="nh-h2">누가 언제 방문했나 <span class="n">' + 방문자.length + '명</span></div><div class="nh-card">' + 방문자.map(function(v) {
+    var 최근 = (v.recent || []).map(function(r) { return r.date.slice(5) + (r.type ? ' ' + r.type.replace(/^방문\//, '') : ''); }).join(' · ');
+    return '<div class="nh-vrow"><b>' + esc(v.rep || '담당자 미상') + '</b><span class="nh-num">' + v.count + '회</span><span class="rc">'
+      + esc(v.first === v.last ? v.last : '첫 방문 ' + v.first + ' · 최근 ' + v.last)
+      + (최근 ? '<br>' + esc(최근) + ((v.count || 0) > (v.recent || []).length ? ' …' : '') : '') + '</span></div>';
+  }).join('') + '</div>';
+
+  if (데모.length) h += '<div class="nh-h2">데모 이력 <span class="n">' + 데모.length + '건</span></div><div class="nh-card">' + 데모.map(function(x) {
+    var 줄 = [];
+    if (x.contact) 줄.push(['만난 사람', x.contact]);
+    if (x.fu) 줄.push(['후속 조치', x.fu]);
+    if (x.stage) 줄.push(['영업 단계', x.stage]);
+    if (x.nozzle !== '' && x.nozzle != null) 줄.push(['데모 노즐', x.nozzle + '개']);
+    if (x.next) 줄.push(['다음 일정', x.next]);
+    var 이름표 = x.src === '큐돌이' ? x.label : x.src === '리드' ? (x.future ? '데모 예정' : '리드 데모일') : String(x.label || '').replace(/^방문\//, '');
+    return '<div class="nh-demo' + (x.future ? ' soon' : '') + '"><div class="nh-dh"><span class="d">' + esc(x.date) + '</span>'
+      + 병원꼬리표_(이름표, x.src === '큐돌이' ? '#ff64c8' : '#9a6dd7') + (x.src === '큐돌이' ? 병원꼬리표_('큐돌이') : '') + (x.status ? 병원꼬리표_(x.status) : '')
+      + '<span class="nh-who">' + esc(x.rep) + '</span></div>'
+      + (x.hidden ? '<div class="nh-note" style="margin-top:6px;">세부 내용은 담당자 본인과 관리자만 봅니다.</div>' : '')
+      + (x.note ? '<p class="nh-body">' + esc(x.note) + '</p>' : '')
+      + (x.src === '리드' ? '<div class="nh-note" style="margin-top:6px;">' + (x.future ? '리드에 적힌 데모 예정일입니다.' : '이 날짜의 데모 방문기록은 없고 리드에 데모일만 적혀 있습니다.') + '</div>' : '')
+      + (x.reaction ? '<div class="nh-quote"><span class="ql">고객 반응</span>' + esc(x.reaction) + '</div>' : '')
+      + (줄.length ? '<div class="nh-kv">' + 줄.map(function(y) { return '<span>' + esc(y[0]) + '<b>' + esc(y[1]) + '</b></span>'; }).join('') + '</div>' : '')
+      + '</div>';
+  }).join('') + '</div>';
+
+  if (d.leads.length) h += '<div class="nh-h2">리드 <span class="n">' + d.leads.length + '건</span></div><div class="nh-card">' + d.leads.map(function(l) {
+    return '<div class="nh-line">' + 병원꼬리표_(l.stage || '단계 없음', l.stage === '계약' ? '#1aae39' : '#dd5b00') + ' '
+      + esc([l.target, l.demoOn ? '데모 ' + l.demoOn : '', l.dealOn ? '계약 ' + l.dealOn : '', l.source, l.rep].filter(Boolean).join(' · '))
+      + (l.failReason ? '<div class="sub">실패 사유 · ' + esc(l.failReason) + '</div>' : '')
+      + (l.failFix || l.retryOn ? '<div class="sub">' + esc([l.failFix ? '다시 연락할 조건 · ' + l.failFix : '', l.retryOn ? '재연락일 ' + l.retryOn : ''].filter(Boolean).join(' · ')) + '</div>' : '')
+      + (l.note ? '<div class="sub">메모 · ' + esc(l.note) + '</div>' : '') + '</div>';
+  }).join('') + '</div>';
+
+  if (d.ncare.length) h += '<div class="nh-h2">N-Care 관리</div><div class="nh-card">' + d.ncare.map(function(p) {
+    return '<div class="nh-line"><b style="font-weight:600;">' + p.stage + '단계 · ' + esc(ncStageName(p.stage)) + '</b> '
+      + esc([p.careRep ? '케어 ' + p.careRep : '케어 담당 미지정', p.grade ? '노즐 ' + p.grade : '', p.tier, p.expiresOn ? '만료 ' + p.expiresOn : ''].filter(Boolean).join(' · ')) + '</div>';
+  }).join('') + '</div>';
+
+  if (앞.length) h += '<div class="nh-h2">앞으로의 계획 <span class="n">' + 앞.length + '건</span></div><div class="nh-card">' + 앞.map(function(p) {
+    return '<div class="nh-line"><b class="nh-num" style="font-weight:600;">' + esc(p.date) + '</b> '
+      + esc([p.type, p.purpose, p.contact ? p.contact + ' 만남' : '', p.rep, p.status === '연기' ? '연기' : ''].filter(Boolean).join(' · '))
+      + (p.prep ? '<div class="sub">준비 · ' + esc(p.prep) + '</div>' : '') + '</div>';
+  }).join('') + '</div>';
+
+  // 전체 이력 — 방문기록과 큐돌이 활동을 날짜순으로, 월별로 묶어 접지 않고 전부. 필터는 작은 창과 같은 규칙(없는 값이면 전체로)
+  var 전체줄 = d.logs.map(function(l) { return { date: l.date, log: l }; })
+    .concat(d.activities.map(function(a) { return { date: a.date, act: a }; }))
+    .sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+  var 사람들 = [];
+  전체줄.forEach(function(x) { var r = (x.log || x.act).rep; if (r && 사람들.indexOf(r) < 0) 사람들.push(r); });
+  var 데모수 = 전체줄.filter(병원줄데모_).length;
+  if (HH.filter !== '전체' && !(HH.filter === '데모' ? 데모수 : 사람들.indexOf(HH.filter.slice(1)) >= 0)) HH.filter = '전체';
+  var 줄들 = HH.filter === '데모' ? 전체줄.filter(병원줄데모_)
+    : HH.filter !== '전체' ? 전체줄.filter(function(x) { return (x.log || x.act).rep === HH.filter.slice(1); }) : 전체줄;
+  h += '<div class="nh-h2">전체 이력 <span class="n">' + 줄들.length + '건' + (HH.filter !== '전체' ? ' / 전체 ' + 전체줄.length + '건' : '') + (S.more ? ' (오래된 것은 일부만)' : '') + '</span></div>';
+  if (데모수 || 사람들.length > 1) h += '<div class="nh-chips">'
+    + [['전체', '전체 ' + 전체줄.length]].concat(데모수 ? [['데모', '데모 ' + 데모수]] : []).concat(사람들.length > 1 ? 사람들.map(function(r) { return ['@' + r, r]; }) : []).map(function(c) {
+      return '<button type="button" class="nh-chip' + (HH.filter === c[0] ? ' on' : '') + '" data-f="' + mkiAttr_(c[0]) + '" onclick="hospHistFilter(this.dataset.f)">' + esc(c[1]) + '</button>';
+    }).join('') + '</div>';
+  var 달 = null;
+  h += 줄들.length ? 줄들.slice(0, HH.limit).map(function(x) {
+    var 이달 = String(x.date || '').slice(0, 7), 머리 = '';
+    if (이달 !== 달) { 달 = 이달; 머리 = '<div class="nh-mon">' + (이달 ? 이달.slice(0, 4) + '년 ' + Number(이달.slice(5)) + '월' : '날짜 없음') + '</div>'; }
+    return 머리 + 병원이력행_(x);
+  }).join('') : '<div class="nh-note">아직 남은 방문기록·활동이 없습니다.</div>';
+
+  var 지난 = d.plans.filter(function(p) { return !p.upcoming; });
+  if (지난.length) h += '<details style="margin-top:22px;"><summary style="font-size:14px;font-weight:600;color:#615d59;cursor:pointer;">지난·취소된 계획 ' + 지난.length + '건</summary>'
+    + 지난.map(function(p) { return '<div style="margin-top:6px;font-size:13.5px;color:#615d59;">' + esc(p.date) + ' · ' + esc([p.type, p.purpose, p.status, p.rep].filter(Boolean).join(' · ')) + '</div>'; }).join('') + '</details>';
+  h += '<div class="nh-note" style="margin-top:30px;">담당자와 관계없이 이 병원에 남은 기록을 모았습니다. 본인 기록은 「내 입력」·큐돌이 「활동 이력」에서 고칩니다. 다른 담당자의 기록은 그 담당자나 관리자에게 요청해 주세요.</div>';
+  var body = document.getElementById('hospModalBody'), 위치 = body.scrollTop;
+  body.innerHTML = h; body.scrollTop = 위치;
 }
 
 function mineLeadCard(l) {
