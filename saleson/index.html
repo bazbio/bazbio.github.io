@@ -501,6 +501,8 @@
   .absb:hover { color:#4e5968; background:#f2f4f6; border-color:#d9dee3; }
   .absb.off { color:#4e5968; background:#f2f4f6; border-color:#d9dee3; }
   .absb.off:hover { background:#e8ebee; }
+  .evtp { cursor:pointer; }
+  .evtp:hover b, .evtp:focus b { color:#1b64da; text-decoration:underline; text-underline-offset:3px; }
 
   /* 모바일: 흐름 퍼널 세로 배치 + 하단 탭 8개 대응 */
   @media (max-width: 899px) {
@@ -1479,6 +1481,11 @@
   <div class="card" style="max-width:560px;width:100%;margin:0;max-height:85vh;overflow-y:auto;" id="hospModalBody"></div>
 </div>
 
+<!-- 학회/세미나 참석자 정보 — 표에서 참석자 이름을 누르면 뜬다 (2026-11-20) -->
+<div id="evtPersonModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:420px;width:100%;margin:0;max-height:85vh;overflow-y:auto;" id="evtPersonBody"></div>
+</div>
+
 <!-- 리드 실패 처리 모달 — 실패 요인·재컨택 조건 기록 -->
 <div id="failModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;align-items:center;justify-content:center;padding:20px;">
   <div class="card" style="max-width:480px;width:100%;margin:0;max-height:90vh;overflow-y:auto;">
@@ -1912,7 +1919,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611200850-d11ae1d';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611201100-6013eef';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -1947,7 +1954,7 @@ try {
    빠뜨린 캐시가 하나만 있어도 「새로고침했는데 그대로다」가 된다. */
 var 당김시작_ = 0, 당김중_ = false;
 function 모달열림_() {
-  return ['hospModal', 'failModal', 'intelModal', 'maModal', 'q4Modal'].some(function(id) {
+  return ['hospModal', 'failModal', 'intelModal', 'maModal', 'q4Modal', 'evtPersonModal'].some(function(id) {
     var m = document.getElementById(id);
     return m && m.style.display && m.style.display !== 'none';
   });
@@ -2105,7 +2112,7 @@ function onBoot최신_(b) {
   /* 값이 달라졌다. 탭 데이터는 조건 없이 갈아끼운다 — 지금 그리는 게 아니라 다음 탭 전환이
      쓸 값이라 덮어도 사용자가 보고 있는 것을 건드리지 않는다. */
   if (b.dash) DASH = b.dash;
-  if (b.evt) EVT = b.evt;
+  if (b.evt) evt설정_(b.evt, 'gas', (b.init || DATA || {}).dbSrc);
   if (b.flow) { FLOW = b.flow; FLOWX = {}; }
   if (b.kpi) KPIT = b.kpi;
   if (b.matl) MATL = b.matl;
@@ -2130,7 +2137,7 @@ function onBoot최신_(b) {
 function onBoot(b) {
   b = b || {};
   if (b.dash) DASH = b.dash;
-  if (b.evt) EVT = b.evt;
+  if (b.evt) evt설정_(b.evt, 'gas', (b.init || DATA || {}).dbSrc);
   if (b.flow) { FLOW = b.flow; FLOWX = {}; }
   if (b.kpi) KPIT = b.kpi;
   if (b.matl) MATL = b.matl;
@@ -2158,6 +2165,20 @@ function 키_(k) { k = Number(k) || 0; return k > 0 ? { row: k, no: 0 } : { row:
 function 열쇠매기기_(arr) {
   (arr || []).forEach(function(x) { x.k = -(Number(x.no) || 0) || (Number(x.row) || 0); });
   return arr;
+}
+/* 행사 목록(EVT)을 넣는 **유일한 입구** (2026-11-20, 반증리뷰). 여태 입구 여섯 곳 중 둘(관문 prefetch·loadEvt)만
+   열쇠를 매겨, 부트·스냅샷이 준 GAS 모양으로 그린 표는 `l.k`가 undefined였다. 참석자 정보 창이 `l.k === k`로
+   찾으니 undefined끼리 참이 되어 **남의 행사·남의 병원 참석자 창**이 오류 없이 떴다(onBoot최신_ :1998 주석과 같은 모양).
+   ⚠ DB가 원천이면 GAS 모양(row만·phone 없음)은 받지 않는다 — 등록 응답(:3759)이 이미 그렇게 판단한다.
+   안 받으면 EVT가 비어 prefetch·loadEvt가 관문에서 다시 받는다.
+   @param 출처 'gas' | '관문'   @param db원천 부트처럼 DATA가 아직 없을 때 b.init.dbSrc를 넘긴다 */
+function evt설정_(d, 출처, db원천) {
+  if (!d) return false;
+  var db = db원천 === undefined ? !!(DATA && DATA.dbSrc) : !!db원천;
+  if (출처 === 'gas' && db) return false;
+  (d.events || []).forEach(function(ev) { 열쇠매기기_(ev.leads); });
+  EVT = d;
+  return true;
 }
 
 /* 홈 「내 계획」·리드 탭을 관문(DB)에서 받는다 — DB가 원천 흉내가 아니라, 쓰기 직후
@@ -2304,6 +2325,8 @@ function 세션비우기_() {
   if (typeof MKT_SEQ !== 'undefined') MKT_SEQ++;
   if (typeof 모달닫기_ === 'function') 모달닫기_();
   if (typeof HOSP !== 'undefined') { HOSP = null; HOSPQ = ''; HOSPSEG = '전체'; HOSPLIM = 50; var 찾기칸 = document.getElementById('hospQ'); if (찾기칸) 찾기칸.value = ''; }
+  // 앞 세션의 「갱신 중…」 셈을 끊는다 — 그 세션 응답이 늦게 와 내려도 0 아래로는 안 간다(Math.max)
+  if (typeof 갱신중_ !== 'undefined') { 갱신중_ = 0; var 알약 = document.getElementById('refreshBar'); if (알약) 알약.style.display = 'none'; }
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
   그린부트_ = ''; 조작함_ = false; 쓴적_ = false;
@@ -2681,7 +2704,7 @@ function 모달닫기_() {
   입력시트콜백_ = null;   // 입력 시트를 뒤로가기로 닫았으면 콜백도 같이 버린다
   closeMA();
   q4Close();
-  ['hospModal', 'failModal', 'intelModal'].forEach(function(id) {
+  ['hospModal', 'failModal', 'intelModal', 'evtPersonModal'].forEach(function(id) {
     var m = document.getElementById(id);
     if (m) m.style.display = 'none';
   });
@@ -2713,7 +2736,10 @@ window.addEventListener('popstate', function(e) {
   if (PIN재설정진입_()) return;
   // 모달이 먼저다 — 항목을 안 만들었으니 그 자리를 되밀어 깊이를 되돌린다
   if (모달열림_()) {
-    if (HH && (HH.back || HH.ret) && document.getElementById('hhRoot')) hospHistBack();   // 병원 이력은 상세로 돌아간다
+    /* 병원 이력은 상세로 돌아간다 — 단 이력 창이 **지금 보일 때만**. 바깥 누르기로 닫은 이력의 HH·hhRoot가 남아 있어
+       다른 창(참석자 정보)에서 뒤로가기를 누르면 닫혔던 이력이 되살아났다 (반증리뷰 2판) */
+    var 이력창 = document.getElementById('hospModal');
+    if (HH && (HH.back || HH.ret) && document.getElementById('hhRoot') && 이력창 && 이력창.style.display && 이력창.style.display !== 'none') hospHistBack();
     else 모달닫기_();
     try { history.pushState({ v: 현재뷰_ }, '', '#' + 현재뷰_); } catch (e2) {}
     return;
@@ -2737,19 +2763,20 @@ function prefetch() {
   if (DATA.dbSrc) {
     if (!DASH) 관문호출_('/saleson-dash', JSON.stringify({ 토큰: TOKEN, ym: '' }))
       .then(function(d) { DASH = d; }, 조용);
-    if (!EVT) 관문호출_('/saleson-evt', JSON.stringify({ 토큰: TOKEN }))
-      .then(function(d) {
-        // 열쇠 통일 — loadEvt와 같은 규칙 (관문 목록은 no)
-        (d.events || []).forEach(function(ev) {
-          열쇠매기기_(ev.leads);
-        });
-        EVT = d;
-      }, 조용);
+    if (!EVT) (function(보낸토큰) {
+      관문호출_('/saleson-evt', JSON.stringify({ 토큰: 보낸토큰 }))
+        .then(function(d) {
+          if (보낸토큰 !== TOKEN) return;   // 그 사이 세션이 바뀌었다 — 앞사람의 참석자 연락처가 새 계정 화면에 남으면 안 된다
+          evt설정_(d, '관문');   // 열쇠 통일 — loadEvt와 같은 입구
+        }, 조용);
+    })(TOKEN);
     if (!FLOW) 관문호출_('/saleson-flow', JSON.stringify({ 토큰: TOKEN, ym: '' }))
       .then(function(d) { FLOW = d; FLOWX = {}; }, 조용);
   } else {
     if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
-    if (!EVT) gsrun().withSuccessHandler(function(d) { EVT = d; }).웹_행사현황(TOKEN);
+    if (!EVT) (function(보낸토큰) {
+      gsrun().withSuccessHandler(function(d) { if (보낸토큰 === TOKEN) evt설정_(d, 'gas'); }).웹_행사현황(보낸토큰);
+    })(TOKEN);
     if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
   }
   // 자료는 관문이 없다 (Drive 링크·권한이 GAS 전용 — 감사 2차 결정)
@@ -3875,7 +3902,7 @@ function evtRegSave(code) {
        관문은 리드를 `no`로, GAS는 `row`로 준다. GAS 모양을 넣으면 열쇠가 양수가 되어
        그 뒤 [정보수정]이 관문이 아니라 GAS로 샌다 — 이 탭은 뒤따르는 관문 갱신이 없어서
        탭을 떠나기 전까지 그 상태로 남는다. 왕복 하나를 더 쓰고 모양을 맞춘다. */
-    if (r.evt && !DATA.dbSrc) { EVT = r.evt; renderEvt(); } else { EVT = null; loadEvt(); }
+    if (r.evt && !DATA.dbSrc && evt설정_(r.evt, 'gas')) renderEvt(); else { EVT = null; loadEvt(); }
   }).withFailureHandler(function(e) {
     busy(false); toast(e.message, true);
   }).웹_행사리드등록(TOKEN, f);
@@ -3906,15 +3933,18 @@ function evtEditSave(row) {
    (`레픽의원`·`레픽의원2`가 같은 행사에 이틀 연속 들어와 있다). 관문이라 0.3초다. */
 function loadEvt(조용히) {
   읽기시작_(조용히, 'evtBody');
+  var 보낸토큰 = TOKEN;
+  /* ⚠ 정리(읽기끝_)는 세션 대조보다 **먼저** 한다 — 버린 응답이 「갱신 중…」 셈을 안 내리면 알약이 영영 떠 있다.
+     성공·실패 두 갈래에 같은 대조를 둔다 — 앞 세션의 늦은 실패가 새 세션 표를 실패 카드로 덮으면 안 된다 (반증리뷰 2판) */
   var 끝 = function(d) {
-    // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙)
-    (d.events || []).forEach(function(ev) {
-      열쇠매기기_(ev.leads);
-    });
-    EVT = d; 읽기끝_(조용히); renderEvt();
+    읽기끝_(조용히);
+    if (보낸토큰 !== TOKEN) return;   // 그 사이 세션이 바뀌었다 (boot의 보낸토큰 규칙과 같다)
+    // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙). 입구는 evt설정_ 하나
+    evt설정_(d, DATA.dbSrc ? '관문' : 'gas'); renderEvt();
   };
   var 실패 = function(e) {
     읽기끝_(조용히);
+    if (보낸토큰 !== TOKEN) return;
     if (조용히) { console.warn('[행사 뒤따라 받기]', (e && e.message) || e); return; }
     실패카드_('evtBody', e, function() { loadEvt(); });
   };
@@ -4050,6 +4080,60 @@ function evtAbsent(k) {
       renderEvt();
       toast(r.on ? '「' + 대상.hname + '」 불참으로 표시했습니다' : '불참 표시를 지웠습니다');
     }), function(e) { busy(false); toast(e.message, true); });
+}
+/* 참석자 등록 정보 (2026-11-20 요청) — 표에서 이름을 눌러 본다.
+   공개 범위: 휴대폰·메모는 조회 전용(C-Labs·MA)을 뺀 **영업 전원**이 본다 — 담당이 아닌 참석자 포함
+   (2026-11-20 사용자 결정. 병원 연락처의 「담당 본인·관리자」 선(8/24)과 다르게 정했다).
+   서버(saleson-evt)가 조회 전용에는 빈칸으로 보내고, 화면도 값과 상관없이 한 번 더 감춘다.
+   칸마다 네 상태를 가른다(반증리뷰): 값 있음 / 빈값 「등록 안 됨」 / 감춤 / **키 없음 = 못 받음**(옛 서버·GAS 원천).
+   「등록일」은 싣지 않는다 — leads.created_at은 신청서 동기화·이관·자동 생성마다 다른 시점(동기화일·적재일)이라
+   실제 등록일로 단정할 수 없다 (반증리뷰 2판). */
+function evtPerson(k) {
+  var 대상 = null, 행사 = null, 개수 = 0;
+  // ⚠ 열쇠가 없거나(undefined·0) 둘 이상 맞으면 멈춘다 — undefined끼리 맞아 남의 참석자 창이 뜨던 자리다
+  if (typeof k === 'number' && k) {
+    ((EVT && EVT.events) || []).forEach(function(ev) {
+      (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; 개수++; } });
+    });
+  }
+  if (!대상 || 개수 !== 1) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  /* 감춤 판정은 서버 표지(연락처감춤, DB reps.viewer)와 화면(DATA.me.viewer, GAS 명부) 중 **하나라도** 참이면 감춘다.
+     둘이 갈리는 사이 서버가 빈값으로 보낸 것을 「등록 안 됨」으로 단정하지 않게 (반증리뷰 2판) */
+  var 숨김 = !!((DATA && DATA.me && DATA.me.viewer) || (EVT && EVT.연락처감춤));
+  var 줄 = function(이름, 값) {
+    return '<div style="display:flex;gap:12px;padding:9px 0;border-top:1px solid #f2f4f6;font-size:13.5px;">'
+      + '<div style="width:72px;flex:none;color:#6b7684;">' + 이름 + '</div><div style="flex:1;color:#191f28;word-break:break-all;">' + 값 + '</div></div>';
+  };
+  var 흐림 = function(t) { return '<span style="color:#8b95a1;">' + t + '</span>'; };
+  var 없음 = 흐림('등록 안 됨');
+  // 키가 없을 때: DB 원천이면 옛 서버판 등 일시 상태라 새로고침을 권하고, GAS 원천(롤백)이면 새로고침해도 안 나오니 시키지 않는다
+  var 못받음 = 흐림(DATA && DATA.dbSrc ? '불러오지 못했습니다 — 새로고침한 뒤 다시 열어 주세요' : '지금 운영 방식에서는 볼 수 없습니다');
+  var 감춤 = 흐림('조회 전용 계정에는 보이지 않습니다');
+  var 칸 = function(키, 그리기) {
+    if (숨김) return 감춤;
+    if (!(키 in 대상)) return 못받음;
+    return 대상[키] ? 그리기(String(대상[키])) : 없음;
+  };
+  var 전화 = 칸('phone', function(v) {
+    return '<a href="tel:' + esc(v.replace(/[^0-9+]/g, '')) + '" style="font-weight:700;color:#1b64da;text-decoration:none;">📞 ' + esc(v) + '</a>';
+  });
+  var h = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">'
+    // min-width:0·overflow-wrap — 전역 keep-all이라 공백 없는 긴 병원명이 [닫기]를 창 밖으로 밀었다
+    + '<div style="min-width:0;overflow-wrap:anywhere;"><div style="font-size:16px;font-weight:700;color:#191f28;">' + esc(대상.hname) + '</div>'
+    + '<div style="font-size:12px;color:#6b7684;margin-top:3px;">' + esc(행사.name) + (행사.date ? ' · ' + esc(행사.date) : '') + '</div></div>'
+    + '<button class="btn ghost" style="padding:5px 10px;font-size:12px;" onclick="document.getElementById(\'evtPersonModal\').style.display=\'none\'">닫기</button></div>'
+    + '<div style="margin-top:12px;">'
+    + 줄('참석자', 대상.contact ? esc(대상.contact) : 없음)
+    + 줄('휴대폰', 전화)
+    + 줄('담당', 대상.rep ? esc(대상.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>')
+    + 줄('단계', esc(대상.stage || '-'))
+    + 줄('달성 목표', (대상.target ? esc(대상.target) : '-') + (대상.due ? ' · 시기 ' + esc(대상.due) : '')
+        + (대상.target ? (대상.achv === '달성' ? ' <span class="badge deal">달성</span>' : ' <span class="badge tgt">진행 중</span>') : ''))
+    + (대상.absent ? 줄('불참', esc(String(대상.absent.at || '')) + (대상.absent.by ? ' ' + esc(대상.absent.by) + ' 표시' : '')) : '')
+    + 줄('메모', 칸('memo', function(v) { return esc(v).replace(/\n/g, '<br>'); }))
+    + '</div>';
+  document.getElementById('evtPersonBody').innerHTML = h;
+  document.getElementById('evtPersonModal').style.display = 'flex';
 }
 function renderEvt() {
   EVTSIM = [];   // 「이름만 다른 방문」 쌍 — [맞추기] 버튼이 번호로 집는다 (2026-08-16)
@@ -4200,7 +4284,9 @@ function renderEvt() {
         } else if (ABSON && 내리드) {
           불참토글 = '<div><button class="absb" onclick="evtAbsent(' + l.k + ')">불참 표시</button></div>';
         }
-        h += '<tr' + (l.absent ? ' class="absent"' : '') + '><td><b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '')
+        /* 병원명·참석자 이름을 누르면 등록 정보(참석자·휴대폰·등록일 등) 창이 뜬다 (2026-11-20 요청) */
+        h += '<tr' + (l.absent ? ' class="absent"' : '') + '><td><span class="evtp" role="button" tabindex="0" title="등록 정보 보기" onclick="evtPerson(' + l.k + ')" onkeydown="if(event.key===\'Enter\')evtPerson(' + l.k + ')">'
+          + '<b>' + esc(l.hname) + '</b>' + (l.contact ? ' <span style="font-size:11px;color:#5f6b7a;">' + esc(l.contact) + '</span>' : '') + '</span>'
           + 불참배지 + near + 불참토글 + '</td>'
           /* 참석 확인은 병원 바로 옆이다 — 폰에서 표가 옆으로 밀려도 담당·단계보다 먼저 손이 닿는다 */
           + (확인열 ? ATT_PTS.map(function(n) {
