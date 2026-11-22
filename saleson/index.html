@@ -1921,7 +1921,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611211841-5be44ab';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611221251-e6f76c7';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -8037,7 +8037,7 @@ function renderNcare() {
 }
 
 /* 방문 주기 (2026-11-20 이사 결정) — 노즐 등급별로 A 매주 · B 2주 · C·D 4주에 한 번 현장 방문.
-   대상은 가입 병원(5단계 이상, 해지 제외)부터. 판정은 서버가 한다(_공유/엔케어방문주기.mjs 방문판정 →
+   대상은 N-Care 미가입 병원(5단계 미만, 해지 제외)의 A·B 등급부터(11-22 정정). 판정은 서버가 한다(_공유/엔케어방문주기.mjs 방문판정 →
    줄마다 p.visit) — 화면은 받은 state를 묶어 보이기만 한다. 주기는 주(월~일) 단위다. */
 var NC_VISIT_SEC = [
   ['late', '기한 지남', true], ['due', '이번 주에 방문', false], ['nograde', '등급 없음 — 주기를 정할 수 없습니다', true],
@@ -8056,7 +8056,7 @@ function renderNcareVisit(mine) {
     return '<div class="card empty">서버에 방문 주기가 아직 반영되지 않았습니다 — 새로고침해도 같으면 관리자에게 알려 주세요</div>';
   }
   if (!rows.length) {
-    return '<div class="card empty">방문 주기 대상(N-Care 가입 병원)이 없습니다' + (NCSEG === '전체' ? '' : ' — ' + esc(NCSEG) + ' 담당 기준') + '</div>';
+    return '<div class="card empty">방문 주기 대상(N-Care 미가입 A·B 등급 병원)이 없습니다' + (NCSEG === '전체' ? '' : ' — ' + esc(NCSEG) + ' 담당 기준') + '</div>';
   }
   var 묶음 = {};
   rows.forEach(function(p) { (묶음[p.visit.state] = 묶음[p.visit.state] || []).push(p); });
@@ -8073,7 +8073,7 @@ function renderNcareVisit(mine) {
     + 칸(n('due'), '이번 주 남음', '#1b64da') + 칸(n('late'), '기한 지남', '#d0223a')
     + 칸(계획없음, '이번 주 계획 없음', 계획없음 ? '#d0223a' : '#4e5968')
     + '</div><div style="margin-top:10px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
-    + '노즐 등급 A 매주 · B 2주에 한 번 · C·D 4주에 한 번 — N-Care 가입 병원, 현장 방문만 셉니다(전화 제외). 주는 월~일 기준입니다.'
+    + '노즐 등급 A 매주 · B 2주에 한 번 — N-Care 미가입 병원(A·B 등급부터), 현장 방문만 셉니다(전화 제외). 주는 월~일 기준입니다.'
     + (n('nograde') ? ' <b style="color:#d0223a;">등급 없는 병원 ' + n('nograde') + '곳</b>은 등급을 넣어야 주기가 잡힙니다.' : '')
     + '</div></div>';
   var 줄 = function(p, i) {
@@ -8512,7 +8512,7 @@ function ncOpen(id) {
     + '<div style="display:flex;gap:6px;flex:0 0 auto;">' + (병원이력가능_() ? '<button class="btn" data-h="' + mkiAttr_(p.hname) + '" data-c="' + mkiAttr_(p.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{다시:function(){ncOpen(' + p.id + ')}})">전체 이력</button>' : '')
     + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div></div>';
   if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
-  // 방문 주기(11-20) — 가입 병원만 서버가 판정을 붙인다
+  // 방문 주기(11-20) — 방문 주기 대상(미가입 A·B·등급 없음)만 서버가 판정을 붙인다
   if (p.visit && p.visit.state && p.visit.state !== 'none') {
     var 주기글 = { late: '기한 지남', due: '이번 주에 방문', done: '이번 주 방문 완료', ok: '이번 주는 대상 아님', nograde: '등급 없음' }[p.visit.state] || '';
     var 급함 = p.visit.state === 'late' || p.visit.state === 'nograde';
@@ -8856,7 +8856,7 @@ function ncPlan(id) {
   메타배너갱신_();
   show('plan');
   document.getElementById('pHosp').value = p.hname;
-  // 가입 병원(방문 주기 대상)은 카테고리를 N-Care로 골라 둔다 — 주기 방문은 케어 방문이다. 바꾸고 싶으면 칩을 다시 누르면 된다
+  // 방문 주기 대상(미가입 병원)은 카테고리를 N-Care로 골라 둔다 — 주기 방문은 케어 방문이다. 바꾸고 싶으면 칩을 다시 누르면 된다
   var 케어칩 = p.visit && p.visit.state && p.visit.state !== 'none' && document.querySelector('#pCat .chip[data-v="N-Care"]');
   if (케어칩) pickPCat(케어칩);
   checkNewHosp();
