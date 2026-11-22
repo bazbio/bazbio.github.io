@@ -1117,6 +1117,8 @@
     <!-- 고객 반응 칸을 없애고 논의 내용에 함께 적는다 (2026-11-10 영업팀 요청). 예전 기록의 반응은 수정할 때
          논의 내용 끝에 「고객 반응: …」으로 옮겨 보인다(반응합치기_). #fReaction은 값 통로로만 남긴다. -->
     <label class="f">진행 내용 · 고객 반응 *</label>
+    <!-- N-Care 방문 피드백 의무(11-20) — N-Care 카테고리의 현장 방문일 때만 보인다(ncFbHint_) -->
+    <div id="fNcFb" style="display:none;margin-bottom:6px;font-size:12px;color:#1b64da;line-height:1.6;">N-Care 방문은 피드백이 필수입니다 — <b>사용 현황(시술 횟수·노즐 소모) · 고객 반응 · 불편·요청 사항</b>을 20자 이상, 아래 <b>Follow-up(다음 조치)</b>도 적어 주세요.</div>
     <textarea id="fNote" placeholder="무슨 이야기를 했고 고객이 어떻게 답했는지 함께 적어 주세요 (다른 사람이 봐도 이해되게).&#10;MA·임상팀에 요청할 자료가 있으면 「요청: …」 한 줄로 남겨 주세요."></textarea>
     <input type="hidden" id="fReaction">
     <label class="f">Follow-up 사항</label>
@@ -1693,7 +1695,7 @@ var LEADIO = '';        // 리드 탭 인/아웃 필터 ('' = 전체, 'in', 'out
 var NCARE = null;       // N-Care 탭 데이터 (ADR 0021 — 관문 전용, GAS 폴백 없음)
 var NCSEG = null;       // 담당자 필터 (null = 첫 렌더에서 내 이름 또는 '전체'로)
 var NCST = 0;           // 단계 필터 (0 = 전체)
-var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'exp'(만료 관리, P54-2) / 'noz'(주문 확인, 작업 B) / 'lapse'(해지·건너뛰기, 9/30)
+var NCMODE = 'stage';   // N-Care 탭 보기 — 'stage'(단계별) / 'visit'(방문 주기, 11-20) / 'exp'(만료 관리, P54-2) / 'noz'(주문 확인, 작업 B) / 'lapse'(해지·건너뛰기, 9/30)
 var NOZTGT = null;      // /saleson-nozzle 대상목록 응답
 var NOZTGT_KEY = null;  // 마지막으로 불러온 rep|status|page 조합 — 바뀌면 다시 불러온다
 var NOZTGT_STATUS = ''; // 상태 필터 ('' = 전체)
@@ -1919,7 +1921,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611201100-6013eef';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611211841-5be44ab';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -4780,7 +4782,7 @@ function savePlan() {
   var f = {
     hname: name, hcode: code,
     date: document.getElementById('pDate').value,
-    type: selPType === '__etc' ? document.getElementById('pTypeEtc').value.trim() : selPType,
+    type: selPType === '__etc' ? 방문유형_(document.getElementById('pTypeEtc').value) : selPType,   // 직접 입력도 「방문/」을 붙인다(방문 주기 계획 집계가 like '방문%')
     purpose: document.getElementById('pPurpose').value,
     contact: document.getElementById('pContact').value,
     prep: document.getElementById('pPrep').value,
@@ -4914,6 +4916,31 @@ function 결과칸맞춤_() {
   칩.innerHTML = 표 ? 표[0].map(function(t) { return '<div class="chip' + (t === 기록결과값_() ? ' on' : '') + '" data-v="' + esc(t) + '" onclick="pickOutcome(this)">' + esc(t) + '</div>'; }).join('') : '';
   var n = document.getElementById('fOutcomeNote');
   if (n) n.textContent = 표 ? '큐돌이 주간 목표에 자동으로 셉니다(11/23 주부터). ' + (표[1].length ? '세려면 함께 채워 주세요: ' + 표[1].join(' · ') : '') : '';
+  if (typeof ncFbHint_ === 'function') ncFbHint_();
+}
+/* N-Care 방문 피드백 의무(11-20 이사 결정) — 서버 _공유/엔케어방문주기.mjs 피드백검증과 **같은 규칙**이다.
+   N-Care 카테고리의 현장 방문 기록에만 건다. 수정(EDITKEY)은 ncFbApplies_ — 서버 수정피드백검증과 같은 규칙이다. */
+var NC_FB_MIN = 20;
+function ncFbNeeded_() { return selFCat === 'N-Care' && String(지금기록유형_() || '').indexOf('방문') === 0 && ncFbApplies_(); }
+/* 의무는 결과 상태에 건다 — 새 기록은 늘, 수정은 서버(수정피드백검증)와 같게: 수정 전 기록이 의무 밖이었거나 채운 기록일 때만.
+   의무 이전의 짧은 옛 N-Care 방문 기록은 오타를 고칠 수 있어야 하니 걸지 않는다. */
+function ncFbApplies_() {
+  if (!EDITKEY) return true;
+  var o = 열쇠찾기_((MINE || {}).logs, EDITKEY);
+  if (!o) return false;
+  var 기존의무 = o.cat === 'N-Care' && String(o.type || '').indexOf('방문') === 0;
+  if (!기존의무) return true;
+  if (String(o.note || '').replace(/\s+/g, ' ').trim().length >= NC_FB_MIN && String(o.fu || '').trim()) return true;   // 채운 기록
+  // 의무 이전의 짧은 옛 기록 — 방문일·유형·카테고리가 그대로인 오타 수정만 면제(서버 수정피드백검증과 같다)
+  var 날짜칸 = document.getElementById('fDate');
+  return !!((날짜칸 && 날짜칸.value !== o.date) || String(지금기록유형_() || '') !== String(o.type || '') || selFCat !== o.cat);
+}
+function ncFbHint_() { var e = document.getElementById('fNcFb'); if (e) e.style.display = ncFbNeeded_() ? 'block' : 'none'; }
+function ncFbCheck_(f) {
+  if (f.cat !== 'N-Care' || String(f.type || '').indexOf('방문') !== 0) return null;
+  if (String(f.note || '').replace(/\s+/g, ' ').trim().length < NC_FB_MIN) return ['N-Care 방문은 피드백을 ' + NC_FB_MIN + '자 이상 적어 주세요 — 사용 현황·고객 반응·불편 사항', 'fNote'];
+  if (!String(f.fu || '').trim()) return ['N-Care 방문은 다음 조치(Follow-up)를 적어 주세요 — 없으면 「없음 · 사유」', 'fFu'];
+  return null;
 }
 function pickOutcome(el) { selOutcome = el.getAttribute('data-v'); 결과칸맞춤_(); 임시저장_(); }
 /* 새 전역은 typeof로 감싼다 — 다른 시험이 웹앱 함수만 떼어 돌린다 */
@@ -5139,6 +5166,8 @@ function saveLog() {
   if (f.type === '전화') return 검증실패_('전화 목적을 골라 주세요 — 다섯에 안 맞으면 「기타」', 'fCallPurpose');
   if (기록결과표_(f.type, f.cat) && !f.outcome) return 검증실패_('결과를 골라 주세요 — 큐돌이 주간 목표에 셀지 정합니다', 'fOutcome');
   if (!f.note.trim()) return 검증실패_('진행 내용을 입력해 주세요', 'fNote');
+  var 케어피드백 = ncFbApplies_() && ncFbCheck_(f);
+  if (케어피드백) return 검증실패_(케어피드백[0], 케어피드백[1]);
   if(!q4VisitAttach(f))return;
   document.getElementById('fSave').disabled = true;
   busy(true, '저장 중…');
@@ -7982,7 +8011,7 @@ function ncRowSet_(p) {
 
 function renderNcare() {
   var d = NCARE;
-  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['exp', '만료 관리'], ['lapse', '해지·건너뜀'], ['noz', '주문 확인']].map(function(m) {
+  document.getElementById('ncModeSeg').innerHTML = [['stage', '단계별'], ['visit', '방문 주기'], ['exp', '만료 관리'], ['lapse', '해지·건너뜀'], ['noz', '주문 확인']].map(function(m) {
     return '<div class="chip' + (NCMODE === m[0] ? ' on' : '') + '" onclick="NCMODE=\'' + m[0] + '\';renderNcare()">' + m[1] + '</div>';
   }).join('');
 
@@ -8004,7 +8033,78 @@ function renderNcare() {
 
   document.getElementById('ncBody').innerHTML =
     NCMODE === 'exp' ? renderNcareExp(d, mine) : NCMODE === 'lapse' ? renderNcareLapse(d)
-      : NCMODE === 'noz' ? renderNozzleTargets() : renderNcareStage(mine);
+      : NCMODE === 'noz' ? renderNozzleTargets() : NCMODE === 'visit' ? renderNcareVisit(mine) : renderNcareStage(mine);
+}
+
+/* 방문 주기 (2026-11-20 이사 결정) — 노즐 등급별로 A 매주 · B 2주 · C·D 4주에 한 번 현장 방문.
+   대상은 가입 병원(5단계 이상, 해지 제외)부터. 판정은 서버가 한다(_공유/엔케어방문주기.mjs 방문판정 →
+   줄마다 p.visit) — 화면은 받은 state를 묶어 보이기만 한다. 주기는 주(월~일) 단위다. */
+var NC_VISIT_SEC = [
+  ['late', '기한 지남', true], ['due', '이번 주에 방문', false], ['nograde', '등급 없음 — 주기를 정할 수 없습니다', true],
+  ['done', '이번 주 방문 완료', false], ['ok', '다음 주 이후', false]];
+function ncMD_(d) { return d ? Number(d.slice(5, 7)) + '/' + Number(d.slice(8, 10)) : ''; }
+function ncVisitLine_(v) {
+  var 마지막 = v.lastOn ? '마지막 방문 ' + ncMD_(v.lastOn) : '방문 기록 없음';
+  if (v.state === 'late') return 마지막 + (v.lateWeeks ? ' · ' + v.lateWeeks + '주 지남' : '');
+  if (v.state === 'ok') return 마지막 + ' · 다음 방문 ' + ncMD_(v.dueWeek) + ' 주';
+  if (v.state === 'nograde') return 마지막 + ' · 노즐 등급을 넣어 주세요';
+  return 마지막;
+}
+function renderNcareVisit(mine) {
+  var rows = mine.filter(function(p) { return p.visit && p.visit.state && p.visit.state !== 'none'; });
+  if (!rows.length && mine.length && !mine.some(function(p) { return p.visit; })) {
+    return '<div class="card empty">서버에 방문 주기가 아직 반영되지 않았습니다 — 새로고침해도 같으면 관리자에게 알려 주세요</div>';
+  }
+  if (!rows.length) {
+    return '<div class="card empty">방문 주기 대상(N-Care 가입 병원)이 없습니다' + (NCSEG === '전체' ? '' : ' — ' + esc(NCSEG) + ' 담당 기준') + '</div>';
+  }
+  var 묶음 = {};
+  rows.forEach(function(p) { (묶음[p.visit.state] = 묶음[p.visit.state] || []).push(p); });
+  var n = function(k) { return (묶음[k] || []).length; };
+  var 남음 = n('late') + n('due'), 대상 = 남음 + n('done');
+  var 계획없음 = (묶음.late || []).concat(묶음.due || []).filter(function(p) { return !p.visit.planned; }).length;
+  var 칸 = function(값, 이름, 색) {
+    return '<div style="flex:1;min-width:72px;text-align:center;padding:10px 4px;border-radius:12px;background:#f9fafb;">'
+      + '<div style="font-size:20px;font-weight:700;color:' + 색 + ';">' + 값 + '</div>'
+      + '<div style="margin-top:2px;font-size:11px;color:#4e5968;white-space:nowrap;">' + 이름 + '</div></div>';
+  };
+  var h = '<div class="card" style="padding:14px;"><div style="display:flex;gap:6px;flex-wrap:wrap;">'
+    + 칸(대상, '이번 주 대상', '#191f28') + 칸(n('done'), '방문 완료', '#05754a')
+    + 칸(n('due'), '이번 주 남음', '#1b64da') + 칸(n('late'), '기한 지남', '#d0223a')
+    + 칸(계획없음, '이번 주 계획 없음', 계획없음 ? '#d0223a' : '#4e5968')
+    + '</div><div style="margin-top:10px;font-size:12px;color:#5f6b7a;line-height:1.6;">'
+    + '노즐 등급 A 매주 · B 2주에 한 번 · C·D 4주에 한 번 — N-Care 가입 병원, 현장 방문만 셉니다(전화 제외). 주는 월~일 기준입니다.'
+    + (n('nograde') ? ' <b style="color:#d0223a;">등급 없는 병원 ' + n('nograde') + '곳</b>은 등급을 넣어야 주기가 잡힙니다.' : '')
+    + '</div></div>';
+  var 줄 = function(p, i) {
+    var v = p.visit, 가야함 = v.state === 'late' || v.state === 'due';
+    var 계획 = v.planned ? '<span style="font-size:12px;font-weight:600;color:#05754a;white-space:nowrap;">계획 ' + ncMD_(v.planOn) + '</span>'
+      : 가야함 && v.planOn ? '<span style="font-size:12px;color:#5f6b7a;white-space:nowrap;">계획 ' + ncMD_(v.planOn) + ' (이번 주 아님)</span>'
+          + (NCARE.me.viewer ? '' : ' <button class="btn" style="padding:5px 10px;font-size:12px;white-space:nowrap;" onclick="event.stopPropagation();ncPlan(' + p.id + ')">이번 주 계획 잡기</button>')
+      : 가야함 ? (NCARE.me.viewer ? '<span style="font-size:12px;font-weight:600;color:#d0223a;white-space:nowrap;">계획 없음</span>'
+          : '<button class="btn" style="padding:5px 10px;font-size:12px;white-space:nowrap;" onclick="event.stopPropagation();ncPlan(' + p.id + ')">계획 잡기</button>')
+      : (v.planOn ? '<span style="font-size:12px;color:#5f6b7a;white-space:nowrap;">계획 ' + ncMD_(v.planOn) + '</span>' : '');
+    return '<div style="padding:11px 0;cursor:pointer;display:flex;align-items:center;gap:8px;' + (i ? 'box-shadow:inset 0 1px 0 #f2f4f6;' : '') + '" onclick="ncOpen(' + p.id + ')">'
+      + ncGradeBadge(p.grade)
+      + '<div style="min-width:0;flex:1;"><div style="font-size:14.5px;font-weight:700;color:#191f28;overflow-wrap:anywhere;">' + esc(p.hname)
+      + ' <span style="font-size:12px;font-weight:400;color:#5f6b7a;">' + esc(p.region)
+      + (NCSEG === '전체' || NCSEG === '미지정' ? ' · ' + esc(p.rep || '담당 미지정') : '') + '</span></div>'
+      + '<div style="margin-top:2px;font-size:12px;color:' + (v.state === 'late' || v.state === 'nograde' ? '#d0223a' : '#5f6b7a') + ';">' + esc(ncVisitLine_(v)) + '</div></div>'
+      + 계획 + '</div>';
+  };
+  NC_VISIT_SEC.forEach(function(sec) {
+    var 목록 = (묶음[sec[0]] || []).slice().sort(function(a, b) {
+      var ga = a.grade || 'Z', gb = b.grade || 'Z';
+      if (ga !== gb) return ga < gb ? -1 : 1;
+      var la = a.visit.lastOn || '', lb = b.visit.lastOn || '';   // 오래 안 간 곳(기록 없음 포함)이 위로
+      if (la !== lb) return la < lb ? -1 : 1;
+      return a.hname < b.hname ? -1 : 1;
+    });
+    if (!목록.length) return;
+    h += kick(sec[1] + ' ' + 목록.length + '곳', sec[2]);
+    h += '<div class="card" style="padding:4px 16px;">' + 목록.map(줄).join('') + '</div>';
+  });
+  return h;
 }
 
 /* 주문 확인 — 판매 후 30일 첫 단품 주문 확인 대상목록(작업 B, 명세 §5·§6). N-Care 목록의 기존
@@ -8412,6 +8512,14 @@ function ncOpen(id) {
     + '<div style="display:flex;gap:6px;flex:0 0 auto;">' + (병원이력가능_() ? '<button class="btn" data-h="' + mkiAttr_(p.hname) + '" data-c="' + mkiAttr_(p.code || '') + '" onclick="hospHistOpen(this.dataset.h,this.dataset.c,{다시:function(){ncOpen(' + p.id + ')}})">전체 이력</button>' : '')
     + '<button class="btn ghost" onclick="document.getElementById(\'hospModal\').style.display=\'none\'">닫기</button></div></div>';
   if (p.note) h += '<div style="margin-top:8px;font-size:13px;color:#4e5968;background:#f9fafb;border-radius:10px;padding:10px 12px;line-height:1.6;">' + esc(p.note) + '</div>';
+  // 방문 주기(11-20) — 가입 병원만 서버가 판정을 붙인다
+  if (p.visit && p.visit.state && p.visit.state !== 'none') {
+    var 주기글 = { late: '기한 지남', due: '이번 주에 방문', done: '이번 주 방문 완료', ok: '이번 주는 대상 아님', nograde: '등급 없음' }[p.visit.state] || '';
+    var 급함 = p.visit.state === 'late' || p.visit.state === 'nograde';
+    h += '<div style="margin-top:8px;font-size:13px;line-height:1.6;border-radius:10px;padding:10px 12px;background:' + (급함 ? '#fdeef0' : '#f4f8ff') + ';color:' + (급함 ? '#d0223a' : '#1b64da') + ';">'
+      + '<b>방문 주기' + (p.visit.cycle ? ' · ' + (p.visit.cycle === 1 ? '매주' : p.visit.cycle + '주에 한 번') : '') + ' — ' + 주기글 + '</b>'
+      + '<span style="display:block;color:#4e5968;">' + esc(ncVisitLine_(p.visit)) + (p.visit.planOn ? ' · 다음 계획 ' + ncMD_(p.visit.planOn) : ' · 잡힌 계획 없음') + '</span></div>';
+  }
 
   /* 단계 전환은 두 걸음이다 (8/13 요청) — 누르면 「선택」만 되고, [저장]을 눌러야 옮겨진다.
      한 번 클릭에 바로 옮기던 첫 판은 잘못 눌러도 이력이 남아(4→2→4 같은) 관리감독을 흐렸다. */
@@ -8748,6 +8856,9 @@ function ncPlan(id) {
   메타배너갱신_();
   show('plan');
   document.getElementById('pHosp').value = p.hname;
+  // 가입 병원(방문 주기 대상)은 카테고리를 N-Care로 골라 둔다 — 주기 방문은 케어 방문이다. 바꾸고 싶으면 칩을 다시 누르면 된다
+  var 케어칩 = p.visit && p.visit.state && p.visit.state !== 'none' && document.querySelector('#pCat .chip[data-v="N-Care"]');
+  if (케어칩) pickPCat(케어칩);
   checkNewHosp();
   toast('병원명을 채웠습니다. 방문 예정일과 목적을 넣고 저장하세요');
 }
