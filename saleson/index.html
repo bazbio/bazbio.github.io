@@ -495,6 +495,7 @@
   .acn { color:#b0b8c1; }
   /* 불참 (2026-10-16) — 행은 남기되 흐리게, 이름 옆에 배지. 토글은 작은 글자 버튼이라 표가 안 넓어진다 */
   .badge.abs { background:#ffeaec; color:#d0223a; margin-left:5px; }
+  .badge.pres { background:#e5f7ef; color:#05754a; margin-left:5px; }   /* 참석 (2026-11-20) */
   .dt tr.absent td, .dt tr.absent td b { color:#8b95a1; }
   /* 회색 글자 밑줄은 안 보였다(10/16 피드백) — 알약 테두리로 보이게 한다. 붉은색은 「불참」 배지로 읽혀(10/20 피드백) 흰 바탕 회색 알약으로. 취소는 채운 회색 알약 */
   .absb { display:inline-block; font:inherit; font-size:11px; font-weight:500; color:#8b95a1; background:#fff; border:1px solid #e5e8eb; border-radius:999px; padding:2px 9px; margin-top:4px; cursor:pointer; }
@@ -1675,6 +1676,10 @@
 var DATA = null;
 var DASH = null;
 var EVT = null;
+/* 행사 탭 쓰기·읽기 선후 (반증리뷰 2026-11-23) — 뒤따라 받기(loadEvt(true))는 EVT를 통째로 바꾸는데, 쓰기 전에 출발한
+   읽기 응답이 쓰기 뒤에 도착하면 방금 저장한 표시를 지운 화면을 그렸다. 쓰기가 시작·끝날 때마다 세대를 올리고,
+   세대가 바뀐 뒤 도착한 읽기는 버리고 다시 받는다(쓰기 중이면 끝난 뒤 한 번). */
+var EVT쓰기세대 = 0, EVT쓰기중 = 0, EVT다시받기 = false, EVT세션 = 0;
 var EVTEDIT = null;
 var EVTGRP = '학회';
 var EVTREG = null;
@@ -1921,7 +1926,7 @@ document.addEventListener('input', function () { 조작함_ = true; }, true);
    불일치의 실제 원인이었다. Pages 배포 스크립트가 버전을 찍고(version.txt + 아래 상수),
    화면은 앱으로 돌아올 때마다 대조해 다르면 상단 배너를 띄운다. 강제 새로고침은 안 한다 —
    쓰던 입력이 날아간다. */
-var 빌드버전_ = '202611221251-e6f76c7';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
+var 빌드버전_ = '202611231456-e679c18';   // pages배포.js가 배포 시각으로 바꿔 넣는다. 저장소 원본은 dev
 function 버전확인_() {
   if (빌드버전_ === 'dev') return;   // 하네스·GAS 미리보기에서는 조용히
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
@@ -2329,6 +2334,8 @@ function 세션비우기_() {
   if (typeof HOSP !== 'undefined') { HOSP = null; HOSPQ = ''; HOSPSEG = '전체'; HOSPLIM = 50; var 찾기칸 = document.getElementById('hospQ'); if (찾기칸) 찾기칸.value = ''; }
   // 앞 세션의 「갱신 중…」 셈을 끊는다 — 그 세션 응답이 늦게 와 내려도 0 아래로는 안 간다(Math.max)
   if (typeof 갱신중_ !== 'undefined') { 갱신중_ = 0; var 알약 = document.getElementById('refreshBar'); if (알약) 알약.style.display = 'none'; }
+  // 행사 탭 쓰기 셈도 끊는다 — 앞 세션 쓰기가 걸린 채면 새 세션 목록 응답이 「쓰기 중」으로 버려져 뼈대에 멈춘다 (반증리뷰 2판)
+  if (typeof EVT쓰기중 !== 'undefined') { EVT세션++; EVT쓰기중 = 0; EVT다시받기 = false; EVT쓰기세대++; }
   TOKEN = ''; DATA = null; DASH = null; EVT = null; FLOW = null; KPIT = null; MATL = null; MINE = null; METAQ = null;
   NCARE = null; NCSEG = null; NCST = 0; WEEK = null; WKSEL = ''; INTEL = null;
   그린부트_ = ''; 조작함_ = false; 쓴적_ = false;
@@ -2759,26 +2766,35 @@ window.addEventListener('popstate', function(e) {
    나가 GAS 동시 실행(30개 한도)을 잡아먹고 있었다. 「화면이 멈춘다」의 한 갈래.
    탭 로더(loadDash·loadEvt·loadFlow·loadKpiTab)와 같은 관문·같은 모양이다.
    실패는 조용히 — 미리받기는 어차피 탭을 열면 로더가 다시 받는다. */
+/* 미리받기의 행사 목록은 **아직 아무도 EVT를 안 채웠고 그 사이 쓰기가 없었을 때만** 넣는다 (반증리뷰 2판).
+   늦게 온 미리받기가 행사 탭이 이미 받아 그린 목록·방금 저장한 표시를 쓰기 전 데이터로 덮으면 안 된다.
+   버려도 탭을 열면 loadEvt가 받는다. */
+function 미리받기넣어도되나_(보낸세대) {
+  return !EVT && !EVT쓰기중 && 보낸세대 === EVT쓰기세대;
+}
 function prefetch() {
   if (!TOKEN) return;
   var 조용 = function() {};
   if (DATA.dbSrc) {
     if (!DASH) 관문호출_('/saleson-dash', JSON.stringify({ 토큰: TOKEN, ym: '' }))
       .then(function(d) { DASH = d; }, 조용);
-    if (!EVT) (function(보낸토큰) {
+    if (!EVT) (function(보낸토큰, 보낸세대) {
       관문호출_('/saleson-evt', JSON.stringify({ 토큰: 보낸토큰 }))
         .then(function(d) {
           if (보낸토큰 !== TOKEN) return;   // 그 사이 세션이 바뀌었다 — 앞사람의 참석자 연락처가 새 계정 화면에 남으면 안 된다
+          if (!미리받기넣어도되나_(보낸세대)) return;
           evt설정_(d, '관문');   // 열쇠 통일 — loadEvt와 같은 입구
         }, 조용);
-    })(TOKEN);
+    })(TOKEN, EVT쓰기세대);
     if (!FLOW) 관문호출_('/saleson-flow', JSON.stringify({ 토큰: TOKEN, ym: '' }))
       .then(function(d) { FLOW = d; FLOWX = {}; }, 조용);
   } else {
     if (!DASH) gsrun().withSuccessHandler(function(d) { DASH = d; }).웹_대시보드(TOKEN);
-    if (!EVT) (function(보낸토큰) {
-      gsrun().withSuccessHandler(function(d) { if (보낸토큰 === TOKEN) evt설정_(d, 'gas'); }).웹_행사현황(보낸토큰);
-    })(TOKEN);
+    if (!EVT) (function(보낸토큰, 보낸세대) {
+      gsrun().withSuccessHandler(function(d) {
+        if (보낸토큰 === TOKEN && 미리받기넣어도되나_(보낸세대)) evt설정_(d, 'gas');
+      }).웹_행사현황(보낸토큰);
+    })(TOKEN, EVT쓰기세대);
     if (!FLOW) gsrun().withSuccessHandler(function(d) { FLOW = d; FLOWX = {}; }).웹_영업흐름(TOKEN, '');
   }
   // 자료는 관문이 없다 (Drive 링크·권한이 GAS 전용 — 감사 2차 결정)
@@ -3893,6 +3909,7 @@ function evtRegSave(code) {
   busy(true);
   gsrun().withSuccessHandler(function(r) {
     EVTREG = null; busy(false); toast(r.msg);
+    EVT쓰기세대++;   // 등록 전에 출발한 뒤따라 받기 응답이 늦게 와 새 참석자를 지우지 않게 (반증리뷰 2판)
     // 쓰기 응답이 행사현황과 초기데이터를 같이 실어 온다 — 예전에는 각각 다시 받아 왕복이 셋이었다
     if (r.init) {
       DATA = r.init;
@@ -3919,7 +3936,8 @@ function evtEditSave(row) {
   busy(true);
   // GAS를 거치던 마지막 두 경로 중 하나였다 (8/14) — payToggle과 같은 꼴
   var no = 키_(row).no;
-  var 끝 = function() { EVTEDIT = null; EVT = null; busy(false); loadEvt(); toast('수정했습니다'); };
+  // 세대를 올린다 — 수정 전에 출발한 뒤따라 받기 응답이 늦게 와 수정 전 값으로 덮지 않게 (반증리뷰 2판)
+  var 끝 = function() { EVTEDIT = null; EVT = null; EVT쓰기세대++; busy(false); loadEvt(); toast('수정했습니다'); };
   if (DATA.dbSrc && no) {
     관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '정보수정', no: no, f: f }))
       .then(화면갱신감싸기_(끝), function(e) { busy(false); toast(e.message, true); });
@@ -3935,12 +3953,15 @@ function evtEditSave(row) {
    (`레픽의원`·`레픽의원2`가 같은 행사에 이틀 연속 들어와 있다). 관문이라 0.3초다. */
 function loadEvt(조용히) {
   읽기시작_(조용히, 'evtBody');
-  var 보낸토큰 = TOKEN;
+  var 보낸토큰 = TOKEN, 보낸세대 = EVT쓰기세대;
   /* ⚠ 정리(읽기끝_)는 세션 대조보다 **먼저** 한다 — 버린 응답이 「갱신 중…」 셈을 안 내리면 알약이 영영 떠 있다.
      성공·실패 두 갈래에 같은 대조를 둔다 — 앞 세션의 늦은 실패가 새 세션 표를 실패 카드로 덮으면 안 된다 (반증리뷰 2판) */
   var 끝 = function(d) {
     읽기끝_(조용히);
     if (보낸토큰 !== TOKEN) return;   // 그 사이 세션이 바뀌었다 (boot의 보낸토큰 규칙과 같다)
+    // 쓰기가 끼었다 — 이 응답은 쓰기 전 데이터일 수 있다. 쓰기 중이면 끝난 뒤, 아니면 지금 다시 받는다
+    if (EVT쓰기중) { EVT다시받기 = true; return; }
+    if (보낸세대 !== EVT쓰기세대) { loadEvt(true); return; }
     // 열쇠 통일 — GAS 목록은 row, 관문 목록은 no (홈·리드 탭과 같은 규칙). 입구는 evt설정_ 하나
     evt설정_(d, DATA.dbSrc ? '관문' : 'gas'); renderEvt();
   };
@@ -4007,7 +4028,7 @@ function 참석요약_(ev) {
   });
   if (!지금) return '';
   var 한 = ev.leads.filter(function(l) { return !l.absent && l.chk && l.chk[지금]; }).length;
-  var 오늘 = 확인시점상태_(ev.date, DATA.today, 지금) === '오늘';
+  var 오늘 = 확인시점상태_(ev.date, 행사오늘_(), 지금) === '오늘';
   var 색 = 한 === 참석수 ? ' green' : (오늘 ? ' amber' : ' red');
   return '<span class="pill' + 색 + '">' + ATT_NAME[지금] + ' 참석 확인 <b>' + 한 + '</b>/' + 참석수 + '</span>';
 }
@@ -4034,54 +4055,114 @@ function 참석칸_(l, n, 상태, 내것) {
   }
   return '<td class="c ac' + (상태 === '오늘' ? ' ac-today' : '') + '">' + 안 + '</td>';
 }
+/* 지금 EVT에서 열쇠 k인 참석자 하나를 찾는다 — 없거나 둘 이상이면 null (undefined끼리 맞아 남의 행에 쓰지 않게).
+   쓰기 응답은 요청 전에 잡은 객체가 아니라 **응답 시점의 EVT**에서 다시 찾는다 — 그 사이 뒤따라 받기가 EVT를 바꿨을 수 있다. */
+/* 행사 탭의 오늘 — 목록(saleson-evt)이 받은 그 시각의 KST 오늘. 부트 때 받은 DATA.today는 PWA를 며칠씩 켜 두면
+   낡아서, 행사 당일에도 [참석 표시]가 숨거나 참석 확인 칸이 어제 기준으로 그려졌다 (반증리뷰 2판). 서버는 요청마다 오늘로 판정한다 */
+function 행사오늘_() {
+  return (EVT && EVT.today) || (DATA && DATA.today);
+}
+function evt찾기_(k) {
+  var 대상 = null, 행사 = null, 개수 = 0;
+  if (typeof k === 'number' && k) {
+    ((EVT && EVT.events) || []).forEach(function(ev) {
+      (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; 개수++; } });
+    });
+  }
+  return 대상 && 개수 === 1 ? { 대상: 대상, 행사: 행사 } : null;
+}
+/* 행사 탭 쓰기 감싸기 — 세대를 올리고(읽기 선후), 세션이 바뀐 뒤 온 응답은 버리고, 실패하면 서버 상태로 다시 받는다
+   (거절 409는 다른 사람이 먼저 바꾼 것이고, 모름은 저장됐을 수도 있다 — 어느 쪽이든 지금 화면은 믿을 수 없다). */
+function evt쓰기_(몸통, 성공) {
+  // 진행 중 쓰기가 있으면 받지 않는다 — busy 덮개는 클릭만 막고 키보드 Enter는 통과시켜 같은 요청이 두 번 나갔다 (반증리뷰 2판)
+  if (EVT쓰기중) { toast('저장 중입니다. 잠시 뒤 다시 눌러 주세요'); return; }
+  var 보낸토큰 = TOKEN, 내세션 = EVT세션;
+  EVT쓰기중++; EVT쓰기세대++;
+  // 셈은 이 세션 것만 내린다 — 세션비우기_가 0으로 끊은 뒤 앞 세션 응답이 새 세션의 진행 중 셈을 깎으면 안 된다 (반증리뷰 2판)
+  var 마침 = function() {
+    if (내세션 !== EVT세션) return;
+    EVT쓰기중 = Math.max(0, EVT쓰기중 - 1); EVT쓰기세대++;
+    if (!EVT쓰기중 && EVT다시받기 && 보낸토큰 === TOKEN) { EVT다시받기 = false; loadEvt(true); }
+  };
+  busy(true, '저장 중…');
+  관문호출_('/saleson-lead-act', JSON.stringify(몸통))
+    .then(화면갱신감싸기_(function(r) {
+      마침();
+      if (보낸토큰 !== TOKEN) return;
+      busy(false);
+      성공(r);
+    }), function(e) {
+      마침();
+      if (보낸토큰 !== TOKEN) return;
+      busy(false);
+      /* 모름 — 일반 안내는 「내 입력」을 가리키지만 행사 표시는 거기 안 나온다. 서버는 같은 요청을 다시 받아도
+         멱등이라(이미 그 상태면 성공) 다시 눌러도 안전하다. 늦은 커밋을 놓치지 않게 조금 뒤 한 번 더 받는다 (반증리뷰 2판) */
+      if (e && e.결과 === '모름') {
+        toast('응답이 늦습니다. 저장됐을 수 있으니 잠시 뒤 표를 확인해 주세요 — 표시가 없으면 다시 눌러도 됩니다.', true);
+        loadEvt(true);
+        setTimeout(function() { if (보낸토큰 === TOKEN) loadEvt(true); }, 8000);
+        return;
+      }
+      toast(e.message, true);
+      if (e && e.결과 === '거절') loadEvt(true);
+    });
+}
 function evtAttend(k, n) {
-  var 대상 = null;
-  var 행사 = null;
-  ((EVT && EVT.events) || []).forEach(function(ev) {
-    (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; } });
-  });
+  var 찾음 = evt찾기_(k);
   var no = 키_(k).no;
-  if (!대상 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  if (!찾음 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  var 대상 = 찾음.대상, 행사 = 찾음.행사;
   var 켜기 = !(대상.chk && 대상.chk[n]);
   if (!켜기 && !confirm('「' + 대상.hname + '」의 ' + ATT_NAME[n] + ' 참석 확인 표시를 지울까요?')) return;
-  busy(true, '저장 중…');
-  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '참석확인', no: no, cp: n, on: 켜기,
-    code: 행사.code, date: 행사.date }))
-    .then(화면갱신감싸기_(function(r) {
-      busy(false);
-      대상.chk = 대상.chk || {};
-      if (r.on && r.확인) 대상.chk[n] = r.확인; else delete 대상.chk[n];
-      renderEvt();
-      toast(r.on ? '「' + 대상.hname + '」 ' + ATT_NAME[n] + ' 참석 확인 체크했습니다' : '확인 표시를 지웠습니다');
-    }), function(e) { busy(false); toast(e.message, true); });
+  evt쓰기_({ 토큰: TOKEN, 동작: '참석확인', no: no, cp: n, on: 켜기, code: 행사.code, date: 행사.date }, function(r) {
+    var 지금 = evt찾기_(k);
+    if (지금) {
+      지금.대상.chk = 지금.대상.chk || {};
+      if (r.on && r.확인) 지금.대상.chk[n] = r.확인; else delete 지금.대상.chk[n];
+    }
+    renderEvt();
+    toast(r.on ? '「' + 대상.hname + '」 ' + ATT_NAME[n] + ' 참석 확인 체크했습니다' : '확인 표시를 지웠습니다');
+  });
 }
 /* 불참 표시 (2026-10-16) — 등록한 원장님이 끝내 안 오게 됐을 때. 리드는 그대로 두고 표시만 한다:
    참석 확인 칸이 잠기고, 참석자 수·행사 후 방문·참석 확인 비율과 D-7·3·1 알림 대상에서 빠진다.
    저장은 관문 `saleson-lead-act`의 `불참`(0039)뿐이라 원천이 DB이고 서버가 표를 갖고 있을 때만 버튼이 보인다. */
-function evtAbsent(k) {
-  var 대상 = null;
-  var 행사 = null;
-  ((EVT && EVT.events) || []).forEach(function(ev) {
-    (ev.leads || []).forEach(function(l) { if (l.k === k) { 대상 = l; 행사 = ev; } });
-  });
+function evtAbsent(k) { evtMark_(k, '불참'); }
+/* 참석 표시 (2026-11-20, 차성민 프로 요청) — 실제로 오셨을 때. 여태 「불참」 칸만 있었다.
+   불참과 배타다 — 표시가 있으면 그 「취소」만 보이고, 서버(`saleson-lead-act` `참석`, 0064)는 화면이 본 상태(`본상태`)가
+   서버와 다르거나 반대쪽이 있으면 아무것도 안 바꾸고 409로 막는다(남의 기록을 조용히 덮지 않게, 반증리뷰 11-23).
+   참석은 행사일 이후에만 켠다 — 「왔다」는 행사 전엔 모른다.
+   참석 확인(D-7·3·1)은 「온다고 했다」, 이것은 「왔다」라 따로 둔다. 다른 숫자(참석자·행사 후 방문)는 안 바꾸고 「실제 참석 N」만 더한다. */
+function evtPresent(k) { evtMark_(k, '참석'); }
+function evtMark_(k, 말) {
+  var 키 = 말 === '불참' ? 'absent' : 'present';
+  // ⚠ 열쇠가 없거나 둘 이상 맞으면 멈춘다 — undefined끼리 맞아 남의 참석자에 쓰지 않게 (evtPerson과 같은 가드)
+  var 찾음 = evt찾기_(k);
   var no = 키_(k).no;
-  if (!대상 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
-  var 켜기 = !대상.absent;
+  if (!찾음 || !no) return toast('그 참석자를 찾지 못했습니다. 새로고침한 뒤 다시 눌러 주세요', true);
+  var 대상 = 찾음.대상, 행사 = 찾음.행사;
+  var 켜기 = !대상[키];
+  // 서버 읽기 규칙과 같다 — 둘 다 있으면 불참
+  var 본상태 = 대상.absent ? '불참' : (대상.present ? '참석' : '없음');
   var 누구 = '「' + 대상.hname + '」' + (대상.contact ? ' ' + 대상.contact : '');
-  if (켜기 && !confirm(누구 + ' 불참으로 표시할까요?\n참석 확인·알림 대상에서 빠집니다. 리드는 그대로 남습니다.')) return;
-  if (!켜기 && !confirm(누구 + ' 불참 표시를 지울까요?')) return;
-  busy(true, '저장 중…');
-  관문호출_('/saleson-lead-act', JSON.stringify({ 토큰: TOKEN, 동작: '불참', no: no, on: 켜기, code: 행사.code }))
-    .then(화면갱신감싸기_(function(r) {
-      busy(false);
-      대상.absent = r.on ? (r.불참 || { by: DATA.me.name, at: DATA.today }) : null;
+  var 안내 = 말 === '불참' ? '\n참석 확인·알림 대상에서 빠집니다. 리드는 그대로 남습니다.' : '\n행사에 실제로 오신 것으로 기록합니다.';
+  if (켜기 && !confirm(누구 + ' ' + 말 + '으로 표시할까요?' + 안내)) return;
+  if (!켜기 && !confirm(누구 + ' ' + 말 + ' 표시를 지울까요?')) return;
+  evt쓰기_({ 토큰: TOKEN, 동작: 말, no: no, on: 켜기, code: 행사.code, 본상태: 본상태 }, function(r) {
+    // 응답 시점의 EVT에서 다시 찾는다 — 요청 전 객체는 뒤따라 받기로 버려졌을 수 있다
+    var 지금 = evt찾기_(k);
+    if (지금) {
+      지금.대상[키] = r.on ? (r[말] || { by: DATA.me.name, at: 행사오늘_() }) : null;
       // 서버(saleson-evt)와 같은 규칙으로 카드 숫자를 다시 센다 — 목록을 다시 안 받는다
-      var 참석 = 행사.leads.filter(function(l) { return !l.absent; });
-      행사.absent = 행사.leads.length - 참석.length;
-      행사.visited = 참석.filter(function(l) { return l.visits > 0; }).length;
-      renderEvt();
-      toast(r.on ? '「' + 대상.hname + '」 불참으로 표시했습니다' : '불참 표시를 지웠습니다');
-    }), function(e) { busy(false); toast(e.message, true); });
+      var 행 = 지금.행사;
+      var 참석 = 행.leads.filter(function(l) { return !l.absent; });
+      행.absent = 행.leads.length - 참석.length;
+      행.visited = 참석.filter(function(l) { return l.visits > 0; }).length;
+      행.present = 행.leads.filter(function(l) { return l.present && !l.absent; }).length;
+    } else loadEvt(true);
+    renderEvt();
+    toast(r.on ? '「' + 대상.hname + '」 ' + 말 + '으로 표시했습니다' : 말 + ' 표시를 지웠습니다');
+  });
 }
 /* 참석자 등록 정보 (2026-11-20 요청) — 표에서 이름을 눌러 본다.
    공개 범위: 휴대폰·메모는 조회 전용(C-Labs·MA)을 뺀 **영업 전원**이 본다 — 담당이 아닌 참석자 포함
@@ -4132,6 +4213,7 @@ function evtPerson(k) {
     + 줄('달성 목표', (대상.target ? esc(대상.target) : '-') + (대상.due ? ' · 시기 ' + esc(대상.due) : '')
         + (대상.target ? (대상.achv === '달성' ? ' <span class="badge deal">달성</span>' : ' <span class="badge tgt">진행 중</span>') : ''))
     + (대상.absent ? 줄('불참', esc(String(대상.absent.at || '')) + (대상.absent.by ? ' ' + esc(대상.absent.by) + ' 표시' : '')) : '')
+    + (대상.present ? 줄('참석', esc(String(대상.present.at || '')) + (대상.present.by ? ' ' + esc(대상.present.by) + ' 표시' : '')) : '')
     + 줄('메모', 칸('memo', function(v) { return esc(v).replace(/\n/g, '<br>'); }))
     + '</div>';
   document.getElementById('evtPersonBody').innerHTML = h;
@@ -4149,6 +4231,7 @@ function renderEvt() {
   // 참석 확인은 원천이 DB이고(저장 관문) 서버가 표를 갖고 있을 때만 — 마이그레이션 전에는 칸을 안 그린다
   var ATTON = !!(DATA && DATA.dbSrc && EVT && EVT.attendOn);
   var ABSON = !!(DATA && DATA.dbSrc && EVT && EVT.absentOn);   // 불참 표시 — 저장이 관문(0039)에만 있다
+  var PRESON = !!(DATA && DATA.dbSrc && EVT && EVT.presentOn);   // 참석 표시 — 저장이 관문(0064)에만 있다
   evs.forEach(function(ev) {
     var rate = ev.tgt ? Math.round(ev.ach / ev.tgt * 100) : null;
     var 불참수 = ev.absent || 0;
@@ -4158,7 +4241,9 @@ function renderEvt() {
       + '<div style="font-size:16.5px;font-weight:700;color:#191f28;">' + esc(ev.name) + '</div>'
       + '<div style="font-size:12px;color:#4e5968;white-space:nowrap;">' + esc(ev.type) + (ev.date ? ' · ' + esc(ev.date) : '') + '</div></div>'
       + '<div class="evt-sum">'
-      + '<span class="pill">참석자 <b>' + 참석수 + '</b></span>'
+      + '<span class="pill" title="등록한 인원에서 불참을 뺀 수">참석자 <b>' + 참석수 + '</b></span>'
+      // 「참석자」(등록−불참)와 헷갈리지 않게 「실제 참석」이라 부른다 — 담당자가 [참석 표시]로 「왔다」를 적은 수
+      + (ev.present ? '<span class="pill green" title="담당자가 실제로 오셨다고 표시한 수">실제 참석 <b>' + ev.present + '</b></span>' : '')
       + (불참수 ? '<span class="pill" style="background:#ffeaec;color:#d0223a;">불참 <b>' + 불참수 + '</b></span>' : '')
       + '<span class="pill blue">데모 <b>' + ev.demos + '</b></span>'
       + '<span class="pill blue">계약 <b>' + ev.deals + '</b></span>'
@@ -4218,7 +4303,7 @@ function renderEvt() {
       var 확인머리 = '';
       if (확인열) {
         ATT_PTS.forEach(function(n) {
-          var s = 확인시점상태_(ev.date, DATA.today, n);
+          var s = 확인시점상태_(ev.date, 행사오늘_(), n);
           확인머리 += '<th class="c ac' + (s === '오늘' ? ' ac-today' : '') + '">' + ATT_NAME[n]
             + '<div class="acd">' + 확인일표시_(ev.date, n) + (s === '오늘' ? ' · 오늘' : '') + '</div></th>';
         });
@@ -4277,14 +4362,25 @@ function renderEvt() {
         }
         /* 불참 (2026-10-16) — 이름 옆 배지와 작은 토글. 담당자(본인)와 관리자만 누른다 */
         var 내리드 = !DATA.me.viewer && (admin || l.rep === DATA.me.name);
-        var 불참배지 = l.absent ? '<span class="badge abs">불참</span>' : '';
+        /* 참석 (2026-11-20) — 불참과 같은 자리·같은 모양. 둘은 배타라 한 행에 배지는 하나다.
+           아무 표시가 없으면 [참석 표시][불참 표시]를 나란히, 표시가 있으면 「날짜 이름 표시 · 취소」 */
+        var 표시된 = l.absent ? { 말: '불참', 값: l.absent, 함수: 'evtAbsent', 켬: ABSON }
+          : (l.present ? { 말: '참석', 값: l.present, 함수: 'evtPresent', 켬: PRESON } : null);
+        var 불참배지 = l.absent ? '<span class="badge abs">불참</span>' : (l.present ? '<span class="badge pres">참석</span>' : '');
         var 불참토글 = '';
-        if (l.absent) {
-          불참토글 = '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;">' + esc(String(l.absent.at || '').slice(5).replace('-', '/'))
-            + (l.absent.by ? ' ' + esc(l.absent.by) : '') + ' 표시'
-            + (ABSON && 내리드 ? ' · <button class="absb off" style="margin:0;" onclick="evtAbsent(' + l.k + ')">불참 취소</button>' : '') + '</div>';
-        } else if (ABSON && 내리드) {
-          불참토글 = '<div><button class="absb" onclick="evtAbsent(' + l.k + ')">불참 표시</button></div>';
+        if (표시된) {
+          불참토글 = '<div style="font-size:10.5px;color:#8b95a1;margin-top:3px;">' + esc(String(표시된.값.at || '').slice(5).replace('-', '/'))
+            + (표시된.값.by ? ' ' + esc(표시된.값.by) : '') + ' 표시'
+            + (표시된.켬 && 내리드 ? ' · <button class="absb off" style="margin:0;" onclick="' + 표시된.함수 + '(' + l.k + ')">' + 표시된.말 + ' 취소</button>' : '') + '</div>';
+        } else if ((ABSON || PRESON) && 내리드) {
+          // 참석(「왔다」)은 행사 당일부터 — 서버도 행사일 전 켜기를 409로 막는다. 날짜 없는 행사는 연다
+          var 참석전 = PRESON && ev.date && ev.date > 행사오늘_();
+          불참토글 = '<div>'
+            + (PRESON && !참석전 ? '<button class="absb" style="margin-right:4px;" onclick="evtPresent(' + l.k + ')">참석 표시</button>' : '')
+            + (ABSON ? '<button class="absb" onclick="evtAbsent(' + l.k + ')">불참 표시</button>' : '')
+            + (참석전 ? '<span style="font-size:10.5px;color:#8b95a1;margin-left:4px;">참석 표시는 행사일('
+              + esc(String(ev.date).slice(5).replace('-', '/')) + ')부터 · 날이 바뀌었으면 새로고침</span>' : '')
+            + '</div>';
         }
         /* 병원명·참석자 이름을 누르면 등록 정보(참석자·휴대폰·등록일 등) 창이 뜬다 (2026-11-20 요청) */
         h += '<tr' + (l.absent ? ' class="absent"' : '') + '><td><span class="evtp" role="button" tabindex="0" title="등록 정보 보기" onclick="evtPerson(' + l.k + ')" onkeydown="if(event.key===\'Enter\')evtPerson(' + l.k + ')">'
@@ -4292,7 +4388,7 @@ function renderEvt() {
           + 불참배지 + near + 불참토글 + '</td>'
           /* 참석 확인은 병원 바로 옆이다 — 폰에서 표가 옆으로 밀려도 담당·단계보다 먼저 손이 닿는다 */
           + (확인열 ? ATT_PTS.map(function(n) {
-              return 참석칸_(l, n, 확인시점상태_(ev.date, DATA.today, n),
+              return 참석칸_(l, n, 확인시점상태_(ev.date, 행사오늘_(), n),
                 !DATA.me.viewer && (admin || l.rep === DATA.me.name));
             }).join('') : '')
           + '<td class="c">' + (l.rep ? esc(l.rep) : '<span style="color:#d0223a;font-weight:600;">미배정</span>') + '</td>'
@@ -4317,7 +4413,7 @@ function renderEvt() {
     } else {
       h += '<div style="margin-top:12px;font-size:13px;color:#5f6b7a;">등록된 참석자(리드)가 없습니다.'
         // 표가 안 그려지니 칸이 있다는 것 자체가 안 보인다 — 행사 전이면 언제 어떤 칸이 열리는지 알린다
-        + (ATTON && ev.group !== '기타' && ev.date && 확인시점상태_(ev.date, DATA.today, 1) !== '끝'
+        + (ATTON && ev.group !== '기타' && ev.date && 확인시점상태_(ev.date, 행사오늘_(), 1) !== '끝'
           ? ' 참석자를 등록하면 행사 1주 전·3일 전·1일 전 참석 확인 칸이 생깁니다.' : '')
         + '</div>';
     }
@@ -10121,6 +10217,7 @@ function evtUnify(i, side) {
   var x = EVTSIM[i];
   if (!x) return;
   병원명통일_(side === 'a' ? x.a : x.b, side === 'a' ? x.b : x.a, function() {
+    EVT쓰기세대++;   // 통일 전에 출발한 읽기 응답이 늦게 와 옛 이름 표로 덮지 않게 (반증리뷰 2판)
     loadEvt();   // 미방문이 그 자리에서 방문 N회로 바뀌는 것이 확인이다
   });
 }
