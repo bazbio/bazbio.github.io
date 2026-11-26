@@ -229,3 +229,20 @@ export function reorderTask(tasks, id, sectionId, beforeId = '') {
   rest.splice(at, 0, moving);
   return rest;
 }
+
+/**
+ * 완료 체크·해제로 상태가 바뀐 작업이 놓일 섹션 id를 돌려준다(보드 끌기의 섹션→상태 규칙의 반대 방향).
+ * 완료가 되면 같은 프로젝트의 「완료」 섹션으로, 「완료」 섹션에 있던 작업이 완료 해제되면 상태에 맞는 섹션
+ * (수행 중이면 「수행 중」·「진행 중」, 아니면 「할 일」·「진행 전」, 없으면 완료가 아닌 첫 섹션)으로 보낸다.
+ * 상태가 그대로이거나 맞는 섹션이 없으면 지금 섹션을 지킨다.
+ */
+export function sectionForStatus(sections, task, previousStatus) {
+  if (!task || task.status === previousStatus) return task?.sectionId;
+  const own = sections.filter(section => section.projectId === task.projectId);
+  const named = names => own.find(section => names.includes(String(section.name).trim()));
+  const done = named(['완료']);
+  if (task.status === 'done') return done?.id ?? task.sectionId;
+  if (!done || task.sectionId !== done.id) return task.sectionId;
+  const target = named(task.status === 'doing' ? ['수행 중', '진행 중'] : ['할 일', '진행 전']) ?? own.find(section => section.id !== done.id);
+  return target?.id ?? task.sectionId;
+}
